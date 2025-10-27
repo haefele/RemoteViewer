@@ -7,6 +7,7 @@
     <File Path="version.json" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/RemoteViewer.Client/RemoteViewer.Client.csproj" />
     <Project Path="src/RemoteViewer.Server/RemoteViewer.Server.csproj" />
   </Folder>
 </Solution>
