@@ -1,0 +1,12 @@
+<Solution>
+  <Folder Name="/solution items/">
+    <File Path=".gitignore" />
+    <File Path="Directory.Build.props" />
+    <File Path="global.json" />
+    <File Path="nuget.config" />
+    <File Path="version.json" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/RemoteViewer.Server/RemoteViewer.Server.csproj" />
+  </Folder>
+</Solution>
