@@ -11,6 +11,7 @@
         <AnalysisMode>Recommended</AnalysisMode>
         <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
         <ImplicitUsings>enable</ImplicitUsings>
+        <NoWarn>CA1848</NoWarn>
     </PropertyGroup>
   
     <PropertyGroup Label="NuGet-Audit">

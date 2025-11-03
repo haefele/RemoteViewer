@@ -10,4 +10,7 @@
     <Project Path="src/RemoteViewer.Client/RemoteViewer.Client.csproj" />
     <Project Path="src/RemoteViewer.Server/RemoteViewer.Server.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/RemoteViewer.DesktopDupTest/RemoteViewer.DesktopDupTest.csproj" Id="5211042e-a9bc-40aa-8514-965eaff1b791" />
+  </Folder>
 </Solution>
