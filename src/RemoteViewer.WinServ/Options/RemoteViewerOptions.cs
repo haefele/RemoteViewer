@@ -2,13 +2,12 @@
 
 public class RemoteViewerOptions
 {
-    public RemoteViewerMode Mode { get; set; } = RemoteViewerMode.Undefined;
+    public RemoteViewerMode Mode { get; set; } = RemoteViewerMode.WindowsService;
     public uint? SessionId { get; set; }
 }
 
 public enum RemoteViewerMode
 {
-    Undefined,
     WindowsService,
     SessionRecorder,
 }

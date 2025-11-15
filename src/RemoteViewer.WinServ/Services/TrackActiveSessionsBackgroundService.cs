@@ -6,7 +6,7 @@ using System.Diagnostics;
 
 namespace RemoteViewer.WinServ.Services;
 
-public class TrackActiveSessionsBackgroundService(ILogger<TrackActiveSessionsBackgroundService> logger, IOptions<RemoteViewerOptions> remoteViewerOptions) : BackgroundService
+public class TrackActiveSessionsBackgroundService(ILogger<TrackActiveSessionsBackgroundService> logger, IOptions<RemoteViewerOptions> remoteViewerOptions, IWin32Service win32Service) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -22,7 +22,8 @@ public class TrackActiveSessionsBackgroundService(ILogger<TrackActiveSessionsBac
             {
                 try
                 {
-                    var sessions = Win32Helper.GetActiveSessions();
+                    var sessions = win32Service.GetActiveSessions();
+                    logger.LogInformation("Found {SessionCount} active sessions", sessions.Count);
 
                     // Remove processes for sessions that are no longer active
                     foreach (var process in sessionProcesses.Where(f => sessions.Any(d => d.SessionId == f.Key) is false).ToList())
@@ -40,7 +41,7 @@ public class TrackActiveSessionsBackgroundService(ILogger<TrackActiveSessionsBac
 
                         logger.LogInformation("Starting process for session {SessionId}", session.SessionId);
 
-                        process = Win32Helper.CreateInteractiveSystemProcess($"\"{Environment.ProcessPath}\" --RemoteViewer:Mode=SessionRecorder", session.SessionId);
+                        process = win32Service.CreateInteractiveSystemProcess($"\"{Environment.ProcessPath}\" --RemoteViewer:Mode=SessionRecorder", session.SessionId);
                         if (process is null)
                         {
                             logger.LogError("Failed to start process for session {SessionId}", session.SessionId);

@@ -6,6 +6,7 @@ WTSGetActiveConsoleSessionId
 WTSEnumerateSessions
 WTSFreeMemory
 WTS_CURRENT_SERVER_HANDLE
+WTSQuerySessionInformation
 
 OpenProcess
 OpenProcessToken
