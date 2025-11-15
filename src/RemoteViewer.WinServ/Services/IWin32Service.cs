@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+﻿using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Windows.Win32;
@@ -14,7 +14,7 @@ public interface IWin32Service
 {
     bool SwitchToInputDesktop();
 
-    List<DesktopSession> GetActiveSessions();
+    ImmutableList<DesktopSession> GetActiveSessions();
 
     Process? CreateInteractiveSystemProcess(string commandLine, uint sessionId);
 }
@@ -59,9 +59,9 @@ public class Win32Service(ILogger<Win32Service> logger) : IWin32Service
         }
     }
 
-    public unsafe List<DesktopSession> GetActiveSessions()
+    public unsafe ImmutableList<DesktopSession> GetActiveSessions()
     {
-        var sessions = new List<DesktopSession>();
+        var sessions = ImmutableList.CreateBuilder<DesktopSession>();
 
         var consoleSessionId = PInvoke.WTSGetActiveConsoleSessionId();
         sessions.Add(new DesktopSession(
@@ -79,7 +79,7 @@ public class Win32Service(ILogger<Win32Service> logger) : IWin32Service
 
         if (sessionResult is false || sessionInfoPtr == null)
         {
-            return sessions;
+            return sessions.ToImmutable();
         }
 
         var currentSession = sessionInfoPtr; // keep original pointer for WTSFreeMemory
@@ -104,8 +104,7 @@ public class Win32Service(ILogger<Win32Service> logger) : IWin32Service
             PInvoke.WTSFreeMemory(sessionInfoPtr);
         }
 
-
-        return sessions;
+        return sessions.ToImmutable();
     }
     private string GetUsernameFromSessionId(uint sessionId)
     {

@@ -12,3 +12,7 @@ OpenProcess
 OpenProcessToken
 DuplicateTokenEx
 CreateProcessAsUser
+
+EnumDisplayMonitors
+GetMonitorInfo
+MONITORINFOEXW

@@ -19,6 +19,7 @@ try
 
     // Services
     builder.Services.AddSingleton<IWin32Service, Win32Service>();
+    builder.Services.AddSingleton<IScreenshotService, ScreenshotService>();
     builder.Services.AddWindowsService();
     builder.Services.AddSerilog();
 
