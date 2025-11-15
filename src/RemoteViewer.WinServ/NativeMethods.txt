@@ -1,0 +1,13 @@
+OpenInputDesktop
+SetThreadDesktop
+CloseDesktop
+
+WTSGetActiveConsoleSessionId
+WTSEnumerateSessions
+WTSFreeMemory
+WTS_CURRENT_SERVER_HANDLE
+
+OpenProcess
+OpenProcessToken
+DuplicateTokenEx
+CreateProcessAsUser

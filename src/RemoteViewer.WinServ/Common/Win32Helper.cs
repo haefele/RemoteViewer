@@ -10,7 +10,7 @@ using Windows.Win32.System.RemoteDesktop;
 using Windows.Win32.System.StationsAndDesktops;
 using Windows.Win32.System.Threading;
 
-namespace RemoteViewer.DesktopDupTest;
+namespace RemoteViewer.WinServ.Common;
 
 public static class Win32Helper
 {

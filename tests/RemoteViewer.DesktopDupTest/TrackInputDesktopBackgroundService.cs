@@ -34,7 +34,7 @@ public class TrackInputDesktopBackgroundService(ILogger<TrackInputDesktopBackgro
             {
                 logger.LogError(ex, "Failed to switch to input desktop: {ErrorMessage}", ex.Message);
                 return;
-            }            
+            }
         }
     }
 }
