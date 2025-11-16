@@ -19,43 +19,72 @@ public record struct DisplayRect(int Left, int Top, int Right, int Bottom)
     public int Height => Bottom - Top;
 }
 
-public class ScreenshotService : IScreenshotService
+public class ScreenshotService(ILogger<ScreenshotService> logger) : IScreenshotService
 {
     public unsafe ImmutableList<Display> GetDisplays()
     {
-        var displays = new HashSet<Display>(DisplayNameComparer.Instance);
-
-        PInvoke.EnumDisplayMonitors(HDC.Null, null, MonitorEnumCallback, new LPARAM(0));
-
-        return displays.ToImmutableList();
-
-        BOOL MonitorEnumCallback(HMONITOR hMonitor, HDC hdc, RECT* lprcMonitor, LPARAM dwData)
+        try
         {
-            var display = GetDisplayInfo(hMonitor, displays.Count);
-            if (display is not null)
-                displays.Add(display);
+            var displays = new HashSet<Display>(DisplayNameComparer.Instance);
 
-            return true;
+            var result = (bool)PInvoke.EnumDisplayMonitors(HDC.Null, null, MonitorEnumCallback, new LPARAM(0));
+            if (result is false)
+            {
+                var errorCode = Marshal.GetLastWin32Error();
+                logger.LogError("Failed to enumerate display monitors: {ErrorCode}", errorCode);
+                return ImmutableList<Display>.Empty;
+            }
+
+            if (displays.Count == 0)
+            {
+                logger.LogWarning("No displays found during enumeration");
+            }
+
+            return displays.ToImmutableList();
+
+            BOOL MonitorEnumCallback(HMONITOR hMonitor, HDC hdc, RECT* lprcMonitor, LPARAM dwData)
+            {
+                var display = GetDisplayInfo(hMonitor, displays.Count);
+                if (display is not null)
+                    displays.Add(display);
+
+                return true;
+            }
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Exception occurred while getting displays");
+            return ImmutableList<Display>.Empty;
         }
     }
 
-    private static Display? GetDisplayInfo(HMONITOR hMonitor, int displayIndex)
+    private unsafe Display? GetDisplayInfo(HMONITOR hMonitor, int displayIndex)
     {
-        const uint MONITORINFOF_PRIMARY = 0x00000001;
-
-        var infoEx = new MONITORINFOEXW();
-        infoEx.monitorInfo.cbSize = (uint)Marshal.SizeOf<MONITORINFOEXW>();
-
-        if (!PInvoke.GetMonitorInfo(hMonitor, ref infoEx.monitorInfo))
+        try
         {
+            const uint MONITORINFOF_PRIMARY = 0x00000001;
+
+            var infoEx = new MONITORINFOEXW();
+            infoEx.monitorInfo.cbSize = (uint)Marshal.SizeOf<MONITORINFOEXW>();
+
+            if (PInvoke.GetMonitorInfo(hMonitor, ref infoEx.monitorInfo) == false)
+            {
+                var errorCode = Marshal.GetLastWin32Error();
+                logger.LogWarning("Failed to get monitor info for handle {Handle}: {ErrorCode}", (nint)hMonitor.Value, errorCode);
+                return null;
+            }
+
+            var name = ExtractDeviceName(infoEx.szDevice.AsSpan(), displayIndex);
+            var isPrimary = (infoEx.monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
+            var bounds = CreateDisplayRect(infoEx.monitorInfo.rcMonitor);
+
+            return new Display(name, isPrimary, bounds);
+        }
+        catch (Exception exception)
+        {
+            logger.LogWarning(exception, "Exception occurred while getting display info for monitor handle {Handle}", (nint)hMonitor.Value);
             return null;
         }
-
-        var name = ExtractDeviceName(infoEx.szDevice.AsSpan(), displayIndex);
-        var isPrimary = (infoEx.monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
-        var bounds = CreateDisplayRect(infoEx.monitorInfo.rcMonitor);
-
-        return new Display(name, isPrimary, bounds);
     }
 
     private static string ExtractDeviceName(ReadOnlySpan<char> deviceBuffer, int fallbackIndex)
