@@ -16,3 +16,16 @@ CreateProcessAsUser
 EnumDisplayMonitors
 GetMonitorInfo
 MONITORINFOEXW
+
+GetDC
+ReleaseDC
+CreateCompatibleDC
+DeleteDC
+CreateCompatibleBitmap
+SelectObject
+DeleteObject
+BitBlt
+GetDIBits
+CreateDIBSection
+BITMAPINFO
+BITMAPINFOHEADER
