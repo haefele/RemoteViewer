@@ -18,7 +18,6 @@ namespace RemoteViewer.WinServ.Services;
 public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
 {
     private readonly Dictionary<string, DxOutput> _outputs = new();
-    private readonly HashSet<string> _faultedDevices = new();
     private readonly object _lock = new();
 
     public unsafe CaptureResult CaptureDisplay(Display display)
@@ -185,11 +184,6 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
 
         lock (_lock)
         {
-            if (_faultedDevices.Contains(deviceName))
-            {
-                return null;
-            }
-
             if (_outputs.TryGetValue(deviceName, out var existingOutput))
             {
                 return existingOutput;
@@ -282,7 +276,6 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
             catch (Exception exception)
             {
                 logger.LogError(exception, "Failed to create DXGI output for device {DeviceName}", deviceName);
-                _faultedDevices.Add(deviceName);
                 return null;
             }
         }
@@ -297,7 +290,6 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
                 output.Dispose();
                 _outputs.Remove(deviceName);
             }
-            _faultedDevices.Add(deviceName);
         }
     }
 
@@ -340,6 +332,8 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
     {
         private ID3D11Texture2D? _cachedStagingTexture;
         private nint _cachedStagingTexturePtr;
+        private int _cachedWidth;
+        private int _cachedHeight;
 
         public string DeviceName { get; }
         public ID3D11Device Device { get; }
@@ -356,10 +350,12 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
 
         public unsafe ID3D11Texture2D GetOrCreateStagingTexture(int width, int height)
         {
-            if (_cachedStagingTexture != null)
+            if (_cachedStagingTexture != null && _cachedWidth == width && _cachedHeight == height)
             {
                 return _cachedStagingTexture;
             }
+
+            this.DisposeStagingTexture();
 
             var textureDesc = new D3D11_TEXTURE2D_DESC
             {
@@ -385,39 +381,46 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
 
             _cachedStagingTexturePtr = (nint)stagingTexturePtr;
             _cachedStagingTexture = (ID3D11Texture2D)Marshal.GetObjectForIUnknown((nint)stagingTexturePtr);
+            _cachedWidth = width;
+            _cachedHeight = height;
 
             return _cachedStagingTexture;
         }
 
-        public void Dispose()
+        private unsafe void DisposeStagingTexture()
         {
-            try
-            {
-                if (_cachedStagingTexture != null)
-                {
-                    Marshal.FinalReleaseComObject(_cachedStagingTexture);
-                    _cachedStagingTexture = null;
-                }
-            }
-            catch
-            {
-            }
-
-            unsafe
+            if (_cachedStagingTexture != null)
             {
                 try
                 {
-                    if (_cachedStagingTexturePtr != 0)
-                    {
-                        var ptr = (ID3D11Texture2D_unmanaged*)_cachedStagingTexturePtr;
-                        ptr->Release();
-                        _cachedStagingTexturePtr = 0;
-                    }
+                    Marshal.FinalReleaseComObject(_cachedStagingTexture);
                 }
                 catch
                 {
                 }
+                _cachedStagingTexture = null;
             }
+
+            if (_cachedStagingTexturePtr != 0)
+            {
+                try
+                {
+                    var ptr = (ID3D11Texture2D_unmanaged*)_cachedStagingTexturePtr;
+                    ptr->Release();
+                }
+                catch
+                {
+                }
+                _cachedStagingTexturePtr = 0;
+            }
+
+            _cachedWidth = 0;
+            _cachedHeight = 0;
+        }
+
+        public void Dispose()
+        {
+            this.DisposeStagingTexture();
 
             try
             {
