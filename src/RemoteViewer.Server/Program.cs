@@ -2,8 +2,7 @@ using RemoteViewer.Server.Hubs;
 using RemoteViewer.Server.Services;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddSingleton<IClientsService, ClientsService>();
-builder.Services.AddSingleton<IConnectionsService, ConnectionService>();
+builder.Services.AddSingleton<IConnectionsService, ConnectionsService>();
 
 var app = builder.Build();
 
