@@ -18,11 +18,12 @@ public class ConnectionHub(IConnectionsService clientsService) : Hub<IConnection
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
-        clientsService.Unregister(this.Context.ConnectionId);
+        await clientsService.Unregister(this.Context.ConnectionId);
     }
 
     public async Task<bool> ConnectTo(string username, string password)
     {
-        await clientsService.TryConnectTo(this.Context.ConnectionId, username, password);
+        var result = await clientsService.TryConnectTo(this.Context.ConnectionId, username, password);
+        return result == null;
     }
 }

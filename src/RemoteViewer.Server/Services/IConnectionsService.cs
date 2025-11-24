@@ -7,7 +7,7 @@ namespace RemoteViewer.Server.Services;
 public interface IConnectionsService
 {
     Task Register(string signalrConnectionId);
-    void Unregister(string signalrConnectionId);
+    Task Unregister(string signalrConnectionId);
 
     Task<TryConnectError?> TryConnectTo(string connectionId, string username, string password);
 }
@@ -17,12 +17,12 @@ public enum TryConnectError
     IncorrectUsernameOrPassword,
 }
 
-public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient> connectionHub) : IConnectionsService
+public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient> connectionHub) : IConnectionsService, IDisposable
 {
-    private readonly Lock _clientsLock = new();
+    private readonly SemaphoreSlim _clientsLock = new(1, 1);
     private readonly List<Client> _clients = new();
 
-    private readonly Lock _connectionsLock = new();
+    private readonly SemaphoreSlim _connectionsLock = new(1, 1);
     private readonly List<Connection> _connections = new();
 
     public async Task Register(string signalrConnectionId)
@@ -37,7 +37,8 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
 
             Client client;
 
-            using (this._clientsLock.EnterScope())
+            await this._clientsLock.WaitAsync();
+            try
             {
                 if (this._clients.Any(c => c.Credentials.Username == username))
                     continue;
@@ -47,32 +48,48 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
                 client = new Client(Guid.NewGuid().ToString(), credentials, signalrConnectionId);
                 this._clients.Add(client);
             }
+            finally
+            {
+                this._clientsLock.Release();
+            }
 
             await connectionHub.Clients.Client(signalrConnectionId).CredentialsAssigned(client.Id, client.Credentials.Username, client.Credentials.Password);
+            break;
         }
     }
 
-    public void Unregister(string signalrConnectionId)
+    public async Task Unregister(string signalrConnectionId)
     {
-        using (this._clientsLock.EnterScope())
+        await this._clientsLock.WaitAsync();
+        try
         {
             this._clients.RemoveAll(c => c.SignalrConnectionId == signalrConnectionId);
+        }
+        finally
+        {
+            this._clientsLock.Release();
+        }
 
-            using (this._clientsLock.EnterScope())
+        await this._connectionsLock.WaitAsync();
+        try
+        {
+            this._connections.RemoveAll(f => f.Presenter.SignalrConnectionId == signalrConnectionId);
+
+            foreach (var connection in this._connections)
             {
-                this._connections.RemoveAll(f => f.Presenter.SignalrConnectionId == signalrConnectionId);
-
-                foreach (var connection in this._connections)
-                {
-                    connection.ClientDisconnected(signalrConnectionId);
-                }
+                connection.ClientDisconnected(signalrConnectionId);
             }
+        }
+        finally
+        {
+            this._connectionsLock.Release();
         }
     }
 
     public async Task<TryConnectError?> TryConnectTo(string connectionId, string username, string password)
     {
-        using (this._clientsLock.EnterScope())
+        await this._clientsLock.WaitAsync();
+        try
         {
             var viewer = this._clients.FirstOrDefault(c => c.SignalrConnectionId == connectionId);
             if (viewer is null)
@@ -82,7 +99,8 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
             if (presenter is null)
                 return TryConnectError.IncorrectUsernameOrPassword;
 
-            using (this._connectionsLock.EnterScope())
+            await this._connectionsLock.WaitAsync();
+            try
             {
                 var connection = this._connections.FirstOrDefault(c => c.Presenter == presenter);
                 if (connection is null)
@@ -95,7 +113,22 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
 
                 return null;
             }
+            finally
+            {
+                this._connectionsLock.Release();
+            }
         }
+        finally
+        {
+            this._clientsLock.Release();
+        }
+    }
+
+    public void Dispose()
+    {
+        _clientsLock.Dispose();
+        _connectionsLock.Dispose();
+        GC.SuppressFinalize(this);
     }
 
     #region Internal
