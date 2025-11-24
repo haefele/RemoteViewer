@@ -11,37 +11,19 @@ public interface IConnectionsService
 
     Task<TryConnectError?> TryConnectTo(string connectionId, string username, string password);
 }
-public record class Client(string Id, Credentials Credentials, string SignalrConnectionId);
-public record class Credentials(string Username, string Password);
 public enum TryConnectError
 {
     ViewerNotFound,
     IncorrectUsernameOrPassword,
 }
 
-public class Connection(string id, Client presenter)
-{
-    public string Id { get; } = id;
-    public Client Presenter { get; } = presenter;
-
-    private readonly List<Client> _viewers = new();
-    public ReadOnlyCollection<Client> Viewers => _viewers.AsReadOnly();
-
-    public void AddViewer(Client viewer)
-    {
-        this._viewers.Add(viewer);
-    }
-
-    public void ClientDisconnected(string signalrConnectionId)
-    {
-        this._viewers.RemoveAll(v => v.SignalrConnectionId == signalrConnectionId);
-    }
-}
-
 public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient> connectionHub) : IConnectionsService
 {
     private readonly Lock _clientsLock = new();
     private readonly List<Client> _clients = new();
+
+    private readonly Lock _connectionsLock = new();
+    private readonly List<Connection> _connections = new();
 
     public async Task Register(string signalrConnectionId)
     {
@@ -75,6 +57,16 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
         using (this._clientsLock.EnterScope())
         {
             this._clients.RemoveAll(c => c.SignalrConnectionId == signalrConnectionId);
+
+            using (this._clientsLock.EnterScope())
+            {
+                this._connections.RemoveAll(f => f.Presenter.SignalrConnectionId == signalrConnectionId);
+
+                foreach (var connection in this._connections)
+                {
+                    connection.ClientDisconnected(signalrConnectionId);
+                }
+            }
         }
     }
 
@@ -90,7 +82,48 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
             if (presenter is null)
                 return TryConnectError.IncorrectUsernameOrPassword;
 
-            throw new NotImplementedException();
+            using (this._connectionsLock.EnterScope())
+            {
+                var connection = this._connections.FirstOrDefault(c => c.Presenter == presenter);
+                if (connection is null)
+                {
+                    connection = new Connection(Guid.NewGuid().ToString(), presenter);
+                    this._connections.Add(connection);
+                }
+
+                connection.AddViewer(viewer);
+
+                return null;
+            }
         }
     }
+
+    #region Internal
+    private class Client(string id, Credentials credentials, string signalrConnectionId)
+    {
+        public string Id { get; } = id;
+        public Credentials Credentials { get; } = credentials;
+        public string SignalrConnectionId { get; } = signalrConnectionId;
+    }
+    private record class Credentials(string Username, string Password);
+
+    private class Connection(string id, Client presenter)
+    {
+        public string Id { get; } = id;
+        public Client Presenter { get; } = presenter;
+
+        private readonly HashSet<Client> _viewers = new();
+        public ReadOnlySet<Client> Viewers => _viewers.AsReadOnly();
+
+        public void AddViewer(Client viewer)
+        {
+            this._viewers.Add(viewer);
+        }
+
+        public void ClientDisconnected(string signalrConnectionId)
+        {
+            this._viewers.RemoveWhere(v => v.SignalrConnectionId == signalrConnectionId);
+        }
+    }
+    #endregion
 }
