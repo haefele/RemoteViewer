@@ -7,6 +7,7 @@ public interface IConnectionHubClient
 {
     Task CredentialsAssigned(string clientId, string username, string password);
     Task StartPresenting(string connectionId);
+    Task StartViewing(string connectionId);
 }
 
 public class ConnectionHub(IConnectionsService clientsService) : Hub<IConnectionHubClient>
@@ -21,9 +22,8 @@ public class ConnectionHub(IConnectionsService clientsService) : Hub<IConnection
         await clientsService.Unregister(this.Context.ConnectionId);
     }
 
-    public async Task<bool> ConnectTo(string username, string password)
+    public async Task<TryConnectError?> ConnectTo(string username, string password)
     {
-        var result = await clientsService.TryConnectTo(this.Context.ConnectionId, username, password);
-        return result == null;
+        return await clientsService.TryConnectTo(this.Context.ConnectionId, username, password);
     }
 }
