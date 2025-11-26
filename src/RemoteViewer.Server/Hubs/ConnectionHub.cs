@@ -6,9 +6,13 @@ namespace RemoteViewer.Server.Hubs;
 public interface IConnectionHubClient
 {
     Task CredentialsAssigned(string clientId, string username, string password);
-    Task StartPresenting(string connectionId);
-    Task StartViewing(string connectionId);
+
+    Task ConnectionStarted(string connectionId, bool isPresenter);
+    Task ConnectionChanged(ConnectionInfo connectionInfo);
+    Task ConnectionStopped(string connectionId);
 }
+
+public record ConnectionInfo(string ConnectionId, string PresenterClientId, List<string> ViewerClientIds);
 
 public class ConnectionHub(IConnectionsService clientsService) : Hub<IConnectionHubClient>
 {
