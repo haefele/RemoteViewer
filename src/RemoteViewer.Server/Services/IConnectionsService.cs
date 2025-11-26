@@ -20,36 +20,52 @@ public enum TryConnectError
     IncorrectUsernameOrPassword,
 }
 
-public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient> connectionHub) : IConnectionsService, IDisposable
+public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient> connectionHub, ILoggerFactory loggerFactory) : IConnectionsService, IDisposable
 {
+    private readonly ILogger<ConnectionsService> _logger = loggerFactory.CreateLogger<ConnectionsService>();
     private readonly List<Client> _clients = new();
     private readonly List<Connection> _connections = new();
     private readonly ReaderWriterLockSlim _lock = new();
 
     public async Task Register(string signalrConnectionId)
     {
+        this._logger.ClientRegistrationStarted(signalrConnectionId);
+        
         var actions = connectionHub.BatchedActions();
 
         const string IdChars = "0123456789";
         const string PasswordChars = "abcdefghijklmnopqrstuvwxyz0123456789";
 
+        int attempts = 0;
         while (true)
         {
+            attempts++;
+
             string username = Random.Shared.GetString(IdChars, 10);
             string password = Random.Shared.GetString(PasswordChars, 8);
 
             using (this._lock.WriteLock())
             {
                 if (this._clients.Any(c => c.Credentials.Username == username))
+                {
+                    this._logger.UsernameCollision(attempts);
                     continue;
+                }
 
                 var credentials = new Credentials(username, password);
 
-                var client = Client.Create(Guid.NewGuid().ToString(), credentials, signalrConnectionId, actions);
+                var client = Client.Create(Guid.NewGuid().ToString(), credentials, signalrConnectionId, actions, loggerFactory);
                 this._clients.Add(client);
+
+                this._logger.ClientRegistered(client.Id, client.Credentials.Username, signalrConnectionId, this._clients.Count);
 
                 break;
             }
+        }
+
+        if (attempts > 1)
+        {
+            this._logger.MultipleRegistrationAttempts(attempts);
         }
 
         await actions.ExecuteAll();
@@ -57,10 +73,14 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
 
     public async Task Unregister(string signalrConnectionId)
     {
+        this._logger.ClientUnregistrationStarted(signalrConnectionId);
+        
         var actions = connectionHub.BatchedActions();
 
         using (this._lock.WriteLock())
         {
+            int connectionsRemoved = 0;
+
             for (int i = this._connections.Count - 1; i >= 0; i--)
             {
                 var connection = this._connections[i];
@@ -69,10 +89,15 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
                 if (connectionStopped)
                 {
                     this._connections.Remove(connection);
+                    connectionsRemoved++;
+
+                    this._logger.ConnectionStoppedPresenterDisconnect(connection.Id);
                 }
             }
 
-            this._clients.RemoveAll(c => c.SignalrConnectionId == signalrConnectionId);
+            var clientsRemoved = this._clients.RemoveAll(c => c.SignalrConnectionId == signalrConnectionId);
+            
+            this._logger.ClientUnregistered(signalrConnectionId, clientsRemoved, connectionsRemoved, this._clients.Count, this._connections.Count);
         }
 
         await actions.ExecuteAll();
@@ -80,32 +105,43 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
 
     public async Task<TryConnectError?> TryConnectTo(string connectionId, string username, string password)
     {
+        this._logger.ConnectionAttemptStarted(connectionId, username);
+        
         var actions = connectionHub.BatchedActions();
 
         using (this._lock.UpgradeableReadLock())
         {
             var viewer = this._clients.FirstOrDefault(c => c.SignalrConnectionId == connectionId);
             if (viewer is null)
+            {
+                this._logger.ViewerNotFound(connectionId);
                 return TryConnectError.ViewerNotFound;
+            }
 
             var presenter = this._clients.FirstOrDefault(c => c.Credentials.Username == username && string.Equals(c.Credentials.Password, password, StringComparison.OrdinalIgnoreCase));
             if (presenter is null)
+            {
+                this._logger.IncorrectCredentials(connectionId, username);
                 return TryConnectError.IncorrectUsernameOrPassword;
+            }
 
             using (this._lock.WriteLock())
             {
                 var connection = this._connections.FirstOrDefault(c => c.Presenter == presenter);
                 if (connection is null)
                 {
-                    connection = Connection.Create(Guid.NewGuid().ToString(), presenter, actions);
+                    connection = Connection.Create(Guid.NewGuid().ToString(), presenter, actions, loggerFactory);
                     this._connections.Add(connection);
                 }
 
                 connection.AddViewer(viewer, actions);
+                this._logger.AddingViewerToConnection(connection.Id, viewer.Id);
             }
         }
 
         await actions.ExecuteAll();
+        
+        this._logger.ConnectionAttemptSucceeded(username);
 
         return null;
     }
@@ -119,19 +155,27 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
     #region Internal
     private sealed class Client
     {
-        public static Client Create(string id, Credentials credentials, string signalrConnectionId, ConnectionHubBatchedActions actions)
+        public static Client Create(string id, Credentials credentials, string signalrConnectionId, ConnectionHubBatchedActions actions, ILoggerFactory loggerFactory)
         {
-            var client = new Client(id, credentials, signalrConnectionId);
+            var logger = loggerFactory.CreateLogger($"{typeof(ConnectionsService).FullName}.Client[{id}]");
+
+            var client = new Client(id, credentials, signalrConnectionId, logger);
             actions.Add(f => f.Client(signalrConnectionId).CredentialsAssigned(client.Id, client.Credentials.Username, client.Credentials.Password));
 
             return client;
         }
-        private Client(string id, Credentials credentials, string signalrConnectionId)
+
+        private Client(string id, Credentials credentials, string signalrConnectionId, ILogger logger)
         {
             this.Id = id;
             this.Credentials = credentials;
             this.SignalrConnectionId = signalrConnectionId;
+            this._logger = logger;
+            
+            this._logger.ClientCreated(id, credentials.Username, signalrConnectionId);
         }
+
+        private readonly ILogger _logger;
 
         public string Id { get; }
         public Credentials Credentials { get; }
@@ -141,18 +185,26 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
 
     private sealed class Connection
     {
-        public static Connection Create(string id, Client presenter, ConnectionHubBatchedActions actions)
+        public static Connection Create(string id, Client presenter, ConnectionHubBatchedActions actions, ILoggerFactory loggerFactory)
         {
-            var connection = new Connection(id, presenter);
+            var logger = loggerFactory.CreateLogger($"{typeof(ConnectionsService).FullName}.Connection[{id}]");
+
+            var connection = new Connection(id, presenter, logger);
             actions.Add(f => f.Client(presenter.SignalrConnectionId).ConnectionStarted(connection.Id, isPresenter: true));
 
             return connection;
         }
-        private Connection(string id, Client presenter)
+
+        private Connection(string id, Client presenter, ILogger logger)
         {
             this.Id = id;
             this.Presenter = presenter;
+            this._logger = logger;
+            
+            this._logger.ConnectionCreated(id, presenter.Id);
         }
+
+        private readonly ILogger _logger;
 
         public string Id { get; }
         public Client Presenter { get; }
@@ -165,15 +217,21 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
             if (this._viewers.Add(viewer))
             {
                 actions.Add(f => f.Client(viewer.SignalrConnectionId).ConnectionStarted(this.Id, isPresenter: false));
+                this._logger.ViewerAdded(this.Id, viewer.Id, this._viewers.Count);
                 this.ConnectionChanged(actions);
+            }
+            else
+            {
+                this._logger.ViewerAlreadyPresent(this.Id, viewer.Id);
             }
         }
 
         public bool ClientDisconnected(string signalrConnectionId, ConnectionHubBatchedActions actions)
         {
-            // The presenter disconnected, let everyone know that the connection is closed now
             if (this.Presenter.SignalrConnectionId == signalrConnectionId)
             {
+                this._logger.PresenterDisconnected(this.Id, this.Presenter.Id, this._viewers.Count);
+                
                 foreach (var viewer in this._viewers)
                 {
                     actions.Add(f => f.Client(viewer.SignalrConnectionId).ConnectionStopped(this.Id));
@@ -181,11 +239,14 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
 
                 return true;
             }
-            // One of the viewers disconnected, let everyone know that the connection changed
             else
             {
-                if (this._viewers.RemoveWhere(v => v.SignalrConnectionId == signalrConnectionId) > 0)
+                var removedCount = this._viewers.RemoveWhere(v => v.SignalrConnectionId == signalrConnectionId);
+                if (removedCount > 0)
+                {
+                    this._logger.ViewerDisconnected(this.Id, removedCount, this._viewers.Count);
                     this.ConnectionChanged(actions);
+                }
 
                 return false;
             }
@@ -198,6 +259,8 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
                 this.Presenter.Id,
                 this._viewers.Select(v => v.Id).ToList()
             );
+
+            this._logger.ConnectionStateChange(this.Id, this._viewers.Count);
 
             actions.Add(f => f.Client(this.Presenter.SignalrConnectionId).ConnectionChanged(connectionInfo));
             
