@@ -1,12 +1,33 @@
 using RemoteViewer.Server.Hubs;
 using RemoteViewer.Server.Services;
+using Serilog;
 
-var builder = WebApplication.CreateBuilder(args);
-builder.Services.AddSingleton<IConnectionsService, ConnectionsService>();
-builder.Services.AddSignalR();
+try
+{
+    var builder = WebApplication.CreateBuilder(args);
 
-var app = builder.Build();
+    Log.Logger = new LoggerConfiguration()
+        .Enrich.FromLogContext()
+        .ReadFrom.Configuration(builder.Configuration)
+        .CreateLogger();
 
-app.MapHub<ConnectionHub>("/connection");
+    builder.Services.AddSingleton<IConnectionsService, ConnectionsService>();
+    builder.Services.AddSignalR();
+    builder.Services.AddSerilog();
 
-app.Run();
+    var app = builder.Build();
+
+    app.MapHub<ConnectionHub>("/connection");
+
+    await app.RunAsync();
+    return 0;
+}
+catch (Exception exception)
+{
+    Log.Fatal(exception, "Host terminated unexpectedly");
+    return 1;
+}
+finally
+{
+    await Log.CloseAndFlushAsync();
+}
