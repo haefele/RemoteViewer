@@ -117,7 +117,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
     }
 
     #region Internal
-    private class Client
+    private sealed class Client
     {
         public static Client Create(string id, Credentials credentials, string signalrConnectionId, ConnectionHubBatchedActions actions)
         {
@@ -137,9 +137,9 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
         public Credentials Credentials { get; }
         public string SignalrConnectionId { get; }
     }
-    private record class Credentials(string Username, string Password);
+    private sealed record class Credentials(string Username, string Password);
 
-    private class Connection
+    private sealed class Connection
     {
         public static Connection Create(string id, Client presenter, ConnectionHubBatchedActions actions)
         {
