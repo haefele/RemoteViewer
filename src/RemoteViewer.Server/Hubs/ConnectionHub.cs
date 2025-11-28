@@ -10,6 +10,8 @@ public interface IConnectionHubClient
     Task ConnectionStarted(string connectionId, bool isPresenter);
     Task ConnectionChanged(ConnectionInfo connectionInfo);
     Task ConnectionStopped(string connectionId);
+
+    Task MessageReceived(string senderClientId, string messageType, ReadOnlyMemory<byte> data);
 }
 
 public record ConnectionInfo(string ConnectionId, string PresenterClientId, List<string> ViewerClientIds);
@@ -29,5 +31,10 @@ public class ConnectionHub(IConnectionsService clientsService) : Hub<IConnection
     public async Task<TryConnectError?> ConnectTo(string username, string password)
     {
         return await clientsService.TryConnectTo(this.Context.ConnectionId, username, password);
+    }
+
+    public async Task SendMessage(string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination)
+    {
+        await clientsService.SendMessage(this.Context.ConnectionId, connectionId, messageType, data, destination);
     }
 }

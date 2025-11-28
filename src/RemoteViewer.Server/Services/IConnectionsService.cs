@@ -13,11 +13,19 @@ public interface IConnectionsService
     Task Unregister(string signalrConnectionId);
 
     Task<TryConnectError?> TryConnectTo(string connectionId, string username, string password);
+    Task SendMessage(string signalrConnectionId, string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination);
 }
 public enum TryConnectError
 {
     ViewerNotFound,
     IncorrectUsernameOrPassword,
+}
+
+public enum MessageDestination
+{
+    PresenterOnly,
+    AllViewers,
+    All,
 }
 
 public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient> connectionHub, ILoggerFactory loggerFactory) : IConnectionsService, IDisposable
@@ -146,6 +154,39 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
         return null;
     }
 
+    public async Task SendMessage(string signalrConnectionId, string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination)
+    {
+        this._logger.MessageSendStarted(signalrConnectionId, connectionId, destination, data.Length);
+        
+        var actions = connectionHub.BatchedActions();
+
+        using (this._lock.ReadLock())
+        {
+            var sender = this._clients.FirstOrDefault(c => c.SignalrConnectionId == signalrConnectionId);
+            if (sender is null)
+            {
+                this._logger.MessageSenderNotFound(signalrConnectionId);
+                return;
+            }
+
+            var connection = this._connections.FirstOrDefault(c => c.Id == connectionId);
+            if (connection is null)
+            {
+                this._logger.MessageConnectionNotFound(connectionId);
+                return;
+            }
+
+            if (connection.SendMessage(sender, messageType, data, destination, actions) is false)
+            {
+                this._logger.MessageSenderNotInConnection(signalrConnectionId, sender.Id, connectionId);
+                return;
+            }
+        }
+
+        await actions.ExecuteAll();
+        this._logger.MessageSendCompleted(signalrConnectionId, connectionId);
+    }
+
     public void Dispose()
     {
         this._lock.Dispose();
@@ -250,6 +291,46 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
 
                 return false;
             }
+        }
+
+        public bool SendMessage(Client sender, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination, ConnectionHubBatchedActions actions)
+        {
+            var isSenderPresenter = this.Presenter == sender;
+            var isSenderViewer = this._viewers.Contains(sender);
+
+            if (isSenderPresenter is false && isSenderViewer is false)
+                return false;
+
+            switch (destination)
+            {
+                case MessageDestination.PresenterOnly:
+                    if (isSenderViewer)
+                    {
+                        actions.Add(f => f.Client(this.Presenter.SignalrConnectionId).MessageReceived(sender.Id, messageType, data));
+                        this._logger.MessageSentToPresenter(this.Id, sender.Id, this.Presenter.Id);
+                    }
+                    break;
+
+                case MessageDestination.AllViewers:
+                    foreach (var viewer in this._viewers)
+                    {
+                        actions.Add(f => f.Client(viewer.SignalrConnectionId).MessageReceived(sender.Id, messageType, data));
+                    }
+                    this._logger.MessageSentToViewers(this.Id, sender.Id, this._viewers.Count);
+                    break;
+
+                case MessageDestination.All:
+                    actions.Add(f => f.Client(this.Presenter.SignalrConnectionId).MessageReceived(sender.Id, messageType, data));
+                    
+                    foreach (var viewer in this._viewers)
+                    {
+                        actions.Add(f => f.Client(viewer.SignalrConnectionId).MessageReceived(sender.Id, messageType, data));
+                    }
+                    this._logger.MessageSentToAll(this.Id, sender.Id, this._viewers.Count + 1);
+                    break;
+            }
+
+            return true;
         }
 
         private void ConnectionChanged(ConnectionHubBatchedActions actions)
