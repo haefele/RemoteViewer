@@ -11,7 +11,7 @@ public interface IConnectionHubClient
     Task ConnectionChanged(ConnectionInfo connectionInfo);
     Task ConnectionStopped(string connectionId);
 
-    Task MessageReceived(string senderClientId, string messageType, ReadOnlyMemory<byte> data);
+    Task MessageReceived(string connectionId, string senderClientId, string messageType, ReadOnlyMemory<byte> data);
 }
 
 public record ConnectionInfo(string ConnectionId, string PresenterClientId, List<string> ViewerClientIds);

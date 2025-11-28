@@ -306,7 +306,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
                 case MessageDestination.PresenterOnly:
                     if (isSenderViewer)
                     {
-                        actions.Add(f => f.Client(this.Presenter.SignalrConnectionId).MessageReceived(sender.Id, messageType, data));
+                        actions.Add(f => f.Client(this.Presenter.SignalrConnectionId).MessageReceived(this.Id, sender.Id, messageType, data));
                         this._logger.MessageSentToPresenter(this.Id, sender.Id, this.Presenter.Id);
                     }
                     break;
@@ -314,17 +314,17 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
                 case MessageDestination.AllViewers:
                     foreach (var viewer in this._viewers)
                     {
-                        actions.Add(f => f.Client(viewer.SignalrConnectionId).MessageReceived(sender.Id, messageType, data));
+                        actions.Add(f => f.Client(viewer.SignalrConnectionId).MessageReceived(this.Id, sender.Id, messageType, data));
                     }
                     this._logger.MessageSentToViewers(this.Id, sender.Id, this._viewers.Count);
                     break;
 
                 case MessageDestination.All:
-                    actions.Add(f => f.Client(this.Presenter.SignalrConnectionId).MessageReceived(sender.Id, messageType, data));
+                    actions.Add(f => f.Client(this.Presenter.SignalrConnectionId).MessageReceived(this.Id, sender.Id, messageType, data));
                     
                     foreach (var viewer in this._viewers)
                     {
-                        actions.Add(f => f.Client(viewer.SignalrConnectionId).MessageReceived(sender.Id, messageType, data));
+                        actions.Add(f => f.Client(viewer.SignalrConnectionId).MessageReceived(this.Id, sender.Id, messageType, data));
                     }
                     this._logger.MessageSentToAll(this.Id, sender.Id, this._viewers.Count + 1);
                     break;
