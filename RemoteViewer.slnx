@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/solution items/">
     <File Path=".gitignore" />
+    <File Path="CLAUDE.md" />
     <File Path="Directory.Build.props" />
     <File Path="global.json" />
     <File Path="nuget.config" />

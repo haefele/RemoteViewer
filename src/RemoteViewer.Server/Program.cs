@@ -1,3 +1,5 @@
+using Nerdbank.MessagePack.SignalR;
+using PolyType.ReflectionProvider;
 using RemoteViewer.Server.Hubs;
 using RemoteViewer.Server.Services;
 using Serilog;
@@ -12,7 +14,7 @@ try
         .CreateLogger();
 
     builder.Services.AddSingleton<IConnectionsService, ConnectionsService>();
-    builder.Services.AddSignalR();
+    builder.Services.AddSignalR().AddMessagePackProtocol(ReflectionTypeShapeProvider.Default);
     builder.Services.AddSerilog();
 
     var app = builder.Build();

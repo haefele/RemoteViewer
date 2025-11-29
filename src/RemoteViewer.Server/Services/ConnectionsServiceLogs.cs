@@ -1,4 +1,6 @@
-﻿namespace RemoteViewer.Server.Services;
+﻿using RemoteViewer.Server.SharedAPI;
+
+namespace RemoteViewer.Server.Services;
 
 internal static partial class ConnectionsServiceLogs
 {

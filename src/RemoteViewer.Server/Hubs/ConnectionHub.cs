@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using RemoteViewer.Server.Services;
+using RemoteViewer.Server.SharedAPI;
+using ConnectionInfo = RemoteViewer.Server.SharedAPI.ConnectionInfo;
 
 namespace RemoteViewer.Server.Hubs;
 
@@ -13,8 +15,6 @@ public interface IConnectionHubClient
 
     Task MessageReceived(string connectionId, string senderClientId, string messageType, ReadOnlyMemory<byte> data);
 }
-
-public record ConnectionInfo(string ConnectionId, string PresenterClientId, List<string> ViewerClientIds);
 
 public class ConnectionHub(IConnectionsService clientsService) : Hub<IConnectionHubClient>
 {

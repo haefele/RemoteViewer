@@ -1,5 +1,8 @@
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
+using Nerdbank.MessagePack.SignalR;
+using PolyType.ReflectionProvider;
+using RemoteViewer.Server.SharedAPI;
 using System.Collections.Concurrent;
 
 using var loggerFactory = LoggerFactory.Create(builder =>
@@ -323,9 +326,11 @@ sealed class ConnectionHubClient : IAsyncDisposable
     public ConnectionHubClient(string serverUrl, ILogger<ConnectionHubClient> logger)
     {
         _logger = logger;
+
         _connection = new HubConnectionBuilder()
             .WithUrl($"{serverUrl}/connection")
             .WithAutomaticReconnect()
+            .AddMessagePackProtocol(ReflectionTypeShapeProvider.Default)
             .Build();
         
         _connection.On<string, string, string>("CredentialsAssigned", (clientId, username, password) =>
@@ -468,19 +473,4 @@ sealed class ConnectionHubClient : IAsyncDisposable
         _logger.LogDebug("Disposing HubClient");
         await _connection.DisposeAsync();
     }
-}
-
-sealed record ConnectionInfo(string ConnectionId, string PresenterClientId, List<string> ViewerClientIds);
-
-enum TryConnectError
-{
-    ViewerNotFound,
-    IncorrectUsernameOrPassword,
-}
-
-enum MessageDestination
-{
-    PresenterOnly,
-    AllViewers,
-    All,
 }

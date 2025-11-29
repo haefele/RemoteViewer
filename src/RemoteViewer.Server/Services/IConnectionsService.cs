@@ -1,9 +1,11 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using RemoteViewer.Server.Common;
 using RemoteViewer.Server.Hubs;
+using RemoteViewer.Server.SharedAPI;
 using System.Collections.ObjectModel;
 
 using ConnectionHubBatchedActions = RemoteViewer.Server.Common.BatchedHubActions<RemoteViewer.Server.Hubs.ConnectionHub, RemoteViewer.Server.Hubs.IConnectionHubClient>;
+using ConnectionInfo = RemoteViewer.Server.SharedAPI.ConnectionInfo;
 
 namespace RemoteViewer.Server.Services;
 
@@ -15,18 +17,7 @@ public interface IConnectionsService
     Task<TryConnectError?> TryConnectTo(string connectionId, string username, string password);
     Task SendMessage(string signalrConnectionId, string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination);
 }
-public enum TryConnectError
-{
-    ViewerNotFound,
-    IncorrectUsernameOrPassword,
-}
 
-public enum MessageDestination
-{
-    PresenterOnly,
-    AllViewers,
-    All,
-}
 
 public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient> connectionHub, ILoggerFactory loggerFactory) : IConnectionsService, IDisposable
 {
@@ -335,7 +326,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
 
         private void ConnectionChanged(ConnectionHubBatchedActions actions)
         {
-            var connectionInfo = new Hubs.ConnectionInfo(
+            var connectionInfo = new ConnectionInfo(
                 this.Id,
                 this.Presenter.Id,
                 this._viewers.Select(v => v.Id).ToList()
