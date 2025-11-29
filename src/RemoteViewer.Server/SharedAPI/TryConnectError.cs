@@ -4,4 +4,5 @@ public enum TryConnectError
 {
     ViewerNotFound,
     IncorrectUsernameOrPassword,
+    CannotConnectToYourself,
 }

@@ -28,11 +28,14 @@ internal static partial class ConnectionsServiceLogs
     [LoggerMessage(Level = LogLevel.Information, Message = "Connection attempt started. ViewerConnectionId: {ConnectionId}, Username: {Username}")]
     public static partial void ConnectionAttemptStarted(this ILogger logger, string connectionId, string username);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Connection attempt failed: Viewer not found. ViewerConnectionId: {ConnectionId}")]
-    public static partial void ViewerNotFound(this ILogger logger, string connectionId);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Connection attempt failed: Viewer not found. Client SignalRConnectionId: {SignalRConnectionId}")]
+    public static partial void ViewerNotFound(this ILogger logger, string signalRConnectionId);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Connection attempt failed: Incorrect credentials. ViewerConnectionId: {ConnectionId}, Username: {Username}")]
-    public static partial void IncorrectCredentials(this ILogger logger, string connectionId, string username);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Connection attempt failed: Incorrect credentials. Client SignalRConnectionId: {SignalRConnectionId}, Username: {Username}")]
+    public static partial void IncorrectCredentials(this ILogger logger, string signalRConnectionId, string username);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Connection attempt failed: Cannot connect to yourself. Client SignalRConnectionId: {SignalRConnectionId}")]
+    public static partial void CannotConnectToYourself(this ILogger logger, string signalRConnectionId);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "New connection created. ConnectionId: {ConnectionId}, PresenterId: {PresenterId}, ViewerId: {ViewerId}, TotalConnections: {TotalConnections}")]
     public static partial void NewConnectionCreated(this ILogger logger, string connectionId, string presenterId, string viewerId, int totalConnections);

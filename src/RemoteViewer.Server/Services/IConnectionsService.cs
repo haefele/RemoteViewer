@@ -14,7 +14,7 @@ public interface IConnectionsService
     Task Register(string signalrConnectionId);
     Task Unregister(string signalrConnectionId);
 
-    Task<TryConnectError?> TryConnectTo(string connectionId, string username, string password);
+    Task<TryConnectError?> TryConnectTo(string signalrConnectionId, string username, string password);
     Task SendMessage(string signalrConnectionId, string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination);
 }
 
@@ -102,26 +102,32 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
         await actions.ExecuteAll();
     }
 
-    public async Task<TryConnectError?> TryConnectTo(string connectionId, string username, string password)
+    public async Task<TryConnectError?> TryConnectTo(string signalrConnectionId, string username, string password)
     {
-        this._logger.ConnectionAttemptStarted(connectionId, username);
+        this._logger.ConnectionAttemptStarted(signalrConnectionId, username);
         
         var actions = connectionHub.BatchedActions();
 
         using (this._lock.UpgradeableReadLock())
         {
-            var viewer = this._clients.FirstOrDefault(c => c.SignalrConnectionId == connectionId);
+            var viewer = this._clients.FirstOrDefault(c => c.SignalrConnectionId == signalrConnectionId);
             if (viewer is null)
             {
-                this._logger.ViewerNotFound(connectionId);
+                this._logger.ViewerNotFound(signalrConnectionId);
                 return TryConnectError.ViewerNotFound;
             }
 
             var presenter = this._clients.FirstOrDefault(c => c.Credentials.Username == username && string.Equals(c.Credentials.Password, password, StringComparison.OrdinalIgnoreCase));
             if (presenter is null)
             {
-                this._logger.IncorrectCredentials(connectionId, username);
+                this._logger.IncorrectCredentials(signalrConnectionId, username);
                 return TryConnectError.IncorrectUsernameOrPassword;
+            }
+
+            if (viewer == presenter)
+            {
+                this._logger.CannotConnectToYourself(signalrConnectionId);
+                return TryConnectError.CannotConnectToYourself;
             }
 
             using (this._lock.WriteLock())

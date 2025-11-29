@@ -3,21 +3,124 @@
         xmlns:vm="using:RemoteViewer.Client.ViewModels"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        mc:Ignorable="d" d:DesignWidth="500" d:DesignHeight="300"
         x:Class="RemoteViewer.Client.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Icon="/Assets/avalonia-logo.ico"
-        Title="RemoteViewer.Client">
+        Title="RemoteViewer"
+        CanResize="False"
+        Width="500" Height="300">
 
     <Design.DataContext>
-        <!-- This only sets the DataContext for the previewer in an IDE,
-             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
-    <StackPanel Orientation="Vertical">
-        <TextBox />
-        <TextBlock Text="{Binding Greeting}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-    </StackPanel>
+    <DockPanel>
+        <!-- Status Bar at Bottom -->
+        <Border DockPanel.Dock="Bottom"
+                Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
+                Padding="10,6">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Ellipse Width="12" Height="12">
+                    <Ellipse.Fill>
+                        <SolidColorBrush Color="{Binding IsConnected, Converter={x:Static vm:BoolToColorConverter.Instance}}"/>
+                    </Ellipse.Fill>
+                </Ellipse>
+                <TextBlock Text="{Binding StatusText}"
+                           VerticalAlignment="Center"
+                           FontSize="12"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Main Content -->
+        <Grid ColumnDefinitions="*,*" Margin="16">
+            <!-- Left Panel - Your Credentials -->
+            <Border Grid.Column="0"
+                    Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+                    CornerRadius="8"
+                    Padding="16"
+                    Margin="0,0,8,0">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Your Credentials"
+                               FontWeight="SemiBold"
+                               FontSize="16"/>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="ID"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                        <SelectableTextBlock Text="{Binding YourUsername}"
+                                             Margin="0, 8, 0, 2"
+                                             FontFamily="Consolas, Courier New, monospace"
+                                             FontSize="18"
+                                             FontWeight="Bold"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Password"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                        <SelectableTextBlock Text="{Binding YourPassword}"
+                                             Margin="0, 8, 0, 2"
+                                             FontFamily="Consolas, Courier New, monospace"
+                                             FontSize="18"
+                                             FontWeight="Bold"/>
+                    </StackPanel>
+
+                    <TextBlock Text="Share these with someone to let them connect to you"
+                               TextWrapping="Wrap"
+                               FontSize="11"
+                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                               Margin="0,8,0,0"/>
+                </StackPanel>
+            </Border>
+
+            <!-- Right Panel - Connect to Device -->
+            <Border Grid.Column="1"
+                    Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+                    CornerRadius="8"
+                    Padding="16"
+                    Margin="8,0,0,0">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="Connect to Device"
+                               FontWeight="SemiBold"
+                               FontSize="16"/>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="ID"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                        <TextBox Text="{Binding TargetUsername}"
+                                 Watermark="Enter ID"
+                                 IsEnabled="{Binding !IsConnecting}"/>
+                    </StackPanel>
+
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="Password"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                        <TextBox Text="{Binding TargetPassword}"
+                                 Watermark="Enter password"
+                                 PasswordChar="*"
+                                 IsEnabled="{Binding !IsConnecting}"/>
+                    </StackPanel>
+
+                    <Button Content="{Binding IsConnecting, Converter={x:Static vm:BoolToConnectTextConverter.Instance}}"
+                            Command="{Binding ConnectToDeviceCommand}"
+                            HorizontalAlignment="Stretch"
+                            HorizontalContentAlignment="Center"
+                            Classes="accent"
+                            IsEnabled="{Binding !IsConnecting}"
+                            Margin="0,4,0,0"/>
+
+                    <TextBlock Text="{Binding ConnectionError}"
+                               Foreground="Red"
+                               FontSize="12"
+                               TextWrapping="Wrap"
+                               IsVisible="{Binding ConnectionError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                </StackPanel>
+            </Border>
+        </Grid>
+    </DockPanel>
 
 </Window>

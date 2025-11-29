@@ -4,6 +4,8 @@ using Avalonia.Data.Core;
 using Avalonia.Data.Core.Plugins;
 using System.Linq;
 using Avalonia.Markup.Xaml;
+using Microsoft.Extensions.Logging;
+using RemoteViewer.Client.Services;
 using RemoteViewer.Client.ViewModels;
 using RemoteViewer.Client.Views;
 
@@ -11,6 +13,8 @@ namespace RemoteViewer.Client;
 
 public partial class App : Application
 {
+    private const string ServerUrl = "http://localhost:5000";
+
     public override void Initialize()
     {
         AvaloniaXamlLoader.Load(this);
@@ -20,12 +24,35 @@ public partial class App : Application
     {
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            // Avoid duplicate validations from both Avalonia and the CommunityToolkit. 
+            // Avoid duplicate validations from both Avalonia and the CommunityToolkit.
             // More info: https://docs.avaloniaui.net/docs/guides/development-guides/data-validation#manage-validationplugins
             DisableAvaloniaDataAnnotationValidation();
-            desktop.MainWindow = new MainWindow
+
+            // Create logger factory
+            using var loggerFactory = LoggerFactory.Create(builder =>
             {
-                DataContext = new MainWindowViewModel(),
+                builder.AddConsole();
+                builder.SetMinimumLevel(LogLevel.Information);
+            });
+
+            // Create hub client
+            var hubClient = new ConnectionHubClient(ServerUrl, loggerFactory.CreateLogger<ConnectionHubClient>());
+
+            // Create view model
+            var viewModel = new MainWindowViewModel(hubClient);
+
+            // Create main window
+            var mainWindow = new MainWindow
+            {
+                DataContext = viewModel,
+            };
+
+            desktop.MainWindow = mainWindow;
+
+            // Start connection when window is shown
+            mainWindow.Opened += async (_, _) =>
+            {
+                await viewModel.InitializeAsync();
             };
         }
 
