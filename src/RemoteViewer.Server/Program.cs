@@ -14,7 +14,12 @@ try
         .CreateLogger();
 
     builder.Services.AddSingleton<IConnectionsService, ConnectionsService>();
-    builder.Services.AddSignalR().AddMessagePackProtocol(ReflectionTypeShapeProvider.Default);
+    builder.Services
+        .AddSignalR(f =>
+        {
+            f.MaximumReceiveMessageSize = null;
+        })
+        .AddMessagePackProtocol(ReflectionTypeShapeProvider.Default);
     builder.Services.AddSerilog();
 
     var app = builder.Build();

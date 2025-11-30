@@ -84,7 +84,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
             return Task.CompletedTask;
         };
 
-        _connection.Reconnected += (connectionId) =>
+        _connection.Reconnected += (connectionId) => 
         {
             _logger.LogInformation("Connection reconnected - ConnectionId: {ConnectionId}", connectionId);
             Reconnected?.Invoke(this, new ReconnectedEventArgs(connectionId));
