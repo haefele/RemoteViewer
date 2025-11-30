@@ -158,6 +158,14 @@ public sealed class ConnectionHubClient : IAsyncDisposable
         _logger.LogDebug("Message sent successfully");
     }
 
+    public async Task SendMessageToViewers(string connectionId, string messageType, ReadOnlyMemory<byte> data, IReadOnlyList<string> targetViewerClientIds)
+    {
+        _logger.LogDebug("Sending message to viewers - ConnectionId: {ConnectionId}, MessageType: {MessageType}, DataLength: {DataLength}, TargetCount: {TargetCount}",
+            connectionId, messageType, data.Length, targetViewerClientIds.Count);
+        await _connection.InvokeAsync("SendMessageToViewers", connectionId, messageType, data, targetViewerClientIds);
+        _logger.LogDebug("Message sent to viewers successfully");
+    }
+
     public async ValueTask DisposeAsync()
     {
         _logger.LogDebug("Disposing HubClient");

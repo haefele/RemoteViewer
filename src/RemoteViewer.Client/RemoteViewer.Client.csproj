@@ -12,7 +12,11 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\RemoteViewer.Server\SharedAPI\*" LinkBase="\SharedApi\" />
+    <Compile Include="..\RemoteViewer.Server\SharedAPI\**\*" LinkBase="\SharedApi\" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$(TargetFramework.Contains('windows'))">
+    <ProjectReference Include="..\RemoteViewer.WinServ\RemoteViewer.WinServ.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -28,7 +32,9 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.1" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+    <PackageReference Include="Nerdbank.MessagePack" Version="0.12.14-rc" />
     <PackageReference Include="Nerdbank.MessagePack.SignalR" Version="0.12.14-rc" />
+    <PackageReference Include="PolyType" Version="1.0.0-rc.9" />
     <PackageReference Include="Serilog" Version="4.2.0" />
     <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.0" />
     <PackageReference Include="Serilog.Sinks.Async" Version="2.1.0" />

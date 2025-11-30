@@ -1,7 +1,12 @@
 {
   "permissions": {
     "allow": [
-      "Bash(dotnet build:*)"
+      "Bash(dotnet build:*)",
+      "Bash(dir:*)",
+      "Bash(find:*)",
+      "WebSearch",
+      "Bash(del \"C:\\Users\\haefe\\source\\repos\\RemoteViewer\\src\\RemoteViewer.Client\\Services\\InputInjectionService.cs\")",
+      "WebFetch(domain:aarnott.github.io)"
     ],
     "deny": [],
     "ask": []

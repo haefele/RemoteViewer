@@ -2,6 +2,15 @@ OpenInputDesktop
 SetThreadDesktop
 CloseDesktop
 
+SendInput
+INPUT
+KEYBDINPUT
+MOUSEINPUT
+KEYBD_EVENT_FLAGS
+MOUSE_EVENT_FLAGS
+GetSystemMetrics
+SYSTEM_METRICS_INDEX
+
 WTSGetActiveConsoleSessionId
 WTSEnumerateSessions
 WTSFreeMemory

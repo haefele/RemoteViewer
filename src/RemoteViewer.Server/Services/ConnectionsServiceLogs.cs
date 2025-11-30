@@ -90,4 +90,16 @@ internal static partial class ConnectionsServiceLogs
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Message send completed. SignalR: {SignalRConnectionId}, ConnectionId: {ConnectionId}")]
     public static partial void MessageSendCompleted(this ILogger logger, string signalRConnectionId, string connectionId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Message to viewers started from SignalR connection: {SignalRConnectionId}, ConnectionId: {ConnectionId}, TargetCount: {TargetCount}, Size: {DataSize} bytes")]
+    public static partial void MessageToViewersStarted(this ILogger logger, string signalRConnectionId, string connectionId, int targetCount, int dataSize);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Message sender is not the presenter. SignalR: {SignalRConnectionId}, ClientId: {ClientId}, ConnectionId: {ConnectionId}")]
+    public static partial void MessageSenderNotPresenter(this ILogger logger, string signalRConnectionId, string clientId, string connectionId);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Message sent to specific viewers. ConnectionId: {ConnectionId}, SenderId: {SenderId}, SentCount: {SentCount}, RequestedCount: {RequestedCount}")]
+    public static partial void MessageSentToSpecificViewers(this ILogger logger, string connectionId, string senderId, int sentCount, int requestedCount);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Message to viewers completed. SignalR: {SignalRConnectionId}, ConnectionId: {ConnectionId}")]
+    public static partial void MessageToViewersCompleted(this ILogger logger, string signalRConnectionId, string connectionId);
 }

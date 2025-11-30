@@ -37,4 +37,9 @@ public class ConnectionHub(IConnectionsService clientsService) : Hub<IConnection
     {
         await clientsService.SendMessage(this.Context.ConnectionId, connectionId, messageType, data, destination);
     }
+
+    public async Task SendMessageToViewers(string connectionId, string messageType, ReadOnlyMemory<byte> data, IReadOnlyList<string> targetViewerClientIds)
+    {
+        await clientsService.SendMessageToViewers(this.Context.ConnectionId, connectionId, messageType, data, targetViewerClientIds);
+    }
 }

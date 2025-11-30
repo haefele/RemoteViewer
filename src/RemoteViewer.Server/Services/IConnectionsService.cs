@@ -16,6 +16,7 @@ public interface IConnectionsService
 
     Task<TryConnectError?> TryConnectTo(string signalrConnectionId, string username, string password);
     Task SendMessage(string signalrConnectionId, string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination);
+    Task SendMessageToViewers(string signalrConnectionId, string connectionId, string messageType, ReadOnlyMemory<byte> data, IReadOnlyList<string> targetViewerClientIds);
 }
 
 
@@ -154,7 +155,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
     public async Task SendMessage(string signalrConnectionId, string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination)
     {
         this._logger.MessageSendStarted(signalrConnectionId, connectionId, destination, data.Length);
-        
+
         var actions = connectionHub.BatchedActions();
 
         using (this._lock.ReadLock())
@@ -182,6 +183,39 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
 
         await actions.ExecuteAll();
         this._logger.MessageSendCompleted(signalrConnectionId, connectionId);
+    }
+
+    public async Task SendMessageToViewers(string signalrConnectionId, string connectionId, string messageType, ReadOnlyMemory<byte> data, IReadOnlyList<string> targetViewerClientIds)
+    {
+        this._logger.MessageToViewersStarted(signalrConnectionId, connectionId, targetViewerClientIds.Count, data.Length);
+
+        var actions = connectionHub.BatchedActions();
+
+        using (this._lock.ReadLock())
+        {
+            var sender = this._clients.FirstOrDefault(c => c.SignalrConnectionId == signalrConnectionId);
+            if (sender is null)
+            {
+                this._logger.MessageSenderNotFound(signalrConnectionId);
+                return;
+            }
+
+            var connection = this._connections.FirstOrDefault(c => c.Id == connectionId);
+            if (connection is null)
+            {
+                this._logger.MessageConnectionNotFound(connectionId);
+                return;
+            }
+
+            if (connection.SendMessageToViewers(sender, messageType, data, targetViewerClientIds, actions) is false)
+            {
+                this._logger.MessageSenderNotPresenter(signalrConnectionId, sender.Id, connectionId);
+                return;
+            }
+        }
+
+        await actions.ExecuteAll();
+        this._logger.MessageToViewersCompleted(signalrConnectionId, connectionId);
     }
 
     public void Dispose()
@@ -318,7 +352,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
 
                 case MessageDestination.All:
                     actions.Add(f => f.Client(this.Presenter.SignalrConnectionId).MessageReceived(this.Id, sender.Id, messageType, data));
-                    
+
                     foreach (var viewer in this._viewers)
                     {
                         actions.Add(f => f.Client(viewer.SignalrConnectionId).MessageReceived(this.Id, sender.Id, messageType, data));
@@ -327,6 +361,26 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
                     break;
             }
 
+            return true;
+        }
+
+        public bool SendMessageToViewers(Client sender, string messageType, ReadOnlyMemory<byte> data, IReadOnlyList<string> targetViewerClientIds, ConnectionHubBatchedActions actions)
+        {
+            // Only the presenter can use this method
+            if (this.Presenter != sender)
+                return false;
+
+            int sentCount = 0;
+            foreach (var viewer in this._viewers)
+            {
+                if (targetViewerClientIds.Contains(viewer.Id))
+                {
+                    actions.Add(f => f.Client(viewer.SignalrConnectionId).MessageReceived(this.Id, sender.Id, messageType, data));
+                    sentCount++;
+                }
+            }
+
+            this._logger.MessageSentToSpecificViewers(this.Id, sender.Id, sentCount, targetViewerClientIds.Count);
             return true;
         }
 

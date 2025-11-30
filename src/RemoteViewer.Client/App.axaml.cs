@@ -8,6 +8,9 @@ using RemoteViewer.Client.Services;
 using RemoteViewer.Client.ViewModels;
 using RemoteViewer.Client.Views;
 using Serilog;
+#if WINDOWS
+using RemoteViewer.WinServ.Services;
+#endif
 
 namespace RemoteViewer.Client;
 
@@ -36,6 +39,15 @@ public partial class App : Application
             services.AddSingleton(sp =>
                 new ConnectionHubClient(ServerUrl, sp.GetRequiredService<ILogger<ConnectionHubClient>>()));
 
+#if WINDOWS
+            // Screen capture services from WinServ
+            services.AddSingleton<DxgiScreenGrabber>();
+            services.AddSingleton<BitBltScreenGrabber>();
+            services.AddSingleton<IScreenshotService, ScreenshotService>();
+            services.AddSingleton<InputInjectionService>();
+            services.AddSingleton<PresenterService>();
+#endif
+
             services.AddTransient<MainWindowViewModel>();
 
             _serviceProvider = services.BuildServiceProvider();
@@ -52,6 +64,10 @@ public partial class App : Application
 
             mainWindow.Opened += async (_, _) =>
             {
+#if WINDOWS
+                // Resolve PresenterService to start listening for presenter connections
+                _ = _serviceProvider.GetRequiredService<PresenterService>();
+#endif
                 await viewModel.InitializeAsync();
             };
 

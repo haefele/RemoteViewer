@@ -1,13 +1,16 @@
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services;
+using RemoteViewer.Client.Views;
 
 namespace RemoteViewer.Client.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly ConnectionHubClient _hubClient;
+    private readonly ILogger<ViewerWindowViewModel> _viewerLogger;
 
     [ObservableProperty]
     private string _yourUsername = "Connecting...";
@@ -33,9 +36,10 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isConnecting;
 
-    public MainWindowViewModel(ConnectionHubClient hubClient)
+    public MainWindowViewModel(ConnectionHubClient hubClient, ILogger<ViewerWindowViewModel> viewerLogger)
     {
         _hubClient = hubClient;
+        _viewerLogger = viewerLogger;
 
         _hubClient.CredentialsAssigned += (_, e) =>
         {
@@ -77,6 +81,31 @@ public partial class MainWindowViewModel : ViewModelBase
                 StatusText = "Connected to server";
             });
         };
+
+        // Handle viewer connections - open viewer window when connected as viewer
+        _hubClient.ConnectionStarted += OnConnectionStarted;
+    }
+
+    private void OnConnectionStarted(object? sender, ConnectionStartedEventArgs e)
+    {
+        // Only open viewer window if we're the viewer (not presenter)
+        if (!e.IsPresenter)
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                OpenViewerWindow(e.ConnectionId);
+            });
+        }
+    }
+
+    private void OpenViewerWindow(string connectionId)
+    {
+        var viewModel = new ViewerWindowViewModel(_hubClient, connectionId, _viewerLogger);
+        var window = new ViewerWindow
+        {
+            DataContext = viewModel
+        };
+        window.Show();
     }
 
     public async Task InitializeAsync()
