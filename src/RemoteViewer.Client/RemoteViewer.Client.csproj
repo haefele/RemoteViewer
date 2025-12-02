@@ -19,6 +19,13 @@
     <ProjectReference Include="..\RemoteViewer.WinServ\RemoteViewer.WinServ.csproj" />
   </ItemGroup>
 
+  <!-- Presenter files are Windows-only -->
+  <ItemGroup Condition="!$(TargetFramework.Contains('windows'))">
+    <Compile Remove="Views\Presenter\**" />
+    <AvaloniaXaml Remove="Views\Presenter\**" />
+    <None Remove="Views\Presenter\**" />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.3.6" />
     <PackageReference Include="Avalonia.Desktop" Version="11.3.6" />

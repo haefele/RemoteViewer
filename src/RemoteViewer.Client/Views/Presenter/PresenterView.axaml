@@ -1,0 +1,62 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:RemoteViewer.Client.Views.Presenter"
+        xmlns:conv="using:RemoteViewer.Client.Converters"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="250"
+        x:Class="RemoteViewer.Client.Views.Presenter.PresenterView"
+        x:DataType="vm:PresenterViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="{Binding Title}"
+        Width="400" Height="250"
+        WindowStartupLocation="CenterScreen"
+        CanResize="False">
+
+    <Design.DataContext>
+        <vm:PresenterViewModel/>
+    </Design.DataContext>
+
+    <DockPanel>
+        <!-- Status Bar at Bottom -->
+        <Border DockPanel.Dock="Bottom"
+                Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
+                Padding="10,6">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <Ellipse Width="12" Height="12">
+                    <Ellipse.Fill>
+                        <SolidColorBrush Color="{Binding IsPresenting, Converter={x:Static conv:BoolToColorConverter.Instance}}"/>
+                    </Ellipse.Fill>
+                </Ellipse>
+                <TextBlock Text="{Binding StatusText}"
+                           VerticalAlignment="Center"
+                           FontSize="12"/>
+            </StackPanel>
+        </Border>
+
+        <!-- Main Content -->
+        <StackPanel Margin="20" Spacing="20" VerticalAlignment="Center" HorizontalAlignment="Center">
+            <TextBlock Text="You are presenting your screen"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       HorizontalAlignment="Center"/>
+
+            <StackPanel Spacing="4" HorizontalAlignment="Center">
+                <TextBlock Text="Connected Viewers"
+                           FontSize="12"
+                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                           HorizontalAlignment="Center"/>
+                <TextBlock Text="{Binding ViewerCount}"
+                           FontSize="36"
+                           FontWeight="Bold"
+                           HorizontalAlignment="Center"/>
+            </StackPanel>
+
+            <Button Content="Stop Presenting"
+                    Command="{Binding StopPresentingCommand}"
+                    HorizontalAlignment="Center"
+                    Padding="20,10"/>
+        </StackPanel>
+    </DockPanel>
+
+</Window>

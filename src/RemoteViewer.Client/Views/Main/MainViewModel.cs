@@ -4,6 +4,9 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services;
 using RemoteViewer.Client.Views.Viewer;
+#if WINDOWS
+using RemoteViewer.Client.Views.Presenter;
+#endif
 
 namespace RemoteViewer.Client.Views.Main;
 
@@ -11,6 +14,9 @@ public partial class MainViewModel : ViewModelBase
 {
     private readonly ConnectionHubClient _hubClient;
     private readonly ILogger<ViewerViewModel> _viewerLogger;
+#if WINDOWS
+    private readonly ILogger<PresenterViewModel> _presenterLogger;
+#endif
 
     [ObservableProperty]
     private string _yourUsername = "Connecting...";
@@ -36,10 +42,22 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isConnecting;
 
+    // Events for MainView visibility
+    public event EventHandler? RequestHideMainView;
+    public event EventHandler? RequestShowMainView;
+
+#if WINDOWS
+    public MainViewModel(ConnectionHubClient hubClient, ILogger<ViewerViewModel> viewerLogger, ILogger<PresenterViewModel> presenterLogger)
+    {
+        _hubClient = hubClient;
+        _viewerLogger = viewerLogger;
+        _presenterLogger = presenterLogger;
+#else
     public MainViewModel(ConnectionHubClient hubClient, ILogger<ViewerViewModel> viewerLogger)
     {
         _hubClient = hubClient;
         _viewerLogger = viewerLogger;
+#endif
 
         _hubClient.CredentialsAssigned += (_, e) =>
         {
@@ -88,24 +106,57 @@ public partial class MainViewModel : ViewModelBase
 
     private void OnConnectionStarted(object? sender, ConnectionStartedEventArgs e)
     {
-        // Only open viewer window if we're the viewer (not presenter)
-        if (!e.IsPresenter)
+        Dispatcher.UIThread.Post(() =>
         {
-            Dispatcher.UIThread.Post(() =>
+            if (e.IsPresenter)
+            {
+#if WINDOWS
+                OpenPresenterWindow(e.ConnectionId);
+#endif
+            }
+            else
             {
                 OpenViewerWindow(e.ConnectionId);
-            });
-        }
+            }
+        });
     }
+
+#if WINDOWS
+    private void OpenPresenterWindow(string connectionId)
+    {
+        RequestHideMainView?.Invoke(this, EventArgs.Empty);
+
+        var viewModel = new PresenterViewModel(_hubClient, connectionId, _presenterLogger);
+        var window = new PresenterView
+        {
+            DataContext = viewModel
+        };
+
+        window.Closed += OnSessionWindowClosed;
+        window.Show();
+    }
+#endif
 
     private void OpenViewerWindow(string connectionId)
     {
+        RequestHideMainView?.Invoke(this, EventArgs.Empty);
+
         var viewModel = new ViewerViewModel(_hubClient, connectionId, _viewerLogger);
         var window = new ViewerView
         {
             DataContext = viewModel
         };
+
+        window.Closed += OnSessionWindowClosed;
         window.Show();
+    }
+
+    private async void OnSessionWindowClosed(object? sender, EventArgs e)
+    {
+        // Reconnect to get fresh credentials
+        await _hubClient.ReconnectAsync();
+        // Show MainView again
+        RequestShowMainView?.Invoke(this, EventArgs.Empty);
     }
 
     public async Task InitializeAsync()

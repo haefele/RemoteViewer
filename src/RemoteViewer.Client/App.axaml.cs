@@ -6,9 +6,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services;
 using RemoteViewer.Client.Views.Main;
-using RemoteViewer.Client.Views.Viewer;
 using Serilog;
 #if WINDOWS
+using RemoteViewer.Client.Views.Presenter;
 using RemoteViewer.WinServ.Services;
 #endif
 
@@ -59,6 +59,10 @@ public partial class App : Application
             {
                 DataContext = viewModel,
             };
+
+            // Wire up MainView visibility events
+            viewModel.RequestHideMainView += (_, _) => mainView.Hide();
+            viewModel.RequestShowMainView += (_, _) => mainView.Show();
 
             desktop.MainWindow = mainView;
 

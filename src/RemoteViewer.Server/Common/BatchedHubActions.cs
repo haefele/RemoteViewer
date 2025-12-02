@@ -2,7 +2,7 @@
 
 namespace RemoteViewer.Server.Common;
 
-public class BatchedHubActions<THub, TClient>(IHubContext<THub, TClient> hubContext)
+public class BatchedHubActions<THub, TClient>(IHubContext<THub, TClient> hubContext, ILogger logger)
     where THub : Hub<TClient>
     where TClient : class
 {
@@ -17,7 +17,15 @@ public class BatchedHubActions<THub, TClient>(IHubContext<THub, TClient> hubCont
     {
         foreach (var action in this._actions)
         {
-            await action(hubContext.Clients);
+            try
+            {
+                await action(hubContext.Clients);
+            }
+            catch (Exception ex)
+            {
+                // Client may have disconnected - log and continue
+                logger.LogDebug(ex, "Failed to execute hub action, client may have disconnected");
+            }
         }
 
         this._actions.Clear();
@@ -30,9 +38,9 @@ public static class BatchedActionsExtensions
         where THub : Hub<TClient>
         where TClient : class
     {
-        public BatchedHubActions<THub, TClient> BatchedActions()
+        public BatchedHubActions<THub, TClient> BatchedActions(ILogger logger)
         {
-            return new BatchedHubActions<THub, TClient>(self);
+            return new BatchedHubActions<THub, TClient>(self, logger);
         }
     }
 }

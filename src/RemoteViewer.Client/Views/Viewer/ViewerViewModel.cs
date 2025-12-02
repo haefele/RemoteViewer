@@ -45,6 +45,8 @@ public partial class ViewerViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private int _frameHeight;
 
+    public event EventHandler? CloseRequested;
+
     public ViewerViewModel(
         ConnectionHubClient hubClient,
         string connectionId,
@@ -149,7 +151,16 @@ public partial class ViewerViewModel : ViewModelBase, IDisposable
         {
             IsConnected = false;
             StatusText = "Connection closed";
+            CloseRequested?.Invoke(this, EventArgs.Empty);
         });
+    }
+
+    [RelayCommand]
+    private async Task Disconnect()
+    {
+        _logger.LogInformation("User requested to disconnect from connection {ConnectionId}", _connectionId);
+        await _hubClient.Disconnect(_connectionId);
+        // The ConnectionStopped event will trigger CloseRequested
     }
 
     [RelayCommand]

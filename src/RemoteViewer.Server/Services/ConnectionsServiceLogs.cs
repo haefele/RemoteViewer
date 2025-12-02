@@ -91,4 +91,10 @@ internal static partial class ConnectionsServiceLogs
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Message sent to specific clients. ConnectionId: {ConnectionId}, SenderId: {SenderId}, SentCount: {SentCount}, RequestedCount: {RequestedCount}")]
     public static partial void MessageSentToSpecificClients(this ILogger logger, string connectionId, string senderId, int sentCount, int requestedCount);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Disconnect from connection started. SignalRConnectionId: {SignalRConnectionId}, ConnectionId: {ConnectionId}")]
+    public static partial void DisconnectFromConnectionStarted(this ILogger logger, string signalRConnectionId, string connectionId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Disconnect failed: Connection not found. ConnectionId: {ConnectionId}")]
+    public static partial void DisconnectConnectionNotFound(this ILogger logger, string connectionId);
 }

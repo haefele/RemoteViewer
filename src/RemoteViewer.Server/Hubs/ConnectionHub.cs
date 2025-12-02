@@ -37,4 +37,9 @@ public class ConnectionHub(IConnectionsService clientsService) : Hub<IConnection
     {
         await clientsService.SendMessage(this.Context.ConnectionId, connectionId, messageType, data, destination, targetClientIds);
     }
+
+    public async Task Disconnect(string connectionId)
+    {
+        await clientsService.DisconnectFromConnection(this.Context.ConnectionId, connectionId);
+    }
 }

@@ -15,6 +15,7 @@ public interface IConnectionsService
     Task Unregister(string signalrConnectionId);
 
     Task<TryConnectError?> TryConnectTo(string signalrConnectionId, string username, string password);
+    Task DisconnectFromConnection(string signalrConnectionId, string connectionId);
     Task SendMessage(string signalrConnectionId, string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null);
 }
 
@@ -30,7 +31,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
     {
         this._logger.ClientRegistrationStarted(signalrConnectionId);
         
-        var actions = connectionHub.BatchedActions();
+        var actions = connectionHub.BatchedActions(this._logger);
 
         const string IdChars = "0123456789";
         const string PasswordChars = "abcdefghijklmnopqrstuvwxyz0123456789";
@@ -74,7 +75,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
     {
         this._logger.ClientUnregistrationStarted(signalrConnectionId);
         
-        var actions = connectionHub.BatchedActions();
+        var actions = connectionHub.BatchedActions(this._logger);
 
         using (this._lock.WriteLock())
         {
@@ -106,7 +107,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
     {
         this._logger.ConnectionAttemptStarted(signalrConnectionId, username);
         
-        var actions = connectionHub.BatchedActions();
+        var actions = connectionHub.BatchedActions(this._logger);
 
         using (this._lock.UpgradeableReadLock())
         {
@@ -151,9 +152,34 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
         return null;
     }
 
+    public async Task DisconnectFromConnection(string signalrConnectionId, string connectionId)
+    {
+        this._logger.DisconnectFromConnectionStarted(signalrConnectionId, connectionId);
+
+        var actions = connectionHub.BatchedActions(this._logger);
+
+        using (this._lock.WriteLock())
+        {
+            var connection = this._connections.FirstOrDefault(c => c.Id == connectionId);
+            if (connection is null)
+            {
+                this._logger.DisconnectConnectionNotFound(connectionId);
+                return;
+            }
+
+            var connectionStopped = connection.ClientDisconnected(signalrConnectionId, actions);
+            if (connectionStopped)
+            {
+                this._connections.Remove(connection);
+            }
+        }
+
+        await actions.ExecuteAll();
+    }
+
     public async Task SendMessage(string signalrConnectionId, string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null)
     {
-        var actions = connectionHub.BatchedActions();
+        var actions = connectionHub.BatchedActions(this._logger);
         string? senderId = null;
 
         using (this._lock.ReadLock())
@@ -269,11 +295,13 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
             if (this.Presenter.SignalrConnectionId == signalrConnectionId)
             {
                 this._logger.PresenterDisconnected(this.Id, this.Presenter.Id, this._viewers.Count);
-                
+
                 foreach (var viewer in this._viewers)
                 {
                     actions.Add(f => f.Client(viewer.SignalrConnectionId).ConnectionStopped(this.Id));
                 }
+
+                actions.Add(f => f.Client(signalrConnectionId).ConnectionStopped(this.Id));
 
                 return true;
             }
@@ -284,6 +312,8 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
                 {
                     this._logger.ViewerDisconnected(this.Id, removedCount, this._viewers.Count);
                     this.ConnectionChanged(actions);
+
+                    actions.Add(f => f.Client(signalrConnectionId).ConnectionStopped(this.Id));
                 }
 
                 return false;

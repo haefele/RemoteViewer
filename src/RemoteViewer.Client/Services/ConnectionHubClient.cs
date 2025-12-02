@@ -158,6 +158,20 @@ public sealed class ConnectionHubClient : IAsyncDisposable
         _logger.LogDebug("Message sent successfully");
     }
 
+    public async Task Disconnect(string connectionId)
+    {
+        _logger.LogInformation("Disconnecting from connection: {ConnectionId}", connectionId);
+        await _connection.InvokeAsync("Disconnect", connectionId);
+        _logger.LogInformation("Disconnected from connection: {ConnectionId}", connectionId);
+    }
+
+    public async Task ReconnectAsync()
+    {
+        _logger.LogInformation("Reconnecting to get fresh credentials...");
+        await _connection.StopAsync();
+        await StartAsync();
+    }
+
     public async ValueTask DisposeAsync()
     {
         _logger.LogDebug("Disposing HubClient");
