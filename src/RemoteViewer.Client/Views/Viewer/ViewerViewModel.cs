@@ -129,6 +129,13 @@ public partial class ViewerViewModel : ViewModelBase, IDisposable
 
             Dispatcher.UIThread.Post(() =>
             {
+                // Check if disposed before updating bitmap
+                if (_disposed)
+                {
+                    bitmap.Dispose();
+                    return;
+                }
+
                 var oldBitmap = FrameBitmap;
                 FrameBitmap = bitmap;
                 FrameWidth = message.Width;

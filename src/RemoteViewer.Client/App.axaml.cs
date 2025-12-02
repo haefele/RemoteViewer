@@ -8,7 +8,6 @@ using RemoteViewer.Client.Services;
 using RemoteViewer.Client.Views.Main;
 using Serilog;
 #if WINDOWS
-using RemoteViewer.Client.Views.Presenter;
 using RemoteViewer.WinServ.Services;
 #endif
 
@@ -45,7 +44,6 @@ public partial class App : Application
             services.AddSingleton<BitBltScreenGrabber>();
             services.AddSingleton<IScreenshotService, ScreenshotService>();
             services.AddSingleton<InputInjectionService>();
-            services.AddSingleton<PresenterService>();
 #endif
 
             services.AddTransient<MainViewModel>();
@@ -68,10 +66,6 @@ public partial class App : Application
 
             mainView.Opened += async (_, _) =>
             {
-#if WINDOWS
-                // Resolve PresenterService to start listening for presenter connections
-                _ = _serviceProvider.GetRequiredService<PresenterService>();
-#endif
                 await viewModel.InitializeAsync();
             };
 

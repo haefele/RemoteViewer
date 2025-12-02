@@ -6,6 +6,7 @@ using RemoteViewer.Client.Services;
 using RemoteViewer.Client.Views.Viewer;
 #if WINDOWS
 using RemoteViewer.Client.Views.Presenter;
+using RemoteViewer.WinServ.Services;
 #endif
 
 namespace RemoteViewer.Client.Views.Main;
@@ -16,6 +17,8 @@ public partial class MainViewModel : ViewModelBase
     private readonly ILogger<ViewerViewModel> _viewerLogger;
 #if WINDOWS
     private readonly ILogger<PresenterViewModel> _presenterLogger;
+    private readonly IScreenshotService _screenshotService;
+    private readonly InputInjectionService _inputInjectionService;
 #endif
 
     [ObservableProperty]
@@ -47,11 +50,18 @@ public partial class MainViewModel : ViewModelBase
     public event EventHandler? RequestShowMainView;
 
 #if WINDOWS
-    public MainViewModel(ConnectionHubClient hubClient, ILogger<ViewerViewModel> viewerLogger, ILogger<PresenterViewModel> presenterLogger)
+    public MainViewModel(
+        ConnectionHubClient hubClient,
+        ILogger<ViewerViewModel> viewerLogger,
+        ILogger<PresenterViewModel> presenterLogger,
+        IScreenshotService screenshotService,
+        InputInjectionService inputInjectionService)
     {
         _hubClient = hubClient;
         _viewerLogger = viewerLogger;
         _presenterLogger = presenterLogger;
+        _screenshotService = screenshotService;
+        _inputInjectionService = inputInjectionService;
 #else
     public MainViewModel(ConnectionHubClient hubClient, ILogger<ViewerViewModel> viewerLogger)
     {
@@ -126,7 +136,12 @@ public partial class MainViewModel : ViewModelBase
     {
         RequestHideMainView?.Invoke(this, EventArgs.Empty);
 
-        var viewModel = new PresenterViewModel(_hubClient, connectionId, _presenterLogger);
+        var viewModel = new PresenterViewModel(
+            _hubClient,
+            connectionId,
+            _screenshotService,
+            _inputInjectionService,
+            _presenterLogger);
         var window = new PresenterView
         {
             DataContext = viewModel
