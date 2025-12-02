@@ -57,7 +57,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
                 var client = Client.Create(Guid.NewGuid().ToString(), credentials, signalrConnectionId, actions, loggerFactory);
                 this._clients.Add(client);
 
-                this._logger.ClientRegistered(client.Id, client.Credentials.Username, signalrConnectionId, this._clients.Count);
+                this._logger.ClientRegistered(client.Id, client.Credentials.Username, this._clients.Count);
 
                 break;
             }
@@ -121,13 +121,13 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
             var presenter = this._clients.FirstOrDefault(c => c.Credentials.Username == username && string.Equals(c.Credentials.Password, password, StringComparison.OrdinalIgnoreCase));
             if (presenter is null)
             {
-                this._logger.IncorrectCredentials(signalrConnectionId, username);
+                this._logger.IncorrectCredentials(viewer.Id, username);
                 return TryConnectError.IncorrectUsernameOrPassword;
             }
 
             if (viewer == presenter)
             {
-                this._logger.CannotConnectToYourself(signalrConnectionId);
+                this._logger.CannotConnectToYourself(viewer.Id);
                 return TryConnectError.CannotConnectToYourself;
             }
 
@@ -154,9 +154,8 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
 
     public async Task SendMessage(string signalrConnectionId, string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination)
     {
-        this._logger.MessageSendStarted(signalrConnectionId, connectionId, destination, data.Length);
-
         var actions = connectionHub.BatchedActions();
+        string? senderId = null;
 
         using (this._lock.ReadLock())
         {
@@ -166,6 +165,9 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
                 this._logger.MessageSenderNotFound(signalrConnectionId);
                 return;
             }
+
+            senderId = sender.Id;
+            this._logger.MessageSendStarted(senderId, connectionId, destination, data.Length);
 
             var connection = this._connections.FirstOrDefault(c => c.Id == connectionId);
             if (connection is null)
@@ -176,20 +178,19 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
 
             if (connection.SendMessage(sender, messageType, data, destination, actions) is false)
             {
-                this._logger.MessageSenderNotInConnection(signalrConnectionId, sender.Id, connectionId);
+                this._logger.MessageSenderNotInConnection(senderId, connectionId);
                 return;
             }
         }
 
         await actions.ExecuteAll();
-        this._logger.MessageSendCompleted(signalrConnectionId, connectionId);
+        this._logger.MessageSendCompleted(senderId, connectionId);
     }
 
     public async Task SendMessageToViewers(string signalrConnectionId, string connectionId, string messageType, ReadOnlyMemory<byte> data, IReadOnlyList<string> targetViewerClientIds)
     {
-        this._logger.MessageToViewersStarted(signalrConnectionId, connectionId, targetViewerClientIds.Count, data.Length);
-
         var actions = connectionHub.BatchedActions();
+        string? senderId = null;
 
         using (this._lock.ReadLock())
         {
@@ -200,6 +201,9 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
                 return;
             }
 
+            senderId = sender.Id;
+            this._logger.MessageToViewersStarted(senderId, connectionId, targetViewerClientIds.Count, data.Length);
+
             var connection = this._connections.FirstOrDefault(c => c.Id == connectionId);
             if (connection is null)
             {
@@ -209,13 +213,13 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
 
             if (connection.SendMessageToViewers(sender, messageType, data, targetViewerClientIds, actions) is false)
             {
-                this._logger.MessageSenderNotPresenter(signalrConnectionId, sender.Id, connectionId);
+                this._logger.MessageSenderNotPresenter(senderId, connectionId);
                 return;
             }
         }
 
         await actions.ExecuteAll();
-        this._logger.MessageToViewersCompleted(signalrConnectionId, connectionId);
+        this._logger.MessageToViewersCompleted(senderId, connectionId);
     }
 
     public void Dispose()
@@ -243,8 +247,6 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
             this.Credentials = credentials;
             this.SignalrConnectionId = signalrConnectionId;
             this._logger = logger;
-            
-            this._logger.ClientCreated(id, credentials.Username, signalrConnectionId);
         }
 
         private readonly ILogger _logger;
