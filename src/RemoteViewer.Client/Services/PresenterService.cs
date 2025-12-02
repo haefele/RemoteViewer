@@ -166,7 +166,7 @@ public class PresenterService : IDisposable
         var message = new DisplayListMessage(displayInfos);
         var data = ProtocolSerializer.Serialize(message);
 
-        await _hubClient.SendMessageToViewers(connectionId, MessageTypes.Display.List, data, [senderClientId]);
+        await _hubClient.SendMessage(connectionId, MessageTypes.Display.List, data, MessageDestination.SpecificClients, [senderClientId]);
         _logger.LogInformation("Sent display list to viewer {ViewerId}", senderClientId);
     }
 
@@ -351,7 +351,7 @@ public class PresenterService : IDisposable
                 var data = ProtocolSerializer.Serialize(message);
 
                 // Send to specific viewers watching this display
-                await _hubClient.SendMessageToViewers(connectionId, MessageTypes.Screen.Frame, data, viewers);
+                await _hubClient.SendMessage(connectionId, MessageTypes.Screen.Frame, data, MessageDestination.SpecificClients, viewers);
             }
             finally
             {

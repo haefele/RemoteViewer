@@ -15,8 +15,7 @@ public interface IConnectionsService
     Task Unregister(string signalrConnectionId);
 
     Task<TryConnectError?> TryConnectTo(string signalrConnectionId, string username, string password);
-    Task SendMessage(string signalrConnectionId, string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination);
-    Task SendMessageToViewers(string signalrConnectionId, string connectionId, string messageType, ReadOnlyMemory<byte> data, IReadOnlyList<string> targetViewerClientIds);
+    Task SendMessage(string signalrConnectionId, string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null);
 }
 
 
@@ -152,7 +151,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
         return null;
     }
 
-    public async Task SendMessage(string signalrConnectionId, string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination)
+    public async Task SendMessage(string signalrConnectionId, string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null)
     {
         var actions = connectionHub.BatchedActions();
         string? senderId = null;
@@ -176,7 +175,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
                 return;
             }
 
-            if (connection.SendMessage(sender, messageType, data, destination, actions) is false)
+            if (connection.SendMessage(sender, messageType, data, destination, targetClientIds, actions) is false)
             {
                 this._logger.MessageSenderNotInConnection(senderId, connectionId);
                 return;
@@ -185,41 +184,6 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
 
         await actions.ExecuteAll();
         this._logger.MessageSendCompleted(senderId, connectionId);
-    }
-
-    public async Task SendMessageToViewers(string signalrConnectionId, string connectionId, string messageType, ReadOnlyMemory<byte> data, IReadOnlyList<string> targetViewerClientIds)
-    {
-        var actions = connectionHub.BatchedActions();
-        string? senderId = null;
-
-        using (this._lock.ReadLock())
-        {
-            var sender = this._clients.FirstOrDefault(c => c.SignalrConnectionId == signalrConnectionId);
-            if (sender is null)
-            {
-                this._logger.MessageSenderNotFound(signalrConnectionId);
-                return;
-            }
-
-            senderId = sender.Id;
-            this._logger.MessageToViewersStarted(senderId, connectionId, targetViewerClientIds.Count, data.Length);
-
-            var connection = this._connections.FirstOrDefault(c => c.Id == connectionId);
-            if (connection is null)
-            {
-                this._logger.MessageConnectionNotFound(connectionId);
-                return;
-            }
-
-            if (connection.SendMessageToViewers(sender, messageType, data, targetViewerClientIds, actions) is false)
-            {
-                this._logger.MessageSenderNotPresenter(senderId, connectionId);
-                return;
-            }
-        }
-
-        await actions.ExecuteAll();
-        this._logger.MessageToViewersCompleted(senderId, connectionId);
     }
 
     public void Dispose()
@@ -326,7 +290,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
             }
         }
 
-        public bool SendMessage(Client sender, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination, ConnectionHubBatchedActions actions)
+        public bool SendMessage(Client sender, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination, IReadOnlyList<string>? targetClientIds, ConnectionHubBatchedActions actions)
         {
             var isSenderPresenter = this.Presenter == sender;
             var isSenderViewer = this._viewers.Contains(sender);
@@ -361,28 +325,34 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
                     }
                     this._logger.MessageSentToAll(this.Id, sender.Id, this._viewers.Count + 1);
                     break;
+
+                case MessageDestination.SpecificClients:
+                    if (targetClientIds is null || targetClientIds.Count == 0)
+                        break;
+
+                    int sentCount = 0;
+
+                    // Check if presenter is in target list
+                    if (targetClientIds.Contains(this.Presenter.Id))
+                    {
+                        actions.Add(f => f.Client(this.Presenter.SignalrConnectionId).MessageReceived(this.Id, sender.Id, messageType, data));
+                        sentCount++;
+                    }
+
+                    // Check viewers
+                    foreach (var viewer in this._viewers)
+                    {
+                        if (targetClientIds.Contains(viewer.Id))
+                        {
+                            actions.Add(f => f.Client(viewer.SignalrConnectionId).MessageReceived(this.Id, sender.Id, messageType, data));
+                            sentCount++;
+                        }
+                    }
+
+                    this._logger.MessageSentToSpecificClients(this.Id, sender.Id, sentCount, targetClientIds.Count);
+                    break;
             }
 
-            return true;
-        }
-
-        public bool SendMessageToViewers(Client sender, string messageType, ReadOnlyMemory<byte> data, IReadOnlyList<string> targetViewerClientIds, ConnectionHubBatchedActions actions)
-        {
-            // Only the presenter can use this method
-            if (this.Presenter != sender)
-                return false;
-
-            int sentCount = 0;
-            foreach (var viewer in this._viewers)
-            {
-                if (targetViewerClientIds.Contains(viewer.Id))
-                {
-                    actions.Add(f => f.Client(viewer.SignalrConnectionId).MessageReceived(this.Id, sender.Id, messageType, data));
-                    sentCount++;
-                }
-            }
-
-            this._logger.MessageSentToSpecificViewers(this.Id, sender.Id, sentCount, targetViewerClientIds.Count);
             return true;
         }
 

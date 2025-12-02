@@ -150,20 +150,12 @@ public sealed class ConnectionHubClient : IAsyncDisposable
         return error;
     }
 
-    public async Task SendMessage(string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination)
+    public async Task SendMessage(string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null)
     {
         _logger.LogDebug("Sending message - ConnectionId: {ConnectionId}, MessageType: {MessageType}, DataLength: {DataLength}, Destination: {Destination}",
             connectionId, messageType, data.Length, destination);
-        await _connection.InvokeAsync("SendMessage", connectionId, messageType, data, destination);
+        await _connection.InvokeAsync("SendMessage", connectionId, messageType, data, destination, targetClientIds);
         _logger.LogDebug("Message sent successfully");
-    }
-
-    public async Task SendMessageToViewers(string connectionId, string messageType, ReadOnlyMemory<byte> data, IReadOnlyList<string> targetViewerClientIds)
-    {
-        _logger.LogDebug("Sending message to viewers - ConnectionId: {ConnectionId}, MessageType: {MessageType}, DataLength: {DataLength}, TargetCount: {TargetCount}",
-            connectionId, messageType, data.Length, targetViewerClientIds.Count);
-        await _connection.InvokeAsync("SendMessageToViewers", connectionId, messageType, data, targetViewerClientIds);
-        _logger.LogDebug("Message sent to viewers successfully");
     }
 
     public async ValueTask DisposeAsync()

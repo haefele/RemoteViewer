@@ -33,13 +33,8 @@ public class ConnectionHub(IConnectionsService clientsService) : Hub<IConnection
         return await clientsService.TryConnectTo(this.Context.ConnectionId, username, password);
     }
 
-    public async Task SendMessage(string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination)
+    public async Task SendMessage(string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null)
     {
-        await clientsService.SendMessage(this.Context.ConnectionId, connectionId, messageType, data, destination);
-    }
-
-    public async Task SendMessageToViewers(string connectionId, string messageType, ReadOnlyMemory<byte> data, IReadOnlyList<string> targetViewerClientIds)
-    {
-        await clientsService.SendMessageToViewers(this.Context.ConnectionId, connectionId, messageType, data, targetViewerClientIds);
+        await clientsService.SendMessage(this.Context.ConnectionId, connectionId, messageType, data, destination, targetClientIds);
     }
 }

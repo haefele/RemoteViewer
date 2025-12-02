@@ -89,15 +89,6 @@ internal static partial class ConnectionsServiceLogs
     [LoggerMessage(Level = LogLevel.Information, Message = "Message send completed. ClientId: {ClientId}, ConnectionId: {ConnectionId}")]
     public static partial void MessageSendCompleted(this ILogger logger, string clientId, string connectionId);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Message to viewers started. ClientId: {ClientId}, ConnectionId: {ConnectionId}, TargetCount: {TargetCount}, Size: {DataSize} bytes")]
-    public static partial void MessageToViewersStarted(this ILogger logger, string clientId, string connectionId, int targetCount, int dataSize);
-
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Message sender is not the presenter. ClientId: {ClientId}, ConnectionId: {ConnectionId}")]
-    public static partial void MessageSenderNotPresenter(this ILogger logger, string clientId, string connectionId);
-
-    [LoggerMessage(Level = LogLevel.Debug, Message = "Message sent to specific viewers. ConnectionId: {ConnectionId}, SenderId: {SenderId}, SentCount: {SentCount}, RequestedCount: {RequestedCount}")]
-    public static partial void MessageSentToSpecificViewers(this ILogger logger, string connectionId, string senderId, int sentCount, int requestedCount);
-
-    [LoggerMessage(Level = LogLevel.Information, Message = "Message to viewers completed. ClientId: {ClientId}, ConnectionId: {ConnectionId}")]
-    public static partial void MessageToViewersCompleted(this ILogger logger, string clientId, string connectionId);
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Message sent to specific clients. ConnectionId: {ConnectionId}, SenderId: {SenderId}, SentCount: {SentCount}, RequestedCount: {RequestedCount}")]
+    public static partial void MessageSentToSpecificClients(this ILogger logger, string connectionId, string senderId, int sentCount, int requestedCount);
 }
