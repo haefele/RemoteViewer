@@ -113,6 +113,10 @@ public class PresenterService : IDisposable
                 HandleDisplaySelect(connectionId, senderClientId, data, state);
                 break;
 
+            case MessageTypes.Display.RequestList:
+                HandleDisplayListRequest(connectionId, senderClientId);
+                break;
+
             case MessageTypes.Input.MouseMove:
                 HandleMouseMove(senderClientId, data, state);
                 break;
@@ -144,6 +148,26 @@ public class PresenterService : IDisposable
         var message = ProtocolSerializer.Deserialize<DisplaySelectMessage>(data);
         state.ViewerDisplaySubscriptions[senderClientId] = message.DisplayId;
         _logger.LogInformation("Viewer {ViewerId} selected display {DisplayId}", senderClientId, message.DisplayId);
+    }
+
+    private async void HandleDisplayListRequest(string connectionId, string senderClientId)
+    {
+        var displays = _screenshotService.GetDisplays();
+        var displayInfos = displays.Select(d => new DisplayInfo(
+            d.Name,
+            d.Name,
+            d.IsPrimary,
+            d.Bounds.Left,
+            d.Bounds.Top,
+            d.Bounds.Width,
+            d.Bounds.Height
+        )).ToArray();
+
+        var message = new DisplayListMessage(displayInfos);
+        var data = ProtocolSerializer.Serialize(message);
+
+        await _hubClient.SendMessageToViewers(connectionId, MessageTypes.Display.List, data, [senderClientId]);
+        _logger.LogInformation("Sent display list to viewer {ViewerId}", senderClientId);
     }
 
     private void HandleMouseMove(string senderClientId, ReadOnlyMemory<byte> data, ConnectionPresenterState state)

@@ -12,6 +12,9 @@ public static class MessageTypes
 
         /// <summary>Request to watch a specific display (Viewer → Presenter)</summary>
         public const string Select = "display.select";
+
+        /// <summary>Request display list (Viewer → Presenter)</summary>
+        public const string RequestList = "display.list.request";
     }
 
     public static class Screen
