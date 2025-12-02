@@ -16,7 +16,7 @@ namespace RemoteViewer.Client;
 
 public partial class App : Application
 {
-    private const string ServerUrl = "http://localhost:5000";
+    private const string ServerUrl = "http://100.123.102.66:5000";
 
     private ServiceProvider? _serviceProvider;
 

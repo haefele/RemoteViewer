@@ -25,6 +25,7 @@ try
     var app = builder.Build();
 
     app.MapHub<ConnectionHub>("/connection");
+    app.MapGet("/", () => "RemoteViewer Server is running.");
 
     await app.RunAsync();
     return 0;
