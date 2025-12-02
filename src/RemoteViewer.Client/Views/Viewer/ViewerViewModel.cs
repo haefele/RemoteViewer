@@ -8,15 +8,15 @@ using RemoteViewer.Server.SharedAPI;
 using RemoteViewer.Server.SharedAPI.Protocol;
 using System.Collections.ObjectModel;
 
-namespace RemoteViewer.Client.ViewModels;
+namespace RemoteViewer.Client.Views.Viewer;
 
 /// <summary>
 /// ViewModel for the viewer window that displays remote screen and handles input capture.
 /// </summary>
-public partial class ViewerWindowViewModel : ViewModelBase, IDisposable
+public partial class ViewerViewModel : ViewModelBase, IDisposable
 {
     private readonly ConnectionHubClient _hubClient;
-    private readonly ILogger<ViewerWindowViewModel> _logger;
+    private readonly ILogger<ViewerViewModel> _logger;
     private readonly string _connectionId;
 
     private bool _disposed;
@@ -45,10 +45,10 @@ public partial class ViewerWindowViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private int _frameHeight;
 
-    public ViewerWindowViewModel(
+    public ViewerViewModel(
         ConnectionHubClient hubClient,
         string connectionId,
-        ILogger<ViewerWindowViewModel> logger)
+        ILogger<ViewerViewModel> logger)
     {
         _hubClient = hubClient;
         _connectionId = connectionId;

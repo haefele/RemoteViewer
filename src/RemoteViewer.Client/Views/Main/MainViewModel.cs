@@ -3,14 +3,14 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services;
-using RemoteViewer.Client.Views;
+using RemoteViewer.Client.Views.Viewer;
 
-namespace RemoteViewer.Client.ViewModels;
+namespace RemoteViewer.Client.Views.Main;
 
-public partial class MainWindowViewModel : ViewModelBase
+public partial class MainViewModel : ViewModelBase
 {
     private readonly ConnectionHubClient _hubClient;
-    private readonly ILogger<ViewerWindowViewModel> _viewerLogger;
+    private readonly ILogger<ViewerViewModel> _viewerLogger;
 
     [ObservableProperty]
     private string _yourUsername = "Connecting...";
@@ -36,7 +36,7 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isConnecting;
 
-    public MainWindowViewModel(ConnectionHubClient hubClient, ILogger<ViewerWindowViewModel> viewerLogger)
+    public MainViewModel(ConnectionHubClient hubClient, ILogger<ViewerViewModel> viewerLogger)
     {
         _hubClient = hubClient;
         _viewerLogger = viewerLogger;
@@ -100,8 +100,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void OpenViewerWindow(string connectionId)
     {
-        var viewModel = new ViewerWindowViewModel(_hubClient, connectionId, _viewerLogger);
-        var window = new ViewerWindow
+        var viewModel = new ViewerViewModel(_hubClient, connectionId, _viewerLogger);
+        var window = new ViewerView
         {
             DataContext = viewModel
         };

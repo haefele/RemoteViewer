@@ -1,17 +1,16 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
-using RemoteViewer.Client.ViewModels;
 using ProtocolMouseButton = RemoteViewer.Server.SharedAPI.Protocol.MouseButton;
 using ProtocolKeyModifiers = RemoteViewer.Server.SharedAPI.Protocol.KeyModifiers;
 
-namespace RemoteViewer.Client.Views;
+namespace RemoteViewer.Client.Views.Viewer;
 
-public partial class ViewerWindow : Window
+public partial class ViewerView : Window
 {
-    private ViewerWindowViewModel? _viewModel;
+    private ViewerViewModel? _viewModel;
 
-    public ViewerWindow()
+    public ViewerView()
     {
         InitializeComponent();
     }
@@ -19,7 +18,7 @@ public partial class ViewerWindow : Window
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
-        _viewModel = DataContext as ViewerWindowViewModel;
+        _viewModel = DataContext as ViewerViewModel;
     }
 
     protected override void OnClosed(EventArgs e)

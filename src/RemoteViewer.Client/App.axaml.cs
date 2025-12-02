@@ -5,8 +5,8 @@ using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services;
-using RemoteViewer.Client.ViewModels;
-using RemoteViewer.Client.Views;
+using RemoteViewer.Client.Views.Main;
+using RemoteViewer.Client.Views.Viewer;
 using Serilog;
 #if WINDOWS
 using RemoteViewer.WinServ.Services;
@@ -48,21 +48,21 @@ public partial class App : Application
             services.AddSingleton<PresenterService>();
 #endif
 
-            services.AddTransient<MainWindowViewModel>();
+            services.AddTransient<MainViewModel>();
 
             _serviceProvider = services.BuildServiceProvider();
 
             // Resolve view model from DI
-            var viewModel = _serviceProvider.GetRequiredService<MainWindowViewModel>();
+            var viewModel = _serviceProvider.GetRequiredService<MainViewModel>();
 
-            var mainWindow = new MainWindow
+            var mainView = new MainView
             {
                 DataContext = viewModel,
             };
 
-            desktop.MainWindow = mainWindow;
+            desktop.MainWindow = mainView;
 
-            mainWindow.Opened += async (_, _) =>
+            mainView.Opened += async (_, _) =>
             {
 #if WINDOWS
                 // Resolve PresenterService to start listening for presenter connections
