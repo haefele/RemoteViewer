@@ -1,5 +1,6 @@
 using Avalonia;
 using Serilog;
+using Serilog.Sinks.File;
 
 namespace RemoteViewer.Client;
 
@@ -11,7 +12,14 @@ sealed class Program
         Log.Logger = new LoggerConfiguration()
             .Enrich.FromLogContext()
             .MinimumLevel.Information()
-            .WriteTo.Async(a => a.Console())
+            .WriteTo.Async(a => a.File(
+                Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                    "Remote Viewer Client",
+                    "Logs",
+                    "log-.txt"),
+                rollingInterval: RollingInterval.Day,
+                retainedFileCountLimit: 7))
             .CreateLogger();
 
         try
