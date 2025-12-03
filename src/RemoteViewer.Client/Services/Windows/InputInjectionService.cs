@@ -1,24 +1,16 @@
+#if WINDOWS
 using Microsoft.Extensions.Logging;
+using RemoteViewer.Server.SharedAPI.Protocol;
 using Windows.Win32;
 using Windows.Win32.UI.Input.KeyboardAndMouse;
 
-namespace RemoteViewer.WinServ.Services;
-
-/// <summary>
-/// Mouse button identifiers matching the protocol definition.
-/// </summary>
-public enum MouseButton : byte
-{
-    Left = 0,
-    Right = 1,
-    Middle = 2,
-}
+namespace RemoteViewer.Client.Services.Windows;
 
 /// <summary>
 /// Service for injecting mouse and keyboard input on the presenter machine.
 /// Uses Win32 SendInput API to simulate user input.
 /// </summary>
-public class InputInjectionService
+public class InputInjectionService : IInputInjectionService
 {
     private readonly ILogger<InputInjectionService> _logger;
 
@@ -175,10 +167,10 @@ public class InputInjectionService
     private static (int absX, int absY) NormalizedToAbsolute(Display display, float normalizedX, float normalizedY)
     {
         // Get virtual desktop dimensions
-        int virtualLeft = PInvoke.GetSystemMetrics(Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_XVIRTUALSCREEN);
-        int virtualTop = PInvoke.GetSystemMetrics(Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_YVIRTUALSCREEN);
-        int virtualWidth = PInvoke.GetSystemMetrics(Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_CXVIRTUALSCREEN);
-        int virtualHeight = PInvoke.GetSystemMetrics(Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_CYVIRTUALSCREEN);
+        int virtualLeft = PInvoke.GetSystemMetrics(global::Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_XVIRTUALSCREEN);
+        int virtualTop = PInvoke.GetSystemMetrics(global::Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_YVIRTUALSCREEN);
+        int virtualWidth = PInvoke.GetSystemMetrics(global::Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_CXVIRTUALSCREEN);
+        int virtualHeight = PInvoke.GetSystemMetrics(global::Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_CYVIRTUALSCREEN);
 
         // Calculate actual screen position
         int screenX = display.Bounds.Left + (int)(normalizedX * display.Bounds.Width);
@@ -203,3 +195,4 @@ public class InputInjectionService
         }
     }
 }
+#endif

@@ -8,7 +8,7 @@ using RemoteViewer.Client.Services;
 using RemoteViewer.Client.Views.Main;
 using Serilog;
 #if WINDOWS
-using RemoteViewer.WinServ.Services;
+using RemoteViewer.Client.Services.Windows;
 #endif
 
 namespace RemoteViewer.Client;
@@ -38,13 +38,15 @@ public partial class App : Application
             services.AddSingleton(sp =>
                 new ConnectionHubClient(ServerUrl, sp.GetRequiredService<ILogger<ConnectionHubClient>>()));
 
-#if WINDOWS
-            // Screen capture services from WinServ
-            services.AddSingleton<DxgiScreenGrabber>();
-            services.AddSingleton<BitBltScreenGrabber>();
-            services.AddSingleton<IScreenshotService, ScreenshotService>();
-            services.AddSingleton<InputInjectionService>();
-#endif
+            // Platform-specific services
+            if (OperatingSystem.IsWindows())
+            {
+                RegisterWindowsServices(services);
+            }
+            else
+            {
+                RegisterNullServices(services);
+            }
 
             services.AddTransient<MainViewModel>();
 
@@ -76,6 +78,29 @@ public partial class App : Application
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+#if WINDOWS
+    private static void RegisterWindowsServices(IServiceCollection services)
+    {
+        services.AddSingleton<DxgiScreenGrabber>();
+        services.AddSingleton<BitBltScreenGrabber>();
+        services.AddSingleton<IScreenshotService, ScreenshotService>();
+        services.AddSingleton<IInputInjectionService, InputInjectionService>();
+    }
+#else
+    private static void RegisterWindowsServices(IServiceCollection services)
+    {
+        // This path should never be hit at runtime on non-Windows,
+        // but the method needs to exist for compilation
+        RegisterNullServices(services);
+    }
+#endif
+
+    private static void RegisterNullServices(IServiceCollection services)
+    {
+        services.AddSingleton<IScreenshotService, NullScreenshotService>();
+        services.AddSingleton<IInputInjectionService, NullInputInjectionService>();
     }
 
     private static void DisableAvaloniaDataAnnotationValidation()

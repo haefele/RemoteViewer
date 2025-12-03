@@ -1,36 +1,17 @@
-﻿using System.Collections.Immutable;
+#if WINDOWS
+using System.Collections.Immutable;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 using Windows.Win32;
 using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.Foundation;
-using SkiaSharp;
-using System.Drawing;
 
-namespace RemoteViewer.WinServ.Services;
-
-public interface IScreenshotService
-{
-    ImmutableList<Display> GetDisplays();
-    CaptureResult CaptureDisplay(Display display);
-}
-
-public record Display(string Name, bool IsPrimary, DisplayRect Bounds);
-
-public record struct DisplayRect(int Left, int Top, int Right, int Bottom)
-{
-    public int Width => Right - Left;
-    public int Height => Bottom - Top;
-}
-
-public record CaptureResult(bool Success, SKBitmap? Bitmap, Rectangle[] DirtyRectangles)
-{
-    public static CaptureResult Failure => new(false, null, Array.Empty<Rectangle>());
-    public static CaptureResult Ok(SKBitmap bitmap, Rectangle[] dirtyRectangles) => new(true, bitmap, dirtyRectangles);
-    public static CaptureResult NoChanges => new(true, null, Array.Empty<Rectangle>());
-}
+namespace RemoteViewer.Client.Services.Windows;
 
 public class ScreenshotService(ILogger<ScreenshotService> logger, DxgiScreenGrabber dxgi, BitBltScreenGrabber bitBlt) : IScreenshotService
 {
+    public bool IsSupported => true;
+
     public unsafe ImmutableList<Display> GetDisplays()
     {
         try
@@ -42,7 +23,7 @@ public class ScreenshotService(ILogger<ScreenshotService> logger, DxgiScreenGrab
             {
                 var errorCode = Marshal.GetLastWin32Error();
                 logger.LogError("Failed to enumerate display monitors: {ErrorCode}", errorCode);
-                return ImmutableList<Display>.Empty;
+                return [];
             }
 
             if (displays.Count == 0)
@@ -64,7 +45,7 @@ public class ScreenshotService(ILogger<ScreenshotService> logger, DxgiScreenGrab
         catch (Exception exception)
         {
             logger.LogError(exception, "Exception occurred while getting displays");
-            return ImmutableList<Display>.Empty;
+            return [];
         }
     }
 
@@ -142,5 +123,5 @@ public class ScreenshotService(ILogger<ScreenshotService> logger, DxgiScreenGrab
             return StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Name);
         }
     }
-    
 }
+#endif

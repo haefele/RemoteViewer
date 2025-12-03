@@ -13,10 +13,6 @@
         WindowStartupLocation="CenterScreen"
         CanResize="False">
 
-    <Design.DataContext>
-        <vm:PresenterViewModel/>
-    </Design.DataContext>
-
     <DockPanel>
         <!-- Status Bar at Bottom -->
         <Border DockPanel.Dock="Bottom"
@@ -34,8 +30,9 @@
             </StackPanel>
         </Border>
 
-        <!-- Main Content -->
-        <StackPanel Margin="20" Spacing="20" VerticalAlignment="Center" HorizontalAlignment="Center">
+        <!-- Main Content - Platform Supported -->
+        <StackPanel Margin="20" Spacing="20" VerticalAlignment="Center" HorizontalAlignment="Center"
+                    IsVisible="{Binding IsPlatformSupported}">
             <TextBlock Text="You are presenting your screen"
                        FontSize="16"
                        FontWeight="SemiBold"
@@ -53,6 +50,27 @@
             </StackPanel>
 
             <Button Content="Stop Presenting"
+                    Command="{Binding StopPresentingCommand}"
+                    HorizontalAlignment="Center"
+                    Padding="20,10"/>
+        </StackPanel>
+
+        <!-- Main Content - Platform Not Supported -->
+        <StackPanel Margin="20" Spacing="20" VerticalAlignment="Center" HorizontalAlignment="Center"
+                    IsVisible="{Binding !IsPlatformSupported}">
+            <TextBlock Text="Presenter Mode Not Available"
+                       FontSize="16"
+                       FontWeight="SemiBold"
+                       HorizontalAlignment="Center"/>
+
+            <TextBlock Text="Screen sharing is not supported on this platform."
+                       FontSize="14"
+                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                       HorizontalAlignment="Center"
+                       TextWrapping="Wrap"
+                       TextAlignment="Center"/>
+
+            <Button Content="Close"
                     Command="{Binding StopPresentingCommand}"
                     HorizontalAlignment="Center"
                     Padding="20,10"/>

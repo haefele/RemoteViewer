@@ -1,7 +1,7 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFrameworks>net10.0;net10.0-windows</TargetFrameworks>
+    <TargetFrameworks>net10.0-windows</TargetFrameworks>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
@@ -13,17 +13,6 @@
 
   <ItemGroup>
     <Compile Include="..\RemoteViewer.Server\SharedAPI\**\*" LinkBase="\SharedApi\" />
-  </ItemGroup>
-
-  <ItemGroup Condition="$(TargetFramework.Contains('windows'))">
-    <ProjectReference Include="..\RemoteViewer.WinServ\RemoteViewer.WinServ.csproj" />
-  </ItemGroup>
-
-  <!-- Presenter files are Windows-only -->
-  <ItemGroup Condition="!$(TargetFramework.Contains('windows'))">
-    <Compile Remove="Views\Presenter\**" />
-    <AvaloniaXaml Remove="Views\Presenter\**" />
-    <None Remove="Views\Presenter\**" />
   </ItemGroup>
 
   <ItemGroup>
@@ -46,5 +35,13 @@
     <PackageReference Include="Serilog.Extensions.Logging" Version="9.0.0" />
     <PackageReference Include="Serilog.Sinks.Async" Version="2.1.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageReference Include="SkiaSharp" Version="3.119.1" />
+  </ItemGroup>
+
+  <ItemGroup Condition="$(TargetFramework.Contains('windows'))">
+    <PackageReference Include="Microsoft.Windows.CsWin32" Version="0.3.228">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
   </ItemGroup>
 </Project>

@@ -3,11 +3,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services;
-using RemoteViewer.Client.Views.Viewer;
-#if WINDOWS
 using RemoteViewer.Client.Views.Presenter;
-using RemoteViewer.WinServ.Services;
-#endif
+using RemoteViewer.Client.Views.Viewer;
 
 namespace RemoteViewer.Client.Views.Main;
 
@@ -15,11 +12,9 @@ public partial class MainViewModel : ViewModelBase
 {
     private readonly ConnectionHubClient _hubClient;
     private readonly ILogger<ViewerViewModel> _viewerLogger;
-#if WINDOWS
     private readonly ILogger<PresenterViewModel> _presenterLogger;
     private readonly IScreenshotService _screenshotService;
-    private readonly InputInjectionService _inputInjectionService;
-#endif
+    private readonly IInputInjectionService _inputInjectionService;
 
     [ObservableProperty]
     private string _yourUsername = "Connecting...";
@@ -49,25 +44,18 @@ public partial class MainViewModel : ViewModelBase
     public event EventHandler? RequestHideMainView;
     public event EventHandler? RequestShowMainView;
 
-#if WINDOWS
     public MainViewModel(
         ConnectionHubClient hubClient,
         ILogger<ViewerViewModel> viewerLogger,
         ILogger<PresenterViewModel> presenterLogger,
         IScreenshotService screenshotService,
-        InputInjectionService inputInjectionService)
+        IInputInjectionService inputInjectionService)
     {
         _hubClient = hubClient;
         _viewerLogger = viewerLogger;
         _presenterLogger = presenterLogger;
         _screenshotService = screenshotService;
         _inputInjectionService = inputInjectionService;
-#else
-    public MainViewModel(ConnectionHubClient hubClient, ILogger<ViewerViewModel> viewerLogger)
-    {
-        _hubClient = hubClient;
-        _viewerLogger = viewerLogger;
-#endif
 
         _hubClient.CredentialsAssigned += (_, e) =>
         {
@@ -120,9 +108,7 @@ public partial class MainViewModel : ViewModelBase
         {
             if (e.IsPresenter)
             {
-#if WINDOWS
                 OpenPresenterWindow(e.ConnectionId);
-#endif
             }
             else
             {
@@ -131,7 +117,6 @@ public partial class MainViewModel : ViewModelBase
         });
     }
 
-#if WINDOWS
     private void OpenPresenterWindow(string connectionId)
     {
         RequestHideMainView?.Invoke(this, EventArgs.Empty);
@@ -150,7 +135,6 @@ public partial class MainViewModel : ViewModelBase
         window.Closed += OnSessionWindowClosed;
         window.Show();
     }
-#endif
 
     private void OpenViewerWindow(string connectionId)
     {

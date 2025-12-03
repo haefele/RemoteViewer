@@ -1,11 +1,10 @@
-﻿using SkiaSharp;
-using System;
-using System.Collections.Generic;
+#if WINDOWS
+using Microsoft.Extensions.Logging;
+using SkiaSharp;
 using System.Drawing;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
-using System.Text;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.Graphics.Direct3D;
@@ -13,7 +12,7 @@ using Windows.Win32.Graphics.Direct3D11;
 using Windows.Win32.Graphics.Dxgi;
 using Windows.Win32.Graphics.Dxgi.Common;
 
-namespace RemoteViewer.WinServ.Services;
+namespace RemoteViewer.Client.Services.Windows;
 
 public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
 {
@@ -141,12 +140,12 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
             }
             catch
             {
-                return Array.Empty<Rectangle>();
+                return [];
             }
 
             if (bufferSizeNeeded == 0)
             {
-                return Array.Empty<Rectangle>();
+                return [];
             }
 
             var numRects = (int)(bufferSizeNeeded / rectSize);
@@ -173,7 +172,7 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
         catch (Exception exception)
         {
             logger.LogDebug(exception, "Failed to get dirty rects");
-            return Array.Empty<Rectangle>();
+            return [];
         }
     }
 
@@ -448,3 +447,4 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
         }
     }
 }
+#endif

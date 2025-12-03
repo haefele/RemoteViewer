@@ -1,4 +1,3 @@
-#if WINDOWS
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -6,7 +5,6 @@ using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services;
 using RemoteViewer.Server.SharedAPI;
 using RemoteViewer.Server.SharedAPI.Protocol;
-using RemoteViewer.WinServ.Services;
 using SkiaSharp;
 using System.Collections.Concurrent;
 
@@ -20,7 +18,7 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
 {
     private readonly ConnectionHubClient _hubClient;
     private readonly IScreenshotService _screenshotService;
-    private readonly InputInjectionService _inputInjectionService;
+    private readonly IInputInjectionService _inputInjectionService;
     private readonly ILogger<PresenterViewModel> _logger;
     private readonly string _connectionId;
 
@@ -44,13 +42,16 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
     [ObservableProperty]
     private string _statusText = "Waiting for viewers...";
 
+    [ObservableProperty]
+    private bool _isPlatformSupported;
+
     public event EventHandler? CloseRequested;
 
     public PresenterViewModel(
         ConnectionHubClient hubClient,
         string connectionId,
         IScreenshotService screenshotService,
-        InputInjectionService inputInjectionService,
+        IInputInjectionService inputInjectionService,
         ILogger<PresenterViewModel> logger)
     {
         _hubClient = hubClient;
@@ -58,6 +59,16 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
         _screenshotService = screenshotService;
         _inputInjectionService = inputInjectionService;
         _logger = logger;
+
+        IsPlatformSupported = screenshotService.IsSupported;
+
+        if (!IsPlatformSupported)
+        {
+            Title = "Presenter - Not Supported";
+            StatusText = "Not supported on this platform";
+            IsPresenting = false;
+            return;
+        }
 
         Title = $"Presenting - {connectionId[..8]}...";
 
@@ -231,8 +242,7 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
             var display = GetDisplayById(displayId);
             if (display is not null)
             {
-                var button = (WinServ.Services.MouseButton)message.Button;
-                _inputInjectionService.InjectMouseButton(display, button, isDown, message.X, message.Y);
+                _inputInjectionService.InjectMouseButton(display, message.Button, isDown, message.X, message.Y);
             }
         }
     }
@@ -392,6 +402,12 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task StopPresentingAsync()
     {
+        if (!IsPlatformSupported)
+        {
+            CloseRequested?.Invoke(this, EventArgs.Empty);
+            return;
+        }
+
         _logger.LogInformation("User requested to stop presenting for connection {ConnectionId}", _connectionId);
         await _hubClient.Disconnect(_connectionId);
         // The ConnectionStopped event will trigger CloseRequested
@@ -416,4 +432,3 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
         GC.SuppressFinalize(this);
     }
 }
-#endif

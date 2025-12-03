@@ -1,14 +1,12 @@
-﻿using SkiaSharp;
-using System;
-using System.Collections.Generic;
-using System.Drawing;
+#if WINDOWS
+using Microsoft.Extensions.Logging;
+using SkiaSharp;
 using System.Runtime.InteropServices;
-using System.Text;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.Graphics.Gdi;
 
-namespace RemoteViewer.WinServ.Services;
+namespace RemoteViewer.Client.Services.Windows;
 
 public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger)
 {
@@ -99,7 +97,7 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger)
             var skBitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
             Buffer.MemoryCopy(pBits, (void*)skBitmap.GetPixels(), bufferSize, bufferSize);
 
-            return CaptureResult.Ok(skBitmap, Array.Empty<Rectangle>());
+            return CaptureResult.Ok(skBitmap, []);
         }
         catch (Exception exception)
         {
@@ -131,3 +129,4 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger)
         }
     }
 }
+#endif
