@@ -58,8 +58,12 @@ public partial class ViewerViewModel : ViewModelBase, IDisposable
 
         _hubClient.MessageReceived += OnMessageReceived;
         _hubClient.ConnectionStopped += OnConnectionStopped;
+        _hubClient.Reconnecting += OnHubReconnecting;
 
         Title = $"Remote Viewer - {connectionId}";
+
+        // Request display list from presenter
+        _ = RequestDisplayListAsync();
     }
 
     private void OnMessageReceived(object? sender, MessageReceivedEventArgs e)
@@ -162,6 +166,24 @@ public partial class ViewerViewModel : ViewModelBase, IDisposable
         });
     }
 
+    private void OnHubReconnecting(object? sender, ReconnectingEventArgs e)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            IsConnected = false;
+            StatusText = "Hub connection lost";
+            CloseRequested?.Invoke(this, EventArgs.Empty);
+        });
+    }
+
+    private async Task RequestDisplayListAsync()
+    {
+        var message = new RequestDisplayListMessage();
+        var data = ProtocolSerializer.Serialize(message);
+        await _hubClient.SendMessage(_connectionId, MessageTypes.Display.RequestList, data, MessageDestination.PresenterOnly);
+        _logger.LogInformation("Requested display list from presenter");
+    }
+
     [RelayCommand]
     private async Task Disconnect()
     {
@@ -260,6 +282,7 @@ public partial class ViewerViewModel : ViewModelBase, IDisposable
 
         _hubClient.MessageReceived -= OnMessageReceived;
         _hubClient.ConnectionStopped -= OnConnectionStopped;
+        _hubClient.Reconnecting -= OnHubReconnecting;
 
         FrameBitmap?.Dispose();
         FrameBitmap = null;

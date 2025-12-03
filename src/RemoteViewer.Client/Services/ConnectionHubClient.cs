@@ -112,6 +112,12 @@ public sealed class ConnectionHubClient : IAsyncDisposable
         {
             try
             {
+                if (_connection.State is HubConnectionState.Connected or HubConnectionState.Reconnecting)
+                {
+                    _logger.LogInformation("Already connected to server");
+                    return;
+                }
+
                 _logger.LogInformation("Connecting to server...");
                 await _connection.StartAsync();
                 _logger.LogInformation("Connected to server successfully");

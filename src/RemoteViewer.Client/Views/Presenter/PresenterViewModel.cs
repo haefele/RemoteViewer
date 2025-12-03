@@ -76,6 +76,7 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
         _hubClient.ConnectionChanged += OnConnectionChanged;
         _hubClient.ConnectionStopped += OnConnectionStopped;
         _hubClient.MessageReceived += OnMessageReceived;
+        _hubClient.Reconnecting += OnHubReconnecting;
 
         // Start presenting immediately
         StartPresenting();
@@ -103,7 +104,6 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
             {
                 _knownViewers.TryAdd(viewerId, 0);
             }
-            _ = SendDisplayListAsync();
         }
 
         // Remove disconnected viewers
@@ -135,6 +135,18 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
         {
             IsPresenting = false;
             StatusText = "Connection closed";
+            CloseRequested?.Invoke(this, EventArgs.Empty);
+        });
+    }
+
+    private void OnHubReconnecting(object? sender, ReconnectingEventArgs e)
+    {
+        StopPresenting();
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            IsPresenting = false;
+            StatusText = "Hub connection lost";
             CloseRequested?.Invoke(this, EventArgs.Empty);
         });
     }
@@ -278,35 +290,12 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
 
         _captureLoopCts = new CancellationTokenSource();
         _captureLoopTask = Task.Run(() => CaptureLoopAsync(_captureLoopCts.Token));
-
-        // Send display list immediately
-        _ = SendDisplayListAsync();
     }
 
     private void StopPresenting()
     {
         _captureLoopCts?.Cancel();
         _logger.LogInformation("Stopped presenting for connection {ConnectionId}", _connectionId);
-    }
-
-    private async Task SendDisplayListAsync()
-    {
-        var displays = _screenshotService.GetDisplays();
-        var displayInfos = displays.Select(d => new DisplayInfo(
-            d.Name,
-            d.Name,
-            d.IsPrimary,
-            d.Bounds.Left,
-            d.Bounds.Top,
-            d.Bounds.Width,
-            d.Bounds.Height
-        )).ToArray();
-
-        var message = new DisplayListMessage(displayInfos);
-        var data = ProtocolSerializer.Serialize(message);
-
-        await _hubClient.SendMessage(_connectionId, MessageTypes.Display.List, data, MessageDestination.AllViewers);
-        _logger.LogInformation("Sent display list with {Count} displays", displayInfos.Length);
     }
 
     private async Task CaptureLoopAsync(CancellationToken ct)
@@ -428,6 +417,7 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
         _hubClient.ConnectionChanged -= OnConnectionChanged;
         _hubClient.ConnectionStopped -= OnConnectionStopped;
         _hubClient.MessageReceived -= OnMessageReceived;
+        _hubClient.Reconnecting -= OnHubReconnecting;
 
         GC.SuppressFinalize(this);
     }
