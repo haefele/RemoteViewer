@@ -54,55 +54,55 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
         IInputInjectionService inputInjectionService,
         ILogger<PresenterViewModel> logger)
     {
-        _hubClient = hubClient;
-        _connectionId = connectionId;
-        _screenshotService = screenshotService;
-        _inputInjectionService = inputInjectionService;
-        _logger = logger;
+        this._hubClient = hubClient;
+        this._connectionId = connectionId;
+        this._screenshotService = screenshotService;
+        this._inputInjectionService = inputInjectionService;
+        this._logger = logger;
 
-        IsPlatformSupported = screenshotService.IsSupported;
+        this.IsPlatformSupported = screenshotService.IsSupported;
 
-        if (!IsPlatformSupported)
+        if (!this.IsPlatformSupported)
         {
-            Title = "Presenter - Not Supported";
-            StatusText = "Not supported on this platform";
-            IsPresenting = false;
+            this.Title = "Presenter - Not Supported";
+            this.StatusText = "Not supported on this platform";
+            this.IsPresenting = false;
             return;
         }
 
-        Title = $"Presenting - {connectionId[..8]}...";
+        this.Title = $"Presenting - {connectionId[..8]}...";
 
         // Subscribe to hub events
-        _hubClient.ConnectionChanged += OnConnectionChanged;
-        _hubClient.ConnectionStopped += OnConnectionStopped;
-        _hubClient.MessageReceived += OnMessageReceived;
-        _hubClient.Reconnecting += OnHubReconnecting;
+        this._hubClient.ConnectionChanged += this.OnConnectionChanged;
+        this._hubClient.ConnectionStopped += this.OnConnectionStopped;
+        this._hubClient.MessageReceived += this.OnMessageReceived;
+        this._hubClient.Reconnecting += this.OnHubReconnecting;
 
         // Start presenting immediately
-        StartPresenting();
+        this.StartPresenting();
     }
 
     private void OnConnectionChanged(object? sender, ConnectionChangedEventArgs e)
     {
-        if (e.ConnectionInfo.ConnectionId != _connectionId)
+        if (e.ConnectionInfo.ConnectionId != this._connectionId)
             return;
 
         // Only handle if we're the presenter
-        if (_hubClient.ClientId != e.ConnectionInfo.PresenterClientId)
+        if (this._hubClient.ClientId != e.ConnectionInfo.PresenterClientId)
             return;
 
         // Update viewer list and send display list to new viewers
-        var currentViewerKeys = _knownViewers.Keys;
+        var currentViewerKeys = this._knownViewers.Keys;
         var newViewers = e.ConnectionInfo.ViewerClientIds.ToHashSet();
 
         // Find new viewers
         var addedViewers = newViewers.Except(currentViewerKeys).ToList();
         if (addedViewers.Count > 0)
         {
-            _logger.LogInformation("New viewers joined: {Viewers}", string.Join(", ", addedViewers));
+            this._logger.LogInformation("New viewers joined: {Viewers}", string.Join(", ", addedViewers));
             foreach (var viewerId in addedViewers)
             {
-                _knownViewers.TryAdd(viewerId, 0);
+                this._knownViewers.TryAdd(viewerId, 0);
             }
         }
 
@@ -110,59 +110,59 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
         var removedViewers = currentViewerKeys.Except(newViewers).ToList();
         foreach (var viewerId in removedViewers)
         {
-            _knownViewers.TryRemove(viewerId, out _);
-            _viewerDisplaySubscriptions.TryRemove(viewerId, out _);
+            this._knownViewers.TryRemove(viewerId, out _);
+            this._viewerDisplaySubscriptions.TryRemove(viewerId, out _);
         }
 
         // Update UI
         Dispatcher.UIThread.Post(() =>
         {
-            ViewerCount = e.ConnectionInfo.ViewerClientIds.Count;
-            StatusText = ViewerCount == 0
+            this.ViewerCount = e.ConnectionInfo.ViewerClientIds.Count;
+            this.StatusText = this.ViewerCount == 0
                 ? "Waiting for viewers..."
-                : $"{ViewerCount} viewer(s) connected";
+                : $"{this.ViewerCount} viewer(s) connected";
         });
     }
 
     private void OnConnectionStopped(object? sender, ConnectionStoppedEventArgs e)
     {
-        if (e.ConnectionId != _connectionId)
+        if (e.ConnectionId != this._connectionId)
             return;
 
-        StopPresenting();
+        this.StopPresenting();
 
         Dispatcher.UIThread.Post(() =>
         {
-            IsPresenting = false;
-            StatusText = "Connection closed";
+            this.IsPresenting = false;
+            this.StatusText = "Connection closed";
             CloseRequested?.Invoke(this, EventArgs.Empty);
         });
     }
 
-    private void OnHubReconnecting(object? sender, ReconnectingEventArgs e)
+    private void OnHubReconnecting(object? sender, HubReconnectingEventArgs e)
     {
-        StopPresenting();
+        this.StopPresenting();
 
         Dispatcher.UIThread.Post(() =>
         {
-            IsPresenting = false;
-            StatusText = "Hub connection lost";
+            this.IsPresenting = false;
+            this.StatusText = "Hub connection lost";
             CloseRequested?.Invoke(this, EventArgs.Empty);
         });
     }
 
     private void OnMessageReceived(object? sender, MessageReceivedEventArgs e)
     {
-        if (e.ConnectionId != _connectionId)
+        if (e.ConnectionId != this._connectionId)
             return;
 
         try
         {
-            HandleMessage(e.SenderClientId, e.MessageType, e.Data);
+            this.HandleMessage(e.SenderClientId, e.MessageType, e.Data);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error handling message {MessageType} from {SenderClientId}", e.MessageType, e.SenderClientId);
+            this._logger.LogError(ex, "Error handling message {MessageType} from {SenderClientId}", e.MessageType, e.SenderClientId);
         }
     }
 
@@ -171,35 +171,35 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
         switch (messageType)
         {
             case MessageTypes.Display.Select:
-                HandleDisplaySelect(senderClientId, data);
+                this.HandleDisplaySelect(senderClientId, data);
                 break;
 
             case MessageTypes.Display.RequestList:
-                HandleDisplayListRequest(senderClientId);
+                this.HandleDisplayListRequest(senderClientId);
                 break;
 
             case MessageTypes.Input.MouseMove:
-                HandleMouseMove(senderClientId, data);
+                this.HandleMouseMove(senderClientId, data);
                 break;
 
             case MessageTypes.Input.MouseDown:
-                HandleMouseButton(senderClientId, data, isDown: true);
+                this.HandleMouseButton(senderClientId, data, isDown: true);
                 break;
 
             case MessageTypes.Input.MouseUp:
-                HandleMouseButton(senderClientId, data, isDown: false);
+                this.HandleMouseButton(senderClientId, data, isDown: false);
                 break;
 
             case MessageTypes.Input.MouseWheel:
-                HandleMouseWheel(senderClientId, data);
+                this.HandleMouseWheel(senderClientId, data);
                 break;
 
             case MessageTypes.Input.KeyDown:
-                HandleKey(data, isDown: true);
+                this.HandleKey(data, isDown: true);
                 break;
 
             case MessageTypes.Input.KeyUp:
-                HandleKey(data, isDown: false);
+                this.HandleKey(data, isDown: false);
                 break;
         }
     }
@@ -207,13 +207,13 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
     private void HandleDisplaySelect(string senderClientId, ReadOnlyMemory<byte> data)
     {
         var message = ProtocolSerializer.Deserialize<DisplaySelectMessage>(data);
-        _viewerDisplaySubscriptions[senderClientId] = message.DisplayId;
-        _logger.LogInformation("Viewer {ViewerId} selected display {DisplayId}", senderClientId, message.DisplayId);
+        this._viewerDisplaySubscriptions[senderClientId] = message.DisplayId;
+        this._logger.LogInformation("Viewer {ViewerId} selected display {DisplayId}", senderClientId, message.DisplayId);
     }
 
     private async void HandleDisplayListRequest(string senderClientId)
     {
-        var displays = _screenshotService.GetDisplays();
+        var displays = this._screenshotService.GetDisplays();
         var displayInfos = displays.Select(d => new DisplayInfo(
             d.Name,
             d.Name,
@@ -227,20 +227,20 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
         var message = new DisplayListMessage(displayInfos);
         var data = ProtocolSerializer.Serialize(message);
 
-        await _hubClient.SendMessage(_connectionId, MessageTypes.Display.List, data, MessageDestination.SpecificClients, [senderClientId]);
-        _logger.LogInformation("Sent display list to viewer {ViewerId}", senderClientId);
+        await this._hubClient.SendMessage(this._connectionId, MessageTypes.Display.List, data, MessageDestination.SpecificClients, [senderClientId]);
+        this._logger.LogInformation("Sent display list to viewer {ViewerId}", senderClientId);
     }
 
     private void HandleMouseMove(string senderClientId, ReadOnlyMemory<byte> data)
     {
         var message = ProtocolSerializer.Deserialize<MouseMoveMessage>(data);
 
-        if (_viewerDisplaySubscriptions.TryGetValue(senderClientId, out var displayId))
+        if (this._viewerDisplaySubscriptions.TryGetValue(senderClientId, out var displayId))
         {
-            var display = GetDisplayById(displayId);
+            var display = this.GetDisplayById(displayId);
             if (display is not null)
             {
-                _inputInjectionService.InjectMouseMove(display, message.X, message.Y);
+                this._inputInjectionService.InjectMouseMove(display, message.X, message.Y);
             }
         }
     }
@@ -249,12 +249,12 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
     {
         var message = ProtocolSerializer.Deserialize<MouseButtonMessage>(data);
 
-        if (_viewerDisplaySubscriptions.TryGetValue(senderClientId, out var displayId))
+        if (this._viewerDisplaySubscriptions.TryGetValue(senderClientId, out var displayId))
         {
-            var display = GetDisplayById(displayId);
+            var display = this.GetDisplayById(displayId);
             if (display is not null)
             {
-                _inputInjectionService.InjectMouseButton(display, message.Button, isDown, message.X, message.Y);
+                this._inputInjectionService.InjectMouseButton(display, message.Button, isDown, message.X, message.Y);
             }
         }
     }
@@ -263,12 +263,12 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
     {
         var message = ProtocolSerializer.Deserialize<MouseWheelMessage>(data);
 
-        if (_viewerDisplaySubscriptions.TryGetValue(senderClientId, out var displayId))
+        if (this._viewerDisplaySubscriptions.TryGetValue(senderClientId, out var displayId))
         {
-            var display = GetDisplayById(displayId);
+            var display = this.GetDisplayById(displayId);
             if (display is not null)
             {
-                _inputInjectionService.InjectMouseWheel(display, message.DeltaX, message.DeltaY, message.X, message.Y);
+                this._inputInjectionService.InjectMouseWheel(display, message.DeltaX, message.DeltaY, message.X, message.Y);
             }
         }
     }
@@ -276,26 +276,26 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
     private void HandleKey(ReadOnlyMemory<byte> data, bool isDown)
     {
         var message = ProtocolSerializer.Deserialize<KeyMessage>(data);
-        _inputInjectionService.InjectKey(message.KeyCode, message.ScanCode, isDown, message.IsExtendedKey);
+        this._inputInjectionService.InjectKey(message.KeyCode, message.ScanCode, isDown, message.IsExtendedKey);
     }
 
     private Display? GetDisplayById(string displayId)
     {
-        return _screenshotService.GetDisplays().FirstOrDefault(d => d.Name == displayId);
+        return this._screenshotService.GetDisplays().FirstOrDefault(d => d.Name == displayId);
     }
 
     private void StartPresenting()
     {
-        _logger.LogInformation("Starting presenter for connection {ConnectionId}", _connectionId);
+        this._logger.LogInformation("Starting presenter for connection {ConnectionId}", this._connectionId);
 
-        _captureLoopCts = new CancellationTokenSource();
-        _captureLoopTask = Task.Run(() => CaptureLoopAsync(_captureLoopCts.Token));
+        this._captureLoopCts = new CancellationTokenSource();
+        this._captureLoopTask = Task.Run(() => this.CaptureLoopAsync(this._captureLoopCts.Token));
     }
 
     private void StopPresenting()
     {
-        _captureLoopCts?.Cancel();
-        _logger.LogInformation("Stopped presenting for connection {ConnectionId}", _connectionId);
+        this._captureLoopCts?.Cancel();
+        this._logger.LogInformation("Stopped presenting for connection {ConnectionId}", this._connectionId);
     }
 
     private async Task CaptureLoopAsync(CancellationToken ct)
@@ -304,7 +304,7 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
         var frameInterval = TimeSpan.FromMilliseconds(1000.0 / TargetFps);
         ulong frameNumber = 0;
 
-        _logger.LogInformation("Capture loop started for connection {ConnectionId}", _connectionId);
+        this._logger.LogInformation("Capture loop started for connection {ConnectionId}", this._connectionId);
 
         while (!ct.IsCancellationRequested)
         {
@@ -312,11 +312,11 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
 
             try
             {
-                await CaptureAndSendFramesAsync(frameNumber++);
+                await this.CaptureAndSendFramesAsync(frameNumber++);
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
-                _logger.LogError(ex, "Error in capture loop");
+                this._logger.LogError(ex, "Error in capture loop");
             }
 
             // Maintain target FPS
@@ -328,20 +328,20 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
             }
         }
 
-        _logger.LogInformation("Capture loop ended for connection {ConnectionId}", _connectionId);
+        this._logger.LogInformation("Capture loop ended for connection {ConnectionId}", this._connectionId);
     }
 
     private async Task CaptureAndSendFramesAsync(ulong frameNumber)
     {
         // Group viewers by display
-        var viewersByDisplay = _viewerDisplaySubscriptions
+        var viewersByDisplay = this._viewerDisplaySubscriptions
             .GroupBy(kvp => kvp.Value)
             .ToDictionary(g => g.Key, g => g.Select(kvp => kvp.Key).ToList());
 
         if (viewersByDisplay.Count == 0)
             return;
 
-        var displays = _screenshotService.GetDisplays();
+        var displays = this._screenshotService.GetDisplays();
 
         foreach (var (displayId, viewers) in viewersByDisplay)
         {
@@ -349,7 +349,7 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
             if (display is null)
                 continue;
 
-            var captureResult = _screenshotService.CaptureDisplay(display);
+            var captureResult = this._screenshotService.CaptureDisplay(display);
             if (!captureResult.Success || captureResult.Bitmap is null)
                 continue;
 
@@ -372,7 +372,7 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
                 var data = ProtocolSerializer.Serialize(message);
 
                 // Send to specific viewers watching this display
-                await _hubClient.SendMessage(_connectionId, MessageTypes.Screen.Frame, data, MessageDestination.SpecificClients, viewers);
+                await this._hubClient.SendMessage(this._connectionId, MessageTypes.Screen.Frame, data, MessageDestination.SpecificClients, viewers);
             }
             finally
             {
@@ -391,33 +391,33 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task StopPresentingAsync()
     {
-        if (!IsPlatformSupported)
+        if (!this.IsPlatformSupported)
         {
             CloseRequested?.Invoke(this, EventArgs.Empty);
             return;
         }
 
-        _logger.LogInformation("User requested to stop presenting for connection {ConnectionId}", _connectionId);
-        await _hubClient.Disconnect(_connectionId);
+        this._logger.LogInformation("User requested to stop presenting for connection {ConnectionId}", this._connectionId);
+        await this._hubClient.Disconnect(this._connectionId);
         // The ConnectionStopped event will trigger CloseRequested
     }
 
     public void Dispose()
     {
-        if (_disposed)
+        if (this._disposed)
             return;
 
-        _disposed = true;
+        this._disposed = true;
 
         // Stop capture loop
-        StopPresenting();
-        _captureLoopCts?.Dispose();
+        this.StopPresenting();
+        this._captureLoopCts?.Dispose();
 
         // Unsubscribe from hub events
-        _hubClient.ConnectionChanged -= OnConnectionChanged;
-        _hubClient.ConnectionStopped -= OnConnectionStopped;
-        _hubClient.MessageReceived -= OnMessageReceived;
-        _hubClient.Reconnecting -= OnHubReconnecting;
+        this._hubClient.ConnectionChanged -= this.OnConnectionChanged;
+        this._hubClient.ConnectionStopped -= this.OnConnectionStopped;
+        this._hubClient.MessageReceived -= this.OnMessageReceived;
+        this._hubClient.Reconnecting -= this.OnHubReconnecting;
 
         GC.SuppressFinalize(this);
     }

@@ -68,7 +68,7 @@ public class Win32Service(ILogger<Win32Service> logger) : IWin32Service
             consoleSessionId,
             "Console",
             DesktopSessionType.Console,
-            GetUsernameFromSessionId(consoleSessionId)));
+            this.GetUsernameFromSessionId(consoleSessionId)));
 
         var sessionResult = (bool)PInvoke.WTSEnumerateSessions(
             HANDLE.WTS_CURRENT_SERVER_HANDLE,
@@ -93,7 +93,7 @@ public class Win32Service(ILogger<Win32Service> logger) : IWin32Service
                         currentSession->SessionId,
                         currentSession->pWinStationName.ToString(),
                         DesktopSessionType.Rdp,
-                        GetUsernameFromSessionId(currentSession->SessionId)));
+                        this.GetUsernameFromSessionId(currentSession->SessionId)));
                 }
 
                 currentSession++;

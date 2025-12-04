@@ -16,7 +16,7 @@ public class InputInjectionService : IInputInjectionService
 
     public InputInjectionService(ILogger<InputInjectionService> logger)
     {
-        _logger = logger;
+        this._logger = logger;
     }
 
     /// <summary>
@@ -40,7 +40,7 @@ public class InputInjectionService : IInputInjectionService
             }
         };
 
-        SendInputSafe(input);
+        this.SendInputSafe(input);
     }
 
     /// <summary>
@@ -67,7 +67,7 @@ public class InputInjectionService : IInputInjectionService
             }
         };
 
-        SendInputSafe(input);
+        this.SendInputSafe(input);
     }
 
     /// <summary>
@@ -95,7 +95,7 @@ public class InputInjectionService : IInputInjectionService
                 }
             };
 
-            SendInputSafe(input);
+            this.SendInputSafe(input);
         }
 
         // Horizontal scroll
@@ -116,7 +116,7 @@ public class InputInjectionService : IInputInjectionService
                 }
             };
 
-            SendInputSafe(input);
+            this.SendInputSafe(input);
         }
     }
 
@@ -149,7 +149,7 @@ public class InputInjectionService : IInputInjectionService
             }
         };
 
-        SendInputSafe(input);
+        this.SendInputSafe(input);
     }
 
     private static MOUSE_EVENT_FLAGS GetMouseButtonFlag(MouseButton button, bool isDown) => button switch
@@ -167,18 +167,18 @@ public class InputInjectionService : IInputInjectionService
     private static (int absX, int absY) NormalizedToAbsolute(Display display, float normalizedX, float normalizedY)
     {
         // Get virtual desktop dimensions
-        int virtualLeft = PInvoke.GetSystemMetrics(global::Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_XVIRTUALSCREEN);
-        int virtualTop = PInvoke.GetSystemMetrics(global::Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_YVIRTUALSCREEN);
-        int virtualWidth = PInvoke.GetSystemMetrics(global::Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_CXVIRTUALSCREEN);
-        int virtualHeight = PInvoke.GetSystemMetrics(global::Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_CYVIRTUALSCREEN);
+        var virtualLeft = PInvoke.GetSystemMetrics(global::Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_XVIRTUALSCREEN);
+        var virtualTop = PInvoke.GetSystemMetrics(global::Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_YVIRTUALSCREEN);
+        var virtualWidth = PInvoke.GetSystemMetrics(global::Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_CXVIRTUALSCREEN);
+        var virtualHeight = PInvoke.GetSystemMetrics(global::Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_CYVIRTUALSCREEN);
 
         // Calculate actual screen position
-        int screenX = display.Bounds.Left + (int)(normalizedX * display.Bounds.Width);
-        int screenY = display.Bounds.Top + (int)(normalizedY * display.Bounds.Height);
+        var screenX = display.Bounds.Left + (int)(normalizedX * display.Bounds.Width);
+        var screenY = display.Bounds.Top + (int)(normalizedY * display.Bounds.Height);
 
         // Convert to virtual desktop 0-65535 range
-        int absX = ((screenX - virtualLeft) * 65535) / virtualWidth;
-        int absY = ((screenY - virtualTop) * 65535) / virtualHeight;
+        var absX = ((screenX - virtualLeft) * 65535) / virtualWidth;
+        var absY = ((screenY - virtualTop) * 65535) / virtualHeight;
 
         return (absX, absY);
     }
@@ -188,10 +188,10 @@ public class InputInjectionService : IInputInjectionService
         var inputs = stackalloc INPUT[1];
         inputs[0] = input;
 
-        uint result = PInvoke.SendInput(1, inputs, sizeof(INPUT));
+        var result = PInvoke.SendInput(1, inputs, sizeof(INPUT));
         if (result == 0)
         {
-            _logger.LogWarning("SendInput failed");
+            this._logger.LogWarning("SendInput failed");
         }
     }
 }

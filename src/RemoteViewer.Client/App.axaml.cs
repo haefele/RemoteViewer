@@ -26,7 +26,7 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        if (this.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             DisableAvaloniaDataAnnotationValidation();
 
@@ -50,10 +50,10 @@ public partial class App : Application
 
             services.AddTransient<MainViewModel>();
 
-            _serviceProvider = services.BuildServiceProvider();
+            this._serviceProvider = services.BuildServiceProvider();
 
             // Resolve view model from DI
-            var viewModel = _serviceProvider.GetRequiredService<MainViewModel>();
+            var viewModel = this._serviceProvider.GetRequiredService<MainViewModel>();
 
             var mainView = new MainView
             {
@@ -73,7 +73,7 @@ public partial class App : Application
 
             desktop.ShutdownRequested += (_, _) =>
             {
-                _serviceProvider?.Dispose();
+                this._serviceProvider?.Dispose();
             };
         }
 

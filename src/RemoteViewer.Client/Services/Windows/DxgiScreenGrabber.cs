@@ -44,8 +44,7 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
             {
             }
 
-            DXGI_OUTDUPL_FRAME_INFO frameInfo;
-            outputDuplication.AcquireNextFrame(0, out frameInfo, out var screenResource);
+            outputDuplication.AcquireNextFrame(0, out var frameInfo, out var screenResource);
 
             if (frameInfo.AccumulatedFrames == 0)
             {
@@ -90,7 +89,7 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
                         }
                     }
 
-                    var dirtyRects = GetDirtyRects(outputDuplication);
+                    var dirtyRects = this.GetDirtyRects(outputDuplication);
                     return CaptureResult.Ok(skBitmap, dirtyRects);
                 }
                 finally
@@ -181,9 +180,9 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
         if (!OperatingSystem.IsOSPlatformVersionAtLeast("windows", 8))
             return null;
 
-        lock (_lock)
+        lock (this._lock)
         {
-            if (_outputs.TryGetValue(deviceName, out var existingOutput))
+            if (this._outputs.TryGetValue(deviceName, out var existingOutput))
             {
                 return existingOutput;
             }
@@ -260,7 +259,7 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
                     }
 
                     var dxOutput = new DxOutput(deviceName, device, deviceContext, outputDuplication);
-                    _outputs[deviceName] = dxOutput;
+                    this._outputs[deviceName] = dxOutput;
 
                     Marshal.FinalReleaseComObject(output);
                     Marshal.FinalReleaseComObject(adapter);
@@ -282,12 +281,12 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
 
     public void SetOutputFaulted(string deviceName)
     {
-        lock (_lock)
+        lock (this._lock)
         {
-            if (_outputs.TryGetValue(deviceName, out var output))
+            if (this._outputs.TryGetValue(deviceName, out var output))
             {
                 output.Dispose();
-                _outputs.Remove(deviceName);
+                this._outputs.Remove(deviceName);
             }
         }
     }
@@ -317,13 +316,13 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
 
     public void Dispose()
     {
-        lock (_lock)
+        lock (this._lock)
         {
-            foreach (var output in _outputs.Values)
+            foreach (var output in this._outputs.Values)
             {
                 output.Dispose();
             }
-            _outputs.Clear();
+            this._outputs.Clear();
         }
     }
 
@@ -341,17 +340,17 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
 
         public DxOutput(string deviceName, ID3D11Device device, ID3D11DeviceContext deviceContext, IDXGIOutputDuplication outputDuplication)
         {
-            DeviceName = deviceName;
-            Device = device;
-            DeviceContext = deviceContext;
-            OutputDuplication = outputDuplication;
+            this.DeviceName = deviceName;
+            this.Device = device;
+            this.DeviceContext = deviceContext;
+            this.OutputDuplication = outputDuplication;
         }
 
         public unsafe ID3D11Texture2D GetOrCreateStagingTexture(int width, int height)
         {
-            if (_cachedStagingTexture != null && _cachedWidth == width && _cachedHeight == height)
+            if (this._cachedStagingTexture != null && this._cachedWidth == width && this._cachedHeight == height)
             {
-                return _cachedStagingTexture;
+                return this._cachedStagingTexture;
             }
 
             this.DisposeStagingTexture();
@@ -371,50 +370,50 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
             };
 
             ID3D11Texture2D_unmanaged* stagingTexturePtr;
-            Device.CreateTexture2D(&textureDesc, null, &stagingTexturePtr);
+            this.Device.CreateTexture2D(&textureDesc, null, &stagingTexturePtr);
 
             if (stagingTexturePtr == null)
             {
                 throw new InvalidOperationException("Failed to create staging texture");
             }
 
-            _cachedStagingTexturePtr = (nint)stagingTexturePtr;
-            _cachedStagingTexture = (ID3D11Texture2D)Marshal.GetObjectForIUnknown((nint)stagingTexturePtr);
-            _cachedWidth = width;
-            _cachedHeight = height;
+            this._cachedStagingTexturePtr = (nint)stagingTexturePtr;
+            this._cachedStagingTexture = (ID3D11Texture2D)Marshal.GetObjectForIUnknown((nint)stagingTexturePtr);
+            this._cachedWidth = width;
+            this._cachedHeight = height;
 
-            return _cachedStagingTexture;
+            return this._cachedStagingTexture;
         }
 
         private unsafe void DisposeStagingTexture()
         {
-            if (_cachedStagingTexture != null)
+            if (this._cachedStagingTexture != null)
             {
                 try
                 {
-                    Marshal.FinalReleaseComObject(_cachedStagingTexture);
+                    Marshal.FinalReleaseComObject(this._cachedStagingTexture);
                 }
                 catch
                 {
                 }
-                _cachedStagingTexture = null;
+                this._cachedStagingTexture = null;
             }
 
-            if (_cachedStagingTexturePtr != 0)
+            if (this._cachedStagingTexturePtr != 0)
             {
                 try
                 {
-                    var ptr = (ID3D11Texture2D_unmanaged*)_cachedStagingTexturePtr;
+                    var ptr = (ID3D11Texture2D_unmanaged*)this._cachedStagingTexturePtr;
                     ptr->Release();
                 }
                 catch
                 {
                 }
-                _cachedStagingTexturePtr = 0;
+                this._cachedStagingTexturePtr = 0;
             }
 
-            _cachedWidth = 0;
-            _cachedHeight = 0;
+            this._cachedWidth = 0;
+            this._cachedHeight = 0;
         }
 
         public void Dispose()
@@ -423,7 +422,7 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
 
             try
             {
-                Marshal.FinalReleaseComObject(OutputDuplication);
+                Marshal.FinalReleaseComObject(this.OutputDuplication);
             }
             catch
             {
@@ -431,7 +430,7 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
 
             try
             {
-                Marshal.FinalReleaseComObject(DeviceContext);
+                Marshal.FinalReleaseComObject(this.DeviceContext);
             }
             catch
             {
@@ -439,7 +438,7 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
 
             try
             {
-                Marshal.FinalReleaseComObject(Device);
+                Marshal.FinalReleaseComObject(this.Device);
             }
             catch
             {

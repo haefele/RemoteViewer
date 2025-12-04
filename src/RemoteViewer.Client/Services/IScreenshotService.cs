@@ -22,8 +22,8 @@ public record Display(string Name, bool IsPrimary, DisplayRect Bounds);
 
 public record struct DisplayRect(int Left, int Top, int Right, int Bottom)
 {
-    public int Width => Right - Left;
-    public int Height => Bottom - Top;
+    public int Width => this.Right - this.Left;
+    public int Height => this.Bottom - this.Top;
 }
 
 public record CaptureResult(bool Success, SKBitmap? Bitmap, Rectangle[] DirtyRectangles)

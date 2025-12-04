@@ -52,23 +52,23 @@ public partial class ViewerViewModel : ViewModelBase, IDisposable
         string connectionId,
         ILogger<ViewerViewModel> logger)
     {
-        _hubClient = hubClient;
-        _connectionId = connectionId;
-        _logger = logger;
+        this._hubClient = hubClient;
+        this._connectionId = connectionId;
+        this._logger = logger;
 
-        _hubClient.MessageReceived += OnMessageReceived;
-        _hubClient.ConnectionStopped += OnConnectionStopped;
-        _hubClient.Reconnecting += OnHubReconnecting;
+        this._hubClient.MessageReceived += this.OnMessageReceived;
+        this._hubClient.ConnectionStopped += this.OnConnectionStopped;
+        this._hubClient.Reconnecting += this.OnHubReconnecting;
 
-        Title = $"Remote Viewer - {connectionId}";
+        this.Title = $"Remote Viewer - {connectionId}";
 
         // Request display list from presenter
-        _ = RequestDisplayListAsync();
+        _ = this.RequestDisplayListAsync();
     }
 
     private void OnMessageReceived(object? sender, MessageReceivedEventArgs e)
     {
-        if (e.ConnectionId != _connectionId)
+        if (e.ConnectionId != this._connectionId)
             return;
 
         try
@@ -76,17 +76,17 @@ public partial class ViewerViewModel : ViewModelBase, IDisposable
             switch (e.MessageType)
             {
                 case MessageTypes.Display.List:
-                    HandleDisplayList(e.Data);
+                    this.HandleDisplayList(e.Data);
                     break;
 
                 case MessageTypes.Screen.Frame:
-                    HandleFrame(e.Data);
+                    this.HandleFrame(e.Data);
                     break;
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error handling message {MessageType}", e.MessageType);
+            this._logger.LogError(ex, "Error handling message {MessageType}", e.MessageType);
         }
     }
 
@@ -96,25 +96,25 @@ public partial class ViewerViewModel : ViewModelBase, IDisposable
 
         Dispatcher.UIThread.Post(() =>
         {
-            Displays.Clear();
+            this.Displays.Clear();
             foreach (var display in message.Displays)
             {
-                Displays.Add(display);
+                this.Displays.Add(display);
             }
 
             // Auto-select primary display if no display is selected
-            if (SelectedDisplayId is null)
+            if (this.SelectedDisplayId is null)
             {
                 var primary = message.Displays.FirstOrDefault(d => d.IsPrimary)
                     ?? message.Displays.FirstOrDefault();
 
                 if (primary is not null)
                 {
-                    SelectDisplay(primary.Id);
+                    this.SelectDisplay(primary.Id);
                 }
             }
 
-            StatusText = $"{Displays.Count} display(s) available";
+            this.StatusText = $"{this.Displays.Count} display(s) available";
         });
     }
 
@@ -123,7 +123,7 @@ public partial class ViewerViewModel : ViewModelBase, IDisposable
         var message = ProtocolSerializer.Deserialize<FrameMessage>(data);
 
         // Only process frames for the selected display
-        if (message.DisplayId != SelectedDisplayId)
+        if (message.DisplayId != this.SelectedDisplayId)
             return;
 
         try
@@ -134,44 +134,44 @@ public partial class ViewerViewModel : ViewModelBase, IDisposable
             Dispatcher.UIThread.Post(() =>
             {
                 // Check if disposed before updating bitmap
-                if (_disposed)
+                if (this._disposed)
                 {
                     bitmap.Dispose();
                     return;
                 }
 
-                var oldBitmap = FrameBitmap;
-                FrameBitmap = bitmap;
-                FrameWidth = message.Width;
-                FrameHeight = message.Height;
+                var oldBitmap = this.FrameBitmap;
+                this.FrameBitmap = bitmap;
+                this.FrameWidth = message.Width;
+                this.FrameHeight = message.Height;
                 oldBitmap?.Dispose();
             });
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error decoding frame");
+            this._logger.LogError(ex, "Error decoding frame");
         }
     }
 
     private void OnConnectionStopped(object? sender, ConnectionStoppedEventArgs e)
     {
-        if (e.ConnectionId != _connectionId)
+        if (e.ConnectionId != this._connectionId)
             return;
 
         Dispatcher.UIThread.Post(() =>
         {
-            IsConnected = false;
-            StatusText = "Connection closed";
+            this.IsConnected = false;
+            this.StatusText = "Connection closed";
             CloseRequested?.Invoke(this, EventArgs.Empty);
         });
     }
 
-    private void OnHubReconnecting(object? sender, ReconnectingEventArgs e)
+    private void OnHubReconnecting(object? sender, HubReconnectingEventArgs e)
     {
         Dispatcher.UIThread.Post(() =>
         {
-            IsConnected = false;
-            StatusText = "Hub connection lost";
+            this.IsConnected = false;
+            this.StatusText = "Hub connection lost";
             CloseRequested?.Invoke(this, EventArgs.Empty);
         });
     }
@@ -180,112 +180,112 @@ public partial class ViewerViewModel : ViewModelBase, IDisposable
     {
         var message = new RequestDisplayListMessage();
         var data = ProtocolSerializer.Serialize(message);
-        await _hubClient.SendMessage(_connectionId, MessageTypes.Display.RequestList, data, MessageDestination.PresenterOnly);
-        _logger.LogInformation("Requested display list from presenter");
+        await this._hubClient.SendMessage(this._connectionId, MessageTypes.Display.RequestList, data, MessageDestination.PresenterOnly);
+        this._logger.LogInformation("Requested display list from presenter");
     }
 
     [RelayCommand]
     private async Task Disconnect()
     {
-        _logger.LogInformation("User requested to disconnect from connection {ConnectionId}", _connectionId);
-        await _hubClient.Disconnect(_connectionId);
+        this._logger.LogInformation("User requested to disconnect from connection {ConnectionId}", this._connectionId);
+        await this._hubClient.Disconnect(this._connectionId);
         // The ConnectionStopped event will trigger CloseRequested
     }
 
     [RelayCommand]
     private void SelectDisplay(string displayId)
     {
-        if (SelectedDisplayId == displayId)
+        if (this.SelectedDisplayId == displayId)
             return;
 
-        SelectedDisplayId = displayId;
-        _logger.LogInformation("Selected display {DisplayId}", displayId);
+        this.SelectedDisplayId = displayId;
+        this._logger.LogInformation("Selected display {DisplayId}", displayId);
 
-        var display = Displays.FirstOrDefault(d => d.Id == displayId);
+        var display = this.Displays.FirstOrDefault(d => d.Id == displayId);
         if (display is not null)
         {
-            Title = $"Remote Viewer - {display.Name}";
+            this.Title = $"Remote Viewer - {display.Name}";
         }
 
         // Send display selection to presenter
         var message = new DisplaySelectMessage(displayId);
         var messageData = ProtocolSerializer.Serialize(message);
-        _ = _hubClient.SendMessage(_connectionId, MessageTypes.Display.Select, messageData, MessageDestination.PresenterOnly);
+        _ = this._hubClient.SendMessage(this._connectionId, MessageTypes.Display.Select, messageData, MessageDestination.PresenterOnly);
     }
 
     public void SendMouseMove(float x, float y)
     {
-        if (!IsConnected || SelectedDisplayId is null)
+        if (!this.IsConnected || this.SelectedDisplayId is null)
             return;
 
         var message = new MouseMoveMessage(x, y);
         var data = ProtocolSerializer.Serialize(message);
-        _ = _hubClient.SendMessage(_connectionId, MessageTypes.Input.MouseMove, data, MessageDestination.PresenterOnly);
+        _ = this._hubClient.SendMessage(this._connectionId, MessageTypes.Input.MouseMove, data, MessageDestination.PresenterOnly);
     }
 
     public void SendMouseDown(MouseButton button, float x, float y)
     {
-        if (!IsConnected || SelectedDisplayId is null)
+        if (!this.IsConnected || this.SelectedDisplayId is null)
             return;
 
         var message = new MouseButtonMessage(button, x, y);
         var data = ProtocolSerializer.Serialize(message);
-        _ = _hubClient.SendMessage(_connectionId, MessageTypes.Input.MouseDown, data, MessageDestination.PresenterOnly);
+        _ = this._hubClient.SendMessage(this._connectionId, MessageTypes.Input.MouseDown, data, MessageDestination.PresenterOnly);
     }
 
     public void SendMouseUp(MouseButton button, float x, float y)
     {
-        if (!IsConnected || SelectedDisplayId is null)
+        if (!this.IsConnected || this.SelectedDisplayId is null)
             return;
 
         var message = new MouseButtonMessage(button, x, y);
         var data = ProtocolSerializer.Serialize(message);
-        _ = _hubClient.SendMessage(_connectionId, MessageTypes.Input.MouseUp, data, MessageDestination.PresenterOnly);
+        _ = this._hubClient.SendMessage(this._connectionId, MessageTypes.Input.MouseUp, data, MessageDestination.PresenterOnly);
     }
 
     public void SendMouseWheel(float deltaX, float deltaY, float x, float y)
     {
-        if (!IsConnected || SelectedDisplayId is null)
+        if (!this.IsConnected || this.SelectedDisplayId is null)
             return;
 
         var message = new MouseWheelMessage(deltaX, deltaY, x, y);
         var data = ProtocolSerializer.Serialize(message);
-        _ = _hubClient.SendMessage(_connectionId, MessageTypes.Input.MouseWheel, data, MessageDestination.PresenterOnly);
+        _ = this._hubClient.SendMessage(this._connectionId, MessageTypes.Input.MouseWheel, data, MessageDestination.PresenterOnly);
     }
 
     public void SendKeyDown(ushort keyCode, ushort scanCode, KeyModifiers modifiers, bool isExtendedKey)
     {
-        if (!IsConnected)
+        if (!this.IsConnected)
             return;
 
         var message = new KeyMessage(keyCode, scanCode, modifiers, isExtendedKey);
         var data = ProtocolSerializer.Serialize(message);
-        _ = _hubClient.SendMessage(_connectionId, MessageTypes.Input.KeyDown, data, MessageDestination.PresenterOnly);
+        _ = this._hubClient.SendMessage(this._connectionId, MessageTypes.Input.KeyDown, data, MessageDestination.PresenterOnly);
     }
 
     public void SendKeyUp(ushort keyCode, ushort scanCode, KeyModifiers modifiers, bool isExtendedKey)
     {
-        if (!IsConnected)
+        if (!this.IsConnected)
             return;
 
         var message = new KeyMessage(keyCode, scanCode, modifiers, isExtendedKey);
         var data = ProtocolSerializer.Serialize(message);
-        _ = _hubClient.SendMessage(_connectionId, MessageTypes.Input.KeyUp, data, MessageDestination.PresenterOnly);
+        _ = this._hubClient.SendMessage(this._connectionId, MessageTypes.Input.KeyUp, data, MessageDestination.PresenterOnly);
     }
 
     public void Dispose()
     {
-        if (_disposed)
+        if (this._disposed)
             return;
 
-        _disposed = true;
+        this._disposed = true;
 
-        _hubClient.MessageReceived -= OnMessageReceived;
-        _hubClient.ConnectionStopped -= OnConnectionStopped;
-        _hubClient.Reconnecting -= OnHubReconnecting;
+        this._hubClient.MessageReceived -= this.OnMessageReceived;
+        this._hubClient.ConnectionStopped -= this.OnConnectionStopped;
+        this._hubClient.Reconnecting -= this.OnHubReconnecting;
 
-        FrameBitmap?.Dispose();
-        FrameBitmap = null;
+        this.FrameBitmap?.Dispose();
+        this.FrameBitmap = null;
 
         GC.SuppressFinalize(this);
     }

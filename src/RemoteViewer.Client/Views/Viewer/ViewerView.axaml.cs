@@ -12,48 +12,48 @@ public partial class ViewerView : Window
 
     public ViewerView()
     {
-        InitializeComponent();
+        this.InitializeComponent();
     }
 
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
 
-        if (_viewModel is not null)
+        if (this._viewModel is not null)
         {
-            _viewModel.CloseRequested -= OnCloseRequested;
+            this._viewModel.CloseRequested -= this.OnCloseRequested;
         }
 
-        _viewModel = DataContext as ViewerViewModel;
+        this._viewModel = this.DataContext as ViewerViewModel;
 
-        if (_viewModel is not null)
+        if (this._viewModel is not null)
         {
-            _viewModel.CloseRequested += OnCloseRequested;
+            this._viewModel.CloseRequested += this.OnCloseRequested;
         }
     }
 
     private void OnCloseRequested(object? sender, EventArgs e)
     {
-        Close();
+        this.Close();
     }
 
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);
-        _viewModel?.Dispose();
+        this._viewModel?.Dispose();
     }
 
     protected override void OnPointerMoved(PointerEventArgs e)
     {
         base.OnPointerMoved(e);
 
-        if (_viewModel is null)
+        if (this._viewModel is null)
             return;
 
-        var (x, y) = GetNormalizedPosition(e);
+        var (x, y) = this.GetNormalizedPosition(e);
         if (x >= 0 && x <= 1 && y >= 0 && y <= 1)
         {
-            _viewModel.SendMouseMove(x, y);
+            this._viewModel.SendMouseMove(x, y);
         }
     }
 
@@ -61,17 +61,17 @@ public partial class ViewerView : Window
     {
         base.OnPointerPressed(e);
 
-        if (_viewModel is null)
+        if (this._viewModel is null)
             return;
 
-        var (x, y) = GetNormalizedPosition(e);
+        var (x, y) = this.GetNormalizedPosition(e);
         if (x >= 0 && x <= 1 && y >= 0 && y <= 1)
         {
-            var point = e.GetCurrentPoint(FrameImage);
+            var point = e.GetCurrentPoint(this.FrameImage);
             var button = GetMouseButton(point.Properties);
             if (button is not null)
             {
-                _viewModel.SendMouseDown(button.Value, x, y);
+                this._viewModel.SendMouseDown(button.Value, x, y);
             }
         }
     }
@@ -80,10 +80,10 @@ public partial class ViewerView : Window
     {
         base.OnPointerReleased(e);
 
-        if (_viewModel is null)
+        if (this._viewModel is null)
             return;
 
-        var (x, y) = GetNormalizedPosition(e);
+        var (x, y) = this.GetNormalizedPosition(e);
         if (x >= 0 && x <= 1 && y >= 0 && y <= 1)
         {
             var button = e.InitialPressMouseButton switch
@@ -96,7 +96,7 @@ public partial class ViewerView : Window
 
             if (button is not null)
             {
-                _viewModel.SendMouseUp(button.Value, x, y);
+                this._viewModel.SendMouseUp(button.Value, x, y);
             }
         }
     }
@@ -105,13 +105,13 @@ public partial class ViewerView : Window
     {
         base.OnPointerWheelChanged(e);
 
-        if (_viewModel is null)
+        if (this._viewModel is null)
             return;
 
-        var (x, y) = GetNormalizedPosition(e);
+        var (x, y) = this.GetNormalizedPosition(e);
         if (x >= 0 && x <= 1 && y >= 0 && y <= 1)
         {
-            _viewModel.SendMouseWheel((float)e.Delta.X, (float)e.Delta.Y, x, y);
+            this._viewModel.SendMouseWheel((float)e.Delta.X, (float)e.Delta.Y, x, y);
         }
     }
 
@@ -119,12 +119,12 @@ public partial class ViewerView : Window
     {
         base.OnKeyDown(e);
 
-        if (_viewModel is null)
+        if (this._viewModel is null)
             return;
 
         var (keyCode, scanCode, isExtended) = GetKeyInfo(e);
         var modifiers = GetKeyModifiers(e.KeyModifiers);
-        _viewModel.SendKeyDown(keyCode, scanCode, modifiers, isExtended);
+        this._viewModel.SendKeyDown(keyCode, scanCode, modifiers, isExtended);
 
         e.Handled = true;
     }
@@ -133,20 +133,20 @@ public partial class ViewerView : Window
     {
         base.OnKeyUp(e);
 
-        if (_viewModel is null)
+        if (this._viewModel is null)
             return;
 
         var (keyCode, scanCode, isExtended) = GetKeyInfo(e);
         var modifiers = GetKeyModifiers(e.KeyModifiers);
-        _viewModel.SendKeyUp(keyCode, scanCode, modifiers, isExtended);
+        this._viewModel.SendKeyUp(keyCode, scanCode, modifiers, isExtended);
 
         e.Handled = true;
     }
 
     private (float X, float Y) GetNormalizedPosition(PointerEventArgs e)
     {
-        var point = e.GetPosition(FrameImage);
-        var bounds = FrameImage.Bounds;
+        var point = e.GetPosition(this.FrameImage);
+        var bounds = this.FrameImage.Bounds;
 
         if (bounds.Width <= 0 || bounds.Height <= 0)
             return (-1, -1);

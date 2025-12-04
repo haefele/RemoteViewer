@@ -12,8 +12,8 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger)
 {
     public unsafe CaptureResult CaptureDisplay(Display display)
     {
-        HDC sourceDC = HDC.Null;
-        HDC memoryDC = HDC.Null;
+        var sourceDC = HDC.Null;
+        var memoryDC = HDC.Null;
         DeleteObjectSafeHandle? hBitmapHandle = null;
         HGDIOBJ hOldBitmap = default;
 
@@ -57,12 +57,11 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger)
                 }
             };
 
-            void* pBits;
             hBitmapHandle = PInvoke.CreateDIBSection(
                 memoryDC,
                 &bitmapInfo,
                 DIB_USAGE.DIB_RGB_COLORS,
-                out pBits,
+                out var pBits,
                 null,
                 0);
 

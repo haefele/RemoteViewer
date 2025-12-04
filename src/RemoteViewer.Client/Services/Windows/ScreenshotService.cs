@@ -35,7 +35,7 @@ public class ScreenshotService(ILogger<ScreenshotService> logger, DxgiScreenGrab
 
             BOOL MonitorEnumCallback(HMONITOR hMonitor, HDC hdc, RECT* lprcMonitor, LPARAM dwData)
             {
-                var display = GetDisplayInfo(hMonitor, displays.Count);
+                var display = this.GetDisplayInfo(hMonitor, displays.Count);
                 if (display is not null)
                     displays.Add(display);
 

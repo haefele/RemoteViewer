@@ -8,34 +8,34 @@ public partial class PresenterView : Window
 
     public PresenterView()
     {
-        InitializeComponent();
+        this.InitializeComponent();
     }
 
     protected override void OnDataContextChanged(EventArgs e)
     {
         base.OnDataContextChanged(e);
 
-        if (_viewModel is not null)
+        if (this._viewModel is not null)
         {
-            _viewModel.CloseRequested -= OnCloseRequested;
+            this._viewModel.CloseRequested -= this.OnCloseRequested;
         }
 
-        _viewModel = DataContext as PresenterViewModel;
+        this._viewModel = this.DataContext as PresenterViewModel;
 
-        if (_viewModel is not null)
+        if (this._viewModel is not null)
         {
-            _viewModel.CloseRequested += OnCloseRequested;
+            this._viewModel.CloseRequested += this.OnCloseRequested;
         }
     }
 
     private void OnCloseRequested(object? sender, EventArgs e)
     {
-        Close();
+        this.Close();
     }
 
     protected override void OnClosed(EventArgs e)
     {
         base.OnClosed(e);
-        _viewModel?.Dispose();
+        this._viewModel?.Dispose();
     }
 }

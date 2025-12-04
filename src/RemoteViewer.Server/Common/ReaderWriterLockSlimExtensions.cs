@@ -25,12 +25,12 @@ public static class ReaderWriterLockSlimExtensions
         private readonly ReaderWriterLockSlim _lock;
         public WriteLockDisposable(ReaderWriterLockSlim rwLock)
         {
-            _lock = rwLock;
-            _lock.EnterWriteLock();
+            this._lock = rwLock;
+            this._lock.EnterWriteLock();
         }
         public void Dispose()
         {
-            _lock.ExitWriteLock();
+            this._lock.ExitWriteLock();
         }
     }
 
@@ -39,12 +39,12 @@ public static class ReaderWriterLockSlimExtensions
         private readonly ReaderWriterLockSlim _lock;
         public ReadLockDisposable(ReaderWriterLockSlim rwLock)
         {
-            _lock = rwLock;
-            _lock.EnterReadLock();
+            this._lock = rwLock;
+            this._lock.EnterReadLock();
         }
         public void Dispose()
         {
-            _lock.ExitReadLock();
+            this._lock.ExitReadLock();
         }
     }
 
@@ -53,12 +53,12 @@ public static class ReaderWriterLockSlimExtensions
         private readonly ReaderWriterLockSlim _lock;
         public UpgradeableReadLockDisposable(ReaderWriterLockSlim rwLock)
         {
-            _lock = rwLock;
-            _lock.EnterUpgradeableReadLock();
+            this._lock = rwLock;
+            this._lock.EnterUpgradeableReadLock();
         }
         public void Dispose()
         {
-            _lock.ExitUpgradeableReadLock();
+            this._lock.ExitUpgradeableReadLock();
         }
     }
 }

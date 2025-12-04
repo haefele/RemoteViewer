@@ -30,19 +30,19 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
     public async Task Register(string signalrConnectionId)
     {
         this._logger.ClientRegistrationStarted(signalrConnectionId);
-        
+
         var actions = connectionHub.BatchedActions(this._logger);
 
         const string IdChars = "0123456789";
         const string PasswordChars = "abcdefghijklmnopqrstuvwxyz0123456789";
 
-        int attempts = 0;
+        var attempts = 0;
         while (true)
         {
             attempts++;
 
-            string username = Random.Shared.GetString(IdChars, 10);
-            string password = Random.Shared.GetString(PasswordChars, 8);
+            var username = Random.Shared.GetString(IdChars, 10);
+            var password = Random.Shared.GetString(PasswordChars, 8);
 
             using (this._lock.WriteLock())
             {
@@ -74,14 +74,14 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
     public async Task Unregister(string signalrConnectionId)
     {
         this._logger.ClientUnregistrationStarted(signalrConnectionId);
-        
+
         var actions = connectionHub.BatchedActions(this._logger);
 
         using (this._lock.WriteLock())
         {
-            int connectionsRemoved = 0;
+            var connectionsRemoved = 0;
 
-            for (int i = this._connections.Count - 1; i >= 0; i--)
+            for (var i = this._connections.Count - 1; i >= 0; i--)
             {
                 var connection = this._connections[i];
 
@@ -96,7 +96,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
             }
 
             var clientsRemoved = this._clients.RemoveAll(c => c.SignalrConnectionId == signalrConnectionId);
-            
+
             this._logger.ClientUnregistered(signalrConnectionId, clientsRemoved, connectionsRemoved, this._clients.Count, this._connections.Count);
         }
 
@@ -106,7 +106,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
     public async Task<TryConnectError?> TryConnectTo(string signalrConnectionId, string username, string password)
     {
         this._logger.ConnectionAttemptStarted(signalrConnectionId, username);
-        
+
         var actions = connectionHub.BatchedActions(this._logger);
 
         using (this._lock.UpgradeableReadLock())
@@ -146,7 +146,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
         }
 
         await actions.ExecuteAll();
-        
+
         this._logger.ConnectionAttemptSucceeded(username);
 
         return null;
@@ -264,7 +264,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
             this.Id = id;
             this.Presenter = presenter;
             this._logger = logger;
-            
+
             this._logger.ConnectionCreated(id, presenter.Id);
         }
 
@@ -274,7 +274,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
         public Client Presenter { get; }
 
         private readonly HashSet<Client> _viewers = new();
-        public ReadOnlySet<Client> Viewers => _viewers.AsReadOnly();
+        public ReadOnlySet<Client> Viewers => this._viewers.AsReadOnly();
 
         public void AddViewer(Client viewer, ConnectionHubBatchedActions actions)
         {
@@ -360,7 +360,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
                     if (targetClientIds is null || targetClientIds.Count == 0)
                         break;
 
-                    int sentCount = 0;
+                    var sentCount = 0;
 
                     // Check if presenter is in target list
                     if (targetClientIds.Contains(this.Presenter.Id))
@@ -397,7 +397,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
             this._logger.ConnectionStateChange(this.Id, this._viewers.Count);
 
             actions.Add(f => f.Client(this.Presenter.SignalrConnectionId).ConnectionChanged(connectionInfo));
-            
+
             foreach (var viewer in this._viewers)
             {
                 actions.Add(f => f.Client(viewer.SignalrConnectionId).ConnectionChanged(connectionInfo));
