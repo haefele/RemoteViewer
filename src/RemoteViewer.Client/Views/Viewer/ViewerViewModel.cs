@@ -13,7 +13,7 @@ namespace RemoteViewer.Client.Views.Viewer;
 /// <summary>
 /// ViewModel for the viewer window that displays remote screen and handles input capture.
 /// </summary>
-public partial class ViewerViewModel : ViewModelBase, IDisposable
+public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 {
     private readonly ConnectionHubClient _hubClient;
     private readonly ILogger<ViewerViewModel> _logger;
@@ -29,6 +29,22 @@ public partial class ViewerViewModel : ViewModelBase, IDisposable
 
     [ObservableProperty]
     private string? _selectedDisplayId;
+
+    async partial void OnSelectedDisplayIdChanged(string? value)
+    {
+        this._logger.LogInformation("Selected display {DisplayId}", value);
+
+        var display = this.Displays.FirstOrDefault(d => d.Id == value);
+        this.Title = display is null ? "Remote Viewer" : $"Remote Viewer - {display.Name}";
+
+        // Send display selection to presenter
+        if (display is not null)
+        {
+            var message = new DisplaySelectMessage(display.Id);
+            var messageData = ProtocolSerializer.Serialize(message);
+            await this._hubClient.SendMessage(this._connectionId, MessageTypes.Display.Select, messageData, MessageDestination.PresenterOnly);
+        }
+    }
 
     [ObservableProperty]
     private ObservableCollection<DisplayInfo> _displays = new();
@@ -58,7 +74,6 @@ public partial class ViewerViewModel : ViewModelBase, IDisposable
 
         this._hubClient.MessageReceived += this.OnMessageReceived;
         this._hubClient.ConnectionStopped += this.OnConnectionStopped;
-        this._hubClient.Reconnecting += this.OnHubReconnecting;
 
         this.Title = $"Remote Viewer - {connectionId}";
 
@@ -102,18 +117,7 @@ public partial class ViewerViewModel : ViewModelBase, IDisposable
                 this.Displays.Add(display);
             }
 
-            // Auto-select primary display if no display is selected
-            if (this.SelectedDisplayId is null)
-            {
-                var primary = message.Displays.FirstOrDefault(d => d.IsPrimary)
-                    ?? message.Displays.FirstOrDefault();
-
-                if (primary is not null)
-                {
-                    this.SelectDisplay(primary.Id);
-                }
-            }
-
+            this.SelectedDisplayId ??= message.Displays.FirstOrDefault(d => d.IsPrimary)?.Id;
             this.StatusText = $"{this.Displays.Count} display(s) available";
         });
     }
@@ -166,16 +170,6 @@ public partial class ViewerViewModel : ViewModelBase, IDisposable
         });
     }
 
-    private void OnHubReconnecting(object? sender, HubReconnectingEventArgs e)
-    {
-        Dispatcher.UIThread.Post(() =>
-        {
-            this.IsConnected = false;
-            this.StatusText = "Hub connection lost";
-            CloseRequested?.Invoke(this, EventArgs.Empty);
-        });
-    }
-
     private async Task RequestDisplayListAsync()
     {
         var message = new RequestDisplayListMessage();
@@ -189,28 +183,6 @@ public partial class ViewerViewModel : ViewModelBase, IDisposable
     {
         this._logger.LogInformation("User requested to disconnect from connection {ConnectionId}", this._connectionId);
         await this._hubClient.Disconnect(this._connectionId);
-        // The ConnectionStopped event will trigger CloseRequested
-    }
-
-    [RelayCommand]
-    private void SelectDisplay(string displayId)
-    {
-        if (this.SelectedDisplayId == displayId)
-            return;
-
-        this.SelectedDisplayId = displayId;
-        this._logger.LogInformation("Selected display {DisplayId}", displayId);
-
-        var display = this.Displays.FirstOrDefault(d => d.Id == displayId);
-        if (display is not null)
-        {
-            this.Title = $"Remote Viewer - {display.Name}";
-        }
-
-        // Send display selection to presenter
-        var message = new DisplaySelectMessage(displayId);
-        var messageData = ProtocolSerializer.Serialize(message);
-        _ = this._hubClient.SendMessage(this._connectionId, MessageTypes.Display.Select, messageData, MessageDestination.PresenterOnly);
     }
 
     public void SendMouseMove(float x, float y)
@@ -273,16 +245,17 @@ public partial class ViewerViewModel : ViewModelBase, IDisposable
         _ = this._hubClient.SendMessage(this._connectionId, MessageTypes.Input.KeyUp, data, MessageDestination.PresenterOnly);
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         if (this._disposed)
             return;
+
+        await this.DisconnectCommand.ExecuteAsync(null);
 
         this._disposed = true;
 
         this._hubClient.MessageReceived -= this.OnMessageReceived;
         this._hubClient.ConnectionStopped -= this.OnConnectionStopped;
-        this._hubClient.Reconnecting -= this.OnHubReconnecting;
 
         this.FrameBitmap?.Dispose();
         this.FrameBitmap = null;

@@ -57,46 +57,37 @@ public partial class MainViewModel : ViewModelBase
         this._screenshotService = screenshotService;
         this._inputInjectionService = inputInjectionService;
 
+        this._hubClient.HubDisconnected += (_, _) =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                this.IsConnected = false;
+                this.StatusText = "Reconnecting...";
+                this.YourUsername = "...";
+                this.YourPassword = "...";
+            });
+        };
+
+        this._hubClient.HubConnected += (_, _) =>
+        {
+            Dispatcher.UIThread.Post(() =>
+            {
+                this.IsConnected = true;
+                this.StatusText = "Connected to server";
+            });
+        };
+
         this._hubClient.CredentialsAssigned += (_, e) =>
         {
             Dispatcher.UIThread.Post(() =>
             {
                 this.YourUsername = e.Username;
                 this.YourPassword = e.Password;
-                this.IsConnected = true;
-                this.StatusText = "Connected to server";
                 this.ConnectionError = null;
             });
         };
 
-        this._hubClient.Closed += (_, e) =>
-        {
-            Dispatcher.UIThread.Post(() =>
-            {
-                this.IsConnected = false;
-                this.StatusText = "Disconnected";
-                this.YourUsername = "Reconnecting...";
-                this.YourPassword = "...";
-            });
-        };
-
-        this._hubClient.Reconnecting += (_, _) =>
-        {
-            Dispatcher.UIThread.Post(() =>
-            {
-                this.IsConnected = false;
-                this.StatusText = "Reconnecting...";
-            });
-        };
-
-        this._hubClient.Reconnected += (_, _) =>
-        {
-            Dispatcher.UIThread.Post(() =>
-            {
-                this.IsConnected = true;
-                this.StatusText = "Connected to server";
-            });
-        };
+        this.IsConnected = this._hubClient.IsConnected;
 
         // Handle viewer connections - open viewer window when connected as viewer
         this._hubClient.ConnectionStarted += this.OnConnectionStarted;
@@ -153,19 +144,22 @@ public partial class MainViewModel : ViewModelBase
     private async void OnSessionWindowClosed(object? sender, EventArgs e)
     {
         // Reconnect to get fresh credentials
-        await this._hubClient.ReconnectAsync();
+        await this._hubClient.GenerateNewPassword();
+
         // Show MainView again
         RequestShowMainView?.Invoke(this, EventArgs.Empty);
     }
 
     public async Task InitializeAsync()
     {
-        await this._hubClient.StartAsync();
+        await this._hubClient.ConnectToHub();
     }
 
     [RelayCommand]
     private async Task ConnectToDeviceAsync()
     {
+        await this._hubClient.GenerateNewPassword();
+
         if (string.IsNullOrWhiteSpace(this.TargetUsername) || string.IsNullOrWhiteSpace(this.TargetPassword))
         {
             this.ConnectionError = "Username and password are required";

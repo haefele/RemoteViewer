@@ -27,7 +27,7 @@ try
     app.MapHub<ConnectionHub>("/connection");
     app.MapGet("/", () => "RemoteViewer Server is running.");
 
-    await app.RunAsync();
+    await app.RunAsync("http://*:5000");
     return 0;
 }
 catch (Exception exception)

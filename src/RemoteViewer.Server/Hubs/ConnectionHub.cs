@@ -28,6 +28,11 @@ public class ConnectionHub(IConnectionsService clientsService) : Hub<IConnection
         await clientsService.Unregister(this.Context.ConnectionId);
     }
 
+    public async Task GenerateNewPassword()
+    {
+        await clientsService.GenerateNewPassword(this.Context.ConnectionId);
+    }
+
     public async Task<TryConnectError?> ConnectTo(string username, string password)
     {
         return await clientsService.TryConnectTo(this.Context.ConnectionId, username, password);

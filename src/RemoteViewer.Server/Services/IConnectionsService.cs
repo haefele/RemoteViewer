@@ -13,6 +13,7 @@ public interface IConnectionsService
 {
     Task Register(string signalrConnectionId);
     Task Unregister(string signalrConnectionId);
+    Task GenerateNewPassword(string signalrConnectionId);
 
     Task<TryConnectError?> TryConnectTo(string signalrConnectionId, string username, string password);
     Task DisconnectFromConnection(string signalrConnectionId, string connectionId);
@@ -34,7 +35,6 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
         var actions = connectionHub.BatchedActions(this._logger);
 
         const string IdChars = "0123456789";
-        const string PasswordChars = "abcdefghijklmnopqrstuvwxyz0123456789";
 
         var attempts = 0;
         while (true)
@@ -42,7 +42,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
             attempts++;
 
             var username = Random.Shared.GetString(IdChars, 10);
-            var password = Random.Shared.GetString(PasswordChars, 8);
+            var password = this.GetPassword();
 
             using (this._lock.WriteLock())
             {
@@ -54,7 +54,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
 
                 var credentials = new Credentials(username, password);
 
-                var client = Client.Create(Guid.NewGuid().ToString(), credentials, signalrConnectionId, actions, loggerFactory);
+                var client = Client.Create(Guid.NewGuid().ToString(), credentials, signalrConnectionId, actions);
                 this._clients.Add(client);
 
                 this._logger.ClientRegistered(client.Id, client.Credentials.Username, this._clients.Count);
@@ -101,6 +101,31 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
         }
 
         await actions.ExecuteAll();
+    }
+
+    public async Task GenerateNewPassword(string signalrConnectionId)
+    {
+        var actions = connectionHub.BatchedActions(this._logger);
+
+        using (this._lock.WriteLock())
+        {
+            var client = this._clients.FirstOrDefault(c => c.SignalrConnectionId == signalrConnectionId);
+            if (client is null)
+                return;
+
+            var newPassword = this.GetPassword();
+            client.UpdatePassword(newPassword, actions);
+
+            this._logger.ClientPasswordChanged(client.Id);
+        }
+
+        await actions.ExecuteAll();
+    }
+
+    private string GetPassword()
+    {
+        const string PasswordChars = "abcdefghijklmnopqrstuvwxyz0123456789";
+        return Random.Shared.GetString(PasswordChars, 8);
     }
 
     public async Task<TryConnectError?> TryConnectTo(string signalrConnectionId, string username, string password)
@@ -221,29 +246,30 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
     #region Internal
     private sealed class Client
     {
-        public static Client Create(string id, Credentials credentials, string signalrConnectionId, ConnectionHubBatchedActions actions, ILoggerFactory loggerFactory)
+        public static Client Create(string id, Credentials credentials, string signalrConnectionId, ConnectionHubBatchedActions actions)
         {
-            var logger = loggerFactory.CreateLogger($"{typeof(ConnectionsService).FullName}.Client[{id}]");
-
-            var client = new Client(id, credentials, signalrConnectionId, logger);
+            var client = new Client(id, credentials, signalrConnectionId);
             actions.Add(f => f.Client(signalrConnectionId).CredentialsAssigned(client.Id, client.Credentials.Username, client.Credentials.Password));
 
             return client;
         }
 
-        private Client(string id, Credentials credentials, string signalrConnectionId, ILogger logger)
+        private Client(string id, Credentials credentials, string signalrConnectionId)
         {
             this.Id = id;
             this.Credentials = credentials;
             this.SignalrConnectionId = signalrConnectionId;
-            this._logger = logger;
         }
 
-        private readonly ILogger _logger;
-
         public string Id { get; }
-        public Credentials Credentials { get; }
+        public Credentials Credentials { get; private set; }
         public string SignalrConnectionId { get; }
+
+        public void UpdatePassword(string newPassword, ConnectionHubBatchedActions actions)
+        {
+            this.Credentials = this.Credentials with { Password = newPassword };
+            actions.Add(f => f.Client(this.SignalrConnectionId).CredentialsAssigned(this.Id, this.Credentials.Username, this.Credentials.Password));
+        }
     }
     private sealed record class Credentials(string Username, string Password);
 

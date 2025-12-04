@@ -12,6 +12,8 @@ internal static partial class ConnectionsServiceLogs
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Client registered successfully. ClientId: {ClientId}, Username: {Username}, TotalClients: {TotalClients}")]
     public static partial void ClientRegistered(this ILogger logger, string clientId, string username, int totalClients);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Client password changed successfully. ClientId: {ClientId}")]
+    public static partial void ClientPasswordChanged(this ILogger logger, string clientId);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Client registration required {Attempts} attempts due to username collisions")]
     public static partial void MultipleRegistrationAttempts(this ILogger logger, int attempts);

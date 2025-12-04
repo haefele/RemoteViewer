@@ -76,7 +76,6 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
         this._hubClient.ConnectionChanged += this.OnConnectionChanged;
         this._hubClient.ConnectionStopped += this.OnConnectionStopped;
         this._hubClient.MessageReceived += this.OnMessageReceived;
-        this._hubClient.Reconnecting += this.OnHubReconnecting;
 
         // Start presenting immediately
         this.StartPresenting();
@@ -85,10 +84,6 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
     private void OnConnectionChanged(object? sender, ConnectionChangedEventArgs e)
     {
         if (e.ConnectionInfo.ConnectionId != this._connectionId)
-            return;
-
-        // Only handle if we're the presenter
-        if (this._hubClient.ClientId != e.ConnectionInfo.PresenterClientId)
             return;
 
         // Update viewer list and send display list to new viewers
@@ -135,18 +130,6 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
         {
             this.IsPresenting = false;
             this.StatusText = "Connection closed";
-            CloseRequested?.Invoke(this, EventArgs.Empty);
-        });
-    }
-
-    private void OnHubReconnecting(object? sender, HubReconnectingEventArgs e)
-    {
-        this.StopPresenting();
-
-        Dispatcher.UIThread.Post(() =>
-        {
-            this.IsPresenting = false;
-            this.StatusText = "Hub connection lost";
             CloseRequested?.Invoke(this, EventArgs.Empty);
         });
     }
@@ -417,7 +400,6 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
         this._hubClient.ConnectionChanged -= this.OnConnectionChanged;
         this._hubClient.ConnectionStopped -= this.OnConnectionStopped;
         this._hubClient.MessageReceived -= this.OnMessageReceived;
-        this._hubClient.Reconnecting -= this.OnHubReconnecting;
 
         GC.SuppressFinalize(this);
     }

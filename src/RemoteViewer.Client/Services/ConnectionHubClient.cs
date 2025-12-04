@@ -3,15 +3,13 @@ using Microsoft.Extensions.Logging;
 using Nerdbank.MessagePack.SignalR;
 using PolyType.ReflectionProvider;
 using RemoteViewer.Server.SharedAPI;
-using System.Collections.Concurrent;
 
 namespace RemoteViewer.Client.Services;
 
 public sealed class ConnectionHubClient : IAsyncDisposable
 {
-    private readonly HubConnection _connection;
-    private readonly ConcurrentDictionary<string, ConnectionInfo> _connections = new();
     private readonly ILogger<ConnectionHubClient> _logger;
+    private readonly HubConnection _connection;
 
     public ConnectionHubClient(string serverUrl, ILogger<ConnectionHubClient> logger)
     {
@@ -30,35 +28,31 @@ public sealed class ConnectionHubClient : IAsyncDisposable
             this.Password = password;
 
             this._logger.LogInformation("Credentials assigned - ClientId: {ClientId}, Username: {Username}", clientId, username);
-            CredentialsAssigned?.Invoke(this, new CredentialsAssignedEventArgs(clientId, username, password));
+            this.CredentialsAssigned?.Invoke(this, new CredentialsAssignedEventArgs(clientId, username, password));
         });
 
         this._connection.On<string, bool>("ConnectionStarted", (connectionId, isPresenter) =>
         {
             this._logger.LogInformation("Connection started - ConnectionId: {ConnectionId}, IsPresenter: {IsPresenter}", connectionId, isPresenter);
-            ConnectionStarted?.Invoke(this, new ConnectionStartedEventArgs(connectionId, isPresenter));
+            this.ConnectionStarted?.Invoke(this, new ConnectionStartedEventArgs(connectionId, isPresenter));
         });
 
         this._connection.On<ConnectionInfo>("ConnectionChanged", (connectionInfo) =>
         {
-            this._connections[connectionInfo.ConnectionId] = connectionInfo;
-            this._logger.LogInformation("Connection changed - ConnectionId: {ConnectionId}, PresenterClientId: {PresenterClientId}, ViewerCount: {ViewerCount}",
-                connectionInfo.ConnectionId, connectionInfo.PresenterClientId, connectionInfo.ViewerClientIds.Count);
-            ConnectionChanged?.Invoke(this, new ConnectionChangedEventArgs(connectionInfo));
+            this._logger.LogInformation("Connection changed - ConnectionId: {ConnectionId}, PresenterClientId: {PresenterClientId}, ViewerCount: {ViewerCount}", connectionInfo.ConnectionId, connectionInfo.PresenterClientId, connectionInfo.ViewerClientIds.Count);
+            this.ConnectionChanged?.Invoke(this, new ConnectionChangedEventArgs(connectionInfo));
         });
 
         this._connection.On<string>("ConnectionStopped", (connectionId) =>
         {
-            this._connections.TryRemove(connectionId, out _);
             this._logger.LogInformation("Connection stopped - ConnectionId: {ConnectionId}", connectionId);
-            ConnectionStopped?.Invoke(this, new ConnectionStoppedEventArgs(connectionId));
+            this.ConnectionStopped?.Invoke(this, new ConnectionStoppedEventArgs(connectionId));
         });
 
         this._connection.On<string, string, string, ReadOnlyMemory<byte>>("MessageReceived", (connectionId, senderClientId, messageType, data) =>
         {
-            this._logger.LogInformation("Message received - ConnectionId: {ConnectionId}, SenderClientId: {SenderClientId}, MessageType: {MessageType}, DataLength: {DataLength}",
-                connectionId, senderClientId, messageType, data.Length);
-            MessageReceived?.Invoke(this, new MessageReceivedEventArgs(connectionId, senderClientId, messageType, data));
+            this._logger.LogInformation("Message received - ConnectionId: {ConnectionId}, SenderClientId: {SenderClientId}, MessageType: {MessageType}, DataLength: {DataLength}", connectionId, senderClientId, messageType, data.Length);
+            this.MessageReceived?.Invoke(this, new MessageReceivedEventArgs(connectionId, senderClientId, messageType, data));
         });
 
         this._connection.Closed += (error) =>
@@ -72,23 +66,22 @@ public sealed class ConnectionHubClient : IAsyncDisposable
                 this._logger.LogInformation("Connection closed");
             }
 
-            Closed?.Invoke(this, new HubClosedEventArgs(error));
-
-            // Reconnect to the server if we lost connection
-            return this.StartAsync();
+            this.HubDisconnected?.Invoke(this, EventArgs.Empty);
+            return this.ConnectToHub();
         };
 
         this._connection.Reconnecting += (error) =>
         {
             this._logger.LogWarning(error, "Connection reconnecting");
-            Reconnecting?.Invoke(this, new HubReconnectingEventArgs(error));
+            this.HubDisconnected?.Invoke(this, EventArgs.Empty);
+
             return Task.CompletedTask;
         };
 
         this._connection.Reconnected += (connectionId) =>
         {
             this._logger.LogInformation("Connection reconnected - ConnectionId: {ConnectionId}", connectionId);
-            Reconnected?.Invoke(this, new HubReconnectedEventArgs(connectionId));
+            this.HubConnected?.Invoke(this, EventArgs.Empty);
             return Task.CompletedTask;
         };
     }
@@ -96,7 +89,6 @@ public sealed class ConnectionHubClient : IAsyncDisposable
     public string? ClientId { get; private set; }
     public string? Username { get; private set; }
     public string? Password { get; private set; }
-    public IReadOnlyDictionary<string, ConnectionInfo> Connections => this._connections;
 
     public event EventHandler<CredentialsAssignedEventArgs>? CredentialsAssigned;
     public event EventHandler<ConnectionStartedEventArgs>? ConnectionStarted;
@@ -104,41 +96,30 @@ public sealed class ConnectionHubClient : IAsyncDisposable
     public event EventHandler<ConnectionStoppedEventArgs>? ConnectionStopped;
     public event EventHandler<MessageReceivedEventArgs>? MessageReceived;
 
-    public event EventHandler<HubClosedEventArgs>? Closed;
-    public event EventHandler<HubReconnectingEventArgs>? Reconnecting;
-    public event EventHandler<HubReconnectedEventArgs>? Reconnected;
+    public bool IsConnected => this._connection.State == HubConnectionState.Connected;
+    public event EventHandler? HubConnected;
+    public event EventHandler? HubDisconnected;
 
-    public async Task StartAsync()
+    public async Task ConnectToHub()
     {
         while (true)
         {
             try
             {
-                if (this._connection.State is HubConnectionState.Connected or HubConnectionState.Reconnecting)
-                {
-                    this._logger.LogInformation("Already connected to server");
-                    return;
-                }
-
                 this._logger.LogInformation("Connecting to server...");
                 await this._connection.StartAsync();
+
                 this._logger.LogInformation("Connected to server successfully");
+                this.HubConnected?.Invoke(this, EventArgs.Empty);
 
                 return;
             }
             catch (Exception ex)
             {
-                this._logger.LogWarning(ex, "Connection attempt failed, retrying in 500 milliseconds");
-                await Task.Delay(500);
+                this._logger.LogWarning(ex, "Connection attempt failed, retrying in 200 milliseconds");
+                await Task.Delay(200);
             }
         }
-    }
-
-    public async Task StopAsync()
-    {
-        this._logger.LogInformation("Disconnecting from server...");
-        await this._connection.StopAsync();
-        this._logger.LogInformation("Disconnected from server");
     }
 
     public async Task<TryConnectError?> ConnectTo(string username, string password)
@@ -160,8 +141,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
 
     public async Task SendMessage(string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null)
     {
-        this._logger.LogDebug("Sending message - ConnectionId: {ConnectionId}, MessageType: {MessageType}, DataLength: {DataLength}, Destination: {Destination}",
-            connectionId, messageType, data.Length, destination);
+        this._logger.LogDebug("Sending message - ConnectionId: {ConnectionId}, MessageType: {MessageType}, DataLength: {DataLength}, Destination: {Destination}", connectionId, messageType, data.Length, destination);
         await this._connection.InvokeAsync("SendMessage", connectionId, messageType, data, destination, targetClientIds);
         this._logger.LogDebug("Message sent successfully");
     }
@@ -173,11 +153,11 @@ public sealed class ConnectionHubClient : IAsyncDisposable
         this._logger.LogInformation("Disconnected from connection: {ConnectionId}", connectionId);
     }
 
-    public async Task ReconnectAsync()
+    public async Task GenerateNewPassword()
     {
-        this._logger.LogInformation("Reconnecting to get fresh credentials...");
-        await this._connection.StopAsync();
-        await this.StartAsync();
+        this._logger.LogInformation("Generating new password");
+        await this._connection.InvokeAsync("GenerateNewPassword");
+        this._logger.LogInformation("New password generated");
     }
 
     public async ValueTask DisposeAsync()
@@ -249,36 +229,6 @@ public sealed class MessageReceivedEventArgs : EventArgs
     public string SenderClientId { get; }
     public string MessageType { get; }
     public ReadOnlyMemory<byte> Data { get; }
-}
-
-public sealed class HubClosedEventArgs : EventArgs
-{
-    public HubClosedEventArgs(Exception? error)
-    {
-        this.Error = error;
-    }
-
-    public Exception? Error { get; }
-}
-
-public sealed class HubReconnectingEventArgs : EventArgs
-{
-    public HubReconnectingEventArgs(Exception? error)
-    {
-        this.Error = error;
-    }
-
-    public Exception? Error { get; }
-}
-
-public sealed class HubReconnectedEventArgs : EventArgs
-{
-    public HubReconnectedEventArgs(string? connectionId)
-    {
-        this.ConnectionId = connectionId;
-    }
-
-    public string? ConnectionId { get; }
 }
 
 #endregion
