@@ -448,6 +448,10 @@ public sealed class Connection
             {
                 this._viewers[index] = new ViewerInfo(senderClientId, message.DisplayId);
             }
+            else
+            {
+                this._viewers.Add(new ViewerInfo(senderClientId, message.DisplayId));
+            }
         }
 
         this._logger.LogDebug("Viewer {ViewerId} selected display {DisplayId}", senderClientId, message.DisplayId);
