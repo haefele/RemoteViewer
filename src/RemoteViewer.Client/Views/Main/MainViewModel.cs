@@ -17,7 +17,7 @@ public partial class MainViewModel : ViewModelBase
     private readonly IInputInjectionService _inputInjectionService;
 
     [ObservableProperty]
-    private string _yourUsername = "Connecting...";
+    private string _yourUsername = "...";
 
     [ObservableProperty]
     private string _yourPassword = "...";
@@ -32,7 +32,7 @@ public partial class MainViewModel : ViewModelBase
     private bool _isConnected;
 
     [ObservableProperty]
-    private string _statusText = "Disconnected";
+    private string _statusText = "Connecting...";
 
     [ObservableProperty]
     private string? _connectionError;
@@ -62,7 +62,7 @@ public partial class MainViewModel : ViewModelBase
             Dispatcher.UIThread.Post(() =>
             {
                 this.IsConnected = false;
-                this.StatusText = "Reconnecting...";
+                this.StatusText = "Connecting...";
                 this.YourUsername = "...";
                 this.YourPassword = "...";
             });
@@ -73,7 +73,7 @@ public partial class MainViewModel : ViewModelBase
             Dispatcher.UIThread.Post(() =>
             {
                 this.IsConnected = true;
-                this.StatusText = "Connected to server";
+                this.StatusText = "Connected";
             });
         };
 
@@ -97,7 +97,7 @@ public partial class MainViewModel : ViewModelBase
     {
         Dispatcher.UIThread.Post(() =>
         {
-            if (e.Connection.Role == ConnectionRole.Presenter)
+            if (e.Connection.IsPresenter)
             {
                 this.OpenPresenterWindow(e.Connection);
             }

@@ -1,4 +1,5 @@
-#if WINDOWS
+﻿#if WINDOWS
+using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Server.SharedAPI.Protocol;
 using Windows.Win32;
@@ -142,7 +143,7 @@ public class InputInjectionService : IInputInjectionService
             {
                 ki = new KEYBDINPUT
                 {
-                    wVk = (VIRTUAL_KEY)keyCode,
+                    wVk = 0, // Use 0 when using scan codes for better game compatibility
                     wScan = scanCode,
                     dwFlags = flags
                 }
@@ -191,7 +192,8 @@ public class InputInjectionService : IInputInjectionService
         var result = PInvoke.SendInput(1, inputs, sizeof(INPUT));
         if (result == 0)
         {
-            this._logger.LogWarning("SendInput failed");
+            var errorCode = Marshal.GetLastWin32Error();
+            this._logger.LogWarning("SendInput failed with error code: {ErrorCode}", errorCode);
         }
     }
 }

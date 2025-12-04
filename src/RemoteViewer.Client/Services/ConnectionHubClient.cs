@@ -34,14 +34,14 @@ public sealed class ConnectionHubClient : IAsyncDisposable
             this.Password = password;
 
             this._logger.LogInformation("Credentials assigned - ClientId: {ClientId}, Username: {Username}", clientId, username);
-            this.CredentialsAssigned?.Invoke(this, new CredentialsAssignedEventArgs(clientId, username, password));
+            this._credentialsAssigned?.Invoke(this, new CredentialsAssignedEventArgs(clientId, username, password));
         });
 
         this._connection.On<string, bool>("ConnectionStarted", (connectionId, isPresenter) =>
         {
             var connection = new Connection(
                 connectionId,
-                isPresenter ? ConnectionRole.Presenter : ConnectionRole.Viewer,
+                isPresenter,
                 sendMessageAsync: (messageType, data, destination, targetClientIds) => this.SendMessage(connectionId, messageType, data, destination, targetClientIds),
                 disconnectAsync: () => this.Disconnect(connectionId),
                 this._loggerFactory.CreateLogger<Connection>(),
@@ -123,7 +123,22 @@ public sealed class ConnectionHubClient : IAsyncDisposable
     public string? Username { get; private set; }
     public string? Password { get; private set; }
 
-    public event EventHandler<CredentialsAssignedEventArgs>? CredentialsAssigned;
+    private EventHandler<CredentialsAssignedEventArgs>? _credentialsAssigned;
+    public event EventHandler<CredentialsAssignedEventArgs>? CredentialsAssigned
+    {
+        add
+        {
+            this._credentialsAssigned += value;
+
+            // Notify new subscriber of current state if credentials already assigned
+            if (this.ClientId is not null)
+            {
+                value?.Invoke(this, new CredentialsAssignedEventArgs(this.ClientId, this.Username!, this.Password!));
+            }
+        }
+        remove => this._credentialsAssigned -= value;
+    }
+
     public event EventHandler<ConnectionStartedEventArgs>? ConnectionStarted;
 
     public bool IsConnected => this._connection.State == HubConnectionState.Connected;

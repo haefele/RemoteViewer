@@ -21,21 +21,21 @@ public sealed class Connection
 
     internal Connection(
         string connectionId,
-        ConnectionRole role,
+        bool isPresenter,
         Func<string, ReadOnlyMemory<byte>, MessageDestination, IReadOnlyList<string>?, Task> sendMessageAsync,
         Func<Task> disconnectAsync,
         ILogger<Connection> logger,
         IScreenshotService? screenshotService = null)
     {
         this.ConnectionId = connectionId;
-        this.Role = role;
+        this.IsPresenter = isPresenter;
         this._screenshotService = screenshotService;
         this._sendMessageAsync = sendMessageAsync;
         this._disconnectAsync = disconnectAsync;
         this._logger = logger;
 
         // Automatically request display list when connecting as a viewer
-        if (role == ConnectionRole.Viewer)
+        if (!isPresenter)
         {
             var message = new RequestDisplayListMessage();
             var data = ProtocolSerializer.Serialize(message);
@@ -44,7 +44,7 @@ public sealed class Connection
     }
 
     public string ConnectionId { get; }
-    public ConnectionRole Role { get; }
+    public bool IsPresenter { get; }
     public bool IsClosed { get; private set; }
     public IReadOnlyList<ViewerInfo> Viewers
     {
@@ -122,7 +122,7 @@ public sealed class Connection
     /// <summary>Viewer-only: Select a display to watch.</summary>
     public async Task SelectDisplayAsync(string displayId)
     {
-        if (this.Role != ConnectionRole.Viewer)
+        if (this.IsPresenter)
             throw new InvalidOperationException("SelectDisplayAsync is only valid for viewers");
 
         if (this.IsClosed)
@@ -138,7 +138,7 @@ public sealed class Connection
     /// <summary>Viewer-only: Send input to the presenter.</summary>
     public async Task SendInputAsync(string messageType, ReadOnlyMemory<byte> data)
     {
-        if (this.Role != ConnectionRole.Viewer)
+        if (this.IsPresenter)
             throw new InvalidOperationException("SendInputAsync is only valid for viewers");
 
         if (this.IsClosed)
@@ -150,7 +150,7 @@ public sealed class Connection
     /// <summary>Presenter-only: Send a frame to all viewers watching a specific display.</summary>
     public async Task SendFrameAsync(string displayId, ulong frameNumber, long timestamp, FrameCodec codec, int width, int height, byte quality, ReadOnlyMemory<byte> frameData)
     {
-        if (this.Role != ConnectionRole.Presenter)
+        if (!this.IsPresenter)
             throw new InvalidOperationException("SendFrameAsync is only valid for presenters");
 
         if (this.IsClosed)
@@ -186,7 +186,7 @@ public sealed class Connection
 
     internal void OnViewersChanged(IReadOnlyList<string> viewerClientIds)
     {
-        if (this.Role != ConnectionRole.Presenter)
+        if (!this.IsPresenter)
             return;
 
         lock (this._viewersLock)
@@ -410,16 +410,6 @@ public sealed class Connection
             return this._viewers.FirstOrDefault(v => v.ClientId == viewerClientId)?.SelectedDisplayId;
         }
     }
-}
-
-
-/// <summary>
-/// Represents the role of a client in a connection.
-/// </summary>
-public enum ConnectionRole
-{
-    Presenter,
-    Viewer
 }
 
 /// <summary>
