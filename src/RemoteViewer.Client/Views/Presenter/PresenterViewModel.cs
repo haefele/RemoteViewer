@@ -3,10 +3,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services;
-using RemoteViewer.Server.SharedAPI;
 using RemoteViewer.Server.SharedAPI.Protocol;
 using SkiaSharp;
-using System.Collections.Concurrent;
 
 namespace RemoteViewer.Client.Views.Presenter;
 
@@ -16,15 +14,10 @@ namespace RemoteViewer.Client.Views.Presenter;
 /// </summary>
 public partial class PresenterViewModel : ViewModelBase, IDisposable
 {
-    private readonly ConnectionHubClient _hubClient;
+    private readonly Connection _connection;
     private readonly IScreenshotService _screenshotService;
     private readonly IInputInjectionService _inputInjectionService;
     private readonly ILogger<PresenterViewModel> _logger;
-    private readonly string _connectionId;
-
-    // Thread-safe viewer tracking
-    private readonly ConcurrentDictionary<string, byte> _knownViewers = new();
-    private readonly ConcurrentDictionary<string, string> _viewerDisplaySubscriptions = new(); // viewerClientId -> displayId
 
     private CancellationTokenSource? _captureLoopCts;
     private Task? _captureLoopTask;
@@ -48,14 +41,12 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
     public event EventHandler? CloseRequested;
 
     public PresenterViewModel(
-        ConnectionHubClient hubClient,
-        string connectionId,
+        Connection connection,
         IScreenshotService screenshotService,
         IInputInjectionService inputInjectionService,
         ILogger<PresenterViewModel> logger)
     {
-        this._hubClient = hubClient;
-        this._connectionId = connectionId;
+        this._connection = connection;
         this._screenshotService = screenshotService;
         this._inputInjectionService = inputInjectionService;
         this._logger = logger;
@@ -70,60 +61,92 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        this.Title = $"Presenting - {connectionId[..8]}...";
+        this.Title = $"Presenting - {connection.ConnectionId[..8]}...";
 
-        // Subscribe to hub events
-        this._hubClient.ConnectionChanged += this.OnConnectionChanged;
-        this._hubClient.ConnectionStopped += this.OnConnectionStopped;
-        this._hubClient.MessageReceived += this.OnMessageReceived;
+        // Subscribe to Connection events
+        this._connection.ViewersChanged += this.OnViewersChanged;
+        this._connection.InputReceived += this.OnInputReceived;
+        this._connection.Closed += this.OnConnectionClosed;
 
         // Start presenting immediately
         this.StartPresenting();
     }
 
-    private void OnConnectionChanged(object? sender, ConnectionChangedEventArgs e)
+    private void OnViewersChanged(object? sender, EventArgs e)
     {
-        if (e.ConnectionInfo.ConnectionId != this._connectionId)
-            return;
+        var viewers = this._connection.Viewers;
 
-        // Update viewer list and send display list to new viewers
-        var currentViewerKeys = this._knownViewers.Keys;
-        var newViewers = e.ConnectionInfo.ViewerClientIds.ToHashSet();
-
-        // Find new viewers
-        var addedViewers = newViewers.Except(currentViewerKeys).ToList();
-        if (addedViewers.Count > 0)
-        {
-            this._logger.LogInformation("New viewers joined: {Viewers}", string.Join(", ", addedViewers));
-            foreach (var viewerId in addedViewers)
-            {
-                this._knownViewers.TryAdd(viewerId, 0);
-            }
-        }
-
-        // Remove disconnected viewers
-        var removedViewers = currentViewerKeys.Except(newViewers).ToList();
-        foreach (var viewerId in removedViewers)
-        {
-            this._knownViewers.TryRemove(viewerId, out _);
-            this._viewerDisplaySubscriptions.TryRemove(viewerId, out _);
-        }
+        // Log new/removed viewers for debugging
+        this._logger.LogInformation("Viewer list changed: {ViewerCount} viewer(s)", viewers.Count);
 
         // Update UI
         Dispatcher.UIThread.Post(() =>
         {
-            this.ViewerCount = e.ConnectionInfo.ViewerClientIds.Count;
+            this.ViewerCount = viewers.Count;
             this.StatusText = this.ViewerCount == 0
                 ? "Waiting for viewers..."
                 : $"{this.ViewerCount} viewer(s) connected";
         });
     }
 
-    private void OnConnectionStopped(object? sender, ConnectionStoppedEventArgs e)
+    private void OnInputReceived(object? sender, InputReceivedEventArgs e)
     {
-        if (e.ConnectionId != this._connectionId)
+        // Get the display for this viewer's selection
+        if (e.DisplayId is null)
             return;
 
+        var display = this.GetDisplayById(e.DisplayId);
+        if (display is null)
+            return;
+
+        switch (e.Type)
+        {
+            case InputType.MouseMove:
+                if (e.X.HasValue && e.Y.HasValue)
+                {
+                    this._inputInjectionService.InjectMouseMove(display, e.X.Value, e.Y.Value);
+                }
+                break;
+
+            case InputType.MouseDown:
+                if (e.X.HasValue && e.Y.HasValue && e.Button.HasValue)
+                {
+                    this._inputInjectionService.InjectMouseButton(display, e.Button.Value, isDown: true, e.X.Value, e.Y.Value);
+                }
+                break;
+
+            case InputType.MouseUp:
+                if (e.X.HasValue && e.Y.HasValue && e.Button.HasValue)
+                {
+                    this._inputInjectionService.InjectMouseButton(display, e.Button.Value, isDown: false, e.X.Value, e.Y.Value);
+                }
+                break;
+
+            case InputType.MouseWheel:
+                if (e.X.HasValue && e.Y.HasValue && e.DeltaX.HasValue && e.DeltaY.HasValue)
+                {
+                    this._inputInjectionService.InjectMouseWheel(display, e.DeltaX.Value, e.DeltaY.Value, e.X.Value, e.Y.Value);
+                }
+                break;
+
+            case InputType.KeyDown:
+                if (e.KeyCode.HasValue && e.ScanCode.HasValue)
+                {
+                    this._inputInjectionService.InjectKey(e.KeyCode.Value, e.ScanCode.Value, isDown: true, e.IsExtendedKey ?? false);
+                }
+                break;
+
+            case InputType.KeyUp:
+                if (e.KeyCode.HasValue && e.ScanCode.HasValue)
+                {
+                    this._inputInjectionService.InjectKey(e.KeyCode.Value, e.ScanCode.Value, isDown: false, e.IsExtendedKey ?? false);
+                }
+                break;
+        }
+    }
+
+    private void OnConnectionClosed(object? sender, EventArgs e)
+    {
         this.StopPresenting();
 
         Dispatcher.UIThread.Post(() =>
@@ -134,134 +157,6 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
         });
     }
 
-    private void OnMessageReceived(object? sender, MessageReceivedEventArgs e)
-    {
-        if (e.ConnectionId != this._connectionId)
-            return;
-
-        try
-        {
-            this.HandleMessage(e.SenderClientId, e.MessageType, e.Data);
-        }
-        catch (Exception ex)
-        {
-            this._logger.LogError(ex, "Error handling message {MessageType} from {SenderClientId}", e.MessageType, e.SenderClientId);
-        }
-    }
-
-    private void HandleMessage(string senderClientId, string messageType, ReadOnlyMemory<byte> data)
-    {
-        switch (messageType)
-        {
-            case MessageTypes.Display.Select:
-                this.HandleDisplaySelect(senderClientId, data);
-                break;
-
-            case MessageTypes.Display.RequestList:
-                this.HandleDisplayListRequest(senderClientId);
-                break;
-
-            case MessageTypes.Input.MouseMove:
-                this.HandleMouseMove(senderClientId, data);
-                break;
-
-            case MessageTypes.Input.MouseDown:
-                this.HandleMouseButton(senderClientId, data, isDown: true);
-                break;
-
-            case MessageTypes.Input.MouseUp:
-                this.HandleMouseButton(senderClientId, data, isDown: false);
-                break;
-
-            case MessageTypes.Input.MouseWheel:
-                this.HandleMouseWheel(senderClientId, data);
-                break;
-
-            case MessageTypes.Input.KeyDown:
-                this.HandleKey(data, isDown: true);
-                break;
-
-            case MessageTypes.Input.KeyUp:
-                this.HandleKey(data, isDown: false);
-                break;
-        }
-    }
-
-    private void HandleDisplaySelect(string senderClientId, ReadOnlyMemory<byte> data)
-    {
-        var message = ProtocolSerializer.Deserialize<DisplaySelectMessage>(data);
-        this._viewerDisplaySubscriptions[senderClientId] = message.DisplayId;
-        this._logger.LogInformation("Viewer {ViewerId} selected display {DisplayId}", senderClientId, message.DisplayId);
-    }
-
-    private async void HandleDisplayListRequest(string senderClientId)
-    {
-        var displays = this._screenshotService.GetDisplays();
-        var displayInfos = displays.Select(d => new DisplayInfo(
-            d.Name,
-            d.Name,
-            d.IsPrimary,
-            d.Bounds.Left,
-            d.Bounds.Top,
-            d.Bounds.Width,
-            d.Bounds.Height
-        )).ToArray();
-
-        var message = new DisplayListMessage(displayInfos);
-        var data = ProtocolSerializer.Serialize(message);
-
-        await this._hubClient.SendMessage(this._connectionId, MessageTypes.Display.List, data, MessageDestination.SpecificClients, [senderClientId]);
-        this._logger.LogInformation("Sent display list to viewer {ViewerId}", senderClientId);
-    }
-
-    private void HandleMouseMove(string senderClientId, ReadOnlyMemory<byte> data)
-    {
-        var message = ProtocolSerializer.Deserialize<MouseMoveMessage>(data);
-
-        if (this._viewerDisplaySubscriptions.TryGetValue(senderClientId, out var displayId))
-        {
-            var display = this.GetDisplayById(displayId);
-            if (display is not null)
-            {
-                this._inputInjectionService.InjectMouseMove(display, message.X, message.Y);
-            }
-        }
-    }
-
-    private void HandleMouseButton(string senderClientId, ReadOnlyMemory<byte> data, bool isDown)
-    {
-        var message = ProtocolSerializer.Deserialize<MouseButtonMessage>(data);
-
-        if (this._viewerDisplaySubscriptions.TryGetValue(senderClientId, out var displayId))
-        {
-            var display = this.GetDisplayById(displayId);
-            if (display is not null)
-            {
-                this._inputInjectionService.InjectMouseButton(display, message.Button, isDown, message.X, message.Y);
-            }
-        }
-    }
-
-    private void HandleMouseWheel(string senderClientId, ReadOnlyMemory<byte> data)
-    {
-        var message = ProtocolSerializer.Deserialize<MouseWheelMessage>(data);
-
-        if (this._viewerDisplaySubscriptions.TryGetValue(senderClientId, out var displayId))
-        {
-            var display = this.GetDisplayById(displayId);
-            if (display is not null)
-            {
-                this._inputInjectionService.InjectMouseWheel(display, message.DeltaX, message.DeltaY, message.X, message.Y);
-            }
-        }
-    }
-
-    private void HandleKey(ReadOnlyMemory<byte> data, bool isDown)
-    {
-        var message = ProtocolSerializer.Deserialize<KeyMessage>(data);
-        this._inputInjectionService.InjectKey(message.KeyCode, message.ScanCode, isDown, message.IsExtendedKey);
-    }
-
     private Display? GetDisplayById(string displayId)
     {
         return this._screenshotService.GetDisplays().FirstOrDefault(d => d.Name == displayId);
@@ -269,7 +164,7 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
 
     private void StartPresenting()
     {
-        this._logger.LogInformation("Starting presenter for connection {ConnectionId}", this._connectionId);
+        this._logger.LogInformation("Starting presenter for connection {ConnectionId}", this._connection.ConnectionId);
 
         this._captureLoopCts = new CancellationTokenSource();
         this._captureLoopTask = Task.Run(() => this.CaptureLoopAsync(this._captureLoopCts.Token));
@@ -278,7 +173,7 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
     private void StopPresenting()
     {
         this._captureLoopCts?.Cancel();
-        this._logger.LogInformation("Stopped presenting for connection {ConnectionId}", this._connectionId);
+        this._logger.LogInformation("Stopped presenting for connection {ConnectionId}", this._connection.ConnectionId);
     }
 
     private async Task CaptureLoopAsync(CancellationToken ct)
@@ -287,7 +182,7 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
         var frameInterval = TimeSpan.FromMilliseconds(1000.0 / TargetFps);
         ulong frameNumber = 0;
 
-        this._logger.LogInformation("Capture loop started for connection {ConnectionId}", this._connectionId);
+        this._logger.LogInformation("Capture loop started for connection {ConnectionId}", this._connection.ConnectionId);
 
         while (!ct.IsCancellationRequested)
         {
@@ -311,22 +206,27 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
             }
         }
 
-        this._logger.LogInformation("Capture loop ended for connection {ConnectionId}", this._connectionId);
+        this._logger.LogInformation("Capture loop ended for connection {ConnectionId}", this._connection.ConnectionId);
     }
 
     private async Task CaptureAndSendFramesAsync(ulong frameNumber)
     {
-        // Group viewers by display
-        var viewersByDisplay = this._viewerDisplaySubscriptions
-            .GroupBy(kvp => kvp.Value)
-            .ToDictionary(g => g.Key, g => g.Select(kvp => kvp.Key).ToList());
+        // Get unique displays that viewers are watching
+        var viewers = this._connection.Viewers;
+        var displayIds = viewers
+            .Select(v => v.SelectedDisplayId)
+            .Where(id => id is not null)
+            .Distinct()
+            .ToList();
 
-        if (viewersByDisplay.Count == 0)
+        if (displayIds.Count == 0)
             return;
 
         var displays = this._screenshotService.GetDisplays();
+        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+        const byte Quality = 75;
 
-        foreach (var (displayId, viewers) in viewersByDisplay)
+        foreach (var displayId in displayIds)
         {
             var display = displays.FirstOrDefault(d => d.Name == displayId);
             if (display is null)
@@ -339,23 +239,18 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
             try
             {
                 // Encode to JPEG
-                var frameData = EncodeJpeg(captureResult.Bitmap, quality: 75);
+                var frameData = EncodeJpeg(captureResult.Bitmap, Quality);
 
-                var message = new FrameMessage(
-                    displayId,
+                // Send frame to viewers watching this display (Connection handles targeting)
+                await this._connection.SendFrameAsync(
+                    displayId!,
                     frameNumber,
-                    DateTimeOffset.UtcNow.ToUnixTimeMilliseconds(),
+                    timestamp,
                     FrameCodec.Jpeg,
                     captureResult.Bitmap.Width,
                     captureResult.Bitmap.Height,
-                    75,
-                    frameData
-                );
-
-                var data = ProtocolSerializer.Serialize(message);
-
-                // Send to specific viewers watching this display
-                await this._hubClient.SendMessage(this._connectionId, MessageTypes.Screen.Frame, data, MessageDestination.SpecificClients, viewers);
+                    Quality,
+                    frameData);
             }
             finally
             {
@@ -380,9 +275,9 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
             return;
         }
 
-        this._logger.LogInformation("User requested to stop presenting for connection {ConnectionId}", this._connectionId);
-        await this._hubClient.Disconnect(this._connectionId);
-        // The ConnectionStopped event will trigger CloseRequested
+        this._logger.LogInformation("User requested to stop presenting for connection {ConnectionId}", this._connection.ConnectionId);
+        await this._connection.DisconnectAsync();
+        // The Closed event will trigger CloseRequested
     }
 
     public void Dispose()
@@ -392,14 +287,20 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
 
         this._disposed = true;
 
-        // Stop capture loop
+        // Stop capture loop and wait for it to complete
         this.StopPresenting();
+        try
+        {
+            this._captureLoopTask?.Wait(TimeSpan.FromSeconds(2));
+        }
+        catch (AggregateException) { } // Ignore cancellation exceptions
+
         this._captureLoopCts?.Dispose();
 
-        // Unsubscribe from hub events
-        this._hubClient.ConnectionChanged -= this.OnConnectionChanged;
-        this._hubClient.ConnectionStopped -= this.OnConnectionStopped;
-        this._hubClient.MessageReceived -= this.OnMessageReceived;
+        // Unsubscribe from Connection events
+        this._connection.ViewersChanged -= this.OnViewersChanged;
+        this._connection.InputReceived -= this.OnInputReceived;
+        this._connection.Closed -= this.OnConnectionClosed;
 
         GC.SuppressFinalize(this);
     }

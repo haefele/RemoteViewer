@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.SignalR.Client;
+﻿using System.Collections.Concurrent;
+using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
 using Nerdbank.MessagePack.SignalR;
 using PolyType.ReflectionProvider;
@@ -9,11 +10,16 @@ namespace RemoteViewer.Client.Services;
 public sealed class ConnectionHubClient : IAsyncDisposable
 {
     private readonly ILogger<ConnectionHubClient> _logger;
+    private readonly ILoggerFactory _loggerFactory;
+    private readonly IScreenshotService _screenshotService;
     private readonly HubConnection _connection;
+    private readonly ConcurrentDictionary<string, Connection> _connections = new();
 
-    public ConnectionHubClient(string serverUrl, ILogger<ConnectionHubClient> logger)
+    public ConnectionHubClient(string serverUrl, ILogger<ConnectionHubClient> logger, ILoggerFactory loggerFactory, IScreenshotService screenshotService)
     {
         this._logger = logger;
+        this._loggerFactory = loggerFactory;
+        this._screenshotService = screenshotService;
 
         this._connection = new HubConnectionBuilder()
             .WithUrl($"{serverUrl}/connection")
@@ -33,26 +39,51 @@ public sealed class ConnectionHubClient : IAsyncDisposable
 
         this._connection.On<string, bool>("ConnectionStarted", (connectionId, isPresenter) =>
         {
+            var connection = new Connection(
+                connectionId,
+                isPresenter ? ConnectionRole.Presenter : ConnectionRole.Viewer,
+                sendMessageAsync: (messageType, data, destination, targetClientIds) => this.SendMessage(connectionId, messageType, data, destination, targetClientIds),
+                disconnectAsync: () => this.Disconnect(connectionId),
+                this._loggerFactory.CreateLogger<Connection>(),
+                screenshotService: isPresenter ? this._screenshotService : null);
+
+            this._connections[connectionId] = connection;
+
             this._logger.LogInformation("Connection started - ConnectionId: {ConnectionId}, IsPresenter: {IsPresenter}", connectionId, isPresenter);
-            this.ConnectionStarted?.Invoke(this, new ConnectionStartedEventArgs(connectionId, isPresenter));
+            this.ConnectionStarted?.Invoke(this, new ConnectionStartedEventArgs(connection));
         });
 
         this._connection.On<ConnectionInfo>("ConnectionChanged", (connectionInfo) =>
         {
             this._logger.LogInformation("Connection changed - ConnectionId: {ConnectionId}, PresenterClientId: {PresenterClientId}, ViewerCount: {ViewerCount}", connectionInfo.ConnectionId, connectionInfo.PresenterClientId, connectionInfo.ViewerClientIds.Count);
-            this.ConnectionChanged?.Invoke(this, new ConnectionChangedEventArgs(connectionInfo));
+
+            // Route to the Connection object (direct call, not event subscription)
+            if (this._connections.TryGetValue(connectionInfo.ConnectionId, out var connection))
+            {
+                connection.OnViewersChanged(connectionInfo.ViewerClientIds);
+            }
         });
 
         this._connection.On<string>("ConnectionStopped", (connectionId) =>
         {
             this._logger.LogInformation("Connection stopped - ConnectionId: {ConnectionId}", connectionId);
-            this.ConnectionStopped?.Invoke(this, new ConnectionStoppedEventArgs(connectionId));
+
+            // Route to the Connection object and remove from dictionary
+            if (this._connections.TryRemove(connectionId, out var connection))
+            {
+                connection.OnClosed();
+            }
         });
 
         this._connection.On<string, string, string, ReadOnlyMemory<byte>>("MessageReceived", (connectionId, senderClientId, messageType, data) =>
         {
-            this._logger.LogInformation("Message received - ConnectionId: {ConnectionId}, SenderClientId: {SenderClientId}, MessageType: {MessageType}, DataLength: {DataLength}", connectionId, senderClientId, messageType, data.Length);
-            this.MessageReceived?.Invoke(this, new MessageReceivedEventArgs(connectionId, senderClientId, messageType, data));
+            this._logger.LogDebug("Message received - ConnectionId: {ConnectionId}, SenderClientId: {SenderClientId}, MessageType: {MessageType}, DataLength: {DataLength}", connectionId, senderClientId, messageType, data.Length);
+
+            // Route to the Connection object (direct call - Connection parses and fires its events)
+            if (this._connections.TryGetValue(connectionId, out var connection))
+            {
+                connection.OnMessageReceived(senderClientId, messageType, data);
+            }
         });
 
         this._connection.Closed += (error) =>
@@ -92,9 +123,6 @@ public sealed class ConnectionHubClient : IAsyncDisposable
 
     public event EventHandler<CredentialsAssignedEventArgs>? CredentialsAssigned;
     public event EventHandler<ConnectionStartedEventArgs>? ConnectionStarted;
-    public event EventHandler<ConnectionChangedEventArgs>? ConnectionChanged;
-    public event EventHandler<ConnectionStoppedEventArgs>? ConnectionStopped;
-    public event EventHandler<MessageReceivedEventArgs>? MessageReceived;
 
     public bool IsConnected => this._connection.State == HubConnectionState.Connected;
     public event EventHandler? HubConnected;
@@ -185,50 +213,12 @@ public sealed class CredentialsAssignedEventArgs : EventArgs
 
 public sealed class ConnectionStartedEventArgs : EventArgs
 {
-    public ConnectionStartedEventArgs(string connectionId, bool isPresenter)
+    public ConnectionStartedEventArgs(Connection connection)
     {
-        this.ConnectionId = connectionId;
-        this.IsPresenter = isPresenter;
+        this.Connection = connection;
     }
 
-    public string ConnectionId { get; }
-    public bool IsPresenter { get; }
-}
-
-public sealed class ConnectionChangedEventArgs : EventArgs
-{
-    public ConnectionChangedEventArgs(ConnectionInfo connectionInfo)
-    {
-        this.ConnectionInfo = connectionInfo;
-    }
-
-    public ConnectionInfo ConnectionInfo { get; }
-}
-
-public sealed class ConnectionStoppedEventArgs : EventArgs
-{
-    public ConnectionStoppedEventArgs(string connectionId)
-    {
-        this.ConnectionId = connectionId;
-    }
-
-    public string ConnectionId { get; }
-}
-
-public sealed class MessageReceivedEventArgs : EventArgs
-{
-    public MessageReceivedEventArgs(string connectionId, string senderClientId, string messageType, ReadOnlyMemory<byte> data)
-    {
-        this.ConnectionId = connectionId;
-        this.SenderClientId = senderClientId;
-        this.MessageType = messageType;
-        this.Data = data;
-    }
-
-    public string ConnectionId { get; }
-    public string SenderClientId { get; }
-    public string MessageType { get; }
-    public ReadOnlyMemory<byte> Data { get; }
+    public Connection Connection { get; }
 }
 
 #endregion

@@ -97,24 +97,23 @@ public partial class MainViewModel : ViewModelBase
     {
         Dispatcher.UIThread.Post(() =>
         {
-            if (e.IsPresenter)
+            if (e.Connection.Role == ConnectionRole.Presenter)
             {
-                this.OpenPresenterWindow(e.ConnectionId);
+                this.OpenPresenterWindow(e.Connection);
             }
             else
             {
-                this.OpenViewerWindow(e.ConnectionId);
+                this.OpenViewerWindow(e.Connection);
             }
         });
     }
 
-    private void OpenPresenterWindow(string connectionId)
+    private void OpenPresenterWindow(Connection connection)
     {
         RequestHideMainView?.Invoke(this, EventArgs.Empty);
 
         var viewModel = new PresenterViewModel(
-            this._hubClient,
-            connectionId,
+            connection,
             this._screenshotService,
             this._inputInjectionService,
             this._presenterLogger);
@@ -127,11 +126,11 @@ public partial class MainViewModel : ViewModelBase
         window.Show();
     }
 
-    private void OpenViewerWindow(string connectionId)
+    private void OpenViewerWindow(Connection connection)
     {
         RequestHideMainView?.Invoke(this, EventArgs.Empty);
 
-        var viewModel = new ViewerViewModel(this._hubClient, connectionId, this._viewerLogger);
+        var viewModel = new ViewerViewModel(connection, this._viewerLogger);
         var window = new ViewerView
         {
             DataContext = viewModel

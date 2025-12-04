@@ -35,10 +35,7 @@ public partial class App : Application
 
             services.AddLogging(builder => builder.AddSerilog());
 
-            services.AddSingleton(sp =>
-                new ConnectionHubClient(ServerUrl, sp.GetRequiredService<ILogger<ConnectionHubClient>>()));
-
-            // Platform-specific services
+            // Platform-specific services (must be registered before ConnectionHubClient)
             if (OperatingSystem.IsWindows())
             {
                 RegisterWindowsServices(services);
@@ -47,6 +44,13 @@ public partial class App : Application
             {
                 RegisterNullServices(services);
             }
+
+            services.AddSingleton(sp =>
+                new ConnectionHubClient(
+                    ServerUrl,
+                    sp.GetRequiredService<ILogger<ConnectionHubClient>>(),
+                    sp.GetRequiredService<ILoggerFactory>(),
+                    sp.GetRequiredService<IScreenshotService>()));
 
             services.AddTransient<MainViewModel>();
 

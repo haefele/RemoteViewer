@@ -4,7 +4,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services;
-using RemoteViewer.Server.SharedAPI;
 using RemoteViewer.Server.SharedAPI.Protocol;
 using System.Collections.ObjectModel;
 
@@ -15,9 +14,8 @@ namespace RemoteViewer.Client.Views.Viewer;
 /// </summary>
 public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 {
-    private readonly ConnectionHubClient _hubClient;
+    private readonly Connection _connection;
     private readonly ILogger<ViewerViewModel> _logger;
-    private readonly string _connectionId;
 
     private bool _disposed;
 
@@ -40,9 +38,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         // Send display selection to presenter
         if (display is not null)
         {
-            var message = new DisplaySelectMessage(display.Id);
-            var messageData = ProtocolSerializer.Serialize(message);
-            await this._hubClient.SendMessage(this._connectionId, MessageTypes.Display.Select, messageData, MessageDestination.PresenterOnly);
+            await this._connection.SelectDisplayAsync(display.Id);
         }
     }
 
@@ -64,75 +60,46 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     public event EventHandler? CloseRequested;
 
     public ViewerViewModel(
-        ConnectionHubClient hubClient,
-        string connectionId,
+        Connection connection,
         ILogger<ViewerViewModel> logger)
     {
-        this._hubClient = hubClient;
-        this._connectionId = connectionId;
+        this._connection = connection;
         this._logger = logger;
 
-        this._hubClient.MessageReceived += this.OnMessageReceived;
-        this._hubClient.ConnectionStopped += this.OnConnectionStopped;
+        // Subscribe to Connection events
+        this._connection.DisplaysChanged += this.OnDisplaysChanged;
+        this._connection.FrameReceived += this.OnFrameReceived;
+        this._connection.Closed += this.OnConnectionClosed;
 
-        this.Title = $"Remote Viewer - {connectionId}";
-
-        // Request display list from presenter
-        _ = this.RequestDisplayListAsync();
+        this.Title = $"Remote Viewer - {connection.ConnectionId[..8]}...";
     }
 
-    private void OnMessageReceived(object? sender, MessageReceivedEventArgs e)
+    private void OnDisplaysChanged(object? sender, EventArgs e)
     {
-        if (e.ConnectionId != this._connectionId)
-            return;
-
-        try
-        {
-            switch (e.MessageType)
-            {
-                case MessageTypes.Display.List:
-                    this.HandleDisplayList(e.Data);
-                    break;
-
-                case MessageTypes.Screen.Frame:
-                    this.HandleFrame(e.Data);
-                    break;
-            }
-        }
-        catch (Exception ex)
-        {
-            this._logger.LogError(ex, "Error handling message {MessageType}", e.MessageType);
-        }
-    }
-
-    private void HandleDisplayList(ReadOnlyMemory<byte> data)
-    {
-        var message = ProtocolSerializer.Deserialize<DisplayListMessage>(data);
-
         Dispatcher.UIThread.Post(() =>
         {
+            var displays = this._connection.Displays;
+
             this.Displays.Clear();
-            foreach (var display in message.Displays)
+            foreach (var display in displays)
             {
                 this.Displays.Add(display);
             }
 
-            this.SelectedDisplayId ??= message.Displays.FirstOrDefault(d => d.IsPrimary)?.Id;
+            this.SelectedDisplayId ??= displays.FirstOrDefault(d => d.IsPrimary)?.Id;
             this.StatusText = $"{this.Displays.Count} display(s) available";
         });
     }
 
-    private void HandleFrame(ReadOnlyMemory<byte> data)
+    private void OnFrameReceived(object? sender, FrameReceivedEventArgs e)
     {
-        var message = ProtocolSerializer.Deserialize<FrameMessage>(data);
-
         // Only process frames for the selected display
-        if (message.DisplayId != this.SelectedDisplayId)
+        if (e.DisplayId != this.SelectedDisplayId)
             return;
 
         try
         {
-            using var stream = new MemoryStream(message.Data.ToArray());
+            using var stream = new MemoryStream(e.Data.ToArray());
             var bitmap = new Bitmap(stream);
 
             Dispatcher.UIThread.Post(() =>
@@ -146,8 +113,8 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
                 var oldBitmap = this.FrameBitmap;
                 this.FrameBitmap = bitmap;
-                this.FrameWidth = message.Width;
-                this.FrameHeight = message.Height;
+                this.FrameWidth = e.Width;
+                this.FrameHeight = e.Height;
                 oldBitmap?.Dispose();
             });
         }
@@ -157,11 +124,8 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    private void OnConnectionStopped(object? sender, ConnectionStoppedEventArgs e)
+    private void OnConnectionClosed(object? sender, EventArgs e)
     {
-        if (e.ConnectionId != this._connectionId)
-            return;
-
         Dispatcher.UIThread.Post(() =>
         {
             this.IsConnected = false;
@@ -170,19 +134,11 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         });
     }
 
-    private async Task RequestDisplayListAsync()
-    {
-        var message = new RequestDisplayListMessage();
-        var data = ProtocolSerializer.Serialize(message);
-        await this._hubClient.SendMessage(this._connectionId, MessageTypes.Display.RequestList, data, MessageDestination.PresenterOnly);
-        this._logger.LogInformation("Requested display list from presenter");
-    }
-
     [RelayCommand]
     private async Task Disconnect()
     {
-        this._logger.LogInformation("User requested to disconnect from connection {ConnectionId}", this._connectionId);
-        await this._hubClient.Disconnect(this._connectionId);
+        this._logger.LogInformation("User requested to disconnect from connection {ConnectionId}", this._connection.ConnectionId);
+        await this._connection.DisconnectAsync();
     }
 
     public void SendMouseMove(float x, float y)
@@ -192,7 +148,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
         var message = new MouseMoveMessage(x, y);
         var data = ProtocolSerializer.Serialize(message);
-        _ = this._hubClient.SendMessage(this._connectionId, MessageTypes.Input.MouseMove, data, MessageDestination.PresenterOnly);
+        _ = this._connection.SendInputAsync(MessageTypes.Input.MouseMove, data);
     }
 
     public void SendMouseDown(MouseButton button, float x, float y)
@@ -202,7 +158,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
         var message = new MouseButtonMessage(button, x, y);
         var data = ProtocolSerializer.Serialize(message);
-        _ = this._hubClient.SendMessage(this._connectionId, MessageTypes.Input.MouseDown, data, MessageDestination.PresenterOnly);
+        _ = this._connection.SendInputAsync(MessageTypes.Input.MouseDown, data);
     }
 
     public void SendMouseUp(MouseButton button, float x, float y)
@@ -212,7 +168,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
         var message = new MouseButtonMessage(button, x, y);
         var data = ProtocolSerializer.Serialize(message);
-        _ = this._hubClient.SendMessage(this._connectionId, MessageTypes.Input.MouseUp, data, MessageDestination.PresenterOnly);
+        _ = this._connection.SendInputAsync(MessageTypes.Input.MouseUp, data);
     }
 
     public void SendMouseWheel(float deltaX, float deltaY, float x, float y)
@@ -222,7 +178,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
         var message = new MouseWheelMessage(deltaX, deltaY, x, y);
         var data = ProtocolSerializer.Serialize(message);
-        _ = this._hubClient.SendMessage(this._connectionId, MessageTypes.Input.MouseWheel, data, MessageDestination.PresenterOnly);
+        _ = this._connection.SendInputAsync(MessageTypes.Input.MouseWheel, data);
     }
 
     public void SendKeyDown(ushort keyCode, ushort scanCode, KeyModifiers modifiers, bool isExtendedKey)
@@ -232,7 +188,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
         var message = new KeyMessage(keyCode, scanCode, modifiers, isExtendedKey);
         var data = ProtocolSerializer.Serialize(message);
-        _ = this._hubClient.SendMessage(this._connectionId, MessageTypes.Input.KeyDown, data, MessageDestination.PresenterOnly);
+        _ = this._connection.SendInputAsync(MessageTypes.Input.KeyDown, data);
     }
 
     public void SendKeyUp(ushort keyCode, ushort scanCode, KeyModifiers modifiers, bool isExtendedKey)
@@ -242,7 +198,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
         var message = new KeyMessage(keyCode, scanCode, modifiers, isExtendedKey);
         var data = ProtocolSerializer.Serialize(message);
-        _ = this._hubClient.SendMessage(this._connectionId, MessageTypes.Input.KeyUp, data, MessageDestination.PresenterOnly);
+        _ = this._connection.SendInputAsync(MessageTypes.Input.KeyUp, data);
     }
 
     public async ValueTask DisposeAsync()
@@ -254,8 +210,10 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
         this._disposed = true;
 
-        this._hubClient.MessageReceived -= this.OnMessageReceived;
-        this._hubClient.ConnectionStopped -= this.OnConnectionStopped;
+        // Unsubscribe from Connection events
+        this._connection.DisplaysChanged -= this.OnDisplaysChanged;
+        this._connection.FrameReceived -= this.OnFrameReceived;
+        this._connection.Closed -= this.OnConnectionClosed;
 
         this.FrameBitmap?.Dispose();
         this.FrameBitmap = null;
