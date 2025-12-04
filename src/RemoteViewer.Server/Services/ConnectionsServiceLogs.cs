@@ -67,8 +67,8 @@ internal static partial class ConnectionsServiceLogs
     [LoggerMessage(Level = LogLevel.Debug, Message = "Broadcasting connection state change. ConnectionId: {ConnectionId}, ViewerCount: {ViewerCount}")]
     public static partial void ConnectionStateChange(this ILogger logger, string connectionId, int viewerCount);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Message send started. ClientId: {ClientId}, ConnectionId: {ConnectionId}, Destination: {Destination}, Size: {DataSize} bytes")]
-    public static partial void MessageSendStarted(this ILogger logger, string clientId, string connectionId, MessageDestination destination, int dataSize);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Message send started. ClientId: {ClientId}, ConnectionId: {ConnectionId}, MessageType: {MessageType}, Destination: {Destination}, Size: {DataSize} bytes")]
+    public static partial void MessageSendStarted(this ILogger logger, string clientId, string connectionId, string messageType, MessageDestination destination, int dataSize);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Message sender not found. SignalR: {SignalRConnectionId}")]
     public static partial void MessageSenderNotFound(this ILogger logger, string signalRConnectionId);
@@ -88,8 +88,8 @@ internal static partial class ConnectionsServiceLogs
     [LoggerMessage(Level = LogLevel.Debug, Message = "Message sent to all participants. ConnectionId: {ConnectionId}, SenderId: {SenderId}, RecipientCount: {RecipientCount}")]
     public static partial void MessageSentToAll(this ILogger logger, string connectionId, string senderId, int recipientCount);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Message send completed. ClientId: {ClientId}, ConnectionId: {ConnectionId}")]
-    public static partial void MessageSendCompleted(this ILogger logger, string clientId, string connectionId);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Message send completed. ClientId: {ClientId}, ConnectionId: {ConnectionId}, MessageType: {MessageType}")]
+    public static partial void MessageSendCompleted(this ILogger logger, string clientId, string connectionId, string messageType);
 
     [LoggerMessage(Level = LogLevel.Debug, Message = "Message sent to specific clients. ConnectionId: {ConnectionId}, SenderId: {SenderId}, SentCount: {SentCount}, RequestedCount: {RequestedCount}")]
     public static partial void MessageSentToSpecificClients(this ILogger logger, string connectionId, string senderId, int sentCount, int requestedCount);

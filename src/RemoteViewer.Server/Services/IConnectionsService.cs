@@ -217,7 +217,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
             }
 
             senderId = sender.Id;
-            this._logger.MessageSendStarted(senderId, connectionId, destination, data.Length);
+            this._logger.MessageSendStarted(senderId, connectionId, messageType, destination, data.Length);
 
             var connection = this._connections.FirstOrDefault(c => c.Id == connectionId);
             if (connection is null)
@@ -234,7 +234,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
         }
 
         await actions.ExecuteAll();
-        this._logger.MessageSendCompleted(senderId, connectionId);
+        this._logger.MessageSendCompleted(senderId, connectionId, messageType);
     }
 
     public void Dispose()

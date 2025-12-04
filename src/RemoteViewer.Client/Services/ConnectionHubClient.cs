@@ -53,37 +53,28 @@ public sealed class ConnectionHubClient : IAsyncDisposable
             this.ConnectionStarted?.Invoke(this, new ConnectionStartedEventArgs(connection));
         });
 
-        this._connection.On<ConnectionInfo>("ConnectionChanged", (connectionInfo) =>
+        this._connection.On<ConnectionInfo>("ConnectionChanged", async (connectionInfo) =>
         {
             this._logger.LogInformation("Connection changed - ConnectionId: {ConnectionId}, PresenterClientId: {PresenterClientId}, ViewerCount: {ViewerCount}", connectionInfo.ConnectionId, connectionInfo.PresenterClientId, connectionInfo.ViewerClientIds.Count);
 
-            // Route to the Connection object (direct call, not event subscription)
-            if (this._connections.TryGetValue(connectionInfo.ConnectionId, out var connection))
-            {
-                connection.OnViewersChanged(connectionInfo.ViewerClientIds);
-            }
+            var connection = await this.WaitForConnection(connectionInfo.ConnectionId);
+            connection.OnViewersChanged(connectionInfo.ViewerClientIds);
         });
 
-        this._connection.On<string>("ConnectionStopped", (connectionId) =>
+        this._connection.On<string>("ConnectionStopped", async (connectionId) =>
         {
             this._logger.LogInformation("Connection stopped - ConnectionId: {ConnectionId}", connectionId);
 
-            // Route to the Connection object and remove from dictionary
-            if (this._connections.TryRemove(connectionId, out var connection))
-            {
-                connection.OnClosed();
-            }
+            var connection = await this.WaitForConnection(connectionId);
+            connection.OnClosed();
         });
 
-        this._connection.On<string, string, string, ReadOnlyMemory<byte>>("MessageReceived", (connectionId, senderClientId, messageType, data) =>
+        this._connection.On<string, string, string, ReadOnlyMemory<byte>>("MessageReceived", async (connectionId, senderClientId, messageType, data) =>
         {
             this._logger.LogDebug("Message received - ConnectionId: {ConnectionId}, SenderClientId: {SenderClientId}, MessageType: {MessageType}, DataLength: {DataLength}", connectionId, senderClientId, messageType, data.Length);
 
-            // Route to the Connection object (direct call - Connection parses and fires its events)
-            if (this._connections.TryGetValue(connectionId, out var connection))
-            {
-                connection.OnMessageReceived(senderClientId, messageType, data);
-            }
+            var connection = await this.WaitForConnection(connectionId);
+            connection.OnMessageReceived(senderClientId, messageType, data);
         });
 
         this._connection.Closed += (error) =>
@@ -115,6 +106,17 @@ public sealed class ConnectionHubClient : IAsyncDisposable
             this.HubConnected?.Invoke(this, EventArgs.Empty);
             return Task.CompletedTask;
         };
+    }
+
+    private async Task<Connection> WaitForConnection(string connectionId)
+    {
+        while (true)
+        {
+            if (this._connections.TryGetValue(connectionId, out var connection))
+                return connection;
+
+            await Task.Delay(50);
+        }
     }
 
     public string? ClientId { get; private set; }
