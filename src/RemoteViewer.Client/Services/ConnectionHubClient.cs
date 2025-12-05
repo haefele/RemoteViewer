@@ -88,6 +88,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
                 this._logger.LogInformation("Connection closed");
             }
 
+            this.CloseAllConnections();
             this.HubDisconnected?.Invoke(this, EventArgs.Empty);
             return this.ConnectToHub();
         };
@@ -95,6 +96,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
         this._connection.Reconnecting += (error) =>
         {
             this._logger.LogWarning(error, "Connection reconnecting");
+            this.CloseAllConnections();
             this.HubDisconnected?.Invoke(this, EventArgs.Empty);
 
             return Task.CompletedTask;
@@ -117,6 +119,15 @@ public sealed class ConnectionHubClient : IAsyncDisposable
 
             await Task.Delay(50);
         }
+    }
+
+    private void CloseAllConnections()
+    {
+        foreach (var connection in this._connections.Values)
+        {
+            connection.OnClosed();
+        }
+        this._connections.Clear();
     }
 
     public string? ClientId { get; private set; }
