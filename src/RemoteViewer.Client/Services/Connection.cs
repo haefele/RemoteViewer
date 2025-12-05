@@ -369,9 +369,7 @@ public sealed class Connection
             displayId,
             isDown ? InputType.KeyDown : InputType.KeyUp,
             keyCode: message.KeyCode,
-            scanCode: message.ScanCode,
-            modifiers: message.Modifiers,
-            isExtendedKey: message.IsExtendedKey);
+            modifiers: message.Modifiers);
 
         this.InputReceived?.Invoke(this, args);
     }
@@ -445,9 +443,7 @@ public sealed class InputReceivedEventArgs : EventArgs
         float? deltaX = null,
         float? deltaY = null,
         ushort? keyCode = null,
-        ushort? scanCode = null,
-        KeyModifiers? modifiers = null,
-        bool? isExtendedKey = null)
+        KeyModifiers? modifiers = null)
     {
         this.SenderClientId = senderClientId;
         this.DisplayId = displayId;
@@ -458,9 +454,7 @@ public sealed class InputReceivedEventArgs : EventArgs
         this.DeltaX = deltaX;
         this.DeltaY = deltaY;
         this.KeyCode = keyCode;
-        this.ScanCode = scanCode;
         this.Modifiers = modifiers;
-        this.IsExtendedKey = isExtendedKey;
     }
 
     public string SenderClientId { get; }
@@ -476,9 +470,7 @@ public sealed class InputReceivedEventArgs : EventArgs
 
     // Key data (when applicable)
     public ushort? KeyCode { get; }
-    public ushort? ScanCode { get; }
     public KeyModifiers? Modifiers { get; }
-    public bool? IsExtendedKey { get; }
 }
 
 /// <summary>

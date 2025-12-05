@@ -13,5 +13,5 @@ public class NullInputInjectionService : IInputInjectionService
 
     public void InjectMouseWheel(Display display, float deltaX, float deltaY, float normalizedX, float normalizedY) { }
 
-    public void InjectKey(ushort keyCode, ushort scanCode, bool isDown, bool isExtended) { }
+    public void InjectKey(ushort keyCode, bool isDown) { }
 }

@@ -181,22 +181,22 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         _ = this._connection.SendInputAsync(MessageTypes.Input.MouseWheel, data);
     }
 
-    public void SendKeyDown(ushort keyCode, ushort scanCode, KeyModifiers modifiers, bool isExtendedKey)
+    public void SendKeyDown(ushort keyCode, KeyModifiers modifiers)
     {
         if (!this.IsConnected)
             return;
 
-        var message = new KeyMessage(keyCode, scanCode, modifiers, isExtendedKey);
+        var message = new KeyMessage(keyCode, modifiers);
         var data = ProtocolSerializer.Serialize(message);
         _ = this._connection.SendInputAsync(MessageTypes.Input.KeyDown, data);
     }
 
-    public void SendKeyUp(ushort keyCode, ushort scanCode, KeyModifiers modifiers, bool isExtendedKey)
+    public void SendKeyUp(ushort keyCode, KeyModifiers modifiers)
     {
         if (!this.IsConnected)
             return;
 
-        var message = new KeyMessage(keyCode, scanCode, modifiers, isExtendedKey);
+        var message = new KeyMessage(keyCode, modifiers);
         var data = ProtocolSerializer.Serialize(message);
         _ = this._connection.SendInputAsync(MessageTypes.Input.KeyUp, data);
     }

@@ -1,19 +1,21 @@
-﻿#if WINDOWS
-using System.Runtime.InteropServices;
+#if WINDOWS
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Server.SharedAPI.Protocol;
 using Windows.Win32;
-using Windows.Win32.UI.Input.KeyboardAndMouse;
+using WindowsInput;
+
+using ProtocolMouseButton = RemoteViewer.Server.SharedAPI.Protocol.MouseButton;
 
 namespace RemoteViewer.Client.Services.Windows;
 
 /// <summary>
 /// Service for injecting mouse and keyboard input on the presenter machine.
-/// Uses Win32 SendInput API to simulate user input.
+/// Uses H.InputSimulator for input simulation.
 /// </summary>
 public class InputInjectionService : IInputInjectionService
 {
     private readonly ILogger<InputInjectionService> _logger;
+    private readonly InputSimulator _simulator = new();
 
     public InputInjectionService(ILogger<InputInjectionService> logger)
     {
@@ -26,49 +28,41 @@ public class InputInjectionService : IInputInjectionService
     public void InjectMouseMove(Display display, float normalizedX, float normalizedY)
     {
         var (absX, absY) = NormalizedToAbsolute(display, normalizedX, normalizedY);
-
-        var input = new INPUT
-        {
-            type = INPUT_TYPE.INPUT_MOUSE,
-            Anonymous = new INPUT._Anonymous_e__Union
-            {
-                mi = new MOUSEINPUT
-                {
-                    dx = absX,
-                    dy = absY,
-                    dwFlags = MOUSE_EVENT_FLAGS.MOUSEEVENTF_MOVE | MOUSE_EVENT_FLAGS.MOUSEEVENTF_ABSOLUTE | MOUSE_EVENT_FLAGS.MOUSEEVENTF_VIRTUALDESK
-                }
-            }
-        };
-
-        this.SendInputSafe(input);
+        this._simulator.Mouse.MoveMouseToPositionOnVirtualDesktop(absX, absY);
     }
 
     /// <summary>
     /// Injects a mouse button down or up event.
     /// </summary>
-    public void InjectMouseButton(Display display, MouseButton button, bool isDown, float normalizedX, float normalizedY)
+    public void InjectMouseButton(Display display, ProtocolMouseButton button, bool isDown, float normalizedX, float normalizedY)
     {
         var (absX, absY) = NormalizedToAbsolute(display, normalizedX, normalizedY);
+        this._simulator.Mouse.MoveMouseToPositionOnVirtualDesktop(absX, absY);
 
-        var flags = MOUSE_EVENT_FLAGS.MOUSEEVENTF_ABSOLUTE | MOUSE_EVENT_FLAGS.MOUSEEVENTF_VIRTUALDESK;
-        flags |= GetMouseButtonFlag(button, isDown);
-
-        var input = new INPUT
+        switch (button)
         {
-            type = INPUT_TYPE.INPUT_MOUSE,
-            Anonymous = new INPUT._Anonymous_e__Union
-            {
-                mi = new MOUSEINPUT
-                {
-                    dx = absX,
-                    dy = absY,
-                    dwFlags = flags
-                }
-            }
-        };
-
-        this.SendInputSafe(input);
+            case ProtocolMouseButton.Left:
+                if (isDown)
+                    this._simulator.Mouse.LeftButtonDown();
+                else
+                    this._simulator.Mouse.LeftButtonUp();
+                break;
+            case ProtocolMouseButton.Right:
+                if (isDown)
+                    this._simulator.Mouse.RightButtonDown();
+                else
+                    this._simulator.Mouse.RightButtonUp();
+                break;
+            case ProtocolMouseButton.Middle:
+                if (isDown)
+                    this._simulator.Mouse.MiddleButtonDown();
+                else
+                    this._simulator.Mouse.MiddleButtonUp();
+                break;
+            default:
+                this._logger.LogWarning("Unknown mouse button: {Button}", button);
+                break;
+        }
     }
 
     /// <summary>
@@ -77,89 +71,36 @@ public class InputInjectionService : IInputInjectionService
     public void InjectMouseWheel(Display display, float deltaX, float deltaY, float normalizedX, float normalizedY)
     {
         var (absX, absY) = NormalizedToAbsolute(display, normalizedX, normalizedY);
+        this._simulator.Mouse.MoveMouseToPositionOnVirtualDesktop(absX, absY);
 
         // Vertical scroll
         if (Math.Abs(deltaY) > 0.001f)
         {
-            var input = new INPUT
-            {
-                type = INPUT_TYPE.INPUT_MOUSE,
-                Anonymous = new INPUT._Anonymous_e__Union
-                {
-                    mi = new MOUSEINPUT
-                    {
-                        dx = absX,
-                        dy = absY,
-                        mouseData = (uint)(int)(deltaY * 120), // WHEEL_DELTA = 120
-                        dwFlags = MOUSE_EVENT_FLAGS.MOUSEEVENTF_WHEEL | MOUSE_EVENT_FLAGS.MOUSEEVENTF_ABSOLUTE | MOUSE_EVENT_FLAGS.MOUSEEVENTF_VIRTUALDESK
-                    }
-                }
-            };
-
-            this.SendInputSafe(input);
+            this._simulator.Mouse.VerticalScroll((int)deltaY);
         }
 
         // Horizontal scroll
         if (Math.Abs(deltaX) > 0.001f)
         {
-            var input = new INPUT
-            {
-                type = INPUT_TYPE.INPUT_MOUSE,
-                Anonymous = new INPUT._Anonymous_e__Union
-                {
-                    mi = new MOUSEINPUT
-                    {
-                        dx = absX,
-                        dy = absY,
-                        mouseData = (uint)(int)(deltaX * 120),
-                        dwFlags = MOUSE_EVENT_FLAGS.MOUSEEVENTF_HWHEEL | MOUSE_EVENT_FLAGS.MOUSEEVENTF_ABSOLUTE | MOUSE_EVENT_FLAGS.MOUSEEVENTF_VIRTUALDESK
-                    }
-                }
-            };
-
-            this.SendInputSafe(input);
+            this._simulator.Mouse.HorizontalScroll((int)deltaX);
         }
     }
 
     /// <summary>
-    /// Injects a key down or up event.
+    /// Injects a key down or up event using the Windows virtual key code.
     /// </summary>
-    public void InjectKey(ushort keyCode, ushort scanCode, bool isDown, bool isExtended)
+    public void InjectKey(ushort keyCode, bool isDown)
     {
-        var flags = KEYBD_EVENT_FLAGS.KEYEVENTF_SCANCODE;
-        if (!isDown)
+        var vk = (VirtualKeyCode)keyCode;
+        if (isDown)
         {
-            flags |= KEYBD_EVENT_FLAGS.KEYEVENTF_KEYUP;
+            this._simulator.Keyboard.KeyDown(vk);
         }
-        if (isExtended)
+        else
         {
-            flags |= KEYBD_EVENT_FLAGS.KEYEVENTF_EXTENDEDKEY;
+            this._simulator.Keyboard.KeyUp(vk);
         }
-
-        var input = new INPUT
-        {
-            type = INPUT_TYPE.INPUT_KEYBOARD,
-            Anonymous = new INPUT._Anonymous_e__Union
-            {
-                ki = new KEYBDINPUT
-                {
-                    wVk = 0, // Use 0 when using scan codes for better game compatibility
-                    wScan = scanCode,
-                    dwFlags = flags
-                }
-            }
-        };
-
-        this.SendInputSafe(input);
     }
-
-    private static MOUSE_EVENT_FLAGS GetMouseButtonFlag(MouseButton button, bool isDown) => button switch
-    {
-        MouseButton.Left => isDown ? MOUSE_EVENT_FLAGS.MOUSEEVENTF_LEFTDOWN : MOUSE_EVENT_FLAGS.MOUSEEVENTF_LEFTUP,
-        MouseButton.Right => isDown ? MOUSE_EVENT_FLAGS.MOUSEEVENTF_RIGHTDOWN : MOUSE_EVENT_FLAGS.MOUSEEVENTF_RIGHTUP,
-        MouseButton.Middle => isDown ? MOUSE_EVENT_FLAGS.MOUSEEVENTF_MIDDLEDOWN : MOUSE_EVENT_FLAGS.MOUSEEVENTF_MIDDLEUP,
-        _ => throw new ArgumentOutOfRangeException(nameof(button))
-    };
 
     /// <summary>
     /// Converts normalized coordinates (0-1) to absolute coordinates for SendInput.
@@ -182,19 +123,6 @@ public class InputInjectionService : IInputInjectionService
         var absY = ((screenY - virtualTop) * 65535) / virtualHeight;
 
         return (absX, absY);
-    }
-
-    private unsafe void SendInputSafe(INPUT input)
-    {
-        var inputs = stackalloc INPUT[1];
-        inputs[0] = input;
-
-        var result = PInvoke.SendInput(1, inputs, sizeof(INPUT));
-        if (result == 0)
-        {
-            var errorCode = Marshal.GetLastWin32Error();
-            this._logger.LogWarning("SendInput failed with error code: {ErrorCode}", errorCode);
-        }
     }
 }
 #endif

@@ -130,16 +130,16 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
                 break;
 
             case InputType.KeyDown:
-                if (e.KeyCode.HasValue && e.ScanCode.HasValue)
+                if (e.KeyCode.HasValue)
                 {
-                    this._inputInjectionService.InjectKey(e.KeyCode.Value, e.ScanCode.Value, isDown: true, e.IsExtendedKey ?? false);
+                    this._inputInjectionService.InjectKey(e.KeyCode.Value, isDown: true);
                 }
                 break;
 
             case InputType.KeyUp:
-                if (e.KeyCode.HasValue && e.ScanCode.HasValue)
+                if (e.KeyCode.HasValue)
                 {
-                    this._inputInjectionService.InjectKey(e.KeyCode.Value, e.ScanCode.Value, isDown: false, e.IsExtendedKey ?? false);
+                    this._inputInjectionService.InjectKey(e.KeyCode.Value, isDown: false);
                 }
                 break;
         }

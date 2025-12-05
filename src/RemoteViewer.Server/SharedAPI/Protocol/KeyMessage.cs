@@ -6,15 +6,11 @@ namespace RemoteViewer.Server.SharedAPI.Protocol;
 /// Keyboard event message for key down/up events.
 /// </summary>
 /// <param name="KeyCode">Windows virtual key code (VK_*)</param>
-/// <param name="ScanCode">Hardware scan code</param>
 /// <param name="Modifiers">Active modifier keys at time of event</param>
-/// <param name="IsExtendedKey">True if extended key (e.g., right Ctrl/Alt, numpad Enter)</param>
 [GenerateShape]
 public sealed partial record KeyMessage(
     ushort KeyCode,
-    ushort ScanCode,
-    KeyModifiers Modifiers,
-    bool IsExtendedKey = false
+    KeyModifiers Modifiers
 );
 
 /// <summary>

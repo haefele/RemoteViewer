@@ -23,7 +23,7 @@ public interface IInputInjectionService
     void InjectMouseWheel(Display display, float deltaX, float deltaY, float normalizedX, float normalizedY);
 
     /// <summary>
-    /// Injects a key down or up event.
+    /// Injects a key down or up event using the Windows virtual key code.
     /// </summary>
-    void InjectKey(ushort keyCode, ushort scanCode, bool isDown, bool isExtended);
+    void InjectKey(ushort keyCode, bool isDown);
 }

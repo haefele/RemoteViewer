@@ -6,7 +6,10 @@
       "Bash(find:*)",
       "WebSearch",
       "Bash(del \"C:\\Users\\haefe\\source\\repos\\RemoteViewer\\src\\RemoteViewer.Client\\Services\\InputInjectionService.cs\")",
-      "WebFetch(domain:aarnott.github.io)"
+      "WebFetch(domain:aarnott.github.io)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(dotnet restore:*)"
     ],
     "deny": [],
     "ask": []
