@@ -1,4 +1,4 @@
-using Avalonia.Threading;
+﻿using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -142,9 +142,6 @@ public partial class MainViewModel : ViewModelBase
 
     private async void OnSessionWindowClosed(object? sender, EventArgs e)
     {
-        // Reconnect to get fresh credentials
-        await this._hubClient.GenerateNewPassword();
-
         // Show MainView again
         RequestShowMainView?.Invoke(this, EventArgs.Empty);
     }
