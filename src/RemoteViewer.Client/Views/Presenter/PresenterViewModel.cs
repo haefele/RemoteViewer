@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Drawing;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -211,7 +212,7 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
                 var elapsed = TimeSpan.FromTicks((current - frameStart) * TimeSpan.TicksPerSecond / Stopwatch.Frequency);
 
                 var delay = frameInterval - elapsed;
-                return delay <= TimeSpan.Zero;
+                return delay.TotalMilliseconds <= 5;
             });
         }
 
@@ -245,21 +246,63 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
             if (captureResult is { Success: false } or { Bitmap: null })
                 continue;
 
-            // Encode to JPEG
-            var frameData = EncodeJpeg(captureResult.Bitmap, Quality);
+            var bitmap = captureResult.Bitmap;
+            var dirtyRects = captureResult.DirtyRectangles;
 
-            // Send frame to viewers watching this display (Connection handles targeting)
-            await this._connection.SendFrameAsync(
-                displayId!,
-                frameNumber,
-                timestamp,
-                FrameCodec.Jpeg,
-                captureResult.Bitmap.Width,
-                captureResult.Bitmap.Height,
-                Quality,
-                FrameType.Keyframe,
-                [new FrameRegion(0, 0, captureResult.Bitmap.Width, captureResult.Bitmap.Height, frameData)]);
+            try
+            {
+                // Determine frame type: empty dirty rects means keyframe
+                var isKeyframe = dirtyRects.Length == 0;
+                var frameType = isKeyframe ? FrameType.Keyframe : FrameType.DeltaFrame;
+
+                FrameRegion[] regions;
+                if (isKeyframe)
+                {
+                    // Full frame as single region
+                    var frameData = EncodeJpeg(bitmap, Quality);
+                    regions = [new FrameRegion(0, 0, bitmap.Width, bitmap.Height, frameData)];
+                }
+                else
+                {
+                    // Encode each dirty region separately
+                    regions = new FrameRegion[dirtyRects.Length];
+                    for (var i = 0; i < dirtyRects.Length; i++)
+                    {
+                        var rect = dirtyRects[i];
+                        using var regionBitmap = ExtractRegion(bitmap, rect);
+                        var regionData = EncodeJpeg(regionBitmap, Quality);
+                        regions[i] = new FrameRegion(rect.X, rect.Y, rect.Width, rect.Height, regionData);
+                    }
+                }
+
+                // Send frame to viewers watching this display
+                await this._connection.SendFrameAsync(
+                    displayId!,
+                    frameNumber,
+                    timestamp,
+                    FrameCodec.Jpeg,
+                    bitmap.Width,
+                    bitmap.Height,
+                    Quality,
+                    frameType,
+                    regions);
+            }
+            finally
+            {
+                bitmap.Dispose();
+            }
         }
+    }
+
+    private static SKBitmap ExtractRegion(SKBitmap source, Rectangle rect)
+    {
+        var region = new SKBitmap(rect.Width, rect.Height, source.ColorType, source.AlphaType);
+        using var canvas = new SKCanvas(region);
+        canvas.DrawBitmap(
+            source,
+            new SKRect(rect.X, rect.Y, rect.X + rect.Width, rect.Y + rect.Height),
+            new SKRect(0, 0, rect.Width, rect.Height));
+        return region;
     }
 
     private static byte[] EncodeJpeg(SKBitmap bitmap, int quality)

@@ -1,7 +1,10 @@
-#if WINDOWS
+﻿#if WINDOWS
 using System.Collections.Immutable;
+using System.Diagnostics;
+using System.Drawing;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
+using SkiaSharp;
 using Windows.Win32;
 using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.Foundation;
@@ -10,6 +13,10 @@ namespace RemoteViewer.Client.Services.Windows;
 
 public class ScreenshotService(ILogger<ScreenshotService> logger, DxgiScreenGrabber dxgi, BitBltScreenGrabber bitBlt) : IScreenshotService
 {
+    private const long KeyframeIntervalMs = 3000;
+
+    private readonly Dictionary<string, DisplayCaptureState> _displayStates = new();
+
     public bool IsSupported => true;
 
     public unsafe ImmutableList<Display> GetDisplays()
@@ -49,14 +56,114 @@ public class ScreenshotService(ILogger<ScreenshotService> logger, DxgiScreenGrab
         }
     }
 
-    public CaptureResult CaptureDisplay(Display display)
+    public unsafe CaptureResult CaptureDisplay(Display display)
     {
         var dxgiResult = dxgi.CaptureDisplay(display);
 
-        if (dxgiResult.Success)
-            return dxgiResult;
+        if (!dxgiResult.Success)
+        {
+            // DXGI failed, try BitBlt fallback
+            var bitBltResult = bitBlt.CaptureDisplay(display);
+            return this.ProcessCaptureResult(display.Name, bitBltResult);
+        }
 
-        return bitBlt.CaptureDisplay(display);
+        return this.ProcessCaptureResult(display.Name, dxgiResult);
+    }
+
+    private unsafe CaptureResult ProcessCaptureResult(string displayName, CaptureResult captureResult)
+    {
+        // If capture failed or no bitmap, pass through
+        if (!captureResult.Success || captureResult.Bitmap is null)
+        {
+            return captureResult;
+        }
+
+        var state = this.GetOrCreateState(displayName);
+        var bitmap = captureResult.Bitmap;
+
+        // Check if keyframe is due (every 3 seconds)
+        var forceKeyframe = state.KeyframeTimer.ElapsedMilliseconds >= KeyframeIntervalMs;
+
+        // Check if we have a valid previous frame to compare against
+        var hasPreviousFrame = state.PreviousBitmap is not null &&
+                                state.PreviousBitmap.Width == bitmap.Width &&
+                                state.PreviousBitmap.Height == bitmap.Height;
+
+        // If DXGI gave us dirty rects, use them (unless keyframe is due)
+        if (captureResult.DirtyRectangles.Length > 0)
+        {
+            this.UpdateState(state, bitmap, forceKeyframe);
+            if (forceKeyframe)
+            {
+                // Return empty dirty rects to signal keyframe
+                return CaptureResult.Ok(bitmap, []);
+            }
+            return captureResult;
+        }
+
+        // No dirty rects from DXGI - compute manually if we have a previous frame
+        if (hasPreviousFrame && !forceKeyframe)
+        {
+            var dirtyRects = this.ComputeDirtyRects(bitmap, state.PreviousBitmap!);
+
+            if (dirtyRects is null)
+            {
+                // Threshold exceeded - send keyframe
+                this.UpdateState(state, bitmap, resetKeyframeTimer: true);
+                return CaptureResult.Ok(bitmap, []);
+            }
+
+            if (dirtyRects.Length == 0)
+            {
+                // No changes detected - skip this frame
+                bitmap.Dispose();
+                return CaptureResult.NoChanges;
+            }
+
+            // Return delta frame with computed dirty rects
+            this.UpdateState(state, bitmap, resetKeyframeTimer: false);
+            return CaptureResult.Ok(bitmap, dirtyRects);
+        }
+
+        // First frame, size changed, or keyframe interval - send keyframe
+        this.UpdateState(state, bitmap, resetKeyframeTimer: true);
+        return CaptureResult.Ok(bitmap, []);
+    }
+
+    private unsafe Rectangle[]? ComputeDirtyRects(SKBitmap current, SKBitmap previous)
+    {
+        var width = current.Width;
+        var height = current.Height;
+        var stride = current.RowBytes; // BGRA = 4 bytes per pixel
+
+        var currentPixels = new ReadOnlySpan<byte>((void*)current.GetPixels(), height * stride);
+        var previousPixels = new ReadOnlySpan<byte>((void*)previous.GetPixels(), height * stride);
+
+        return FrameDiffDetector.DetectChanges(currentPixels, previousPixels, width, height, stride);
+    }
+
+    private DisplayCaptureState GetOrCreateState(string displayName)
+    {
+        if (!this._displayStates.TryGetValue(displayName, out var state))
+        {
+            state = new DisplayCaptureState();
+            this._displayStates[displayName] = state;
+        }
+        return state;
+    }
+
+    private void UpdateState(DisplayCaptureState state, SKBitmap newBitmap, bool resetKeyframeTimer)
+    {
+        // Dispose old bitmap
+        state.PreviousBitmap?.Dispose();
+
+        // Clone the new bitmap for comparison (we don't own the original)
+        state.PreviousBitmap = newBitmap.Copy();
+
+        if (resetKeyframeTimer)
+        {
+            state.KeyframeTimer.Restart();
+        }
     }
 
     private unsafe Display? GetDisplayInfo(HMONITOR hMonitor, int displayIndex)
@@ -122,6 +229,12 @@ public class ScreenshotService(ILogger<ScreenshotService> logger, DxgiScreenGrab
         {
             return StringComparer.OrdinalIgnoreCase.GetHashCode(obj.Name);
         }
+    }
+
+    private sealed class DisplayCaptureState
+    {
+        public SKBitmap? PreviousBitmap { get; set; }
+        public Stopwatch KeyframeTimer { get; } = Stopwatch.StartNew();
     }
 }
 #endif
