@@ -149,6 +149,9 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
     {
         this.StopPresenting();
 
+        // Release any stuck modifier keys when connection closes
+        this._inputInjectionService.ReleaseAllModifiers();
+
         Dispatcher.UIThread.Post(() =>
         {
             this.IsPresenting = false;

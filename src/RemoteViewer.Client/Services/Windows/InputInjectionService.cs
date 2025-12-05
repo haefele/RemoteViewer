@@ -1,4 +1,4 @@
-#if WINDOWS
+﻿#if WINDOWS
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Server.SharedAPI.Protocol;
 using Windows.Win32;
@@ -14,8 +14,15 @@ namespace RemoteViewer.Client.Services.Windows;
 /// </summary>
 public class InputInjectionService : IInputInjectionService
 {
+    private static readonly TimeSpan s_modifierTimeout = TimeSpan.FromSeconds(10);
+
     private readonly ILogger<InputInjectionService> _logger;
     private readonly InputSimulator _simulator = new();
+
+    // Track which modifier keys are currently pressed and when they were pressed
+    private readonly Dictionary<VirtualKeyCode, DateTime> _pressedModifiers = new();
+    private readonly object _modifierLock = new();
+    private DateTime _lastInputTime = DateTime.UtcNow;
 
     public InputInjectionService(ILogger<InputInjectionService> logger)
     {
@@ -27,6 +34,8 @@ public class InputInjectionService : IInputInjectionService
     /// </summary>
     public void InjectMouseMove(Display display, float normalizedX, float normalizedY)
     {
+        this.CheckAndReleaseStuckModifiers();
+
         var (absX, absY) = NormalizedToAbsolute(display, normalizedX, normalizedY);
         this._simulator.Mouse.MoveMouseToPositionOnVirtualDesktop(absX, absY);
     }
@@ -36,6 +45,9 @@ public class InputInjectionService : IInputInjectionService
     /// </summary>
     public void InjectMouseButton(Display display, ProtocolMouseButton button, bool isDown, float normalizedX, float normalizedY)
     {
+        this.CheckAndReleaseStuckModifiers();
+        this._lastInputTime = DateTime.UtcNow;
+
         var (absX, absY) = NormalizedToAbsolute(display, normalizedX, normalizedY);
         this._simulator.Mouse.MoveMouseToPositionOnVirtualDesktop(absX, absY);
 
@@ -70,6 +82,9 @@ public class InputInjectionService : IInputInjectionService
     /// </summary>
     public void InjectMouseWheel(Display display, float deltaX, float deltaY, float normalizedX, float normalizedY)
     {
+        this.CheckAndReleaseStuckModifiers();
+        this._lastInputTime = DateTime.UtcNow;
+
         var (absX, absY) = NormalizedToAbsolute(display, normalizedX, normalizedY);
         this._simulator.Mouse.MoveMouseToPositionOnVirtualDesktop(absX, absY);
 
@@ -91,7 +106,27 @@ public class InputInjectionService : IInputInjectionService
     /// </summary>
     public void InjectKey(ushort keyCode, bool isDown)
     {
+        this.CheckAndReleaseStuckModifiers();
+        this._lastInputTime = DateTime.UtcNow;
+
         var vk = (VirtualKeyCode)keyCode;
+
+        // Track modifier key state
+        if (IsModifierKey(vk))
+        {
+            lock (this._modifierLock)
+            {
+                if (isDown)
+                {
+                    this._pressedModifiers[vk] = DateTime.UtcNow;
+                }
+                else
+                {
+                    this._pressedModifiers.Remove(vk);
+                }
+            }
+        }
+
         if (isDown)
         {
             this._simulator.Keyboard.KeyDown(vk);
@@ -99,6 +134,56 @@ public class InputInjectionService : IInputInjectionService
         else
         {
             this._simulator.Keyboard.KeyUp(vk);
+        }
+    }
+
+    /// <summary>
+    /// Releases all currently tracked modifier keys.
+    /// Call this when a viewer disconnects to prevent stuck modifiers.
+    /// </summary>
+    public void ReleaseAllModifiers()
+    {
+        lock (this._modifierLock)
+        {
+            foreach (var vk in this._pressedModifiers.Keys.ToList())
+            {
+                this._logger.LogInformation("Releasing modifier key on cleanup: {Key}", vk);
+                this._simulator.Keyboard.KeyUp(vk);
+            }
+            this._pressedModifiers.Clear();
+        }
+    }
+
+    private static bool IsModifierKey(VirtualKeyCode vk) => vk is
+        VirtualKeyCode.LSHIFT or VirtualKeyCode.RSHIFT or
+        VirtualKeyCode.LCONTROL or VirtualKeyCode.RCONTROL or
+        VirtualKeyCode.LMENU or VirtualKeyCode.RMENU or
+        VirtualKeyCode.LWIN or VirtualKeyCode.RWIN;
+
+    private void CheckAndReleaseStuckModifiers()
+    {
+        var now = DateTime.UtcNow;
+        var timeSinceLastInput = now - this._lastInputTime;
+
+        // Only check if there's been no meaningful input for the timeout period
+        if (timeSinceLastInput < s_modifierTimeout)
+            return;
+
+        lock (this._modifierLock)
+        {
+            if (this._pressedModifiers.Count == 0)
+                return;
+
+            // Release any modifiers that have been held too long
+            foreach (var (vk, pressedTime) in this._pressedModifiers.ToList())
+            {
+                if (now - pressedTime >= s_modifierTimeout)
+                {
+                    this._logger.LogWarning("Auto-releasing stuck modifier key: {Key} (held for {Duration:F1}s)", vk, (now - pressedTime).TotalSeconds);
+                    this._simulator.Keyboard.KeyUp(vk);
+                    this._pressedModifiers.Remove(vk);
+                }
+            }
         }
     }
 

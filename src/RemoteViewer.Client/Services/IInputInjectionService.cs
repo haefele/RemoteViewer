@@ -26,4 +26,10 @@ public interface IInputInjectionService
     /// Injects a key down or up event using the Windows virtual key code.
     /// </summary>
     void InjectKey(ushort keyCode, bool isDown);
+
+    /// <summary>
+    /// Releases all currently tracked modifier keys (Shift, Ctrl, Alt, Win).
+    /// Call this when a viewer disconnects to prevent stuck modifiers.
+    /// </summary>
+    void ReleaseAllModifiers();
 }
