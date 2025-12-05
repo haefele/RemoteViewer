@@ -148,7 +148,16 @@ public sealed class Connection
     }
 
     /// <summary>Presenter-only: Send a frame to all viewers watching a specific display.</summary>
-    public async Task SendFrameAsync(string displayId, ulong frameNumber, long timestamp, FrameCodec codec, int width, int height, byte quality, ReadOnlyMemory<byte> frameData)
+    public async Task SendFrameAsync(
+        string displayId,
+        ulong frameNumber,
+        long timestamp,
+        FrameCodec codec,
+        int width,
+        int height,
+        byte quality,
+        FrameType frameType,
+        FrameRegion[] regions)
     {
         if (!this.IsPresenter)
             throw new InvalidOperationException("SendFrameAsync is only valid for presenters");
@@ -177,7 +186,8 @@ public sealed class Connection
             width,
             height,
             quality,
-            frameData
+            frameType,
+            regions
         );
 
         var serializedData = ProtocolSerializer.Serialize(message);
@@ -397,7 +407,8 @@ public sealed class Connection
             message.Width,
             message.Height,
             message.Quality,
-            message.Data);
+            message.FrameType,
+            message.Regions);
 
         this.FrameReceived?.Invoke(this, args);
     }
@@ -486,7 +497,8 @@ public sealed class FrameReceivedEventArgs : EventArgs
         int width,
         int height,
         byte quality,
-        ReadOnlyMemory<byte> data)
+        FrameType frameType,
+        FrameRegion[] regions)
     {
         this.DisplayId = displayId;
         this.FrameNumber = frameNumber;
@@ -495,7 +507,8 @@ public sealed class FrameReceivedEventArgs : EventArgs
         this.Width = width;
         this.Height = height;
         this.Quality = quality;
-        this.Data = data;
+        this.FrameType = frameType;
+        this.Regions = regions;
     }
 
     public string DisplayId { get; }
@@ -505,5 +518,6 @@ public sealed class FrameReceivedEventArgs : EventArgs
     public int Width { get; }
     public int Height { get; }
     public byte Quality { get; }
-    public ReadOnlyMemory<byte> Data { get; }
+    public FrameType FrameType { get; }
+    public FrameRegion[] Regions { get; }
 }

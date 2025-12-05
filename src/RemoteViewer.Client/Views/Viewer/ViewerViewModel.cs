@@ -16,11 +16,13 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 {
     private readonly Connection _connection;
     private readonly ILogger<ViewerViewModel> _logger;
+    private readonly FrameCompositor _compositor = new();
 
     private bool _disposed;
+    private ulong _lastReceivedFrameNumber;
 
     [ObservableProperty]
-    private Bitmap? _frameBitmap;
+    private WriteableBitmap? _frameBitmap;
 
     [ObservableProperty]
     private string _title = "Remote Viewer";
@@ -50,12 +52,6 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     [ObservableProperty]
     private string _statusText = "Waiting for display list...";
-
-    [ObservableProperty]
-    private int _frameWidth;
-
-    [ObservableProperty]
-    private int _frameHeight;
 
     public event EventHandler? CloseRequested;
 
@@ -97,30 +93,46 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         if (e.DisplayId != this.SelectedDisplayId)
             return;
 
+        // Drop out-of-order delta frames (but always accept keyframes)
+        if (e.FrameType != FrameType.Keyframe && e.FrameNumber <= this._lastReceivedFrameNumber)
+            return;
+
         try
         {
-            using var stream = new MemoryStream(e.Data.ToArray());
-            var bitmap = new Bitmap(stream);
+            if (e.FrameType == FrameType.Keyframe)
+            {
+                // Apply full keyframe
+                this._compositor.ApplyKeyframe(e.Regions, e.Width, e.Height, e.FrameNumber);
+            }
+            else
+            {
+                // Apply delta regions
+                this._compositor.ApplyDeltaRegions(e.Regions, e.FrameNumber);
+            }
+
+            this._lastReceivedFrameNumber = e.FrameNumber;
 
             Dispatcher.UIThread.Post(() =>
             {
                 // Check if disposed before updating bitmap
                 if (this._disposed)
-                {
-                    bitmap.Dispose();
                     return;
-                }
 
-                var oldBitmap = this.FrameBitmap;
-                this.FrameBitmap = bitmap;
-                this.FrameWidth = e.Width;
-                this.FrameHeight = e.Height;
-                oldBitmap?.Dispose();
+                // Force UI update by reassigning the bitmap reference if it changed
+                if (this._compositor.Canvas is { } canvas && this.FrameBitmap != canvas)
+                {
+                    this.FrameBitmap = canvas;
+                }
+                else
+                {
+                    // Force property change notification for in-place updates
+                    this.OnPropertyChanged(nameof(this.FrameBitmap));
+                }
             });
         }
         catch (Exception ex)
         {
-            this._logger.LogError(ex, "Error decoding frame");
+            this._logger.LogError(ex, "Error processing frame");
         }
     }
 
@@ -215,7 +227,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         this._connection.FrameReceived -= this.OnFrameReceived;
         this._connection.Closed -= this.OnConnectionClosed;
 
-        this.FrameBitmap?.Dispose();
+        this._compositor.Dispose();
         this.FrameBitmap = null;
 
         GC.SuppressFinalize(this);

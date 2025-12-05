@@ -9,10 +9,11 @@ namespace RemoteViewer.Server.SharedAPI.Protocol;
 /// <param name="FrameNumber">Monotonic frame sequence number for ordering</param>
 /// <param name="Timestamp">Server timestamp in milliseconds</param>
 /// <param name="Codec">Encoding format of the frame data</param>
-/// <param name="Width">Frame width in pixels</param>
-/// <param name="Height">Frame height in pixels</param>
+/// <param name="Width">Full frame width in pixels</param>
+/// <param name="Height">Full frame height in pixels</param>
 /// <param name="Quality">Encoding quality 0-100</param>
-/// <param name="Data">Encoded frame data</param>
+/// <param name="FrameType">Whether this is a keyframe or delta frame</param>
+/// <param name="Regions">Array of frame regions (single full-frame region for keyframes)</param>
 [GenerateShape]
 public sealed partial record FrameMessage(
     string DisplayId,
@@ -22,5 +23,6 @@ public sealed partial record FrameMessage(
     int Width,
     int Height,
     byte Quality,
-    ReadOnlyMemory<byte> Data
+    FrameType FrameType,
+    FrameRegion[] Regions
 );

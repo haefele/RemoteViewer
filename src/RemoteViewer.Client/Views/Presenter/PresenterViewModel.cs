@@ -1,3 +1,4 @@
+﻿using System.Diagnostics;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -189,7 +190,7 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
 
         while (!ct.IsCancellationRequested)
         {
-            var frameStart = DateTime.UtcNow;
+            var frameStart = Stopwatch.GetTimestamp();
 
             try
             {
@@ -201,12 +202,17 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
             }
 
             // Maintain target FPS
-            var elapsed = DateTime.UtcNow - frameStart;
-            var delay = frameInterval - elapsed;
-            if (delay > TimeSpan.Zero)
+            SpinWait.SpinUntil(() =>
             {
-                await Task.Delay(delay, ct);
-            }
+                if (ct.IsCancellationRequested)
+                    return true;
+
+                var current = Stopwatch.GetTimestamp();
+                var elapsed = TimeSpan.FromTicks((current - frameStart) * TimeSpan.TicksPerSecond / Stopwatch.Frequency);
+
+                var delay = frameInterval - elapsed;
+                return delay <= TimeSpan.Zero;
+            });
         }
 
         this._logger.LogInformation("Capture loop ended for connection {ConnectionId}", this._connection.ConnectionId);
@@ -236,29 +242,23 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
                 continue;
 
             var captureResult = this._screenshotService.CaptureDisplay(display);
-            if (!captureResult.Success || captureResult.Bitmap is null)
+            if (captureResult is { Success: false } or { Bitmap: null })
                 continue;
 
-            try
-            {
-                // Encode to JPEG
-                var frameData = EncodeJpeg(captureResult.Bitmap, Quality);
+            // Encode to JPEG
+            var frameData = EncodeJpeg(captureResult.Bitmap, Quality);
 
-                // Send frame to viewers watching this display (Connection handles targeting)
-                await this._connection.SendFrameAsync(
-                    displayId!,
-                    frameNumber,
-                    timestamp,
-                    FrameCodec.Jpeg,
-                    captureResult.Bitmap.Width,
-                    captureResult.Bitmap.Height,
-                    Quality,
-                    frameData);
-            }
-            finally
-            {
-                captureResult.Bitmap.Dispose();
-            }
+            // Send frame to viewers watching this display (Connection handles targeting)
+            await this._connection.SendFrameAsync(
+                displayId!,
+                frameNumber,
+                timestamp,
+                FrameCodec.Jpeg,
+                captureResult.Bitmap.Width,
+                captureResult.Bitmap.Height,
+                Quality,
+                FrameType.Keyframe,
+                [new FrameRegion(0, 0, captureResult.Bitmap.Width, captureResult.Bitmap.Height, frameData)]);
         }
     }
 
@@ -272,15 +272,14 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
     [RelayCommand]
     private async Task StopPresentingAsync()
     {
-        if (!this.IsPlatformSupported)
+        if (this.IsPlatformSupported is false)
         {
-            CloseRequested?.Invoke(this, EventArgs.Empty);
+            this.CloseRequested?.Invoke(this, EventArgs.Empty);
             return;
         }
 
         this._logger.LogInformation("User requested to stop presenting for connection {ConnectionId}", this._connection.ConnectionId);
         await this._connection.DisconnectAsync();
-        // The Closed event will trigger CloseRequested
     }
 
     public void Dispose()

@@ -16,3 +16,15 @@ public enum FrameCodec : byte
     // Av1 = 11,
     // Vp9 = 12,
 }
+
+/// <summary>
+/// Type of frame being transmitted.
+/// </summary>
+public enum FrameType : byte
+{
+    /// <summary>Complete frame - use as base for delta reconstruction</summary>
+    Keyframe = 0,
+
+    /// <summary>Delta frame - contains only changed regions</summary>
+    DeltaFrame = 1
+}

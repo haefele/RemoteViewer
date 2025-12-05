@@ -22,6 +22,7 @@ public partial class ViewerView : Window
 
         if (this._viewModel is not null)
         {
+            this._viewModel.PropertyChanged -= this.ViewModelOnPropertyChanged;
             this._viewModel.CloseRequested -= this.OnCloseRequested;
         }
 
@@ -30,7 +31,14 @@ public partial class ViewerView : Window
         if (this._viewModel is not null)
         {
             this._viewModel.CloseRequested += this.OnCloseRequested;
+            this._viewModel.PropertyChanged += this.ViewModelOnPropertyChanged;
         }
+    }
+
+    private void ViewModelOnPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(ViewerViewModel.FrameBitmap))
+            this.FrameImage.InvalidateVisual();
     }
 
     private void OnCloseRequested(object? sender, EventArgs e)
