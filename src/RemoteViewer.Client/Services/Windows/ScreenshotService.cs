@@ -81,8 +81,8 @@ public class ScreenshotService(ILogger<ScreenshotService> logger, DxgiScreenGrab
         // Determine dirty rects: use DXGI-provided, compute manually, or send keyframe
         var dirtyRects = captureResult.DirtyRectangles.Length > 0
             ? captureResult.DirtyRectangles
-            : state.PreviousBitmap is not null && !keyframeDue
-                ? this.ComputeDirtyRects(bitmap, state.PreviousBitmap)
+            : state.LastCapturedBitmap is not null && !keyframeDue
+                ? this.ComputeDirtyRects(bitmap, state.LastCapturedBitmap)
                 : null;
 
         // null means threshold exceeded or keyframe needed - treat as keyframe
@@ -205,8 +205,7 @@ public class ScreenshotService(ILogger<ScreenshotService> logger, DxgiScreenGrab
         public int Height { get; private set; }
         public Stopwatch KeyframeTimer { get; } = Stopwatch.StartNew();
 
-        public SKBitmap? CurrentBitmap => this._buffers[this._currentIndex];
-        public SKBitmap? PreviousBitmap => this._buffers[1 - this._currentIndex];
+        public SKBitmap? LastCapturedBitmap => this._buffers[this._currentIndex];
 
         public SKBitmap GetOrCreateNextBuffer(int width, int height)
         {
