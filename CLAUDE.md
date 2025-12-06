@@ -1,16 +1,12 @@
-# CLAUDE.md
+# Project Overview
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Project Overview
-
-RemoteViewer is a .NET 10.0 remote desktop viewer application for Windows. It consists of three main components that communicate via SignalR:
+RemoteViewer is a .NET 10.0 remote desktop viewer application for Windows. It consists of three main components:
 
 - **RemoteViewer.Client**: Avalonia-based desktop UI application
 - **RemoteViewer.Server**: ASP.NET Core SignalR hub server for connection routing
-- **RemoteViewer.WinServ**: Windows Service that captures screens and manages user sessions
+- **RemoteViewer.WinServ**: Windows Service that enables unattended remote access
 
-## Build Commands
+# Build Commands
 
 ```bash
 dotnet build                              # Build entire solution
@@ -20,7 +16,7 @@ dotnet run --project src/RemoteViewer.Client      # Run client
 dotnet run --project src/RemoteViewer.WinServ     # Run Windows service
 ```
 
-## Testing
+# Testing
 
 No traditional unit test framework. Instead, two manual test utilities exist:
 
@@ -32,58 +28,20 @@ dotnet run --project tests/RemoteViewer.HubClientTest
 dotnet run --project tests/RemoteViewer.DesktopDupTest
 ```
 
-## Architecture
+# Code Conventions
 
-### Communication Flow
+## Logging
+- Source-generated logging with `[LoggerMessage]` attributes in separate `*Logs.cs` files
+- Structured logging with named parameters for context
 
-```
-Client (Avalonia) → SignalR (/connection) → Server → Message Router
-                                                   ↓
-WinServ (Windows Service) ← Session Recorders ← Screen Capture
-```
+## Error Handling
+- Nullable enum return types for expected failures (e.g., `Task<TryConnectError?>`)
+- Exceptions only for unexpected/startup errors; graceful `false`/`null` returns otherwise
 
-### Server Core Services
+## P/Invoke
+- CsWin32 source-generated bindings with SafeHandle wrappers
+- `Marshal.GetLastWin32Error()` for error logging
 
-**IConnectionsService** (`src/RemoteViewer.Server/Services/IConnectionsService.cs`):
-- Central hub for client registration and connection management
-- Generates credentials (10-digit username, 8-char password)
-- Routes messages with three modes: `PresenterOnly`, `AllViewers`, `All`
-- Thread-safe with `ReaderWriterLockSlim`
-
-**ConnectionHub** (`src/RemoteViewer.Server/Hubs/ConnectionHub.cs`):
-- SignalR hub at `/connection` endpoint
-- Handles registration, connection requests, and binary message routing
-
-### WinServ Architecture
-
-**Dual-Mode Operation**:
-- `WindowsService` mode: Runs as SYSTEM, spawns session recorders per RDP session
-- `SessionRecorder` mode: Runs in user session, captures screen
-
-**Screen Capture** (`src/RemoteViewer.WinServ/Services/`):
-- `DxgiScreenGrabber`: Primary capture using DXGI Output Duplication (efficient, dirty rect tracking)
-- `BitBltScreenGrabber`: Fallback GDI-based capture
-
-**IWin32Service**: Windows API helpers for session enumeration, desktop switching, process creation as user
-
-### Client Architecture
-
-- Avalonia 11.x with MVVM Community Toolkit
-- ViewLocator pattern for view/viewmodel mapping
-- SignalR client for server communication
-
-## Code Conventions
-
-- Source-generated logging with `[LoggerMessage]` attributes (see `ConnectionsServiceLogs.cs`)
-- Records for data transfer objects
-- `ImmutableList` and `ReadOnlySet` for thread-safe collections
-- Enum-based error codes instead of exceptions for expected failures
-- Safe P/Invoke wrappers with error logging
-
-## Key Dependencies
-
-- **SignalR**: Real-time client-server communication
-- **Vortice.DXGI**: DirectX screen capture
-- **SkiaSharp**: Image processing
-- **Serilog**: Structured logging with file and console sinks
-- **CsWin32**: Windows API PInvoke bindings
+## Documentation
+- No XML docs (`///`) - code should be self-explanatory
+- You can add comments if necessary for clarity
