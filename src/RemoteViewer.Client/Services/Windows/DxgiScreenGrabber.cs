@@ -19,10 +19,13 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
     private readonly Dictionary<string, DxOutput> _outputs = new();
     private readonly object _lock = new();
 
-    public unsafe CaptureResult CaptureDisplay(Display display)
+    public unsafe CaptureResult CaptureDisplay(Display display, SKBitmap targetBuffer)
     {
         if (!OperatingSystem.IsOSPlatformVersionAtLeast("windows", 8))
             return CaptureResult.Failure;
+
+        if (targetBuffer.Width != display.Bounds.Width || targetBuffer.Height != display.Bounds.Height)
+            throw new ArgumentException($"Target buffer dimensions ({targetBuffer.Width}x{targetBuffer.Height}) do not match display dimensions ({display.Bounds.Width}x{display.Bounds.Height})", nameof(targetBuffer));
 
         try
         {
@@ -71,8 +74,7 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
 
                 try
                 {
-                    var skBitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
-                    var destPtr = (byte*)skBitmap.GetPixels();
+                    var destPtr = (byte*)targetBuffer.GetPixels();
                     var sourcePtr = (byte*)mappedResource.pData;
 
                     if (width * 4 == mappedResource.RowPitch)
@@ -90,7 +92,7 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
                     }
 
                     var dirtyRects = this.GetDirtyRects(outputDuplication);
-                    return CaptureResult.Ok(skBitmap, dirtyRects);
+                    return CaptureResult.Ok(targetBuffer, dirtyRects);
                 }
                 finally
                 {

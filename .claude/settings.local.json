@@ -9,7 +9,8 @@
       "WebFetch(domain:aarnott.github.io)",
       "WebFetch(domain:github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "Bash(dotnet restore:*)"
+      "Bash(dotnet restore:*)",
+      "Bash(ls:*)"
     ],
     "deny": [],
     "ask": []

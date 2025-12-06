@@ -249,48 +249,41 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
             var bitmap = captureResult.Bitmap;
             var dirtyRects = captureResult.DirtyRectangles;
 
-            try
-            {
-                // Determine frame type: empty dirty rects means keyframe
-                var isKeyframe = dirtyRects.Length == 0;
-                var frameType = isKeyframe ? FrameType.Keyframe : FrameType.DeltaFrame;
+            // Determine frame type: empty dirty rects means keyframe
+            var isKeyframe = dirtyRects.Length == 0;
+            var frameType = isKeyframe ? FrameType.Keyframe : FrameType.DeltaFrame;
 
-                FrameRegion[] regions;
-                if (isKeyframe)
-                {
-                    // Full frame as single region
-                    var frameData = EncodeJpeg(bitmap, Quality);
-                    regions = [new FrameRegion(0, 0, bitmap.Width, bitmap.Height, frameData)];
-                }
-                else
-                {
-                    // Encode each dirty region separately
-                    regions = new FrameRegion[dirtyRects.Length];
-                    for (var i = 0; i < dirtyRects.Length; i++)
-                    {
-                        var rect = dirtyRects[i];
-                        using var regionBitmap = ExtractRegion(bitmap, rect);
-                        var regionData = EncodeJpeg(regionBitmap, Quality);
-                        regions[i] = new FrameRegion(rect.X, rect.Y, rect.Width, rect.Height, regionData);
-                    }
-                }
-
-                // Send frame to viewers watching this display
-                await this._connection.SendFrameAsync(
-                    displayId!,
-                    frameNumber,
-                    timestamp,
-                    FrameCodec.Jpeg,
-                    bitmap.Width,
-                    bitmap.Height,
-                    Quality,
-                    frameType,
-                    regions);
-            }
-            finally
+            FrameRegion[] regions;
+            if (isKeyframe)
             {
-                bitmap.Dispose();
+                // Full frame as single region
+                var frameData = EncodeJpeg(bitmap, Quality);
+                regions = [new FrameRegion(0, 0, bitmap.Width, bitmap.Height, frameData)];
             }
+            else
+            {
+                // Encode each dirty region separately
+                regions = new FrameRegion[dirtyRects.Length];
+                for (var i = 0; i < dirtyRects.Length; i++)
+                {
+                    var rect = dirtyRects[i];
+                    using var regionBitmap = ExtractRegion(bitmap, rect);
+                    var regionData = EncodeJpeg(regionBitmap, Quality);
+                    regions[i] = new FrameRegion(rect.X, rect.Y, rect.Width, rect.Height, regionData);
+                }
+            }
+
+            // Send frame to viewers watching this display
+            await this._connection.SendFrameAsync(
+                displayId!,
+                frameNumber,
+                timestamp,
+                FrameCodec.Jpeg,
+                bitmap.Width,
+                bitmap.Height,
+                Quality,
+                frameType,
+                regions);
         }
     }
 

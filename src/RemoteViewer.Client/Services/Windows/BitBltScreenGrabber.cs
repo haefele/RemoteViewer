@@ -10,8 +10,11 @@ namespace RemoteViewer.Client.Services.Windows;
 
 public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger)
 {
-    public unsafe CaptureResult CaptureDisplay(Display display)
+    public unsafe CaptureResult CaptureDisplay(Display display, SKBitmap targetBuffer)
     {
+        if (targetBuffer.Width != display.Bounds.Width || targetBuffer.Height != display.Bounds.Height)
+            throw new ArgumentException($"Target buffer dimensions ({targetBuffer.Width}x{targetBuffer.Height}) do not match display dimensions ({display.Bounds.Width}x{display.Bounds.Height})", nameof(targetBuffer));
+
         var sourceDC = HDC.Null;
         var memoryDC = HDC.Null;
         DeleteObjectSafeHandle? hBitmapHandle = null;
@@ -93,10 +96,9 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger)
             var stride = width * 4;
             var bufferSize = stride * height;
 
-            var skBitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
-            Buffer.MemoryCopy(pBits, (void*)skBitmap.GetPixels(), bufferSize, bufferSize);
+            Buffer.MemoryCopy(pBits, (void*)targetBuffer.GetPixels(), bufferSize, bufferSize);
 
-            return CaptureResult.Ok(skBitmap, []);
+            return CaptureResult.Ok(targetBuffer, []);
         }
         catch (Exception exception)
         {
