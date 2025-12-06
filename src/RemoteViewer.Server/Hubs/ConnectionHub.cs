@@ -14,13 +14,31 @@ public interface IConnectionHubClient
     Task ConnectionStopped(string connectionId);
 
     Task MessageReceived(string connectionId, string senderClientId, string messageType, ReadOnlyMemory<byte> data);
+
+    Task VersionMismatch(string serverVersion, string clientVersion);
 }
 
-public class ConnectionHub(IConnectionsService clientsService) : Hub<IConnectionHubClient>
+public class ConnectionHub(IConnectionsService clientsService, ILogger<ConnectionHub> logger) : Hub<IConnectionHubClient>
 {
     public override async Task OnConnectedAsync()
     {
-        await clientsService.Register(this.Context.ConnectionId);
+        var httpContext = this.Context.GetHttpContext();
+
+        // Check if client version matches server version
+        var clientVersion = httpContext?.Request.Headers["X-Client-Version"].ToString();
+        var serverVersion = ThisAssembly.AssemblyInformationalVersion;
+
+        if (string.IsNullOrEmpty(clientVersion) || string.Equals(clientVersion, serverVersion, StringComparison.OrdinalIgnoreCase) is false)
+        {
+            logger.VersionMismatch(clientVersion, serverVersion, this.Context.ConnectionId);
+            await this.Clients.Caller.VersionMismatch(serverVersion, clientVersion ?? "unknown");
+
+            this.Context.Abort();
+        }
+        else
+        {
+            await clientsService.Register(this.Context.ConnectionId);
+        }
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)

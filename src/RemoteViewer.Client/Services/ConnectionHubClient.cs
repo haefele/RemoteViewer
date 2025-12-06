@@ -22,7 +22,10 @@ public sealed class ConnectionHubClient : IAsyncDisposable
         this._screenshotService = screenshotService;
 
         this._connection = new HubConnectionBuilder()
-            .WithUrl($"{serverUrl}/connection")
+            .WithUrl($"{serverUrl}/connection", options =>
+            {
+                options.Headers.Add("X-Client-Version", ThisAssembly.AssemblyInformationalVersion);
+            })
             .WithAutomaticReconnect()
             .AddMessagePackProtocol(ReflectionTypeShapeProvider.Default)
             .Build();
@@ -77,6 +80,14 @@ public sealed class ConnectionHubClient : IAsyncDisposable
             connection.OnMessageReceived(senderClientId, messageType, data);
         });
 
+        this._connection.On<string, string>("VersionMismatch", (serverVersion, clientVersion) =>
+        {
+            this.HasVersionMismatch = true;
+            this.ServerVersion = serverVersion;
+
+            this.HubConnectionStatusChanged?.Invoke(this, EventArgs.Empty);
+        });
+
         this._connection.Closed += (error) =>
         {
             if (error is not null)
@@ -89,7 +100,14 @@ public sealed class ConnectionHubClient : IAsyncDisposable
             }
 
             this.CloseAllConnections();
-            this.HubDisconnected?.Invoke(this, EventArgs.Empty);
+            this.HubConnectionStatusChanged?.Invoke(this, EventArgs.Empty);
+
+            if (this.HasVersionMismatch)
+            {
+                this._logger.LogWarning("Not reconnecting due to version mismatch");
+                return Task.CompletedTask;
+            }
+
             return this.ConnectToHub();
         };
 
@@ -97,7 +115,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
         {
             this._logger.LogWarning(error, "Connection reconnecting");
             this.CloseAllConnections();
-            this.HubDisconnected?.Invoke(this, EventArgs.Empty);
+            this.HubConnectionStatusChanged?.Invoke(this, EventArgs.Empty);
 
             return Task.CompletedTask;
         };
@@ -105,7 +123,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
         this._connection.Reconnected += (connectionId) =>
         {
             this._logger.LogInformation("Connection reconnected - ConnectionId: {ConnectionId}", connectionId);
-            this.HubConnected?.Invoke(this, EventArgs.Empty);
+            this.HubConnectionStatusChanged?.Invoke(this, EventArgs.Empty);
             return Task.CompletedTask;
         };
     }
@@ -134,6 +152,9 @@ public sealed class ConnectionHubClient : IAsyncDisposable
     public string? Username { get; private set; }
     public string? Password { get; private set; }
 
+    public string? ServerVersion { get; private set; }
+    public bool HasVersionMismatch { get; private set; }
+
     private EventHandler<CredentialsAssignedEventArgs>? _credentialsAssigned;
     public event EventHandler<CredentialsAssignedEventArgs>? CredentialsAssigned
     {
@@ -153,8 +174,8 @@ public sealed class ConnectionHubClient : IAsyncDisposable
     public event EventHandler<ConnectionStartedEventArgs>? ConnectionStarted;
 
     public bool IsConnected => this._connection.State == HubConnectionState.Connected;
-    public event EventHandler? HubConnected;
-    public event EventHandler? HubDisconnected;
+
+    public event EventHandler? HubConnectionStatusChanged;
 
     public async Task ConnectToHub()
     {
@@ -166,7 +187,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
                 await this._connection.StartAsync();
 
                 this._logger.LogInformation("Connected to server successfully");
-                this.HubConnected?.Invoke(this, EventArgs.Empty);
+                this.HubConnectionStatusChanged?.Invoke(this, EventArgs.Empty);
 
                 return;
             }

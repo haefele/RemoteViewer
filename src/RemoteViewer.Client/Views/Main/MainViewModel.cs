@@ -17,16 +17,16 @@ public partial class MainViewModel : ViewModelBase
     private readonly IInputInjectionService _inputInjectionService;
 
     [ObservableProperty]
-    private string _yourUsername = "...";
+    private string? _yourUsername;
 
     [ObservableProperty]
-    private string _yourPassword = "...";
+    private string? _yourPassword;
 
     [ObservableProperty]
-    private string _targetUsername = "";
+    private string? _targetUsername;
 
     [ObservableProperty]
-    private string _targetPassword = "";
+    private string? _targetPassword;
 
     [ObservableProperty]
     private bool _isConnected;
@@ -57,23 +57,20 @@ public partial class MainViewModel : ViewModelBase
         this._screenshotService = screenshotService;
         this._inputInjectionService = inputInjectionService;
 
-        this._hubClient.HubDisconnected += (_, _) =>
+        this._hubClient.HubConnectionStatusChanged += (_, _) =>
         {
             Dispatcher.UIThread.Post(() =>
             {
-                this.IsConnected = false;
-                this.StatusText = "Connecting...";
-                this.YourUsername = "...";
-                this.YourPassword = "...";
-            });
-        };
+                this.IsConnected = this._hubClient.IsConnected;
+                this.StatusText = this._hubClient switch
+                {
+                    { IsConnected: false, HasVersionMismatch: true } => $"Version mismatch - Server: {this._hubClient.ServerVersion}, Client: {ThisAssembly.AssemblyInformationalVersion}",
+                    { IsConnected: false, HasVersionMismatch: false } => "Connecting...",
+                    { IsConnected: true } => "Connected",
+                };
 
-        this._hubClient.HubConnected += (_, _) =>
-        {
-            Dispatcher.UIThread.Post(() =>
-            {
-                this.IsConnected = true;
-                this.StatusText = "Connected";
+                this.YourUsername = this._hubClient.IsConnected ? this._hubClient.Username : "...";
+                this.YourPassword = this._hubClient.IsConnected ? this._hubClient.Password : "...";
             });
         };
 
