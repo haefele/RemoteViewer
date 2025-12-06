@@ -39,6 +39,8 @@ public partial class ViewerView : Window
     {
         if (e.PropertyName == nameof(ViewerViewModel.FrameBitmap))
             this.FrameImage.InvalidateVisual();
+        else if (e.PropertyName == nameof(ViewerViewModel.DebugOverlayBitmap))
+            this.DebugOverlayImage.InvalidateVisual();
     }
 
     private void OnCloseRequested(object? sender, EventArgs e)

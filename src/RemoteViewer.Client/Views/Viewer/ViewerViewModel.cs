@@ -25,6 +25,9 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     private WriteableBitmap? _frameBitmap;
 
     [ObservableProperty]
+    private WriteableBitmap? _debugOverlayBitmap;
+
+    [ObservableProperty]
     private string _title = "Remote Viewer";
 
     [ObservableProperty]
@@ -127,6 +130,16 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
                 {
                     // Force property change notification for in-place updates
                     this.OnPropertyChanged(nameof(this.FrameBitmap));
+                }
+
+                // Update debug overlay
+                if (this._compositor.DebugOverlay is { } overlay && this.DebugOverlayBitmap != overlay)
+                {
+                    this.DebugOverlayBitmap = overlay;
+                }
+                else if (this._compositor.DebugOverlay is not null)
+                {
+                    this.OnPropertyChanged(nameof(this.DebugOverlayBitmap));
                 }
             });
         }

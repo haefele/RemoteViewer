@@ -58,11 +58,20 @@
         <!-- Frame display -->
         <Border Background="Black"
                 ClipToBounds="True">
-            <Image x:Name="FrameImage"
-                   Source="{Binding FrameBitmap}"
-                   Stretch="Uniform"
-                   HorizontalAlignment="Center"
-                   VerticalAlignment="Center"/>
+            <Panel>
+                <Image x:Name="FrameImage"
+                       Source="{Binding FrameBitmap}"
+                       Stretch="Uniform"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"/>
+                <Image x:Name="DebugOverlayImage"
+                       Source="{Binding DebugOverlayBitmap}"
+                       Stretch="Uniform"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       IsHitTestVisible="False"
+                       IsVisible="{Binding DebugOverlayBitmap, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+            </Panel>
         </Border>
     </DockPanel>
 

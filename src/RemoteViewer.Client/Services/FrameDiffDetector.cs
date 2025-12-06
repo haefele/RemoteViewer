@@ -79,54 +79,71 @@ public static class FrameDiffDetector
     }
 
     /// <summary>
-    /// Merges adjacent rectangles into larger rectangles to reduce the number of regions to transfer.
-    /// Two rectangles are considered adjacent if they share an edge (same row or column).
+    /// Merges nearby rectangles into larger bounding rectangles using proximity-based clustering.
+    /// Rectangles within the proximity threshold are grouped and merged.
     /// </summary>
     public static Rectangle[] MergeAdjacentRectangles(List<Rectangle> rectangles)
     {
         if (rectangles.Count == 0)
-        {
             return [];
-        }
 
-        var merged = new List<Rectangle>(rectangles);
-        var didMerge = false;
+        if (rectangles.Count == 1)
+            return [rectangles[0]];
 
-        do
+        // Use half block size as proximity threshold
+        const int ProximityThreshold = BlockSize / 2;
+
+        // Initialize union-find parent array
+        var parent = new int[rectangles.Count];
+        for (var i = 0; i < parent.Length; i++)
+            parent[i] = i;
+
+        // Group rectangles that are within proximity threshold
+        for (var i = 0; i < rectangles.Count; i++)
         {
-            didMerge = false;
+            var inflatedI = Rectangle.Inflate(rectangles[i], ProximityThreshold, ProximityThreshold);
 
-            for (var i = 0; i < merged.Count; i++)
+            for (var j = i + 1; j < rectangles.Count; j++)
             {
-                for (var j = i + 1; j < merged.Count; j++)
+                var inflatedJ = Rectangle.Inflate(rectangles[j], ProximityThreshold, ProximityThreshold);
+
+                if (inflatedI.IntersectsWith(inflatedJ))
                 {
-                    if (AreAdjacent(merged[i], merged[j]))
-                    {
-                        merged[i] = Rectangle.Union(merged[i], merged[j]);
-                        merged.RemoveAt(j);
-                        didMerge = true;
-                        j--;
-                    }
+                    Union(parent, i, j);
                 }
             }
-        } while (didMerge);
+        }
 
-        return merged.ToArray();
+        // Group rectangles by their root and merge each group
+        var groups = new Dictionary<int, Rectangle>();
+        for (var i = 0; i < rectangles.Count; i++)
+        {
+            var root = Find(parent, i);
+            if (groups.TryGetValue(root, out var existing))
+            {
+                groups[root] = Rectangle.Union(existing, rectangles[i]);
+            }
+            else
+            {
+                groups[root] = rectangles[i];
+            }
+        }
+
+        return [.. groups.Values];
     }
 
-    /// <summary>
-    /// Checks if two grid-aligned rectangles share an edge (not just a corner).
-    /// </summary>
-    private static bool AreAdjacent(Rectangle a, Rectangle b)
+    private static int Find(int[] parent, int i)
     {
-        // Horizontally adjacent: same row, edges touch
-        var horizontallyAdjacent = a.Top == b.Top && a.Bottom == b.Bottom &&
-                                    (a.Right == b.Left || b.Right == a.Left);
+        if (parent[i] != i)
+            parent[i] = Find(parent, parent[i]); // Path compression
+        return parent[i];
+    }
 
-        // Vertically adjacent: same column, edges touch
-        var verticallyAdjacent = a.Left == b.Left && a.Right == b.Right &&
-                                  (a.Bottom == b.Top || b.Bottom == a.Top);
-
-        return horizontallyAdjacent || verticallyAdjacent;
+    private static void Union(int[] parent, int i, int j)
+    {
+        var rootI = Find(parent, i);
+        var rootJ = Find(parent, j);
+        if (rootI != rootJ)
+            parent[rootI] = rootJ;
     }
 }
