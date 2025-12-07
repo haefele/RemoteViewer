@@ -38,7 +38,8 @@
                     <TextBlock Text="Display:"
                                VerticalAlignment="Center"
                                FontSize="12"/>
-                    <ComboBox ItemsSource="{Binding Displays}"
+                    <ComboBox x:Name="DisplayComboBox"
+                              ItemsSource="{Binding Displays}"
                               SelectedValue="{Binding SelectedDisplayId}"
                               SelectedValueBinding="{Binding Id}"
                               MinWidth="150">
@@ -56,8 +57,10 @@
         </Border>
 
         <!-- Frame display -->
-        <Border Background="Black"
-                ClipToBounds="True">
+        <Border x:Name="DisplayPanel"
+                Background="Black"
+                ClipToBounds="True"
+                Focusable="True">
             <Panel>
                 <Image x:Name="FrameImage"
                        Source="{Binding FrameBitmap}"

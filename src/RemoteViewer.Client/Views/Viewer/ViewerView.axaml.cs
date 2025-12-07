@@ -14,6 +14,16 @@ public partial class ViewerView : Window
     public ViewerView()
     {
         this.InitializeComponent();
+
+        this.DisplayPanel.KeyDown += this.OnDisplayPanelKeyDown;
+        this.DisplayPanel.KeyUp += this.OnDisplayPanelKeyUp;
+        this.DisplayComboBox.DropDownClosed += this.OnDisplayComboBoxDropDownClosed;
+    }
+
+    protected override void OnOpened(EventArgs e)
+    {
+        base.OnOpened(e);
+        this.DisplayPanel.Focus();
     }
 
     protected override void OnDataContextChanged(EventArgs e)
@@ -128,10 +138,13 @@ public partial class ViewerView : Window
         }
     }
 
-    protected override void OnKeyDown(KeyEventArgs e)
+    private void OnDisplayComboBoxDropDownClosed(object? sender, EventArgs e)
     {
-        base.OnKeyDown(e);
+        this.DisplayPanel.Focus();
+    }
 
+    private void OnDisplayPanelKeyDown(object? sender, KeyEventArgs e)
+    {
         if (this._viewModel is null)
             return;
 
@@ -142,10 +155,8 @@ public partial class ViewerView : Window
         e.Handled = true;
     }
 
-    protected override void OnKeyUp(KeyEventArgs e)
+    private void OnDisplayPanelKeyUp(object? sender, KeyEventArgs e)
     {
-        base.OnKeyUp(e);
-
         if (this._viewModel is null)
             return;
 
