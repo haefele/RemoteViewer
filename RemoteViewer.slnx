@@ -9,6 +9,7 @@
     <File Path="CLAUDE.md" />
     <File Path="Directory.Build.props" />
     <File Path="global.json" />
+    <File Path="LICENSE" />
     <File Path="nuget.config" />
     <File Path="version.json" />
   </Folder>
