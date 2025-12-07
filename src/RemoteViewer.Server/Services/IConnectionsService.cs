@@ -3,6 +3,7 @@ using RemoteViewer.Server.Common;
 using RemoteViewer.Server.Hubs;
 using RemoteViewer.Server.SharedAPI;
 using System.Collections.ObjectModel;
+using System.Text;
 
 using ConnectionHubBatchedActions = RemoteViewer.Server.Common.BatchedHubActions<RemoteViewer.Server.Hubs.ConnectionHub, RemoteViewer.Server.Hubs.IConnectionHubClient>;
 using ConnectionInfo = RemoteViewer.Server.SharedAPI.ConnectionInfo;
@@ -128,6 +129,23 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
         return Random.Shared.GetString(PasswordChars, 8);
     }
 
+    private static string FormatUsername(string username)
+    {
+        var sb = new StringBuilder();
+        for (var i = 0; i < username.Length; i++)
+        {
+            if (i > 0 && (username.Length - i) % 3 == 0)
+                sb.Append(' ');
+            sb.Append(username[i]);
+        }
+        return sb.ToString();
+    }
+
+    private static string StripSpaces(string value)
+    {
+        return value.Replace(" ", "");
+    }
+
     public async Task<TryConnectError?> TryConnectTo(string signalrConnectionId, string username, string password)
     {
         this._logger.ConnectionAttemptStarted(signalrConnectionId, username);
@@ -143,7 +161,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
                 return TryConnectError.ViewerNotFound;
             }
 
-            var presenter = this._clients.FirstOrDefault(c => c.Credentials.Username == username && string.Equals(c.Credentials.Password, password, StringComparison.OrdinalIgnoreCase));
+            var presenter = this._clients.FirstOrDefault(c => c.Credentials.Username == StripSpaces(username) && string.Equals(c.Credentials.Password, password, StringComparison.OrdinalIgnoreCase));
             if (presenter is null)
             {
                 this._logger.IncorrectCredentials(viewer.Id, username);
@@ -248,7 +266,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
         public static Client Create(string id, Credentials credentials, string signalrConnectionId, ConnectionHubBatchedActions actions)
         {
             var client = new Client(id, credentials, signalrConnectionId);
-            actions.Add(f => f.Client(signalrConnectionId).CredentialsAssigned(client.Id, client.Credentials.Username, client.Credentials.Password));
+            actions.Add(f => f.Client(signalrConnectionId).CredentialsAssigned(client.Id, FormatUsername(client.Credentials.Username), client.Credentials.Password));
 
             return client;
         }
@@ -267,7 +285,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
         public void UpdatePassword(string newPassword, ConnectionHubBatchedActions actions)
         {
             this.Credentials = this.Credentials with { Password = newPassword };
-            actions.Add(f => f.Client(this.SignalrConnectionId).CredentialsAssigned(this.Id, this.Credentials.Username, this.Credentials.Password));
+            actions.Add(f => f.Client(this.SignalrConnectionId).CredentialsAssigned(this.Id, FormatUsername(this.Credentials.Username), this.Credentials.Password));
         }
     }
     private sealed record class Credentials(string Username, string Password);

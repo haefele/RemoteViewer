@@ -1,5 +1,4 @@
-﻿using System.Text;
-using Avalonia.Threading;
+﻿using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -60,7 +59,7 @@ public partial class MainViewModel : ViewModelBase
 
                 this._logger.HubConnectionStatusChanged(this._hubClient.IsConnected, this.StatusText);
 
-                this.YourUsername = this._hubClient.IsConnected ? FormatUsername(this._hubClient.Username) : "...";
+                this.YourUsername = this._hubClient.IsConnected ? this._hubClient.Username : "...";
                 this.YourPassword = this._hubClient.IsConnected ? this._hubClient.Password : "...";
             });
         };
@@ -70,7 +69,7 @@ public partial class MainViewModel : ViewModelBase
             Dispatcher.UIThread.Post(() =>
             {
                 this._logger.CredentialsAssigned(e.Username);
-                this.YourUsername = FormatUsername(e.Username);
+                this.YourUsername = e.Username;
                 this.YourPassword = e.Password;
             });
         };
@@ -137,10 +136,9 @@ public partial class MainViewModel : ViewModelBase
             return;
         }
 
-        var cleanUsername = StripSpaces(this.TargetUsername);
-        this._logger.ConnectingToDevice(cleanUsername);
+        this._logger.ConnectingToDevice(this.TargetUsername);
 
-        var error = await this._hubClient.ConnectTo(cleanUsername, this.TargetPassword);
+        var error = await this._hubClient.ConnectTo(this.TargetUsername, this.TargetPassword);
         if (error is not null)
         {
             var errorMessage = error switch
@@ -178,21 +176,4 @@ public partial class MainViewModel : ViewModelBase
         await this._hubClient.GenerateNewPassword();
         this._logger.GeneratedNewPassword();
     }
-
-    private static string FormatUsername(string? username)
-    {
-        if (string.IsNullOrEmpty(username))
-            return string.Empty;
-
-        var sb = new StringBuilder();
-        for (var i = 0; i < username.Length; i++)
-        {
-            if (i > 0 && (username.Length - i) % 3 == 0)
-                sb.Append(' ');
-            sb.Append(username[i]);
-        }
-        return sb.ToString();
-    }
-
-    private static string StripSpaces(string value) => value.Replace(" ", "");
 }
