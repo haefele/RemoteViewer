@@ -1,0 +1,57 @@
+name: Build and Publish
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build-and-publish:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Publish RemoteViewer.Client
+        run: |
+          dotnet publish src/RemoteViewer.Client/RemoteViewer.Client.csproj `
+            -c Release `
+            -f net10.0-windows `
+            -r win-x64 `
+            --self-contained true `
+            -p:PublishSingleFile=true `
+            -o ./publish/client
+
+      - name: Create zip and move to wwwroot
+        run: |
+          Compress-Archive -Path ./publish/client/* -DestinationPath ./RemoteViewer-win-x64.zip
+          Move-Item ./RemoteViewer-win-x64.zip ./src/RemoteViewer.Server/wwwroot/
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish Docker image
+        run: |
+          dotnet publish src/RemoteViewer.Server/RemoteViewer.Server.csproj `
+            -c Release `
+            /t:PublishContainer `
+            -p:ContainerRegistry=ghcr.io `
+            -p:ContainerRepository=${{ github.repository_owner }}/remoteviewer-server `
+            -p:ContainerImageTags='"${{ github.sha }};latest"'
