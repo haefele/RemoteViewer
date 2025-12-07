@@ -41,11 +41,6 @@ jobs:
           New-Item -ItemType Directory -Force -Path ./src/RemoteViewer.Server/wwwroot/
           Move-Item ./RemoteViewer-win-x64.zip ./src/RemoteViewer.Server/wwwroot/
 
-          Write-Host "=== Contents of wwwroot ==="
-          Get-ChildItem ./src/RemoteViewer.Server/wwwroot/ -Recurse
-          Write-Host "=== Zip file size ==="
-          (Get-Item ./src/RemoteViewer.Server/wwwroot/RemoteViewer-win-x64.zip).Length
-
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -60,13 +55,3 @@ jobs:
             /t:PublishContainer `
             -p:ContainerRegistry=ghcr.io `
             -p:ContainerRepository=${{ github.repository_owner }}/remoteviewer-server
-
-          Write-Host "=== Looking for publish output directories ==="
-          Write-Host "--- artifacts/publish (if exists) ---"
-          if (Test-Path ./artifacts/publish) { Get-ChildItem ./artifacts/publish -Recurse | Select-Object FullName, Length }
-          Write-Host "--- artifacts/bin (if exists) ---"
-          if (Test-Path ./artifacts/bin) { Get-ChildItem ./artifacts/bin -Recurse -Include wwwroot,*.zip | Select-Object FullName, Length }
-          Write-Host "--- bin/Release (if exists) ---"
-          if (Test-Path ./src/RemoteViewer.Server/bin/Release) { Get-ChildItem ./src/RemoteViewer.Server/bin/Release -Recurse -Include wwwroot,*.zip | Select-Object FullName, Length }
-          Write-Host "--- Check wwwroot still in source ---"
-          Get-ChildItem ./src/RemoteViewer.Server/wwwroot/ -Recurse
