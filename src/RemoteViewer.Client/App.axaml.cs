@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
@@ -15,8 +15,6 @@ namespace RemoteViewer.Client;
 
 public partial class App : Application
 {
-    private const string ServerUrl = "http://100.123.102.66:5000";
-
     private ServiceProvider? _serviceProvider;
 
     public override void Initialize()
@@ -45,12 +43,7 @@ public partial class App : Application
                 RegisterNullServices(services);
             }
 
-            services.AddSingleton(sp =>
-                new ConnectionHubClient(
-                    ServerUrl,
-                    sp.GetRequiredService<ILogger<ConnectionHubClient>>(),
-                    sp.GetRequiredService<ILoggerFactory>(),
-                    sp.GetRequiredService<IScreenshotService>()));
+            services.AddSingleton<ConnectionHubClient>();
 
             services.AddTransient<MainViewModel>();
 

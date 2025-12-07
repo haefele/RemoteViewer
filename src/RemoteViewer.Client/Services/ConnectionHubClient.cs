@@ -15,14 +15,20 @@ public sealed class ConnectionHubClient : IAsyncDisposable
     private readonly HubConnection _connection;
     private readonly ConcurrentDictionary<string, Connection> _connections = new();
 
-    public ConnectionHubClient(string serverUrl, ILogger<ConnectionHubClient> logger, ILoggerFactory loggerFactory, IScreenshotService screenshotService)
+#if DEBUG
+    private static readonly string s_baseUrl = "http://localhost:8080";
+#else
+    private static readonly string s_baseUrl = "https://rdp.xemio.net";
+#endif
+
+    public ConnectionHubClient(ILogger<ConnectionHubClient> logger, ILoggerFactory loggerFactory, IScreenshotService screenshotService)
     {
         this._logger = logger;
         this._loggerFactory = loggerFactory;
         this._screenshotService = screenshotService;
 
         this._connection = new HubConnectionBuilder()
-            .WithUrl($"{serverUrl}/connection", options =>
+            .WithUrl($"{s_baseUrl}/connection", options =>
             {
                 options.Headers.Add("X-Client-Version", ThisAssembly.AssemblyInformationalVersion);
             })
