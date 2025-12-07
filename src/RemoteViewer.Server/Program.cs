@@ -24,7 +24,7 @@ try
 
     var app = builder.Build();
 
-    app.MapStaticAssets();
+    app.UseStaticFiles();
 
     app.MapHub<ConnectionHub>("/connection");
 
