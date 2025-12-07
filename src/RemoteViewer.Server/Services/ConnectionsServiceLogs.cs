@@ -42,9 +42,6 @@ internal static partial class ConnectionsServiceLogs
     [LoggerMessage(Level = LogLevel.Information, Message = "New connection created. ConnectionId: {ConnectionId}, PresenterId: {PresenterId}, ViewerId: {ViewerId}, TotalConnections: {TotalConnections}")]
     public static partial void NewConnectionCreated(this ILogger logger, string connectionId, string presenterId, string viewerId, int totalConnections);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Adding viewer to connection. ConnectionId: {ConnectionId}, ViewerId: {ViewerId}")]
-    public static partial void AddingViewerToConnection(this ILogger logger, string connectionId, string viewerId);
-
     [LoggerMessage(Level = LogLevel.Information, Message = "Connection attempt succeeded. Username: {Username}")]
     public static partial void ConnectionAttemptSucceeded(this ILogger logger, string username);
 
@@ -67,7 +64,7 @@ internal static partial class ConnectionsServiceLogs
     [LoggerMessage(Level = LogLevel.Debug, Message = "Broadcasting connection state change. ConnectionId: {ConnectionId}, ViewerCount: {ViewerCount}")]
     public static partial void ConnectionStateChange(this ILogger logger, string connectionId, int viewerCount);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Message send started. ClientId: {ClientId}, ConnectionId: {ConnectionId}, MessageType: {MessageType}, Destination: {Destination}, Size: {DataSize} bytes")]
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Message send started. ClientId: {ClientId}, ConnectionId: {ConnectionId}, MessageType: {MessageType}, Destination: {Destination}, Size: {DataSize} bytes")]
     public static partial void MessageSendStarted(this ILogger logger, string clientId, string connectionId, string messageType, MessageDestination destination, int dataSize);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Message sender not found. SignalR: {SignalRConnectionId}")]
@@ -79,19 +76,19 @@ internal static partial class ConnectionsServiceLogs
     [LoggerMessage(Level = LogLevel.Warning, Message = "Message sender not in connection. ClientId: {ClientId}, ConnectionId: {ConnectionId}")]
     public static partial void MessageSenderNotInConnection(this ILogger logger, string clientId, string connectionId);
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "Message sent to presenter. ConnectionId: {ConnectionId}, SenderId: {SenderId}, PresenterId: {PresenterId}")]
+    [LoggerMessage(Level = LogLevel.Trace, Message = "Message sent to presenter. ConnectionId: {ConnectionId}, SenderId: {SenderId}, PresenterId: {PresenterId}")]
     public static partial void MessageSentToPresenter(this ILogger logger, string connectionId, string senderId, string presenterId);
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "Message sent to viewers. ConnectionId: {ConnectionId}, SenderId: {SenderId}, ViewerCount: {ViewerCount}")]
+    [LoggerMessage(Level = LogLevel.Trace, Message = "Message sent to viewers. ConnectionId: {ConnectionId}, SenderId: {SenderId}, ViewerCount: {ViewerCount}")]
     public static partial void MessageSentToViewers(this ILogger logger, string connectionId, string senderId, int viewerCount);
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "Message sent to all participants. ConnectionId: {ConnectionId}, SenderId: {SenderId}, RecipientCount: {RecipientCount}")]
+    [LoggerMessage(Level = LogLevel.Trace, Message = "Message sent to all participants. ConnectionId: {ConnectionId}, SenderId: {SenderId}, RecipientCount: {RecipientCount}")]
     public static partial void MessageSentToAll(this ILogger logger, string connectionId, string senderId, int recipientCount);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Message send completed. ClientId: {ClientId}, ConnectionId: {ConnectionId}, MessageType: {MessageType}")]
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Message send completed. ClientId: {ClientId}, ConnectionId: {ConnectionId}, MessageType: {MessageType}")]
     public static partial void MessageSendCompleted(this ILogger logger, string clientId, string connectionId, string messageType);
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "Message sent to specific clients. ConnectionId: {ConnectionId}, SenderId: {SenderId}, SentCount: {SentCount}, RequestedCount: {RequestedCount}")]
+    [LoggerMessage(Level = LogLevel.Trace, Message = "Message sent to specific clients. ConnectionId: {ConnectionId}, SenderId: {SenderId}, SentCount: {SentCount}, RequestedCount: {RequestedCount}")]
     public static partial void MessageSentToSpecificClients(this ILogger logger, string connectionId, string senderId, int sentCount, int requestedCount);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Disconnect from connection started. SignalRConnectionId: {SignalRConnectionId}, ConnectionId: {ConnectionId}")]

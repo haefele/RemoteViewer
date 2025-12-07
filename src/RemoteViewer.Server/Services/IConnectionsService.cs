@@ -166,7 +166,6 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
                 }
 
                 connection.AddViewer(viewer, actions);
-                this._logger.AddingViewerToConnection(connection.Id, viewer.Id);
             }
         }
 
