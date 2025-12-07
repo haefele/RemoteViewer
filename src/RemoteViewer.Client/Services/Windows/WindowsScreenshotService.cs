@@ -11,7 +11,7 @@ using Windows.Win32.Foundation;
 
 namespace RemoteViewer.Client.Services.Windows;
 
-public class ScreenshotService(ILogger<ScreenshotService> logger, DxgiScreenGrabber dxgi, BitBltScreenGrabber bitBlt) : IScreenshotService, IDisposable
+public class WindowsScreenshotService(ILogger<WindowsScreenshotService> logger, DxgiScreenGrabber dxgi, BitBltScreenGrabber bitBlt) : IScreenshotService, IDisposable
 {
     private const long KeyframeIntervalMs = 3000;
 

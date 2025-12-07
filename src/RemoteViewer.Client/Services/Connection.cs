@@ -136,7 +136,7 @@ public sealed class Connection
     }
 
     /// <summary>Viewer-only: Send input to the presenter.</summary>
-    public async Task SendInputAsync(string messageType, ReadOnlyMemory<byte> data)
+    public async Task SendInputAsync(string messageType, byte[] data)
     {
         if (this.IsPresenter)
             throw new InvalidOperationException("SendInputAsync is only valid for viewers");
@@ -212,7 +212,7 @@ public sealed class Connection
         this._logger.LogDebug("Viewers changed: {ViewerCount} viewer(s)", viewerClientIds.Count);
         this._viewersChanged?.Invoke(this, EventArgs.Empty);
     }
-    internal async void OnMessageReceived(string senderClientId, string messageType, ReadOnlyMemory<byte> data)
+    internal async void OnMessageReceived(string senderClientId, string messageType, byte[] data)
     {
         try
         {
@@ -277,7 +277,7 @@ public sealed class Connection
         this.Closed?.Invoke(this, EventArgs.Empty);
     }
 
-    private void HandleDisplaySelect(string senderClientId, ReadOnlyMemory<byte> data)
+    private void HandleDisplaySelect(string senderClientId, byte[] data)
     {
         var message = ProtocolSerializer.Deserialize<DisplaySelectMessage>(data);
 
@@ -324,7 +324,7 @@ public sealed class Connection
 
         this._logger.LogDebug("Sent display list to viewer {ViewerId}", senderClientId);
     }
-    private void HandleMouseMove(string senderClientId, ReadOnlyMemory<byte> data)
+    private void HandleMouseMove(string senderClientId, byte[] data)
     {
         var message = ProtocolSerializer.Deserialize<MouseMoveMessage>(data);
         var displayId = this.GetViewerDisplayId(senderClientId);
@@ -338,7 +338,7 @@ public sealed class Connection
 
         this.InputReceived?.Invoke(this, args);
     }
-    private void HandleMouseButton(string senderClientId, ReadOnlyMemory<byte> data, bool isDown)
+    private void HandleMouseButton(string senderClientId, byte[] data, bool isDown)
     {
         var message = ProtocolSerializer.Deserialize<MouseButtonMessage>(data);
         var displayId = this.GetViewerDisplayId(senderClientId);
@@ -353,7 +353,7 @@ public sealed class Connection
 
         this.InputReceived?.Invoke(this, args);
     }
-    private void HandleMouseWheel(string senderClientId, ReadOnlyMemory<byte> data)
+    private void HandleMouseWheel(string senderClientId, byte[] data)
     {
         var message = ProtocolSerializer.Deserialize<MouseWheelMessage>(data);
         var displayId = this.GetViewerDisplayId(senderClientId);
@@ -369,7 +369,7 @@ public sealed class Connection
 
         this.InputReceived?.Invoke(this, args);
     }
-    private void HandleKey(string senderClientId, ReadOnlyMemory<byte> data, bool isDown)
+    private void HandleKey(string senderClientId, byte[] data, bool isDown)
     {
         var message = ProtocolSerializer.Deserialize<KeyMessage>(data);
         var displayId = this.GetViewerDisplayId(senderClientId);
@@ -383,7 +383,7 @@ public sealed class Connection
 
         this.InputReceived?.Invoke(this, args);
     }
-    private void HandleDisplayList(ReadOnlyMemory<byte> data)
+    private void HandleDisplayList(byte[] data)
     {
         var message = ProtocolSerializer.Deserialize<DisplayListMessage>(data);
 
@@ -395,7 +395,7 @@ public sealed class Connection
         this._logger.LogDebug("Received display list: {DisplayCount} display(s)", message.Displays.Length);
         this._displaysChanged?.Invoke(this, EventArgs.Empty);
     }
-    private void HandleFrame(ReadOnlyMemory<byte> data)
+    private void HandleFrame(byte[] data)
     {
         var message = ProtocolSerializer.Deserialize<FrameMessage>(data);
 

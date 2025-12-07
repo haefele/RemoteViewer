@@ -1,4 +1,4 @@
-using Nerdbank.MessagePack;
+﻿using Nerdbank.MessagePack;
 using PolyType;
 
 namespace RemoteViewer.Client.Services;
@@ -9,20 +9,15 @@ namespace RemoteViewer.Client.Services;
 /// </summary>
 public static class ProtocolSerializer
 {
-    private static readonly MessagePackSerializer Serializer = new();
+    private static readonly MessagePackSerializer s_serializer = new();
 
     public static byte[] Serialize<T>(T message) where T : IShapeable<T>
     {
-        return Serializer.Serialize(message);
-    }
-
-    public static T Deserialize<T>(ReadOnlyMemory<byte> data) where T : IShapeable<T>
-    {
-        return Serializer.Deserialize<T>(data.ToArray())!;
+        return s_serializer.Serialize(message);
     }
 
     public static T Deserialize<T>(byte[] data) where T : IShapeable<T>
     {
-        return Serializer.Deserialize<T>(data)!;
+        return s_serializer.Deserialize<T>(data)!;
     }
 }

@@ -3,7 +3,6 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services;
 using RemoteViewer.Client.Views.Main;
 using Serilog;
@@ -15,7 +14,7 @@ namespace RemoteViewer.Client;
 
 public partial class App : Application
 {
-    private ServiceProvider? _serviceProvider;
+    private IServiceProvider? _serviceProvider;
 
     public override void Initialize()
     {
@@ -28,76 +27,51 @@ public partial class App : Application
         {
             DisableAvaloniaDataAnnotationValidation();
 
-            // Build DI container
-            var services = new ServiceCollection();
+            this._serviceProvider = BuildServiceProvider(this);
 
-            services.AddLogging(builder => builder.AddSerilog());
-
-            // Platform-specific services (must be registered before ConnectionHubClient)
-            if (OperatingSystem.IsWindows())
+            desktop.MainWindow = new MainView
             {
-                RegisterWindowsServices(services);
-            }
-            else
-            {
-                RegisterNullServices(services);
-            }
-
-            services.AddSingleton<ConnectionHubClient>();
-
-            services.AddTransient<MainViewModel>();
-
-            this._serviceProvider = services.BuildServiceProvider();
-
-            // Resolve view model from DI
-            var viewModel = this._serviceProvider.GetRequiredService<MainViewModel>();
-
-            var mainView = new MainView
-            {
-                DataContext = viewModel,
-            };
-
-            // Wire up MainView visibility events
-            viewModel.RequestHideMainView += (_, _) => mainView.Hide();
-            viewModel.RequestShowMainView += (_, _) => mainView.Show();
-
-            desktop.MainWindow = mainView;
-
-            mainView.Opened += async (_, _) =>
-            {
-                await viewModel.InitializeAsync();
+                DataContext = this._serviceProvider
+                    .GetRequiredService<IViewModelFactory>()
+                    .CreateMainViewModel(),
             };
 
             desktop.ShutdownRequested += (_, _) =>
             {
-                this._serviceProvider?.Dispose();
+                if (this._serviceProvider is IDisposable disposable)
+                    disposable.Dispose();
             };
-        }
 
-        base.OnFrameworkInitializationCompleted();
+            // Connect to the hub in the background, don't wait for it
+            _ = this._serviceProvider.GetRequiredService<ConnectionHubClient>().ConnectToHub();
+        }
     }
+
+    private static IServiceProvider BuildServiceProvider(App app)
+    {
+        var services = new ServiceCollection();
+
+        // App
+        services.AddSingleton(app);
+
+        // Logging
+        services.AddLogging(builder => builder.AddSerilog());
+
+        // Services
+        services.AddSingleton<ConnectionHubClient>();
+        services.AddSingleton<IViewModelFactory, ViewModelFactory>();
 
 #if WINDOWS
-    private static void RegisterWindowsServices(IServiceCollection services)
-    {
         services.AddSingleton<DxgiScreenGrabber>();
         services.AddSingleton<BitBltScreenGrabber>();
-        services.AddSingleton<IScreenshotService, ScreenshotService>();
-        services.AddSingleton<IInputInjectionService, InputInjectionService>();
-    }
+        services.AddSingleton<IScreenshotService, WindowsScreenshotService>();
+        services.AddSingleton<IInputInjectionService, WindowsInputInjectionService>();
 #else
-    private static void RegisterWindowsServices(IServiceCollection services)
-    {
-        // This path should never be hit at runtime on non-Windows,
-        // but the method needs to exist for compilation
-        RegisterNullServices(services);
-    }
-#endif
-
-    private static void RegisterNullServices(IServiceCollection services)
-    {
         services.AddSingleton<IScreenshotService, NullScreenshotService>();
         services.AddSingleton<IInputInjectionService, NullInputInjectionService>();
+#endif
+
+        return services.BuildServiceProvider();
     }
 
     private static void DisableAvaloniaDataAnnotationValidation()

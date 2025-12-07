@@ -13,7 +13,7 @@ public interface IConnectionHubClient
     Task ConnectionChanged(ConnectionInfo connectionInfo);
     Task ConnectionStopped(string connectionId);
 
-    Task MessageReceived(string connectionId, string senderClientId, string messageType, ReadOnlyMemory<byte> data);
+    Task MessageReceived(string connectionId, string senderClientId, string messageType, byte[] data);
 
     Task VersionMismatch(string serverVersion, string clientVersion);
 }
@@ -56,7 +56,7 @@ public class ConnectionHub(IConnectionsService clientsService, ILogger<Connectio
         return await clientsService.TryConnectTo(this.Context.ConnectionId, username, password);
     }
 
-    public async Task SendMessage(string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null)
+    public async Task SendMessage(string connectionId, string messageType, byte[] data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null)
     {
         await clientsService.SendMessage(this.Context.ConnectionId, connectionId, messageType, data, destination, targetClientIds);
     }

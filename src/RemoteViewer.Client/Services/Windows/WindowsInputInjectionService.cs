@@ -12,11 +12,11 @@ namespace RemoteViewer.Client.Services.Windows;
 /// Service for injecting mouse and keyboard input on the presenter machine.
 /// Uses H.InputSimulator for input simulation.
 /// </summary>
-public class InputInjectionService : IInputInjectionService
+public class WindowsInputInjectionService : IInputInjectionService
 {
     private static readonly TimeSpan s_modifierTimeout = TimeSpan.FromSeconds(10);
 
-    private readonly ILogger<InputInjectionService> _logger;
+    private readonly ILogger<WindowsInputInjectionService> _logger;
     private readonly InputSimulator _simulator = new();
 
     // Track which modifier keys are currently pressed and when they were pressed
@@ -28,7 +28,7 @@ public class InputInjectionService : IInputInjectionService
     private float _verticalScrollAccumulator;
     private float _horizontalScrollAccumulator;
 
-    public InputInjectionService(ILogger<InputInjectionService> logger)
+    public WindowsInputInjectionService(ILogger<WindowsInputInjectionService> logger)
     {
         this._logger = logger;
     }

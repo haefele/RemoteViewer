@@ -1,20 +1,17 @@
 ﻿using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services;
 using RemoteViewer.Client.Views.Presenter;
 using RemoteViewer.Client.Views.Viewer;
+using RemoteViewer.Server.SharedAPI;
 
 namespace RemoteViewer.Client.Views.Main;
 
 public partial class MainViewModel : ViewModelBase
 {
     private readonly ConnectionHubClient _hubClient;
-    private readonly ILogger<ViewerViewModel> _viewerLogger;
-    private readonly ILogger<PresenterViewModel> _presenterLogger;
-    private readonly IScreenshotService _screenshotService;
-    private readonly IInputInjectionService _inputInjectionService;
+    private readonly IViewModelFactory _viewModelFactory;
 
     [ObservableProperty]
     private string? _yourUsername;
@@ -40,22 +37,13 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     private bool _isConnecting;
 
-    // Events for MainView visibility
     public event EventHandler? RequestHideMainView;
     public event EventHandler? RequestShowMainView;
 
-    public MainViewModel(
-        ConnectionHubClient hubClient,
-        ILogger<ViewerViewModel> viewerLogger,
-        ILogger<PresenterViewModel> presenterLogger,
-        IScreenshotService screenshotService,
-        IInputInjectionService inputInjectionService)
+    public MainViewModel(ConnectionHubClient hubClient, IViewModelFactory viewModelFactory)
     {
         this._hubClient = hubClient;
-        this._viewerLogger = viewerLogger;
-        this._presenterLogger = presenterLogger;
-        this._screenshotService = screenshotService;
-        this._inputInjectionService = inputInjectionService;
+        this._viewModelFactory = viewModelFactory;
 
         this._hubClient.HubConnectionStatusChanged += (_, _) =>
         {
@@ -107,52 +95,36 @@ public partial class MainViewModel : ViewModelBase
 
     private void OpenPresenterWindow(Connection connection)
     {
-        RequestHideMainView?.Invoke(this, EventArgs.Empty);
+        this.RequestHideMainView?.Invoke(this, EventArgs.Empty);
 
-        var viewModel = new PresenterViewModel(
-            connection,
-            this._screenshotService,
-            this._inputInjectionService,
-            this._presenterLogger);
         var window = new PresenterView
         {
-            DataContext = viewModel
+            DataContext = this._viewModelFactory.CreatePresenterViewModel(connection)
         };
-
         window.Closed += this.OnSessionWindowClosed;
         window.Show();
     }
 
     private void OpenViewerWindow(Connection connection)
     {
-        RequestHideMainView?.Invoke(this, EventArgs.Empty);
+        this.RequestHideMainView?.Invoke(this, EventArgs.Empty);
 
-        var viewModel = new ViewerViewModel(connection, this._viewerLogger);
         var window = new ViewerView
         {
-            DataContext = viewModel
+            DataContext = this._viewModelFactory.CreateViewerViewModel(connection)
         };
-
         window.Closed += this.OnSessionWindowClosed;
         window.Show();
     }
 
-    private async void OnSessionWindowClosed(object? sender, EventArgs e)
+    private void OnSessionWindowClosed(object? sender, EventArgs e)
     {
-        // Show MainView again
-        RequestShowMainView?.Invoke(this, EventArgs.Empty);
-    }
-
-    public async Task InitializeAsync()
-    {
-        await this._hubClient.ConnectToHub();
+        this.RequestShowMainView?.Invoke(this, EventArgs.Empty);
     }
 
     [RelayCommand]
     private async Task ConnectToDeviceAsync()
     {
-        await this._hubClient.GenerateNewPassword();
-
         if (string.IsNullOrWhiteSpace(this.TargetUsername) || string.IsNullOrWhiteSpace(this.TargetPassword))
         {
             this.ConnectionError = "Username and password are required";
@@ -165,21 +137,19 @@ public partial class MainViewModel : ViewModelBase
         try
         {
             var error = await this._hubClient.ConnectTo(this.TargetUsername, this.TargetPassword);
-
-            if (error is null)
-            {
-                this.ConnectionError = null;
-                // Connection successful - will receive ConnectionStarted event
-            }
-            else
+            if (error is not null)
             {
                 this.ConnectionError = error switch
                 {
-                    Server.SharedAPI.TryConnectError.IncorrectUsernameOrPassword => "Incorrect username or password",
-                    Server.SharedAPI.TryConnectError.ViewerNotFound => "Connection error - please try again",
-                    Server.SharedAPI.TryConnectError.CannotConnectToYourself => "Cannot connect to yourself",
+                    TryConnectError.IncorrectUsernameOrPassword => "Incorrect username or password",
+                    TryConnectError.ViewerNotFound => "Connection error - please try again",
+                    TryConnectError.CannotConnectToYourself => "Cannot connect to yourself",
                     _ => "Unknown error occurred"
                 };
+            }
+            else
+            {
+                // Connection successful - will receive ConnectionStarted event
             }
         }
         finally

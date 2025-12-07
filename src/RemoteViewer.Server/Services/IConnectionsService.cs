@@ -17,7 +17,7 @@ public interface IConnectionsService
 
     Task<TryConnectError?> TryConnectTo(string signalrConnectionId, string username, string password);
     Task DisconnectFromConnection(string signalrConnectionId, string connectionId);
-    Task SendMessage(string signalrConnectionId, string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null);
+    Task SendMessage(string signalrConnectionId, string connectionId, string messageType, byte[] data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null);
 }
 
 
@@ -202,7 +202,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
         await actions.ExecuteAll();
     }
 
-    public async Task SendMessage(string signalrConnectionId, string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null)
+    public async Task SendMessage(string signalrConnectionId, string connectionId, string messageType, byte[] data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null)
     {
         var actions = connectionHub.BatchedActions(this._logger);
         string? senderId = null;
@@ -346,7 +346,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
             }
         }
 
-        public bool SendMessage(Client sender, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination, IReadOnlyList<string>? targetClientIds, ConnectionHubBatchedActions actions)
+        public bool SendMessage(Client sender, string messageType, byte[] data, MessageDestination destination, IReadOnlyList<string>? targetClientIds, ConnectionHubBatchedActions actions)
         {
             var isSenderPresenter = this.Presenter == sender;
             var isSenderViewer = this._viewers.Contains(sender);

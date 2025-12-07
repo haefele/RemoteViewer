@@ -78,7 +78,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
             connection.OnClosed();
         });
 
-        this._connection.On<string, string, string, ReadOnlyMemory<byte>>("MessageReceived", async (connectionId, senderClientId, messageType, data) =>
+        this._connection.On<string, string, string, byte[]>("MessageReceived", async (connectionId, senderClientId, messageType, data) =>
         {
             this._logger.LogDebug("Message received - ConnectionId: {ConnectionId}, SenderClientId: {SenderClientId}, MessageType: {MessageType}, DataLength: {DataLength}", connectionId, senderClientId, messageType, data.Length);
 
@@ -91,7 +91,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
             this.HasVersionMismatch = true;
             this.ServerVersion = serverVersion;
 
-            this.HubConnectionStatusChanged?.Invoke(this, EventArgs.Empty);
+            this._hubConnectionStatusChanged?.Invoke(this, EventArgs.Empty);
         });
 
         this._connection.Closed += (error) =>
@@ -106,7 +106,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
             }
 
             this.CloseAllConnections();
-            this.HubConnectionStatusChanged?.Invoke(this, EventArgs.Empty);
+            this._hubConnectionStatusChanged?.Invoke(this, EventArgs.Empty);
 
             if (this.HasVersionMismatch)
             {
@@ -121,7 +121,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
         {
             this._logger.LogWarning(error, "Connection reconnecting");
             this.CloseAllConnections();
-            this.HubConnectionStatusChanged?.Invoke(this, EventArgs.Empty);
+            this._hubConnectionStatusChanged?.Invoke(this, EventArgs.Empty);
 
             return Task.CompletedTask;
         };
@@ -129,7 +129,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
         this._connection.Reconnected += (connectionId) =>
         {
             this._logger.LogInformation("Connection reconnected - ConnectionId: {ConnectionId}", connectionId);
-            this.HubConnectionStatusChanged?.Invoke(this, EventArgs.Empty);
+            this._hubConnectionStatusChanged?.Invoke(this, EventArgs.Empty);
             return Task.CompletedTask;
         };
     }
@@ -181,7 +181,17 @@ public sealed class ConnectionHubClient : IAsyncDisposable
 
     public bool IsConnected => this._connection.State == HubConnectionState.Connected;
 
-    public event EventHandler? HubConnectionStatusChanged;
+    private EventHandler? _hubConnectionStatusChanged;
+    public event EventHandler? HubConnectionStatusChanged
+    {
+        add
+        {
+            this._hubConnectionStatusChanged += value;
+            value?.Invoke(this, EventArgs.Empty);
+        }
+
+        remove => this._hubConnectionStatusChanged -= value;
+    }
 
     public async Task ConnectToHub()
     {
@@ -193,7 +203,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
                 await this._connection.StartAsync();
 
                 this._logger.LogInformation("Connected to server successfully");
-                this.HubConnectionStatusChanged?.Invoke(this, EventArgs.Empty);
+                this._hubConnectionStatusChanged?.Invoke(this, EventArgs.Empty);
 
                 return;
             }
