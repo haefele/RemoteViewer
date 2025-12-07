@@ -16,4 +16,11 @@
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
   </ItemGroup>
 
+  <!-- Just setting the ContainerImageTags MSBuild roperty with the $(PackageVersion) variable doesn't seem to work, needs this workaround -->
+  <Target Name="SetContainerInfo" BeforeTargets="CoreCompile">
+    <PropertyGroup>
+      <ContainerImageTags>v$(PackageVersion);latest</ContainerImageTags>
+    </PropertyGroup>
+  </Target>
+
 </Project>
