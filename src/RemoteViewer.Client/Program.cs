@@ -1,4 +1,4 @@
-using Avalonia;
+﻿using Avalonia;
 using Serilog;
 using Serilog.Sinks.File;
 
@@ -11,7 +11,7 @@ sealed class Program
     {
         Log.Logger = new LoggerConfiguration()
             .Enrich.FromLogContext()
-            .MinimumLevel.Information()
+            .MinimumLevel.Debug()
             .WriteTo.Async(a => a.File(
                 Path.Combine(
                     Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -20,6 +20,7 @@ sealed class Program
                     "log-.txt"),
                 rollingInterval: RollingInterval.Day,
                 retainedFileCountLimit: 7))
+            .WriteTo.Async(a => a.Debug())
             .CreateLogger();
 
         try
