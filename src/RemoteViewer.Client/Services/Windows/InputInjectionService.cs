@@ -24,6 +24,10 @@ public class InputInjectionService : IInputInjectionService
     private readonly object _modifierLock = new();
     private DateTime _lastInputTime = DateTime.UtcNow;
 
+    // Accumulators for fractional scroll values (high-precision/smooth scrolling)
+    private float _verticalScrollAccumulator;
+    private float _horizontalScrollAccumulator;
+
     public InputInjectionService(ILogger<InputInjectionService> logger)
     {
         this._logger = logger;
@@ -88,16 +92,22 @@ public class InputInjectionService : IInputInjectionService
         var (absX, absY) = NormalizedToAbsolute(display, normalizedX, normalizedY);
         this._simulator.Mouse.MoveMouseToPositionOnVirtualDesktop(absX, absY);
 
-        // Vertical scroll
-        if (Math.Abs(deltaY) > 0.001f)
+        // Accumulate vertical scroll and dispatch whole clicks
+        this._verticalScrollAccumulator += deltaY;
+        var verticalClicks = (int)this._verticalScrollAccumulator;
+        if (verticalClicks != 0)
         {
-            this._simulator.Mouse.VerticalScroll((int)deltaY);
+            this._simulator.Mouse.VerticalScroll(verticalClicks);
+            this._verticalScrollAccumulator -= verticalClicks;
         }
 
-        // Horizontal scroll
-        if (Math.Abs(deltaX) > 0.001f)
+        // Accumulate horizontal scroll and dispatch whole clicks
+        this._horizontalScrollAccumulator += deltaX;
+        var horizontalClicks = (int)this._horizontalScrollAccumulator;
+        if (horizontalClicks != 0)
         {
-            this._simulator.Mouse.HorizontalScroll((int)deltaX);
+            this._simulator.Mouse.HorizontalScroll(horizontalClicks);
+            this._horizontalScrollAccumulator -= horizontalClicks;
         }
     }
 
