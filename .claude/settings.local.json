@@ -10,7 +10,10 @@
       "WebFetch(domain:github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
       "Bash(dotnet restore:*)",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(git log:*)",
+      "Bash(del \"C:\\Users\\haefe\\source\\repos\\RemoteViewer\\src\\RemoteViewer.Client\\Views\\Presenter\\PresenterViewModelLogs.cs\")",
+      "Bash(del \"C:\\Users\\haefe\\source\\repos\\RemoteViewer\\src\\RemoteViewer.Client\\Views\\Viewer\\ViewerViewModelLogs.cs\")"
     ],
     "deny": [],
     "ask": []

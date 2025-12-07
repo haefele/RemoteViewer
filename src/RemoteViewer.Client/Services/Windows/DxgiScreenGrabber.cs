@@ -1,4 +1,4 @@
-#if WINDOWS
+﻿#if WINDOWS
 using Microsoft.Extensions.Logging;
 using SkiaSharp;
 using System.Drawing;
@@ -69,6 +69,8 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
                 var sourceTexture = (ID3D11Texture2D)screenResource;
                 deviceContext.CopyResource(stagingTexture, sourceTexture);
 
+                var dirtyRects = this.GetDirtyRects(outputDuplication);
+
                 D3D11_MAPPED_SUBRESOURCE mappedResource;
                 deviceContext.Map(stagingTexture, 0, D3D11_MAP.D3D11_MAP_READ, 0, &mappedResource);
 
@@ -91,7 +93,6 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
                         }
                     }
 
-                    var dirtyRects = this.GetDirtyRects(outputDuplication);
                     return CaptureResult.Ok(targetBuffer, dirtyRects);
                 }
                 finally
@@ -133,42 +134,44 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
         try
         {
             var rectSize = (uint)sizeof(RECT);
-            uint bufferSizeNeeded = 0;
+
+            // Allocate a reasonable buffer upfront to avoid two calls
+            // Most frames have < 100 dirty rects, so 100 * 16 bytes = 1600 bytes
+            const int MaxExpectedRects = 100;
+            var bufferSize = (uint)(MaxExpectedRects * rectSize);
+            var dirtyRectsPtr = (RECT*)NativeMemory.Alloc(bufferSize);
 
             try
             {
-                outputDuplication.GetFrameDirtyRects(0, null, out bufferSizeNeeded);
-            }
-            catch
-            {
-                return [];
-            }
+                uint actualSize = 0;
+                try
+                {
+                    outputDuplication.GetFrameDirtyRects(bufferSize, dirtyRectsPtr, out actualSize);
+                }
+                catch (COMException ex) when ((uint)ex.HResult == 0x8007007A) // ERROR_INSUFFICIENT_BUFFER
+                {
+                    // Buffer too small, reallocate with the required size
+                    NativeMemory.Free(dirtyRectsPtr);
+                    bufferSize = actualSize;
+                    dirtyRectsPtr = (RECT*)NativeMemory.Alloc(bufferSize);
+                    outputDuplication.GetFrameDirtyRects(bufferSize, dirtyRectsPtr, out actualSize);
+                }
 
-            if (bufferSizeNeeded == 0)
-            {
-                return [];
-            }
-
-            var numRects = (int)(bufferSizeNeeded / rectSize);
-            var dirtyRects = new Rectangle[numRects];
-            var dirtyRectsPtr = (RECT*)NativeMemory.Alloc(bufferSizeNeeded);
-
-            try
-            {
-                outputDuplication.GetFrameDirtyRects(bufferSizeNeeded, dirtyRectsPtr, out bufferSizeNeeded);
+                var numRects = (int)(actualSize / rectSize);
+                var dirtyRects = new Rectangle[numRects];
 
                 for (var i = 0; i < numRects; i++)
                 {
                     var rect = dirtyRectsPtr[i];
                     dirtyRects[i] = new Rectangle(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
                 }
+
+                return dirtyRects;
             }
             finally
             {
                 NativeMemory.Free(dirtyRectsPtr);
             }
-
-            return dirtyRects;
         }
         catch (Exception exception)
         {
