@@ -7,10 +7,17 @@
         mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="720"
         x:Class="RemoteViewer.Client.Views.Viewer.ViewerView"
         x:DataType="vm:ViewerViewModel"
+        
         Icon="/Assets/avalonia-logo.ico"
         Title="{Binding Title}"
-        Width="1280" Height="720"
-        WindowStartupLocation="CenterScreen">
+        Width="1280" 
+        Height="720"
+        WindowStartupLocation="CenterScreen"
+
+        DataContextChanged="Window_DataContextChanged"
+        Opened="Window_Opened"
+        Deactivated="Window_Deactivated"
+        Closed="Window_Closed">
 
     <Design.DataContext>
         <vm:ViewerViewModel/>
@@ -42,6 +49,7 @@
                               ItemsSource="{Binding Displays}"
                               SelectedValue="{Binding SelectedDisplayId}"
                               SelectedValueBinding="{Binding Id}"
+                              DropDownClosed="DisplayComboBox_DropDownClosed"
                               MinWidth="150">
                         <ComboBox.ItemTemplate>
                             <DataTemplate>
@@ -60,7 +68,13 @@
         <Border x:Name="DisplayPanel"
                 Background="Black"
                 ClipToBounds="True"
-                Focusable="True">
+                Focusable="True"
+                PointerMoved="DisplayPanel_PointerMoved"
+                PointerPressed="DisplayPanel_PointerPressed"
+                PointerReleased="DisplayPanel_PointerReleased"
+                PointerWheelChanged="DisplayPanel_PointerWheelChanged"
+                KeyDown="DisplayPanel_KeyDown"
+                KeyUp="DisplayPanel_KeyUp">
             <Panel>
                 <Image x:Name="FrameImage"
                        Source="{Binding FrameBitmap}"

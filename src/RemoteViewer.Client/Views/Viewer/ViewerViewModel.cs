@@ -5,18 +5,18 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services;
 using RemoteViewer.Server.SharedAPI.Protocol;
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 
 namespace RemoteViewer.Client.Views.Viewer;
 
-/// <summary>
-/// ViewModel for the viewer window that displays remote screen and handles input capture.
-/// </summary>
 public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 {
     private readonly Connection _connection;
     private readonly ILogger<ViewerViewModel> _logger;
     private readonly FrameCompositor _compositor = new();
+
+    private readonly ConcurrentDictionary<ushort, object?> _pressedKeys = new();
 
     private bool _disposed;
     private ulong _lastReceivedFrameNumber;
@@ -58,22 +58,20 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     public event EventHandler? CloseRequested;
 
-    public ViewerViewModel(
-        Connection connection,
-        ILogger<ViewerViewModel> logger)
+    public ViewerViewModel(Connection connection, ILogger<ViewerViewModel> logger)
     {
         this._connection = connection;
         this._logger = logger;
 
         // Subscribe to Connection events
-        this._connection.DisplaysChanged += this.OnDisplaysChanged;
-        this._connection.FrameReceived += this.OnFrameReceived;
-        this._connection.Closed += this.OnConnectionClosed;
+        this._connection.DisplaysChanged += this.Connection_DisplaysChanged;
+        this._connection.FrameReceived += this.Connection_FrameReceived;
+        this._connection.Closed += this.Connection_Closed;
 
         this.Title = $"Remote Viewer - {connection.ConnectionId[..8]}...";
     }
 
-    private void OnDisplaysChanged(object? sender, EventArgs e)
+    private void Connection_DisplaysChanged(object? sender, EventArgs e)
     {
         Dispatcher.UIThread.Post(() =>
         {
@@ -90,7 +88,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         });
     }
 
-    private void OnFrameReceived(object? sender, FrameReceivedEventArgs e)
+    private void Connection_FrameReceived(object? sender, FrameReceivedEventArgs e)
     {
         // Only process frames for the selected display
         if (e.DisplayId != this.SelectedDisplayId)
@@ -149,14 +147,9 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    private void OnConnectionClosed(object? sender, EventArgs e)
+    private void Connection_Closed(object? sender, EventArgs e)
     {
-        Dispatcher.UIThread.Post(() =>
-        {
-            this.IsConnected = false;
-            this.StatusText = "Connection closed";
-            CloseRequested?.Invoke(this, EventArgs.Empty);
-        });
+        this.CloseRequested?.Invoke(this, EventArgs.Empty);
     }
 
     [RelayCommand]
@@ -166,64 +159,132 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         await this._connection.DisconnectAsync();
     }
 
-    public void SendMouseMove(float x, float y)
+    public async Task SendMouseMoveAsync(float x, float y)
     {
-        if (!this.IsConnected || this.SelectedDisplayId is null)
+        if (this.IsConnected is false || this.SelectedDisplayId is null)
             return;
 
-        var message = new MouseMoveMessage(x, y);
-        var data = ProtocolSerializer.Serialize(message);
-        _ = this._connection.SendInputAsync(MessageTypes.Input.MouseMove, data);
+        try
+        {
+            var message = new MouseMoveMessage(x, y);
+            var data = ProtocolSerializer.Serialize(message);
+            await this._connection.SendInputAsync(MessageTypes.Input.MouseMove, data);
+        }
+        catch (Exception ex)
+        {
+            this._logger.LogError(ex, "Failed to send mouse move");
+        }
     }
 
-    public void SendMouseDown(MouseButton button, float x, float y)
+    public async Task SendMouseDownAsync(MouseButton button, float x, float y)
     {
-        if (!this.IsConnected || this.SelectedDisplayId is null)
+        if (this.IsConnected is false || this.SelectedDisplayId is null)
             return;
 
-        var message = new MouseButtonMessage(button, x, y);
-        var data = ProtocolSerializer.Serialize(message);
-        _ = this._connection.SendInputAsync(MessageTypes.Input.MouseDown, data);
+        try
+        {
+            var message = new MouseButtonMessage(button, x, y);
+            var data = ProtocolSerializer.Serialize(message);
+            await this._connection.SendInputAsync(MessageTypes.Input.MouseDown, data);
+        }
+        catch (Exception ex)
+        {
+            this._logger.LogError(ex, "Failed to send mouse down");
+        }
     }
 
-    public void SendMouseUp(MouseButton button, float x, float y)
+    public async Task SendMouseUpAsync(MouseButton button, float x, float y)
     {
-        if (!this.IsConnected || this.SelectedDisplayId is null)
+        if (this.IsConnected is false || this.SelectedDisplayId is null)
             return;
 
-        var message = new MouseButtonMessage(button, x, y);
-        var data = ProtocolSerializer.Serialize(message);
-        _ = this._connection.SendInputAsync(MessageTypes.Input.MouseUp, data);
+        try
+        {
+            var message = new MouseButtonMessage(button, x, y);
+            var data = ProtocolSerializer.Serialize(message);
+            await this._connection.SendInputAsync(MessageTypes.Input.MouseUp, data);
+        }
+        catch (Exception ex)
+        {
+            this._logger.LogError(ex, "Failed to send mouse up");
+        }
     }
 
-    public void SendMouseWheel(float deltaX, float deltaY, float x, float y)
+    public async Task SendMouseWheelAsync(float deltaX, float deltaY, float x, float y)
     {
-        if (!this.IsConnected || this.SelectedDisplayId is null)
+        if (this.IsConnected is false || this.SelectedDisplayId is null)
             return;
 
-        var message = new MouseWheelMessage(deltaX, deltaY, x, y);
-        var data = ProtocolSerializer.Serialize(message);
-        _ = this._connection.SendInputAsync(MessageTypes.Input.MouseWheel, data);
+        try
+        {
+            var message = new MouseWheelMessage(deltaX, deltaY, x, y);
+            var data = ProtocolSerializer.Serialize(message);
+            await this._connection.SendInputAsync(MessageTypes.Input.MouseWheel, data);
+        }
+        catch (Exception ex)
+        {
+            this._logger.LogError(ex, "Failed to send mouse wheel");
+        }
     }
 
-    public void SendKeyDown(ushort keyCode, KeyModifiers modifiers)
+    public async Task SendKeyDownAsync(ushort keyCode, KeyModifiers modifiers)
     {
-        if (!this.IsConnected)
+        if (this.IsConnected is false || this.SelectedDisplayId is null)
             return;
 
-        var message = new KeyMessage(keyCode, modifiers);
-        var data = ProtocolSerializer.Serialize(message);
-        _ = this._connection.SendInputAsync(MessageTypes.Input.KeyDown, data);
+        try
+        {
+            this._pressedKeys.TryAdd(keyCode, null);
+
+            var message = new KeyMessage(keyCode, modifiers);
+            var data = ProtocolSerializer.Serialize(message);
+            await this._connection.SendInputAsync(MessageTypes.Input.KeyDown, data);
+        }
+        catch (Exception ex)
+        {
+            this._logger.LogError(ex, "Failed to send key down");
+        }
     }
 
-    public void SendKeyUp(ushort keyCode, KeyModifiers modifiers)
+    public async Task SendKeyUpAsync(ushort keyCode, KeyModifiers modifiers)
     {
-        if (!this.IsConnected)
+        if (this.IsConnected is false || this.SelectedDisplayId is null)
             return;
 
-        var message = new KeyMessage(keyCode, modifiers);
-        var data = ProtocolSerializer.Serialize(message);
-        _ = this._connection.SendInputAsync(MessageTypes.Input.KeyUp, data);
+        try
+        {
+            this._pressedKeys.TryRemove(keyCode, out _);
+
+            var message = new KeyMessage(keyCode, modifiers);
+            var data = ProtocolSerializer.Serialize(message);
+            await this._connection.SendInputAsync(MessageTypes.Input.KeyUp, data);
+        }
+        catch (Exception ex)
+        {
+            this._logger.LogError(ex, "Failed to send key up");
+        }
+    }
+
+    public async Task ReleaseAllKeysAsync()
+    {
+        if (this.IsConnected is false || this._pressedKeys.IsEmpty || this.SelectedDisplayId is null)
+            return;
+
+        foreach (var keyCode in this._pressedKeys.Keys)
+        {
+            try
+            {
+                this._pressedKeys.TryRemove(keyCode, out _);
+
+                var message = new KeyMessage(keyCode, KeyModifiers.None);
+                var data = ProtocolSerializer.Serialize(message);
+                await this._connection.SendInputAsync(MessageTypes.Input.KeyUp, data);
+            }
+            catch (Exception ex)
+            {
+                this._logger.LogError(ex, "Failed to release key");
+            }
+        }
     }
 
     public async ValueTask DisposeAsync()
@@ -231,17 +292,16 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         if (this._disposed)
             return;
 
-        await this.DisconnectCommand.ExecuteAsync(null);
-
         this._disposed = true;
 
+        await this._connection.DisconnectAsync();
+
         // Unsubscribe from Connection events
-        this._connection.DisplaysChanged -= this.OnDisplaysChanged;
-        this._connection.FrameReceived -= this.OnFrameReceived;
-        this._connection.Closed -= this.OnConnectionClosed;
+        this._connection.DisplaysChanged -= this.Connection_DisplaysChanged;
+        this._connection.FrameReceived -= this.Connection_FrameReceived;
+        this._connection.Closed -= this.Connection_Closed;
 
         this._compositor.Dispose();
-        this.FrameBitmap = null;
 
         GC.SuppressFinalize(this);
     }

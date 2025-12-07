@@ -1,9 +1,9 @@
-﻿using Avalonia;
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Win32.Input;
+using System.ComponentModel;
 using ProtocolMouseButton = RemoteViewer.Server.SharedAPI.Protocol.MouseButton;
 using ProtocolKeyModifiers = RemoteViewer.Server.SharedAPI.Protocol.KeyModifiers;
-using Avalonia.Win32.Input;
 
 namespace RemoteViewer.Client.Views.Viewer;
 
@@ -14,76 +14,65 @@ public partial class ViewerView : Window
     public ViewerView()
     {
         this.InitializeComponent();
-
-        this.DisplayPanel.KeyDown += this.OnDisplayPanelKeyDown;
-        this.DisplayPanel.KeyUp += this.OnDisplayPanelKeyUp;
-        this.DisplayComboBox.DropDownClosed += this.OnDisplayComboBoxDropDownClosed;
     }
 
-    protected override void OnOpened(EventArgs e)
+    private void Window_DataContextChanged(object? sender, EventArgs e)
     {
-        base.OnOpened(e);
-        this.DisplayPanel.Focus();
-    }
-
-    protected override void OnDataContextChanged(EventArgs e)
-    {
-        base.OnDataContextChanged(e);
-
         if (this._viewModel is not null)
         {
-            this._viewModel.PropertyChanged -= this.ViewModelOnPropertyChanged;
-            this._viewModel.CloseRequested -= this.OnCloseRequested;
+            this._viewModel.PropertyChanged -= this.ViewModel_PropertyChanged;
+            this._viewModel.CloseRequested -= this.ViewModel_CloseRequested;
         }
 
         this._viewModel = this.DataContext as ViewerViewModel;
 
         if (this._viewModel is not null)
         {
-            this._viewModel.CloseRequested += this.OnCloseRequested;
-            this._viewModel.PropertyChanged += this.ViewModelOnPropertyChanged;
+            this._viewModel.CloseRequested += this.ViewModel_CloseRequested;
+            this._viewModel.PropertyChanged += this.ViewModel_PropertyChanged;
         }
     }
-
-    private void ViewModelOnPropertyChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    private void Window_Opened(object? sender, EventArgs e)
     {
-        if (e.PropertyName == nameof(ViewerViewModel.FrameBitmap))
-            this.FrameImage.InvalidateVisual();
-        else if (e.PropertyName == nameof(ViewerViewModel.DebugOverlayBitmap))
-            this.DebugOverlayImage.InvalidateVisual();
+        this.DisplayPanel.Focus();
     }
-
-    private void OnCloseRequested(object? sender, EventArgs e)
+    private async void Window_Deactivated(object? sender, EventArgs e)
     {
-        this.Close();
+        if (this._viewModel is not null)
+            await this._viewModel.ReleaseAllKeysAsync();
     }
-
-    protected override async void OnClosed(EventArgs e)
+    private async void Window_Closed(object? sender, EventArgs e)
     {
-        base.OnClosed(e);
-
         if (this._viewModel is not null)
             await this._viewModel.DisposeAsync();
     }
 
-    protected override void OnPointerMoved(PointerEventArgs e)
+    private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        base.OnPointerMoved(e);
+        if (e.PropertyName == nameof(ViewerViewModel.FrameBitmap))
+            this.FrameImage.InvalidateVisual();
 
+        if (e.PropertyName == nameof(ViewerViewModel.DebugOverlayBitmap))
+            this.DebugOverlayImage.InvalidateVisual();
+    }
+    private void ViewModel_CloseRequested(object? sender, EventArgs e)
+    {
+        this.Close();
+    }
+
+    private async void DisplayPanel_PointerMoved(object? sender, PointerEventArgs e)
+    {
         if (this._viewModel is null)
             return;
 
         var (x, y) = this.GetNormalizedPosition(e);
         if (x >= 0 && x <= 1 && y >= 0 && y <= 1)
         {
-            this._viewModel.SendMouseMove(x, y);
+            await this._viewModel.SendMouseMoveAsync(x, y);
         }
     }
-
-    protected override void OnPointerPressed(PointerPressedEventArgs e)
+    private async void DisplayPanel_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        base.OnPointerPressed(e);
-
         if (this._viewModel is null)
             return;
 
@@ -91,18 +80,15 @@ public partial class ViewerView : Window
         if (x >= 0 && x <= 1 && y >= 0 && y <= 1)
         {
             var point = e.GetCurrentPoint(this.FrameImage);
-            var button = GetMouseButton(point.Properties);
+            var button = this.GetMouseButton(point.Properties);
             if (button is not null)
             {
-                this._viewModel.SendMouseDown(button.Value, x, y);
+                await this._viewModel.SendMouseDownAsync(button.Value, x, y);
             }
         }
     }
-
-    protected override void OnPointerReleased(PointerReleasedEventArgs e)
+    private async void DisplayPanel_PointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        base.OnPointerReleased(e);
-
         if (this._viewModel is null)
             return;
 
@@ -119,52 +105,47 @@ public partial class ViewerView : Window
 
             if (button is not null)
             {
-                this._viewModel.SendMouseUp(button.Value, x, y);
+                await this._viewModel.SendMouseUpAsync(button.Value, x, y);
             }
         }
     }
-
-    protected override void OnPointerWheelChanged(PointerWheelEventArgs e)
+    private async void DisplayPanel_PointerWheelChanged(object? sender, PointerWheelEventArgs e)
     {
-        base.OnPointerWheelChanged(e);
-
         if (this._viewModel is null)
             return;
 
         var (x, y) = this.GetNormalizedPosition(e);
         if (x >= 0 && x <= 1 && y >= 0 && y <= 1)
         {
-            this._viewModel.SendMouseWheel((float)e.Delta.X, (float)e.Delta.Y, x, y);
+            await this._viewModel.SendMouseWheelAsync((float)e.Delta.X, (float)e.Delta.Y, x, y);
         }
     }
+    private async void DisplayPanel_KeyDown(object? sender, KeyEventArgs e)
+    {
+        if (this._viewModel is null)
+            return;
 
-    private void OnDisplayComboBoxDropDownClosed(object? sender, EventArgs e)
+        e.Handled = true;
+
+        var keyCode = (ushort)KeyInterop.VirtualKeyFromKey(e.Key);
+        var modifiers = this.GetKeyModifiers(e.KeyModifiers);
+        await this._viewModel.SendKeyDownAsync(keyCode, modifiers);
+    }
+    private async void DisplayPanel_KeyUp(object? sender, KeyEventArgs e)
+    {
+        if (this._viewModel is null)
+            return;
+
+        e.Handled = true;
+
+        var keyCode = (ushort)KeyInterop.VirtualKeyFromKey(e.Key);
+        var modifiers = this.GetKeyModifiers(e.KeyModifiers);
+        await this._viewModel.SendKeyUpAsync(keyCode, modifiers);
+    }
+
+    private void DisplayComboBox_DropDownClosed(object? sender, EventArgs e)
     {
         this.DisplayPanel.Focus();
-    }
-
-    private void OnDisplayPanelKeyDown(object? sender, KeyEventArgs e)
-    {
-        if (this._viewModel is null)
-            return;
-
-        var keyCode = (ushort)KeyInterop.VirtualKeyFromKey(e.Key);
-        var modifiers = GetKeyModifiers(e.KeyModifiers);
-        this._viewModel.SendKeyDown(keyCode, modifiers);
-
-        e.Handled = true;
-    }
-
-    private void OnDisplayPanelKeyUp(object? sender, KeyEventArgs e)
-    {
-        if (this._viewModel is null)
-            return;
-
-        var keyCode = (ushort)KeyInterop.VirtualKeyFromKey(e.Key);
-        var modifiers = GetKeyModifiers(e.KeyModifiers);
-        this._viewModel.SendKeyUp(keyCode, modifiers);
-
-        e.Handled = true;
     }
 
     private (float X, float Y) GetNormalizedPosition(PointerEventArgs e)
@@ -180,29 +161,29 @@ public partial class ViewerView : Window
 
         return (x, y);
     }
-
-    private static ProtocolMouseButton? GetMouseButton(PointerPointProperties properties)
+    private ProtocolMouseButton? GetMouseButton(PointerPointProperties properties) => properties switch
     {
-        if (properties.IsLeftButtonPressed)
-            return ProtocolMouseButton.Left;
-        if (properties.IsRightButtonPressed)
-            return ProtocolMouseButton.Right;
-        if (properties.IsMiddleButtonPressed)
-            return ProtocolMouseButton.Middle;
-        return null;
-    }
-
-    private static ProtocolKeyModifiers GetKeyModifiers(KeyModifiers modifiers)
+        { IsLeftButtonPressed: true } => ProtocolMouseButton.Left,
+        { IsRightButtonPressed: true } => ProtocolMouseButton.Right,
+        { IsMiddleButtonPressed: true } => ProtocolMouseButton.Middle,
+        _ => null,
+    };
+    private ProtocolKeyModifiers GetKeyModifiers(KeyModifiers modifiers)
     {
         var result = ProtocolKeyModifiers.None;
+
         if (modifiers.HasFlag(KeyModifiers.Shift))
             result |= ProtocolKeyModifiers.Shift;
+
         if (modifiers.HasFlag(KeyModifiers.Control))
             result |= ProtocolKeyModifiers.Control;
+
         if (modifiers.HasFlag(KeyModifiers.Alt))
             result |= ProtocolKeyModifiers.Alt;
+
         if (modifiers.HasFlag(KeyModifiers.Meta))
             result |= ProtocolKeyModifiers.Win;
+
         return result;
     }
 }
