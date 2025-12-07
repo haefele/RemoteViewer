@@ -14,7 +14,10 @@ namespace RemoteViewer.Client;
 
 public partial class App : Application
 {
+    public static new App Current => Application.Current as App ?? throw new InvalidOperationException("Current application is not of type App");
+
     private IServiceProvider? _serviceProvider;
+    public IServiceProvider Services => this._serviceProvider ?? throw new InvalidOperationException("Services not initialized");
 
     public override void Initialize()
     {
@@ -60,6 +63,7 @@ public partial class App : Application
         // Services
         services.AddSingleton<ConnectionHubClient>();
         services.AddSingleton<IViewModelFactory, ViewModelFactory>();
+        services.AddSingleton<IToastService, ToastService>();
 
 #if WINDOWS
         services.AddSingleton<DxgiScreenGrabber>();

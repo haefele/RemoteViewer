@@ -1,0 +1,50 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:RemoteViewer.Client.Controls"
+             x:Class="RemoteViewer.Client.Controls.ToastBar"
+             IsVisible="False">
+
+    <Border x:Name="ToastBorder"
+            CornerRadius="4"
+            Padding="8"
+            MaxWidth="280"
+            MinWidth="180">
+        <Border.Transitions>
+            <Transitions>
+                <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+            </Transitions>
+        </Border.Transitions>
+
+        <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,4,0">
+            <TextBlock x:Name="IconText"
+                       Grid.Column="0"
+                       FontSize="14"
+                       VerticalAlignment="Center"
+                       Foreground="White"
+                       Margin="0,0,8,0"/>
+
+            <TextBlock x:Name="MessageText"
+                       Grid.Column="1"
+                       VerticalAlignment="Center"
+                       TextWrapping="Wrap"
+                       Foreground="White"
+                       Margin="0,0,12,0"/>
+
+            <Button x:Name="CloseButton"
+                    Grid.Column="2"
+                    Content="×"
+                    Background="Transparent"
+                    Foreground="White"
+                    BorderThickness="0"
+                    Width="24"
+                    Height="24"
+                    Padding="0"
+                    FontSize="14"
+                    VerticalAlignment="Center"
+                    HorizontalContentAlignment="Center"
+                    VerticalContentAlignment="Center"
+                    Click="CloseButton_Click"
+                    Cursor="Hand"/>
+        </Grid>
+    </Border>
+</UserControl>
