@@ -12,4 +12,6 @@ public class NullScreenshotService : IScreenshotService
     public ImmutableList<Display> GetDisplays() => [];
 
     public CaptureResult CaptureDisplay(Display display) => CaptureResult.Failure;
+
+    public void RequestKeyframe(string displayName) { }
 }

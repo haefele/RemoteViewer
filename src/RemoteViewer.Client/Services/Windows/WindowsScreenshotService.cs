@@ -76,7 +76,7 @@ public class WindowsScreenshotService(ILogger<WindowsScreenshotService> logger, 
             return captureResult;
 
         var bitmap = captureResult.Bitmap;
-        var keyframeDue = state.KeyframeTimer.ElapsedMilliseconds >= KeyframeIntervalMs;
+        var keyframeDue = state.KeyframeTimer.ElapsedMilliseconds >= KeyframeIntervalMs || state.ForceNextKeyframe;
 
         // Determine dirty rects: use DXGI-provided, compute manually, or send keyframe
         var dirtyRects = captureResult.DirtyRectangles.Length > 0
@@ -95,7 +95,10 @@ public class WindowsScreenshotService(ILogger<WindowsScreenshotService> logger, 
         state.SwapBuffers();
 
         if (isKeyframe)
+        {
             state.KeyframeTimer.Restart();
+            state.ForceNextKeyframe = false;
+        }
 
         return CaptureResult.Ok(bitmap, isKeyframe ? [] : dirtyRects!);
     }
@@ -116,10 +119,19 @@ public class WindowsScreenshotService(ILogger<WindowsScreenshotService> logger, 
     {
         if (!this._displayStates.TryGetValue(displayName, out var state))
         {
-            state = new DisplayCaptureState();
+            // First capture for a display should always be a keyframe
+            state = new DisplayCaptureState { ForceNextKeyframe = true };
             this._displayStates[displayName] = state;
         }
         return state;
+    }
+
+    public void RequestKeyframe(string displayName)
+    {
+        // When a new viewer selects a display, force a keyframe on the next capture cycle.
+        // This ensures new viewers don't see a black screen while waiting for the regular keyframe interval to expire.
+        var state = this.GetOrCreateState(displayName);
+        state.ForceNextKeyframe = true;
     }
 
     public void Dispose()
@@ -204,6 +216,7 @@ public class WindowsScreenshotService(ILogger<WindowsScreenshotService> logger, 
         public int Width { get; private set; }
         public int Height { get; private set; }
         public Stopwatch KeyframeTimer { get; } = Stopwatch.StartNew();
+        public bool ForceNextKeyframe { get; set; }
 
         public SKBitmap? LastCapturedBitmap => this._buffers[this._currentIndex];
 

@@ -296,6 +296,9 @@ public sealed class Connection
 
         this._logger.LogDebug("Viewer {ViewerId} selected display {DisplayId}", senderClientId, message.DisplayId);
         this._viewersChanged?.Invoke(this, EventArgs.Empty);
+
+        // Force immediate keyframe so new viewer doesn't see black screen
+        this._screenshotService?.RequestKeyframe(message.DisplayId);
     }
     private async Task HandleDisplayListRequest(string senderClientId)
     {

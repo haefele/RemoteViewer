@@ -16,6 +16,12 @@ public interface IScreenshotService
 
     ImmutableList<Display> GetDisplays();
     CaptureResult CaptureDisplay(Display display);
+
+    /// <summary>
+    /// Request a keyframe for a display on the next capture cycle.
+    /// Called when a new viewer selects a display to ensure they immediately receive a full frame.
+    /// </summary>
+    void RequestKeyframe(string displayName);
 }
 
 public record Display(string Name, bool IsPrimary, DisplayRect Bounds);
