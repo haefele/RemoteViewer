@@ -62,6 +62,8 @@ public sealed class ScreenEncoder : IDisposable
 
             if (dirtyRects is { Length: 0 })
             {
+                // Early return, we don't need this frameBuffer - make sure to dispose of it as ownership was passed to us
+                frameBuffer.Dispose();
                 return new EncodeResult(false, FrameType.DeltaFrame, []);
             }
 
