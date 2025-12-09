@@ -11,13 +11,6 @@ using RemoteViewer.Client.Services.Toasts;
 using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.Client.Services.ScreenCapture;
 
-
-
-
-
-#if WINDOWS
-#endif
-
 namespace RemoteViewer.Client;
 
 public partial class App : Application
