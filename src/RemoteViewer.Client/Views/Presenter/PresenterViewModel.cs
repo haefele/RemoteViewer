@@ -4,7 +4,9 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
-using RemoteViewer.Client.Services;
+using RemoteViewer.Client.Services.HubClient;
+using RemoteViewer.Client.Services.InputInjection;
+using RemoteViewer.Client.Services.ScreenCapture;
 using RemoteViewer.Server.SharedAPI.Protocol;
 using SkiaSharp;
 

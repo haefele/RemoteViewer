@@ -3,11 +3,19 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
-using RemoteViewer.Client.Services;
 using RemoteViewer.Client.Views.Main;
 using Serilog;
+using RemoteViewer.Client.Services.ViewModels;
+using RemoteViewer.Client.Services.HubClient;
+using RemoteViewer.Client.Services.Toasts;
+using RemoteViewer.Client.Services.InputInjection;
+using RemoteViewer.Client.Services.ScreenCapture;
+
+
+
+
+
 #if WINDOWS
-using RemoteViewer.Client.Services.Windows;
 #endif
 
 namespace RemoteViewer.Client;

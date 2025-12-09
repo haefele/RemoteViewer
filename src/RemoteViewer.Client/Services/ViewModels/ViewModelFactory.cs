@@ -1,9 +1,10 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Views.Main;
 using RemoteViewer.Client.Views.Presenter;
 using RemoteViewer.Client.Views.Viewer;
 
-namespace RemoteViewer.Client.Services;
+namespace RemoteViewer.Client.Services.ViewModels;
 
 public interface IViewModelFactory
 {

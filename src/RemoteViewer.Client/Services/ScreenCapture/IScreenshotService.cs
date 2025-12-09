@@ -1,8 +1,8 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Drawing;
 using SkiaSharp;
 
-namespace RemoteViewer.Client.Services;
+namespace RemoteViewer.Client.Services.ScreenCapture;
 
 /// <summary>
 /// Service for capturing display screenshots.

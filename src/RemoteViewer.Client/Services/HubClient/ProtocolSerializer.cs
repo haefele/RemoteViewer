@@ -1,7 +1,7 @@
 ﻿using Nerdbank.MessagePack;
 using PolyType;
 
-namespace RemoteViewer.Client.Services;
+namespace RemoteViewer.Client.Services.HubClient;
 
 /// <summary>
 /// Helper for serializing/deserializing protocol messages using MessagePack.

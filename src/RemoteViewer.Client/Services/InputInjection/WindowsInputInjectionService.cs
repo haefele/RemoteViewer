@@ -1,12 +1,13 @@
 ﻿#if WINDOWS
 using Microsoft.Extensions.Logging;
+using RemoteViewer.Client.Services.ScreenCapture;
 using RemoteViewer.Server.SharedAPI.Protocol;
 using Windows.Win32;
 using WindowsInput;
 
 using ProtocolMouseButton = RemoteViewer.Server.SharedAPI.Protocol.MouseButton;
 
-namespace RemoteViewer.Client.Services.Windows;
+namespace RemoteViewer.Client.Services.InputInjection;
 
 /// <summary>
 /// Service for injecting mouse and keyboard input on the presenter machine.

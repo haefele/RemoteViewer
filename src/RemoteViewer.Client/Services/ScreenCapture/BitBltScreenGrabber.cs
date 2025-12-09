@@ -1,4 +1,4 @@
-#if WINDOWS
+﻿#if WINDOWS
 using Microsoft.Extensions.Logging;
 using SkiaSharp;
 using System.Runtime.InteropServices;
@@ -6,7 +6,7 @@ using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.Graphics.Gdi;
 
-namespace RemoteViewer.Client.Services.Windows;
+namespace RemoteViewer.Client.Services.ScreenCapture;
 
 public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger)
 {

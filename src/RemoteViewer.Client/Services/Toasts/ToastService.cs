@@ -1,4 +1,4 @@
-namespace RemoteViewer.Client.Services;
+﻿namespace RemoteViewer.Client.Services.Toasts;
 
 public interface IToastService
 {

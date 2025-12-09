@@ -4,7 +4,7 @@ using Avalonia.Platform;
 using RemoteViewer.Server.SharedAPI.Protocol;
 using SkiaSharp;
 
-namespace RemoteViewer.Client.Services;
+namespace RemoteViewer.Client.Views.Presenter;
 
 /// <summary>
 /// Composites delta frames onto a base frame using WriteableBitmap.

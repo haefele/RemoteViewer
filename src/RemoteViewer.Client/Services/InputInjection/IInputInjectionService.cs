@@ -1,6 +1,7 @@
+﻿using RemoteViewer.Client.Services.ScreenCapture;
 using RemoteViewer.Server.SharedAPI.Protocol;
 
-namespace RemoteViewer.Client.Services;
+namespace RemoteViewer.Client.Services.InputInjection;
 
 /// <summary>
 /// Service for injecting mouse and keyboard input on the presenter machine.

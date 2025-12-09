@@ -1,6 +1,6 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 
-namespace RemoteViewer.Client.Services;
+namespace RemoteViewer.Client.Services.ScreenCapture;
 
 /// <summary>
 /// Stub implementation for non-Windows platforms. Returns empty/failure results.

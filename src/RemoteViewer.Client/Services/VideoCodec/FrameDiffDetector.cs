@@ -1,6 +1,6 @@
 ﻿using System.Drawing;
 
-namespace RemoteViewer.Client.Services;
+namespace RemoteViewer.Client.Services.VideoCodec;
 
 /// <summary>
 /// Utility class for detecting differences between two frames by comparing 64x64 pixel blocks.

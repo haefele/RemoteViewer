@@ -1,8 +1,9 @@
 ﻿using Microsoft.Extensions.Logging;
+using RemoteViewer.Client.Services.ScreenCapture;
 using RemoteViewer.Server.SharedAPI;
 using RemoteViewer.Server.SharedAPI.Protocol;
 
-namespace RemoteViewer.Client.Services;
+namespace RemoteViewer.Client.Services.HubClient;
 
 public sealed class Connection
 {

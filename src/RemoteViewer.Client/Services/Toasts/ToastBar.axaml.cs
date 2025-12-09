@@ -3,7 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Threading;
 using Microsoft.Extensions.DependencyInjection;
-using RemoteViewer.Client.Services;
+using RemoteViewer.Client.Services.Toasts;
 
 namespace RemoteViewer.Client.Controls;
 

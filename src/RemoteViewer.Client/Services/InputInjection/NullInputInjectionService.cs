@@ -1,6 +1,7 @@
+﻿using RemoteViewer.Client.Services.ScreenCapture;
 using RemoteViewer.Server.SharedAPI.Protocol;
 
-namespace RemoteViewer.Client.Services;
+namespace RemoteViewer.Client.Services.InputInjection;
 
 /// <summary>
 /// Stub implementation for non-Windows platforms. All methods are no-ops.

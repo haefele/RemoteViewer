@@ -8,8 +8,9 @@ using SkiaSharp;
 using Windows.Win32;
 using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.Foundation;
+using RemoteViewer.Client.Services.VideoCodec;
 
-namespace RemoteViewer.Client.Services.Windows;
+namespace RemoteViewer.Client.Services.ScreenCapture;
 
 public class WindowsScreenshotService(ILogger<WindowsScreenshotService> logger, DxgiScreenGrabber dxgi, BitBltScreenGrabber bitBlt) : IScreenshotService, IDisposable
 {
