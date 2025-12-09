@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.ScreenCapture;
+using RemoteViewer.Client.Services.VideoCodec;
 using RemoteViewer.Server.SharedAPI;
 using RemoteViewer.Server.SharedAPI.Protocol;
 
@@ -11,6 +12,7 @@ public sealed class Connection
     private readonly Func<string, ReadOnlyMemory<byte>, MessageDestination, IReadOnlyList<string>?, Task> _sendMessageAsync;
     private readonly Func<Task> _disconnectAsync;
     private readonly IScreenshotService? _screenshotService;
+    private readonly ScreenEncoder? _screenEncoder;
 
     // Thread-safe viewer list (presenter only)
     private readonly object _viewersLock = new();
@@ -26,11 +28,13 @@ public sealed class Connection
         Func<string, ReadOnlyMemory<byte>, MessageDestination, IReadOnlyList<string>?, Task> sendMessageAsync,
         Func<Task> disconnectAsync,
         ILogger<Connection> logger,
-        IScreenshotService? screenshotService = null)
+        IScreenshotService? screenshotService = null,
+        ScreenEncoder? screenEncoder = null)
     {
         this.ConnectionId = connectionId;
         this.IsPresenter = isPresenter;
         this._screenshotService = screenshotService;
+        this._screenEncoder = screenEncoder;
         this._sendMessageAsync = sendMessageAsync;
         this._disconnectAsync = disconnectAsync;
         this._logger = logger;
@@ -299,7 +303,7 @@ public sealed class Connection
         this._viewersChanged?.Invoke(this, EventArgs.Empty);
 
         // Force immediate keyframe so new viewer doesn't see black screen
-        this._screenshotService?.RequestKeyframe(message.DisplayId);
+        this._screenEncoder?.RequestKeyframe(message.DisplayId);
     }
     private async Task HandleDisplayListRequest(string senderClientId)
     {

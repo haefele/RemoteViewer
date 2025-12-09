@@ -10,6 +10,7 @@ using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.Toasts;
 using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.Client.Services.ScreenCapture;
+using RemoteViewer.Client.Services.VideoCodec;
 
 namespace RemoteViewer.Client;
 
@@ -65,6 +66,7 @@ public partial class App : Application
         services.AddSingleton<ConnectionHubClient>();
         services.AddSingleton<IViewModelFactory, ViewModelFactory>();
         services.AddSingleton<IToastService, ToastService>();
+        services.AddSingleton<ScreenEncoder>();
 
 #if WINDOWS
         services.AddSingleton<DxgiScreenGrabber>();

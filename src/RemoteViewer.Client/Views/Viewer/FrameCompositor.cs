@@ -4,7 +4,7 @@ using Avalonia.Platform;
 using RemoteViewer.Server.SharedAPI.Protocol;
 using SkiaSharp;
 
-namespace RemoteViewer.Client.Views.Presenter;
+namespace RemoteViewer.Client.Views.Viewer;
 
 /// <summary>
 /// Composites delta frames onto a base frame using WriteableBitmap.
@@ -37,7 +37,7 @@ public class FrameCompositor : IDisposable
     /// <summary>
     /// When enabled, draws red borders around dirty regions for debugging.
     /// </summary>
-    public bool ShowDirtyRegionBorders { get; set; }
+    public bool ShowDirtyRegionBorders { get; set; } = true;
 
     /// <summary>
     /// Gets the debug overlay bitmap (null when ShowDirtyRegionBorders is false).

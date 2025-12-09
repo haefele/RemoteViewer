@@ -1,25 +1,22 @@
 ﻿using System.Diagnostics;
-using System.Drawing;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using RemoteViewer.Client.Common;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.Client.Services.ScreenCapture;
+using RemoteViewer.Client.Services.VideoCodec;
 using RemoteViewer.Server.SharedAPI.Protocol;
-using SkiaSharp;
 
 namespace RemoteViewer.Client.Views.Presenter;
 
-/// <summary>
-/// ViewModel for the presenter window that handles presentation status, screen capture,
-/// frame sending, and input injection.
-/// </summary>
 public partial class PresenterViewModel : ViewModelBase, IDisposable
 {
     private readonly Connection _connection;
     private readonly IScreenshotService _screenshotService;
+    private readonly ScreenEncoder _screenEncoder;
     private readonly IInputInjectionService _inputInjectionService;
     private readonly ILogger<PresenterViewModel> _logger;
 
@@ -47,11 +44,13 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
     public PresenterViewModel(
         Connection connection,
         IScreenshotService screenshotService,
+        ScreenEncoder screenEncoder,
         IInputInjectionService inputInjectionService,
         ILogger<PresenterViewModel> logger)
     {
         this._connection = connection;
         this._screenshotService = screenshotService;
+        this._screenEncoder = screenEncoder;
         this._inputInjectionService = inputInjectionService;
         this._logger = logger;
 
@@ -229,6 +228,7 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
             .Select(v => v.SelectedDisplayId)
             .Where(id => id is not null)
             .Distinct()
+            .Cast<string>()
             .ToList();
 
         if (displayIds.Count == 0)
@@ -244,67 +244,55 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
             if (display is null)
                 continue;
 
-            var captureResult = this._screenshotService.CaptureDisplay(display);
-            if (captureResult is { Success: false } or { Bitmap: null })
+            var width = display.Bounds.Width;
+            var height = display.Bounds.Height;
+            var bufferSize = width * height * 4;
+
+            using var frameBuffer = RefCountedMemoryOwner<byte>.Create(bufferSize);
+
+            var grabResult = this._screenshotService.CaptureDisplay(display, frameBuffer.Span);
+            if (grabResult.Status != GrabStatus.Success)
                 continue;
 
-            var bitmap = captureResult.Bitmap;
-            var dirtyRects = captureResult.DirtyRectangles;
+            frameBuffer.AddRef(); // To pass ownership to encoder
+            var encodeResult = this._screenEncoder.ProcessFrame(
+                displayId,
+                frameBuffer,
+                width,
+                height,
+                grabResult.DirtyRects);
 
-            // Determine frame type: empty dirty rects means keyframe
-            var isKeyframe = dirtyRects.Length == 0;
-            var frameType = isKeyframe ? FrameType.Keyframe : FrameType.DeltaFrame;
+            if (encodeResult.HasChanges is false)
+                continue;
 
-            FrameRegion[] regions;
-            if (isKeyframe)
+            var regions = new FrameRegion[encodeResult.Regions.Length];
+            for (var i = 0; i < encodeResult.Regions.Length; i++)
             {
-                // Full frame as single region
-                var frameData = EncodeJpeg(bitmap, Quality);
-                regions = [new FrameRegion(0, 0, bitmap.Width, bitmap.Height, frameData)];
+                var region = encodeResult.Regions[i];
+                regions[i] = new FrameRegion(region.X, region.Y, region.Width, region.Height, region.JpegData.Memory);
             }
-            else
+
+            try
             {
-                // Encode each dirty region separately
-                regions = new FrameRegion[dirtyRects.Length];
-                for (var i = 0; i < dirtyRects.Length; i++)
+                await this._connection.SendFrameAsync(
+                    displayId!,
+                    frameNumber,
+                    timestamp,
+                    FrameCodec.Jpeg,
+                    width,
+                    height,
+                    Quality,
+                    encodeResult.FrameType,
+                    regions);
+            }
+            finally
+            {
+                foreach (var region in encodeResult.Regions)
                 {
-                    var rect = dirtyRects[i];
-                    using var regionBitmap = ExtractRegion(bitmap, rect);
-                    var regionData = EncodeJpeg(regionBitmap, Quality);
-                    regions[i] = new FrameRegion(rect.X, rect.Y, rect.Width, rect.Height, regionData);
+                    region.JpegData.Dispose();
                 }
             }
-
-            // Send frame to viewers watching this display
-            await this._connection.SendFrameAsync(
-                displayId!,
-                frameNumber,
-                timestamp,
-                FrameCodec.Jpeg,
-                bitmap.Width,
-                bitmap.Height,
-                Quality,
-                frameType,
-                regions);
         }
-    }
-
-    private static SKBitmap ExtractRegion(SKBitmap source, Rectangle rect)
-    {
-        var region = new SKBitmap(rect.Width, rect.Height, source.ColorType, source.AlphaType);
-        using var canvas = new SKCanvas(region);
-        canvas.DrawBitmap(
-            source,
-            new SKRect(rect.X, rect.Y, rect.X + rect.Width, rect.Y + rect.Height),
-            new SKRect(0, 0, rect.Width, rect.Height));
-        return region;
-    }
-
-    private static byte[] EncodeJpeg(SKBitmap bitmap, int quality)
-    {
-        using var image = SKImage.FromBitmap(bitmap);
-        using var data = image.Encode(SKEncodedImageFormat.Jpeg, quality);
-        return data.ToArray();
     }
 
     [RelayCommand]

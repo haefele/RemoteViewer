@@ -1,6 +1,5 @@
 ﻿#if WINDOWS
 using Microsoft.Extensions.Logging;
-using SkiaSharp;
 using System.Drawing;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
@@ -14,18 +13,25 @@ using Windows.Win32.Graphics.Dxgi.Common;
 
 namespace RemoteViewer.Client.Services.ScreenCapture;
 
-public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
+public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IDisposable
 {
     private readonly Dictionary<string, DxOutput> _outputs = new();
     private readonly object _lock = new();
 
-    public unsafe CaptureResult CaptureDisplay(Display display, SKBitmap targetBuffer)
+    // Buffer for dirty rects - allocated once, kept for app lifetime
+    private readonly byte[] _dirtyRectsBuffer = new byte[100 * Unsafe.SizeOf<RECT>()];
+
+    public unsafe GrabResult CaptureDisplay(Display display, Span<byte> targetBuffer)
     {
         if (!OperatingSystem.IsOSPlatformVersionAtLeast("windows", 8))
-            return CaptureResult.Failure;
+            return new GrabResult(GrabStatus.Failure, null);
 
-        if (targetBuffer.Width != display.Bounds.Width || targetBuffer.Height != display.Bounds.Height)
-            throw new ArgumentException($"Target buffer dimensions ({targetBuffer.Width}x{targetBuffer.Height}) do not match display dimensions ({display.Bounds.Width}x{display.Bounds.Height})", nameof(targetBuffer));
+        var width = display.Bounds.Width;
+        var height = display.Bounds.Height;
+        var expectedSize = width * height * 4;
+
+        if (targetBuffer.Length != expectedSize)
+            throw new ArgumentException($"Target buffer size ({targetBuffer.Length}) is smaller than required ({expectedSize})", nameof(targetBuffer));
 
         try
         {
@@ -33,7 +39,7 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
             if (dxOutput is null)
             {
                 logger.LogDebug("Failed to get DXGI output for display {DisplayName}, falling back to BitBlt", display.Name);
-                return CaptureResult.Failure;
+                return new GrabResult(GrabStatus.Failure, null);
             }
 
             var outputDuplication = dxOutput.OutputDuplication;
@@ -56,14 +62,11 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
                     Marshal.FinalReleaseComObject(screenResource);
                 }
                 logger.LogDebug("No accumulated frames");
-                return CaptureResult.NoChanges;
+                return new GrabResult(GrabStatus.NoChanges, null);
             }
 
             try
             {
-                var width = display.Bounds.Width;
-                var height = display.Bounds.Height;
-
                 var stagingTexture = dxOutput.GetOrCreateStagingTexture(width, height);
 
                 var sourceTexture = (ID3D11Texture2D)screenResource;
@@ -76,24 +79,26 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
 
                 try
                 {
-                    var destPtr = (byte*)targetBuffer.GetPixels();
-                    var sourcePtr = (byte*)mappedResource.pData;
+                    fixed (byte* destPtr = targetBuffer)
+                    {
+                        var sourcePtr = (byte*)mappedResource.pData;
 
-                    if (width * 4 == mappedResource.RowPitch)
-                    {
-                        Unsafe.CopyBlock(destPtr, sourcePtr, (uint)(height * mappedResource.RowPitch));
-                    }
-                    else
-                    {
-                        for (var y = 0; y < height; y++)
+                        if (width * 4 == mappedResource.RowPitch)
                         {
-                            var destRow = destPtr + y * width * 4;
-                            var sourceRow = sourcePtr + y * mappedResource.RowPitch;
-                            Unsafe.CopyBlock(destRow, sourceRow, (uint)(width * 4));
+                            Unsafe.CopyBlock(destPtr, sourcePtr, (uint)(height * mappedResource.RowPitch));
+                        }
+                        else
+                        {
+                            for (var y = 0; y < height; y++)
+                            {
+                                var destRow = destPtr + y * width * 4;
+                                var sourceRow = sourcePtr + y * mappedResource.RowPitch;
+                                Unsafe.CopyBlock(destRow, sourceRow, (uint)(width * 4));
+                            }
                         }
                     }
 
-                    return CaptureResult.Ok(targetBuffer, dirtyRects);
+                    return new GrabResult(GrabStatus.Success, dirtyRects);
                 }
                 finally
                 {
@@ -110,21 +115,21 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
         }
         catch (COMException ex) when ((uint)ex.HResult == 0x887A0027)
         {
-            return CaptureResult.NoChanges;
+            return new GrabResult(GrabStatus.NoChanges, null);
         }
         catch (COMException ex) when ((uint)ex.HResult == 0x887A0026)
         {
             logger.LogWarning("DXGI_ERROR_ACCESS_LOST - recreating output duplication");
             this.SetOutputFaulted(display.Name);
 
-            return CaptureResult.Failure;
+            return new GrabResult(GrabStatus.Failure, null);
         }
         catch (Exception exception)
         {
             logger.LogError(exception, "Exception occurred while capturing display {DisplayName} with DXGI", display.Name);
             this.SetOutputFaulted(display.Name);
 
-            return CaptureResult.Failure;
+            return new GrabResult(GrabStatus.Failure, null);
         }
     }
 
@@ -133,31 +138,22 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
     {
         try
         {
-            var rectSize = (uint)sizeof(RECT);
-
-            // Allocate a reasonable buffer upfront to avoid two calls
-            // Most frames have < 100 dirty rects, so 100 * 16 bytes = 1600 bytes
-            const int MaxExpectedRects = 100;
-            var bufferSize = (uint)(MaxExpectedRects * rectSize);
-            var dirtyRectsPtr = (RECT*)NativeMemory.Alloc(bufferSize);
-
-            try
+            fixed (byte* bufferPtr = this._dirtyRectsBuffer)
             {
+                var dirtyRectsPtr = (RECT*)bufferPtr;
                 uint actualSize = 0;
+
                 try
                 {
-                    outputDuplication.GetFrameDirtyRects(bufferSize, dirtyRectsPtr, out actualSize);
+                    outputDuplication.GetFrameDirtyRects((uint)this._dirtyRectsBuffer.Length, dirtyRectsPtr, out actualSize);
                 }
                 catch (COMException ex) when ((uint)ex.HResult == 0x8007007A) // ERROR_INSUFFICIENT_BUFFER
                 {
-                    // Buffer too small, reallocate with the required size
-                    NativeMemory.Free(dirtyRectsPtr);
-                    bufferSize = actualSize;
-                    dirtyRectsPtr = (RECT*)NativeMemory.Alloc(bufferSize);
-                    outputDuplication.GetFrameDirtyRects(bufferSize, dirtyRectsPtr, out actualSize);
+                    logger.LogDebug("Dirty rects buffer too small ({Capacity} bytes, needed {Required}), skipping dirty rects", this._dirtyRectsBuffer.Length, actualSize);
+                    return []; // Buffer too small - return empty and let it trigger a keyframe
                 }
 
-                var numRects = (int)(actualSize / rectSize);
+                var numRects = (int)(actualSize / (uint)sizeof(RECT));
                 var dirtyRects = new Rectangle[numRects];
 
                 for (var i = 0; i < numRects; i++)
@@ -167,10 +163,6 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger)
                 }
 
                 return dirtyRects;
-            }
-            finally
-            {
-                NativeMemory.Free(dirtyRectsPtr);
             }
         }
         catch (Exception exception)

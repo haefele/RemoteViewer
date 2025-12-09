@@ -4,7 +4,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.HubClient;
-using RemoteViewer.Client.Views.Presenter;
 using RemoteViewer.Server.SharedAPI.Protocol;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;

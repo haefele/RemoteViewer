@@ -1,6 +1,5 @@
 ﻿#if WINDOWS
 using Microsoft.Extensions.Logging;
-using SkiaSharp;
 using System.Runtime.InteropServices;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -10,10 +9,14 @@ namespace RemoteViewer.Client.Services.ScreenCapture;
 
 public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger)
 {
-    public unsafe CaptureResult CaptureDisplay(Display display, SKBitmap targetBuffer)
+    public unsafe GrabResult CaptureDisplay(Display display, Span<byte> targetBuffer)
     {
-        if (targetBuffer.Width != display.Bounds.Width || targetBuffer.Height != display.Bounds.Height)
-            throw new ArgumentException($"Target buffer dimensions ({targetBuffer.Width}x{targetBuffer.Height}) do not match display dimensions ({display.Bounds.Width}x{display.Bounds.Height})", nameof(targetBuffer));
+        var width = display.Bounds.Width;
+        var height = display.Bounds.Height;
+        var expectedSize = width * height * 4;
+
+        if (targetBuffer.Length != expectedSize)
+            throw new ArgumentException($"Target buffer size ({targetBuffer.Length}) is smaller than required ({expectedSize})", nameof(targetBuffer));
 
         var sourceDC = HDC.Null;
         var memoryDC = HDC.Null;
@@ -22,13 +25,10 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger)
 
         try
         {
-            var width = display.Bounds.Width;
-            var height = display.Bounds.Height;
-
             if (width <= 0 || height <= 0)
             {
                 logger.LogWarning("Invalid display dimensions: {Width}x{Height}", width, height);
-                return CaptureResult.Failure;
+                return new GrabResult(GrabStatus.Failure, null);
             }
 
             sourceDC = PInvoke.GetDC(HWND.Null);
@@ -36,7 +36,7 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger)
             {
                 var errorCode = Marshal.GetLastWin32Error();
                 logger.LogError("Failed to get source DC: {ErrorCode}", errorCode);
-                return CaptureResult.Failure;
+                return new GrabResult(GrabStatus.Failure, null);
             }
 
             memoryDC = PInvoke.CreateCompatibleDC(sourceDC);
@@ -44,7 +44,7 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger)
             {
                 var errorCode = Marshal.GetLastWin32Error();
                 logger.LogError("Failed to create compatible DC: {ErrorCode}", errorCode);
-                return CaptureResult.Failure;
+                return new GrabResult(GrabStatus.Failure, null);
             }
 
             var bitmapInfo = new BITMAPINFO
@@ -72,7 +72,7 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger)
             {
                 var errorCode = Marshal.GetLastWin32Error();
                 logger.LogError("Failed to create DIB section: {ErrorCode}", errorCode);
-                return CaptureResult.Failure;
+                return new GrabResult(GrabStatus.Failure, null);
             }
 
             hOldBitmap = PInvoke.SelectObject(memoryDC, new HGDIOBJ(hBitmapHandle.DangerousGetHandle()));
@@ -90,20 +90,22 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger)
             {
                 var errorCode = Marshal.GetLastWin32Error();
                 logger.LogError("BitBlt failed: {ErrorCode}", errorCode);
-                return CaptureResult.Failure;
+                return new GrabResult(GrabStatus.Failure, null);
             }
 
-            var stride = width * 4;
-            var bufferSize = stride * height;
+            var bufferSize = expectedSize;
 
-            Buffer.MemoryCopy(pBits, (void*)targetBuffer.GetPixels(), bufferSize, bufferSize);
+            fixed (byte* destPtr = targetBuffer)
+            {
+                Buffer.MemoryCopy(pBits, destPtr, bufferSize, bufferSize);
+            }
 
-            return CaptureResult.Ok(targetBuffer, []);
+            return new GrabResult(GrabStatus.Success, null);
         }
         catch (Exception exception)
         {
             logger.LogError(exception, "Exception occurred while capturing display {DisplayName}", display.Name);
-            return CaptureResult.Failure;
+            return new GrabResult(GrabStatus.Failure, null);
         }
         finally
         {
