@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using RemoteViewer.Client.Common;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.Graphics.Direct3D;
@@ -13,25 +14,25 @@ using Windows.Win32.Graphics.Dxgi.Common;
 
 namespace RemoteViewer.Client.Services.ScreenCapture;
 
-public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IDisposable
+public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabber
 {
+    // Buffers for dirty/move rects - allocated once, kept for app lifetime
+    private readonly byte[] _dirtyRectsBuffer = new byte[100 * Unsafe.SizeOf<RECT>()];
+    private readonly byte[] _moveRectsBuffer = new byte[100 * Unsafe.SizeOf<DXGI_OUTDUPL_MOVE_RECT>()];
+
+    public bool IsAvailable => OperatingSystem.IsOSPlatformVersionAtLeast("windows", 8);
+    public int Priority => 100;
+
     private readonly Dictionary<string, DxOutput> _outputs = new();
     private readonly object _lock = new();
 
-    // Buffer for dirty rects - allocated once, kept for app lifetime
-    private readonly byte[] _dirtyRectsBuffer = new byte[100 * Unsafe.SizeOf<RECT>()];
-
-    public unsafe GrabResult CaptureDisplay(Display display, Span<byte> targetBuffer)
+    public GrabResult CaptureDisplay(Display display, bool forceKeyframe)
     {
         if (!OperatingSystem.IsOSPlatformVersionAtLeast("windows", 8))
-            return new GrabResult(GrabStatus.Failure, null);
+            return new GrabResult(GrabStatus.Failure, null, null, null);
 
         var width = display.Bounds.Width;
         var height = display.Bounds.Height;
-        var expectedSize = width * height * 4;
-
-        if (targetBuffer.Length != expectedSize)
-            throw new ArgumentException($"Target buffer size ({targetBuffer.Length}) is smaller than required ({expectedSize})", nameof(targetBuffer));
 
         try
         {
@@ -39,7 +40,7 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IDisposable
             if (dxOutput is null)
             {
                 logger.LogDebug("Failed to get DXGI output for display {DisplayName}, falling back to BitBlt", display.Name);
-                return new GrabResult(GrabStatus.Failure, null);
+                return new GrabResult(GrabStatus.Failure, null, null, null);
             }
 
             var outputDuplication = dxOutput.OutputDuplication;
@@ -62,47 +63,20 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IDisposable
                     Marshal.FinalReleaseComObject(screenResource);
                 }
                 logger.LogDebug("No accumulated frames");
-                return new GrabResult(GrabStatus.NoChanges, null);
+                return new GrabResult(GrabStatus.NoChanges, null, null, null);
             }
 
             try
             {
-                var stagingTexture = dxOutput.GetOrCreateStagingTexture(width, height);
-
                 var sourceTexture = (ID3D11Texture2D)screenResource;
-                deviceContext.CopyResource(stagingTexture, sourceTexture);
 
-                var dirtyRects = this.GetDirtyRects(outputDuplication);
-
-                D3D11_MAPPED_SUBRESOURCE mappedResource;
-                deviceContext.Map(stagingTexture, 0, D3D11_MAP.D3D11_MAP_READ, 0, &mappedResource);
-
-                try
+                if (forceKeyframe)
                 {
-                    fixed (byte* destPtr = targetBuffer)
-                    {
-                        var sourcePtr = (byte*)mappedResource.pData;
-
-                        if (width * 4 == mappedResource.RowPitch)
-                        {
-                            Unsafe.CopyBlock(destPtr, sourcePtr, (uint)(height * mappedResource.RowPitch));
-                        }
-                        else
-                        {
-                            for (var y = 0; y < height; y++)
-                            {
-                                var destRow = destPtr + y * width * 4;
-                                var sourceRow = sourcePtr + y * mappedResource.RowPitch;
-                                Unsafe.CopyBlock(destRow, sourceRow, (uint)(width * 4));
-                            }
-                        }
-                    }
-
-                    return new GrabResult(GrabStatus.Success, dirtyRects);
+                    return this.CaptureKeyframe(dxOutput, sourceTexture, width, height);
                 }
-                finally
+                else
                 {
-                    deviceContext.Unmap(stagingTexture, 0);
+                    return this.CaptureDeltaFrame(dxOutput, sourceTexture, outputDuplication);
                 }
             }
             finally
@@ -115,22 +89,150 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IDisposable
         }
         catch (COMException ex) when ((uint)ex.HResult == 0x887A0027)
         {
-            return new GrabResult(GrabStatus.NoChanges, null);
+            return new GrabResult(GrabStatus.NoChanges, null, null, null);
         }
         catch (COMException ex) when ((uint)ex.HResult == 0x887A0026)
         {
             logger.LogWarning("DXGI_ERROR_ACCESS_LOST - recreating output duplication");
-            this.SetOutputFaulted(display.Name);
+            this.ResetDisplay(display.Name);
 
-            return new GrabResult(GrabStatus.Failure, null);
+            return new GrabResult(GrabStatus.Failure, null, null, null);
         }
         catch (Exception exception)
         {
             logger.LogError(exception, "Exception occurred while capturing display {DisplayName} with DXGI", display.Name);
-            this.SetOutputFaulted(display.Name);
+            this.ResetDisplay(display.Name);
 
-            return new GrabResult(GrabStatus.Failure, null);
+            return new GrabResult(GrabStatus.Failure, null, null, null);
         }
+    }
+
+    [SupportedOSPlatform("windows8.0")]
+    private unsafe GrabResult CaptureKeyframe(DxOutput dxOutput, ID3D11Texture2D sourceTexture, int width, int height)
+    {
+        var deviceContext = dxOutput.DeviceContext;
+        var stagingTexture = dxOutput.GetOrCreateStagingTexture(width, height);
+
+        deviceContext.CopyResource(stagingTexture, sourceTexture);
+
+        D3D11_MAPPED_SUBRESOURCE mappedResource;
+        deviceContext.Map(stagingTexture, 0, D3D11_MAP.D3D11_MAP_READ, 0, &mappedResource);
+
+        try
+        {
+            var bufferSize = width * height * 4;
+            var frameMemory = RefCountedMemoryOwner<byte>.Create(bufferSize);
+
+            fixed (byte* destPtr = frameMemory.Span)
+            {
+                var sourcePtr = (byte*)mappedResource.pData;
+
+                if (width * 4 == mappedResource.RowPitch)
+                {
+                    Unsafe.CopyBlock(destPtr, sourcePtr, (uint)bufferSize);
+                }
+                else
+                {
+                    for (var y = 0; y < height; y++)
+                    {
+                        var destRow = destPtr + y * width * 4;
+                        var sourceRow = sourcePtr + y * mappedResource.RowPitch;
+                        Unsafe.CopyBlock(destRow, sourceRow, (uint)(width * 4));
+                    }
+                }
+            }
+
+            return new GrabResult(GrabStatus.Success, frameMemory, null, null);
+        }
+        finally
+        {
+            deviceContext.Unmap(stagingTexture, 0);
+        }
+    }
+
+    [SupportedOSPlatform("windows8.0")]
+    private unsafe GrabResult CaptureDeltaFrame(
+        DxOutput dxOutput,
+        ID3D11Texture2D sourceTexture,
+        IDXGIOutputDuplication outputDuplication)
+    {
+        var deviceContext = dxOutput.DeviceContext;
+
+        // Get dirty and move rects FIRST, before any GPU copy
+        var dirtyRectangles = this.GetDirtyRects(outputDuplication);
+        var moveRects = this.GetMoveRects(outputDuplication);
+
+        if (dirtyRectangles.Length == 0 && moveRects.Length == 0)
+        {
+            return new GrabResult(GrabStatus.NoChanges, null, null, null);
+        }
+
+        // For each dirty rect, use CopySubresourceRegion to copy only that region
+        var dirtyRegions = new DirtyRegion[dirtyRectangles.Length];
+
+        for (var i = 0; i < dirtyRectangles.Length; i++)
+        {
+            var rect = dirtyRectangles[i];
+
+            // Get or create a staging texture for this region size
+            var regionStagingTexture = dxOutput.GetOrCreateRegionStagingTexture(rect.Width, rect.Height);
+
+            // Copy only this region from GPU using CopySubresourceRegion
+            var srcBox = new D3D11_BOX
+            {
+                left = (uint)rect.X,
+                top = (uint)rect.Y,
+                right = (uint)(rect.X + rect.Width),
+                bottom = (uint)(rect.Y + rect.Height),
+                front = 0,
+                back = 1
+            };
+
+            deviceContext.CopySubresourceRegion(
+                regionStagingTexture,
+                0,
+                0, 0, 0,
+                sourceTexture,
+                0,
+                &srcBox);
+
+            // Map the staging texture and copy to RefCountedMemoryOwner
+            D3D11_MAPPED_SUBRESOURCE mappedResource;
+            deviceContext.Map(regionStagingTexture, 0, D3D11_MAP.D3D11_MAP_READ, 0, &mappedResource);
+
+            try
+            {
+                var regionBufferSize = rect.Width * rect.Height * 4;
+                var regionMemory = RefCountedMemoryOwner<byte>.Create(regionBufferSize);
+
+                fixed (byte* destPtr = regionMemory.Span)
+                {
+                    var sourcePtr = (byte*)mappedResource.pData;
+
+                    if (rect.Width * 4 == mappedResource.RowPitch)
+                    {
+                        Unsafe.CopyBlock(destPtr, sourcePtr, (uint)regionBufferSize);
+                    }
+                    else
+                    {
+                        for (var y = 0; y < rect.Height; y++)
+                        {
+                            var destRow = destPtr + y * rect.Width * 4;
+                            var sourceRow = sourcePtr + y * mappedResource.RowPitch;
+                            Unsafe.CopyBlock(destRow, sourceRow, (uint)(rect.Width * 4));
+                        }
+                    }
+                }
+
+                dirtyRegions[i] = new DirtyRegion(rect.X, rect.Y, rect.Width, rect.Height, regionMemory);
+            }
+            finally
+            {
+                deviceContext.Unmap(regionStagingTexture, 0);
+            }
+        }
+
+        return new GrabResult(GrabStatus.Success, null, dirtyRegions, moveRects);
     }
 
     [SupportedOSPlatform("windows8.0")]
@@ -168,6 +270,53 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IDisposable
         catch (Exception exception)
         {
             logger.LogDebug(exception, "Failed to get dirty rects");
+            return [];
+        }
+    }
+
+    [SupportedOSPlatform("windows8.0")]
+    private unsafe MoveRegion[] GetMoveRects(IDXGIOutputDuplication outputDuplication)
+    {
+        try
+        {
+            fixed (byte* bufferPtr = this._moveRectsBuffer)
+            {
+                var moveRectsPtr = (DXGI_OUTDUPL_MOVE_RECT*)bufferPtr;
+                uint actualSize = 0;
+
+                try
+                {
+                    outputDuplication.GetFrameMoveRects((uint)this._moveRectsBuffer.Length, moveRectsPtr, out actualSize);
+                }
+                catch (COMException ex) when ((uint)ex.HResult == 0x8007007A) // ERROR_INSUFFICIENT_BUFFER
+                {
+                    logger.LogDebug("Move rects buffer too small ({Capacity} bytes, needed {Required}), skipping move rects", this._moveRectsBuffer.Length, actualSize);
+                    return [];
+                }
+
+                var numRects = (int)(actualSize / (uint)sizeof(DXGI_OUTDUPL_MOVE_RECT));
+                var moveRects = new MoveRegion[numRects];
+
+                for (var i = 0; i < numRects; i++)
+                {
+                    var moveRect = moveRectsPtr[i];
+                    var destRect = moveRect.DestinationRect;
+
+                    moveRects[i] = new MoveRegion(
+                        moveRect.SourcePoint.X,
+                        moveRect.SourcePoint.Y,
+                        destRect.left,
+                        destRect.top,
+                        destRect.right - destRect.left,
+                        destRect.bottom - destRect.top);
+                }
+
+                return moveRects;
+            }
+        }
+        catch (Exception exception)
+        {
+            logger.LogDebug(exception, "Failed to get move rects");
             return [];
         }
     }
@@ -276,14 +425,14 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IDisposable
         }
     }
 
-    public void SetOutputFaulted(string deviceName)
+    public void ResetDisplay(string displayName)
     {
         lock (this._lock)
         {
-            if (this._outputs.TryGetValue(deviceName, out var output))
+            if (this._outputs.TryGetValue(displayName, out var output))
             {
                 output.Dispose();
-                this._outputs.Remove(deviceName);
+                this._outputs.Remove(displayName);
             }
         }
     }
@@ -329,6 +478,9 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IDisposable
         private nint _cachedStagingTexturePtr;
         private int _cachedWidth;
         private int _cachedHeight;
+
+        // Pool of staging textures for dirty regions, keyed by (pooledWidth, pooledHeight)
+        private readonly Dictionary<(int W, int H), (ID3D11Texture2D Texture, nint Ptr)> _regionStagingPool = new();
 
         public string DeviceName { get; }
         public ID3D11Device Device { get; }
@@ -382,6 +534,47 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IDisposable
             return this._cachedStagingTexture;
         }
 
+        public unsafe ID3D11Texture2D GetOrCreateRegionStagingTexture(int width, int height)
+        {
+            // Round up to multiples of 64 for better reuse
+            var pooledW = ((width + 63) / 64) * 64;
+            var pooledH = ((height + 63) / 64) * 64;
+            var key = (pooledW, pooledH);
+
+            if (this._regionStagingPool.TryGetValue(key, out var existing))
+            {
+                return existing.Texture;
+            }
+
+            var textureDesc = new D3D11_TEXTURE2D_DESC
+            {
+                Width = (uint)pooledW,
+                Height = (uint)pooledH,
+                MipLevels = 1,
+                ArraySize = 1,
+                Format = DXGI_FORMAT.DXGI_FORMAT_B8G8R8A8_UNORM,
+                SampleDesc = new DXGI_SAMPLE_DESC { Count = 1, Quality = 0 },
+                Usage = D3D11_USAGE.D3D11_USAGE_STAGING,
+                BindFlags = 0,
+                CPUAccessFlags = D3D11_CPU_ACCESS_FLAG.D3D11_CPU_ACCESS_READ,
+                MiscFlags = 0
+            };
+
+            ID3D11Texture2D_unmanaged* stagingTexturePtr;
+            this.Device.CreateTexture2D(&textureDesc, null, &stagingTexturePtr);
+
+            if (stagingTexturePtr == null)
+            {
+                throw new InvalidOperationException("Failed to create region staging texture");
+            }
+
+            var ptr = (nint)stagingTexturePtr;
+            var texture = (ID3D11Texture2D)Marshal.GetObjectForIUnknown(ptr);
+            this._regionStagingPool[key] = (texture, ptr);
+
+            return texture;
+        }
+
         private unsafe void DisposeStagingTexture()
         {
             if (this._cachedStagingTexture != null)
@@ -413,9 +606,37 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IDisposable
             this._cachedHeight = 0;
         }
 
+        private unsafe void DisposeRegionStagingPool()
+        {
+            foreach (var (_, (texture, ptr)) in this._regionStagingPool)
+            {
+                try
+                {
+                    Marshal.FinalReleaseComObject(texture);
+                }
+                catch
+                {
+                }
+
+                if (ptr != 0)
+                {
+                    try
+                    {
+                        var unmanagedPtr = (ID3D11Texture2D_unmanaged*)ptr;
+                        unmanagedPtr->Release();
+                    }
+                    catch
+                    {
+                    }
+                }
+            }
+            this._regionStagingPool.Clear();
+        }
+
         public void Dispose()
         {
             this.DisposeStagingTexture();
+            this.DisposeRegionStagingPool();
 
             try
             {

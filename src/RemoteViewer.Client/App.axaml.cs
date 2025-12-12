@@ -9,6 +9,7 @@ using RemoteViewer.Client.Services.ViewModels;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.Toasts;
 using RemoteViewer.Client.Services.InputInjection;
+using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.ScreenCapture;
 using RemoteViewer.Client.Services.VideoCodec;
 
@@ -69,14 +70,15 @@ public partial class App : Application
         services.AddSingleton<ScreenEncoder>();
 
 #if WINDOWS
-        services.AddSingleton<DxgiScreenGrabber>();
-        services.AddSingleton<BitBltScreenGrabber>();
-        services.AddSingleton<IScreenshotService, WindowsScreenshotService>();
+        services.AddSingleton<IDisplayService, WindowsDisplayService>();
+        services.AddSingleton<IScreenGrabber, DxgiScreenGrabber>();
+        services.AddSingleton<IScreenGrabber, BitBltScreenGrabber>();
         services.AddSingleton<IInputInjectionService, WindowsInputInjectionService>();
 #else
-        services.AddSingleton<IScreenshotService, NullScreenshotService>();
+        services.AddSingleton<IDisplayService, NullDisplayService>();
         services.AddSingleton<IInputInjectionService, NullInputInjectionService>();
 #endif
+        services.AddSingleton<IScreenshotService, ScreenshotService>();
 
         return services.BuildServiceProvider();
     }

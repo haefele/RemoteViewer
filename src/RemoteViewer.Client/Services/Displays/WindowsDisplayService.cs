@@ -2,16 +2,15 @@
 using System.Collections.Immutable;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
+using RemoteViewer.Client.Services.ScreenCapture;
 using Windows.Win32;
 using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.Foundation;
 
-namespace RemoteViewer.Client.Services.ScreenCapture;
+namespace RemoteViewer.Client.Services.Displays;
 
-public class WindowsScreenshotService(ILogger<WindowsScreenshotService> logger, DxgiScreenGrabber dxgi, BitBltScreenGrabber bitBlt) : IScreenshotService
+public class WindowsDisplayService(ILogger<WindowsDisplayService> logger) : IDisplayService
 {
-    public bool IsSupported => true;
-
     public unsafe ImmutableList<Display> GetDisplays()
     {
         try
@@ -47,16 +46,6 @@ public class WindowsScreenshotService(ILogger<WindowsScreenshotService> logger, 
             logger.LogError(exception, "Exception occurred while getting displays");
             return [];
         }
-    }
-
-    public GrabResult CaptureDisplay(Display display, Span<byte> targetBuffer)
-    {
-        var result = dxgi.CaptureDisplay(display, targetBuffer);
-
-        if (result.Status == GrabStatus.Failure)
-            result = bitBlt.CaptureDisplay(display, targetBuffer);
-
-        return result;
     }
 
     private unsafe Display? GetDisplayInfo(HMONITOR hMonitor, int displayIndex)

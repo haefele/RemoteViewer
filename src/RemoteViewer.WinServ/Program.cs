@@ -1,4 +1,5 @@
-﻿using RemoteViewer.Client.Services.ScreenCapture;
+﻿using RemoteViewer.Client.Services.Displays;
+using RemoteViewer.Client.Services.ScreenCapture;
 using RemoteViewer.WinServ.Options;
 using RemoteViewer.WinServ.Services;
 using Serilog;
@@ -20,9 +21,10 @@ try
 
     // Services
     builder.Services.AddSingleton<IWin32Service, Win32Service>();
-    builder.Services.AddSingleton<DxgiScreenGrabber>();
-    builder.Services.AddSingleton<BitBltScreenGrabber>();
-    builder.Services.AddSingleton<IScreenshotService, WindowsScreenshotService>();
+    builder.Services.AddSingleton<IDisplayService, WindowsDisplayService>();
+    builder.Services.AddSingleton<IScreenGrabber, DxgiScreenGrabber>();
+    builder.Services.AddSingleton<IScreenGrabber, BitBltScreenGrabber>();
+    builder.Services.AddSingleton<IScreenshotService, ScreenshotService>();
     builder.Services.AddWindowsService();
     builder.Services.AddSerilog();
 

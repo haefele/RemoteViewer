@@ -1,22 +1,26 @@
 ﻿#if WINDOWS
 using Microsoft.Extensions.Logging;
 using System.Runtime.InteropServices;
+using RemoteViewer.Client.Common;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.Graphics.Gdi;
 
 namespace RemoteViewer.Client.Services.ScreenCapture;
 
-public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger)
+public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : IScreenGrabber
 {
-    public unsafe GrabResult CaptureDisplay(Display display, Span<byte> targetBuffer)
+    public bool IsAvailable => OperatingSystem.IsWindows();
+    public int Priority => 50;
+
+    public unsafe GrabResult CaptureDisplay(Display display, bool forceKeyframe)
     {
+        // BitBlt always captures the full frame - forceKeyframe is ignored
+        // Software diff detection can be applied by ScreenshotService if needed
+
         var width = display.Bounds.Width;
         var height = display.Bounds.Height;
-        var expectedSize = width * height * 4;
-
-        if (targetBuffer.Length != expectedSize)
-            throw new ArgumentException($"Target buffer size ({targetBuffer.Length}) is smaller than required ({expectedSize})", nameof(targetBuffer));
+        var bufferSize = width * height * 4;
 
         var sourceDC = HDC.Null;
         var memoryDC = HDC.Null;
@@ -28,7 +32,7 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger)
             if (width <= 0 || height <= 0)
             {
                 logger.LogWarning("Invalid display dimensions: {Width}x{Height}", width, height);
-                return new GrabResult(GrabStatus.Failure, null);
+                return new GrabResult(GrabStatus.Failure, null, null, null);
             }
 
             sourceDC = PInvoke.GetDC(HWND.Null);
@@ -36,7 +40,7 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger)
             {
                 var errorCode = Marshal.GetLastWin32Error();
                 logger.LogError("Failed to get source DC: {ErrorCode}", errorCode);
-                return new GrabResult(GrabStatus.Failure, null);
+                return new GrabResult(GrabStatus.Failure, null, null, null);
             }
 
             memoryDC = PInvoke.CreateCompatibleDC(sourceDC);
@@ -44,7 +48,7 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger)
             {
                 var errorCode = Marshal.GetLastWin32Error();
                 logger.LogError("Failed to create compatible DC: {ErrorCode}", errorCode);
-                return new GrabResult(GrabStatus.Failure, null);
+                return new GrabResult(GrabStatus.Failure, null, null, null);
             }
 
             var bitmapInfo = new BITMAPINFO
@@ -72,7 +76,7 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger)
             {
                 var errorCode = Marshal.GetLastWin32Error();
                 logger.LogError("Failed to create DIB section: {ErrorCode}", errorCode);
-                return new GrabResult(GrabStatus.Failure, null);
+                return new GrabResult(GrabStatus.Failure, null, null, null);
             }
 
             hOldBitmap = PInvoke.SelectObject(memoryDC, new HGDIOBJ(hBitmapHandle.DangerousGetHandle()));
@@ -90,22 +94,24 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger)
             {
                 var errorCode = Marshal.GetLastWin32Error();
                 logger.LogError("BitBlt failed: {ErrorCode}", errorCode);
-                return new GrabResult(GrabStatus.Failure, null);
+                return new GrabResult(GrabStatus.Failure, null, null, null);
             }
 
-            var bufferSize = expectedSize;
+            // Allocate RefCountedMemoryOwner and copy pixels
+            var frameMemory = RefCountedMemoryOwner<byte>.Create(bufferSize);
 
-            fixed (byte* destPtr = targetBuffer)
+            fixed (byte* destPtr = frameMemory.Span)
             {
                 Buffer.MemoryCopy(pBits, destPtr, bufferSize, bufferSize);
             }
 
-            return new GrabResult(GrabStatus.Success, null);
+            // BitBlt always returns a full frame (no dirty rects)
+            return new GrabResult(GrabStatus.Success, frameMemory, null, null);
         }
         catch (Exception exception)
         {
             logger.LogError(exception, "Exception occurred while capturing display {DisplayName}", display.Name);
-            return new GrabResult(GrabStatus.Failure, null);
+            return new GrabResult(GrabStatus.Failure, null, null, null);
         }
         finally
         {
@@ -130,6 +136,10 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger)
                 }
             }
         }
+    }
+    public void ResetDisplay(string displayName)
+    {
+        // BitBlt has no persistent state per display
     }
 }
 #endif

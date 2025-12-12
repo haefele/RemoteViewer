@@ -1,6 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
+using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.ScreenCapture;
-using RemoteViewer.Client.Services.VideoCodec;
 using RemoteViewer.Server.SharedAPI;
 using RemoteViewer.Server.SharedAPI.Protocol;
 
@@ -11,8 +11,8 @@ public sealed class Connection
     private readonly ILogger<Connection> _logger;
     private readonly Func<string, ReadOnlyMemory<byte>, MessageDestination, IReadOnlyList<string>?, Task> _sendMessageAsync;
     private readonly Func<Task> _disconnectAsync;
+    private readonly IDisplayService? _displayService;
     private readonly IScreenshotService? _screenshotService;
-    private readonly ScreenEncoder? _screenEncoder;
 
     // Thread-safe viewer list (presenter only)
     private readonly object _viewersLock = new();
@@ -28,13 +28,13 @@ public sealed class Connection
         Func<string, ReadOnlyMemory<byte>, MessageDestination, IReadOnlyList<string>?, Task> sendMessageAsync,
         Func<Task> disconnectAsync,
         ILogger<Connection> logger,
-        IScreenshotService? screenshotService = null,
-        ScreenEncoder? screenEncoder = null)
+        IDisplayService? displayService = null,
+        IScreenshotService? screenshotService = null)
     {
         this.ConnectionId = connectionId;
         this.IsPresenter = isPresenter;
+        this._displayService = displayService;
         this._screenshotService = screenshotService;
-        this._screenEncoder = screenEncoder;
         this._sendMessageAsync = sendMessageAsync;
         this._disconnectAsync = disconnectAsync;
         this._logger = logger;
@@ -303,17 +303,17 @@ public sealed class Connection
         this._viewersChanged?.Invoke(this, EventArgs.Empty);
 
         // Force immediate keyframe so new viewer doesn't see black screen
-        this._screenEncoder?.RequestKeyframe(message.DisplayId);
+        this._screenshotService?.ForceKeyframe(message.DisplayId);
     }
     private async Task HandleDisplayListRequest(string senderClientId)
     {
-        if (this._screenshotService is null)
+        if (this._displayService is null)
         {
-            this._logger.LogWarning("Cannot respond to display list request - no screenshot service available");
+            this._logger.LogWarning("Cannot respond to display list request - no display service available");
             return;
         }
 
-        var displays = this._screenshotService.GetDisplays();
+        var displays = this._displayService.GetDisplays();
         var displayInfos = displays
             .Select(d => new DisplayInfo(
                 d.Name,

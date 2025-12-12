@@ -1,10 +1,10 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
 using Nerdbank.MessagePack.SignalR;
 using PolyType.ReflectionProvider;
+using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.ScreenCapture;
-using RemoteViewer.Client.Services.VideoCodec;
 using RemoteViewer.Server.SharedAPI;
 
 namespace RemoteViewer.Client.Services.HubClient;
@@ -13,8 +13,8 @@ public sealed class ConnectionHubClient : IAsyncDisposable
 {
     private readonly ILogger<ConnectionHubClient> _logger;
     private readonly ILoggerFactory _loggerFactory;
+    private readonly IDisplayService _displayService;
     private readonly IScreenshotService _screenshotService;
-    private readonly ScreenEncoder _screenEncoder;
     private readonly HubConnection _connection;
     private readonly ConcurrentDictionary<string, Connection> _connections = new();
 
@@ -24,12 +24,12 @@ public sealed class ConnectionHubClient : IAsyncDisposable
     private static readonly string s_baseUrl = "https://rdp.xemio.net";
 #endif
 
-    public ConnectionHubClient(ILogger<ConnectionHubClient> logger, ILoggerFactory loggerFactory, IScreenshotService screenshotService, ScreenEncoder screenEncoder)
+    public ConnectionHubClient(ILogger<ConnectionHubClient> logger, ILoggerFactory loggerFactory, IDisplayService displayService, IScreenshotService screenshotService)
     {
         this._logger = logger;
         this._loggerFactory = loggerFactory;
+        this._displayService = displayService;
         this._screenshotService = screenshotService;
-        this._screenEncoder = screenEncoder;
 
         this._connection = new HubConnectionBuilder()
             .WithUrl($"{s_baseUrl}/connection", options =>
@@ -58,8 +58,8 @@ public sealed class ConnectionHubClient : IAsyncDisposable
                 sendMessageAsync: (messageType, data, destination, targetClientIds) => this.SendMessage(connectionId, messageType, data, destination, targetClientIds),
                 disconnectAsync: () => this.Disconnect(connectionId),
                 this._loggerFactory.CreateLogger<Connection>(),
-                screenshotService: isPresenter ? this._screenshotService : null,
-                screenEncoder: isPresenter ? this._screenEncoder : null);
+                displayService: isPresenter ? this._displayService : null,
+                screenshotService: isPresenter ? this._screenshotService : null);
 
             this._connections[connectionId] = connection;
 

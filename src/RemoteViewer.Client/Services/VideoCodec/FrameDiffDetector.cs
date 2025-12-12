@@ -1,26 +1,56 @@
-﻿using System.Drawing;
+using System.Drawing;
 
 namespace RemoteViewer.Client.Services.VideoCodec;
 
-/// <summary>
-/// Utility class for detecting differences between two frames by comparing 64x64 pixel blocks.
-/// </summary>
-public static class FrameDiffDetector
+public sealed class FrameDiffDetector : IDisposable
 {
     public const int BlockSize = 32;
 
-    /// <summary>
-    /// Compares two frames and returns rectangles for changed 64x64 blocks.
-    /// Returns null if more than 50% of blocks changed (caller should send keyframe instead).
-    /// Returns empty array if no changes detected.
-    /// </summary>
-    /// <param name="currentPixels">Current frame pixel data in BGRA format</param>
-    /// <param name="previousPixels">Previous frame pixel data in BGRA format</param>
-    /// <param name="width">Frame width in pixels</param>
-    /// <param name="height">Frame height in pixels</param>
-    /// <param name="stride">Row stride in bytes (width * 4 for BGRA)</param>
-    /// <returns>Array of changed rectangles, null if threshold exceeded, empty if no changes</returns>
-    public static Rectangle[]? DetectChanges(
+    private byte[]? _previousFrame;
+    private int _width;
+    private int _height;
+
+    public Rectangle[]? DetectChanges(
+        ReadOnlySpan<byte> currentPixels,
+        int width,
+        int height,
+        int stride)
+    {
+        // If dimensions changed, reset state and return null (force keyframe)
+        if (width != this._width || height != this._height)
+        {
+            this._previousFrame = null;
+            this._width = width;
+            this._height = height;
+        }
+
+        // If no previous frame, store current and return null (force keyframe)
+        if (this._previousFrame is null)
+        {
+            this._previousFrame = currentPixels.ToArray();
+            return null;
+        }
+
+        // Detect changes
+        var result = DetectChangesInternal(currentPixels, this._previousFrame, width, height, stride);
+
+        // Update previous frame
+        currentPixels.CopyTo(this._previousFrame);
+
+        return result;
+    }
+
+    public void Reset()
+    {
+        this._previousFrame = null;
+    }
+
+    public void Dispose()
+    {
+        this._previousFrame = null;
+    }
+
+    private static Rectangle[]? DetectChangesInternal(
         ReadOnlySpan<byte> currentPixels,
         ReadOnlySpan<byte> previousPixels,
         int width,

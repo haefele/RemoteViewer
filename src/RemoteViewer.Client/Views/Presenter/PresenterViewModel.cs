@@ -1,9 +1,9 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
-using RemoteViewer.Client.Common;
+using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.Client.Services.ScreenCapture;
@@ -15,6 +15,7 @@ namespace RemoteViewer.Client.Views.Presenter;
 public partial class PresenterViewModel : ViewModelBase, IDisposable
 {
     private readonly Connection _connection;
+    private readonly IDisplayService _displayService;
     private readonly IScreenshotService _screenshotService;
     private readonly ScreenEncoder _screenEncoder;
     private readonly IInputInjectionService _inputInjectionService;
@@ -43,12 +44,14 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
 
     public PresenterViewModel(
         Connection connection,
+        IDisplayService displayService,
         IScreenshotService screenshotService,
         ScreenEncoder screenEncoder,
         IInputInjectionService inputInjectionService,
         ILogger<PresenterViewModel> logger)
     {
         this._connection = connection;
+        this._displayService = displayService;
         this._screenshotService = screenshotService;
         this._screenEncoder = screenEncoder;
         this._inputInjectionService = inputInjectionService;
@@ -165,7 +168,7 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
 
     private Display? GetDisplayById(string displayId)
     {
-        return this._screenshotService.GetDisplays().FirstOrDefault(d => d.Name == displayId);
+        return this._displayService.GetDisplays().FirstOrDefault(d => d.Name == displayId);
     }
 
     private void StartPresenting()
@@ -234,7 +237,7 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
         if (displayIds.Count == 0)
             return;
 
-        var displays = this._screenshotService.GetDisplays();
+        var displays = this._displayService.GetDisplays();
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         const byte Quality = 75;
 
@@ -246,21 +249,14 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
 
             var width = display.Bounds.Width;
             var height = display.Bounds.Height;
-            var bufferSize = width * height * 4;
 
-            using var frameBuffer = RefCountedMemoryOwner<byte>.Create(bufferSize);
+            // ScreenshotService now handles memory allocation and keyframe timing
+            using var grabResult = this._screenshotService.CaptureDisplay(display);
 
-            var grabResult = this._screenshotService.CaptureDisplay(display, frameBuffer.Span);
-            if (grabResult.Status != GrabStatus.Success)
-                continue;
-
-            frameBuffer.AddRef(); // To pass ownership to encoder
             var encodeResult = this._screenEncoder.ProcessFrame(
-                displayId,
-                frameBuffer,
+                grabResult,
                 width,
-                height,
-                grabResult.DirtyRects);
+                height);
 
             if (encodeResult.HasChanges is false)
                 continue;
