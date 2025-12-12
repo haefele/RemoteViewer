@@ -37,7 +37,7 @@ public class FrameCompositor : IDisposable
     /// <summary>
     /// When enabled, draws red borders around dirty regions for debugging.
     /// </summary>
-    public bool ShowDirtyRegionBorders { get; set; } = true;
+    public bool ShowDirtyRegionBorders { get; set; }
 
     /// <summary>
     /// Gets the debug overlay bitmap (null when ShowDirtyRegionBorders is false).
