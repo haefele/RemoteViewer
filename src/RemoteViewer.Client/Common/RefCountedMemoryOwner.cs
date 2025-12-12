@@ -18,7 +18,7 @@ public sealed class RefCountedMemoryOwner<T> : IMemoryOwner<T>, IDisposable
         this.Length = length;
     }
 
-    public int Length { get; }
+    public int Length { get; private set; }
 
     public Memory<T> Memory
     {
@@ -44,6 +44,16 @@ public sealed class RefCountedMemoryOwner<T> : IMemoryOwner<T>, IDisposable
 
         Interlocked.Increment(ref this._refCount);
         return this;
+    }
+
+    public void SetLength(int newLength)
+    {
+        ObjectDisposedException.ThrowIf(this._disposed != 0, nameof(RefCountedMemoryOwner<T>));
+
+        if (newLength < 0 || newLength > this._array.Length)
+            throw new ArgumentOutOfRangeException(nameof(newLength));
+
+        this.Length = newLength;
     }
 
     public void Dispose()

@@ -1,83 +1,78 @@
 ﻿using System.Buffers;
-using System.Runtime.CompilerServices;
 using RemoteViewer.Client.Common;
 using RemoteViewer.Client.Services.ScreenCapture;
 using RemoteViewer.Server.SharedAPI.Protocol;
-using SkiaSharp;
+using TurboJpegWrapper;
 
 namespace RemoteViewer.Client.Services.VideoCodec;
 
-public sealed class ScreenEncoder
+public sealed class ScreenEncoder : IDisposable
 {
     private const int JpegQuality = 75;
+    private readonly TJCompressor _compressor = new();
 
     public EncodeResult ProcessFrame(
         GrabResult grabResult,
         int width,
         int height)
     {
-        if (grabResult.Status != GrabStatus.Success)
-        {
-            return new EncodeResult(false, FrameType.DeltaFrame, []);
-        }
-
         // Keyframe: encode full frame
         if (grabResult.FullFramePixels is not null)
         {
             var jpegData = this.EncodeJpeg(grabResult.FullFramePixels.Span, width, height);
 
             return new EncodeResult(
-                true,
                 FrameType.Keyframe,
                 [new EncodedRegion(0, 0, width, height, jpegData)]);
         }
 
-        // Delta frame: encode each dirty region (already compact pixel data)
-        if (grabResult.DirtyRegions is { Length: > 0 })
+        // Delta frame: encode each dirty region
+        var regions = new EncodedRegion[grabResult.DirtyRegions!.Length];
+
+        for (var i = 0; i < grabResult.DirtyRegions.Length; i++)
         {
-            var regions = new EncodedRegion[grabResult.DirtyRegions.Length];
+            var dirty = grabResult.DirtyRegions[i];
 
-            for (var i = 0; i < grabResult.DirtyRegions.Length; i++)
-            {
-                var dirty = grabResult.DirtyRegions[i];
+            var jpegData = this.EncodeJpeg(dirty.Pixels.Span, dirty.Width, dirty.Height);
 
-                var jpegData = this.EncodeJpeg(dirty.Pixels.Span, dirty.Width, dirty.Height);
-
-                regions[i] = new EncodedRegion(dirty.X, dirty.Y, dirty.Width, dirty.Height, jpegData);
-            }
-
-            return new EncodeResult(true, FrameType.DeltaFrame, regions);
+            regions[i] = new EncodedRegion(dirty.X, dirty.Y, dirty.Width, dirty.Height, jpegData);
         }
 
-        // No data to encode
-        return new EncodeResult(false, FrameType.DeltaFrame, []);
+        return new EncodeResult(FrameType.DeltaFrame, regions);
     }
 
-    private unsafe IMemoryOwner<byte> EncodeJpeg(ReadOnlySpan<byte> pixels, int width, int height)
+    private IMemoryOwner<byte> EncodeJpeg(Span<byte> pixels, int width, int height)
     {
-        using var bitmap = new SKBitmap(width, height, SKColorType.Bgra8888, SKAlphaType.Premul);
+        // Get max possible JPEG size for this resolution
+        var maxSize = this._compressor.GetBufferSize(width, height, TJSubsamplingOption.Chrominance420);
 
-        var destPtr = (byte*)bitmap.GetPixels();
-        var bufferSize = width * height * 4;
+        // Allocate buffer with max size (ArrayPool will likely give us a larger array anyway)
+        var memoryOwner = RefCountedMemoryOwner<byte>.Create(maxSize);
 
-        fixed (byte* srcPtr = pixels)
-        {
-            Unsafe.CopyBlock(destPtr, srcPtr, (uint)bufferSize);
-        }
+        // Encode directly into our buffer - returns slice with actual compressed size
+        var result = this._compressor.Compress(
+            pixels,
+            memoryOwner.Span,
+            width,
+            height,
+            TJPixelFormat.BGRA,
+            TJSubsamplingOption.Chrominance420,
+            JpegQuality,
+            TJFlags.None);
 
-        using var image = SKImage.FromBitmap(bitmap);
-        using var data = image.Encode(SKEncodedImageFormat.Jpeg, JpegQuality);
-
-        var jpegSpan = data.AsSpan();
-        var memoryOwner = RefCountedMemoryOwner<byte>.Create(jpegSpan.Length);
-        jpegSpan.CopyTo(memoryOwner.Span);
+        // Update to actual compressed size (no extra copy needed)
+        memoryOwner.SetLength(result.Length);
 
         return memoryOwner;
+    }
+
+    public void Dispose()
+    {
+        this._compressor.Dispose();
     }
 }
 
 public readonly record struct EncodeResult(
-    bool HasChanges,
     FrameType FrameType,
     EncodedRegion[] Regions
 );

@@ -21,7 +21,6 @@ public sealed class ScreenshotService : IScreenshotService, IDisposable
     {
         this._logger = logger;
 
-        // Sort grabbers by priority descending, filter to available ones
         this._sortedGrabbers = grabbers
             .Where(g => g.IsAvailable)
             .OrderByDescending(g => g.Priority)
@@ -33,17 +32,22 @@ public sealed class ScreenshotService : IScreenshotService, IDisposable
     public GrabResult CaptureDisplay(Display display)
     {
         var state = this.GetOrCreateDisplayState(display.Name);
+        var keyframeDue = state.KeyframeTimer.ElapsedMilliseconds >= KeyframeIntervalMs || state.ForceNextKeyframe;
 
-        // Determine if keyframe is due
-        var keyframeDue = state.KeyframeTimer.ElapsedMilliseconds >= KeyframeIntervalMs
-                          || state.ForceNextKeyframe;
-
-        // Try grabbers in priority order
         foreach (var grabber in this._sortedGrabbers)
         {
-            var result = grabber.CaptureDisplay(display, forceKeyframe: keyframeDue);
+            var result = grabber.CaptureDisplay(display, keyframeDue);
 
-            if (result.Status == GrabStatus.Success)
+            if (result.Status == GrabStatus.NoChanges)
+            {
+                return result;
+            }
+            else if (result.Status == GrabStatus.Failure)
+            {
+                this._logger.LogDebug("ScreenGrabber {GrabberType} failed for display {Display}, trying next", grabber.GetType().Name, display.Name);
+                continue;
+            }
+            else // Success
             {
                 // Got a full frame (keyframe)
                 if (result.FullFramePixels is not null)
@@ -52,36 +56,18 @@ public sealed class ScreenshotService : IScreenshotService, IDisposable
                     state.KeyframeTimer.Restart();
                     state.ForceNextKeyframe = false;
 
-                    // If keyframe was not due but we got a full frame (BitBlt),
-                    // use software diff to extract dirty regions
-                    if (!keyframeDue)
-                    {
-                        return this.ApplySoftwareDiff(result, state, display);
-                    }
-
-                    // Keyframe was requested, return full frame
                     return result;
                 }
 
-                // Got dirty regions from hardware (DXGI)
-                if (result.DirtyRegions is { Length: > 0 })
+                if (result.DirtyRegions is null)
+                {
+                    return this.ApplySoftwareDiff(result, state, display);
+                }
+                else
                 {
                     return result;
                 }
-
-                // Success but no data - shouldn't happen, force keyframe next time
-                state.ForceNextKeyframe = true;
-                return new GrabResult(GrabStatus.NoChanges, null, null, null);
             }
-
-            if (result.Status == GrabStatus.NoChanges)
-            {
-                return result;
-            }
-
-            // GrabStatus.Failure - try next grabber
-            this._logger.LogDebug("Grabber {GrabberType} failed for display {Display}, trying next",
-                grabber.GetType().Name, display.Name);
         }
 
         // All grabbers failed

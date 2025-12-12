@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -188,42 +188,46 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
     private async Task CaptureLoopAsync(CancellationToken ct)
     {
         const int TargetFps = 30;
-        var frameInterval = TimeSpan.FromMilliseconds(1000.0 / TargetFps);
+        var minFrameInterval = TimeSpan.FromMilliseconds(1000.0 / TargetFps);
         ulong frameNumber = 0;
+        var frameStopwatch = Stopwatch.StartNew();
 
         this._logger.LogInformation("Capture loop started for connection {ConnectionId}", this._connection.ConnectionId);
 
         while (!ct.IsCancellationRequested)
         {
-            var frameStart = Stopwatch.GetTimestamp();
-
             try
             {
-                await this.CaptureAndSendFramesAsync(frameNumber++);
+                var sentFrame = await this.CaptureAndSendFramesAsync(frameNumber++);
+                if (sentFrame)
+                {
+                    // Calculate remaining time to hit target FPS
+                    var elapsed = frameStopwatch.Elapsed;
+                    var sleepTime = minFrameInterval - elapsed;
+
+                    if (sleepTime > TimeSpan.Zero)
+                    {
+                        await Task.Delay(sleepTime, ct);
+                    }
+
+                    frameStopwatch.Restart();
+                }
+                else
+                {
+                    // No frame sent (no changes or no viewers) - 1ms delay for responsiveness
+                    await Task.Delay(1, ct);
+                }
             }
             catch (Exception ex) when (ex is not OperationCanceledException)
             {
                 this._logger.LogError(ex, "Error in capture loop");
             }
-
-            // Maintain target FPS
-            SpinWait.SpinUntil(() =>
-            {
-                if (ct.IsCancellationRequested)
-                    return true;
-
-                var current = Stopwatch.GetTimestamp();
-                var elapsed = TimeSpan.FromTicks((current - frameStart) * TimeSpan.TicksPerSecond / Stopwatch.Frequency);
-
-                var delay = frameInterval - elapsed;
-                return delay.TotalMilliseconds <= 5;
-            });
         }
 
         this._logger.LogInformation("Capture loop ended for connection {ConnectionId}", this._connection.ConnectionId);
     }
 
-    private async Task CaptureAndSendFramesAsync(ulong frameNumber)
+    private async Task<bool> CaptureAndSendFramesAsync(ulong frameNumber)
     {
         // Get unique displays that viewers are watching
         var viewers = this._connection.Viewers;
@@ -235,11 +239,12 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
             .ToList();
 
         if (displayIds.Count == 0)
-            return;
+            return false;
 
         var displays = this._displayService.GetDisplays();
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         const byte Quality = 75;
+        var sentAnyFrame = false;
 
         foreach (var displayId in displayIds)
         {
@@ -250,16 +255,14 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
             var width = display.Bounds.Width;
             var height = display.Bounds.Height;
 
-            // ScreenshotService now handles memory allocation and keyframe timing
             using var grabResult = this._screenshotService.CaptureDisplay(display);
+            if (grabResult.Status != GrabStatus.Success)
+                continue;
 
             var encodeResult = this._screenEncoder.ProcessFrame(
                 grabResult,
                 width,
                 height);
-
-            if (encodeResult.HasChanges is false)
-                continue;
 
             var regions = new FrameRegion[encodeResult.Regions.Length];
             for (var i = 0; i < encodeResult.Regions.Length; i++)
@@ -280,6 +283,8 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
                     Quality,
                     encodeResult.FrameType,
                     regions);
+
+                sentAnyFrame = true;
             }
             finally
             {
@@ -289,6 +294,8 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
                 }
             }
         }
+
+        return sentAnyFrame;
     }
 
     [RelayCommand]
