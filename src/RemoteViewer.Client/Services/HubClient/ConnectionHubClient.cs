@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
 using Nerdbank.MessagePack.SignalR;
@@ -240,7 +240,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
     public async Task SendMessage(string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null)
     {
         this._logger.LogDebug("Sending message - ConnectionId: {ConnectionId}, MessageType: {MessageType}, DataLength: {DataLength}, Destination: {Destination}", connectionId, messageType, data.Length, destination);
-        await this._connection.InvokeAsync("SendMessage", connectionId, messageType, data, destination, targetClientIds);
+        await this._connection.SendAsync("SendMessage", connectionId, messageType, data, destination, targetClientIds);
         this._logger.LogDebug("Message sent successfully");
     }
 
