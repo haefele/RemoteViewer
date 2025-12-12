@@ -149,7 +149,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     private void Connection_Closed(object? sender, EventArgs e)
     {
-        this.CloseRequested?.Invoke(this, EventArgs.Empty);
+        Dispatcher.UIThread.Post(() => this.CloseRequested?.Invoke(this, EventArgs.Empty));
     }
 
     [RelayCommand]
