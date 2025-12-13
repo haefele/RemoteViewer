@@ -46,8 +46,8 @@ client.ConnectionChanged += (sender, e) =>
 {
     Console.WriteLine($"[SERVER] Connection changed:");
     Console.WriteLine($"  Connection ID: {e.ConnectionInfo.ConnectionId}");
-    Console.WriteLine($"  Presenter Client ID: {e.ConnectionInfo.PresenterClientId}");
-    Console.WriteLine($"  Viewer Client IDs: {string.Join(", ", e.ConnectionInfo.ViewerClientIds)}");
+    Console.WriteLine($"  Presenter: {e.ConnectionInfo.Presenter.ClientId} ({e.ConnectionInfo.Presenter.DisplayName})");
+    Console.WriteLine($"  Viewers: {string.Join(", ", e.ConnectionInfo.Viewers.Select(v => $"{v.ClientId} ({v.DisplayName})"))}");
 };
 
 client.ConnectionStopped += (sender, e) =>
@@ -216,8 +216,8 @@ static void ShowState(ConnectionHubClient client)
     foreach (var conn in client.Connections.Values)
     {
         Console.WriteLine($"    - Connection ID: {conn.ConnectionId}");
-        Console.WriteLine($"      Presenter: {conn.PresenterClientId}");
-        Console.WriteLine($"      Viewers: {string.Join(", ", conn.ViewerClientIds)}");
+        Console.WriteLine($"      Presenter: {conn.Presenter.ClientId} ({conn.Presenter.DisplayName})");
+        Console.WriteLine($"      Viewers: {string.Join(", ", conn.Viewers.Select(v => $"{v.ClientId} ({v.DisplayName})"))}");
     }
 }
 
@@ -352,7 +352,7 @@ sealed class ConnectionHubClient : IAsyncDisposable
         {
             this._connections[connectionInfo.ConnectionId] = connectionInfo;
             this._logger.LogInformation("Connection changed - ConnectionId: {ConnectionId}, PresenterClientId: {PresenterClientId}, ViewerCount: {ViewerCount}",
-                connectionInfo.ConnectionId, connectionInfo.PresenterClientId, connectionInfo.ViewerClientIds.Count);
+                connectionInfo.ConnectionId, connectionInfo.Presenter.ClientId, connectionInfo.Viewers.Count);
             ConnectionChanged?.Invoke(this, new ConnectionChangedEventArgs(connectionInfo));
         });
 

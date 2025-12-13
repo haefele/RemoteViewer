@@ -2,4 +2,6 @@
 
 namespace RemoteViewer.Server.SharedAPI;
 
-public record ConnectionInfo(string ConnectionId, string PresenterClientId, List<string> ViewerClientIds);
+public record ClientInfo(string ClientId, string DisplayName);
+
+public record ConnectionInfo(string ConnectionId, ClientInfo Presenter, List<ClientInfo> Viewers);

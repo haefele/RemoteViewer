@@ -37,7 +37,8 @@ public class ConnectionHub(IConnectionsService clientsService, ILogger<Connectio
         }
         else
         {
-            await clientsService.Register(this.Context.ConnectionId);
+            var displayName = httpContext?.Request.Headers["X-Display-Name"].ToString();
+            await clientsService.Register(this.Context.ConnectionId, displayName);
         }
     }
 
@@ -49,6 +50,11 @@ public class ConnectionHub(IConnectionsService clientsService, ILogger<Connectio
     public async Task GenerateNewPassword()
     {
         await clientsService.GenerateNewPassword(this.Context.ConnectionId);
+    }
+
+    public async Task SetDisplayName(string displayName)
+    {
+        await clientsService.SetDisplayName(this.Context.ConnectionId, displayName);
     }
 
     public async Task<TryConnectError?> ConnectTo(string username, string password)

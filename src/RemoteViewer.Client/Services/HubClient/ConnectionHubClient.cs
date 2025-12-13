@@ -35,6 +35,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
             .WithUrl($"{s_baseUrl}/connection", options =>
             {
                 options.Headers.Add("X-Client-Version", ThisAssembly.AssemblyInformationalVersion);
+                options.Headers.Add("X-Display-Name", this.DisplayName);
             })
             .WithAutomaticReconnect()
             .AddMessagePackProtocol(ReflectionTypeShapeProvider.Default)
@@ -69,10 +70,10 @@ public sealed class ConnectionHubClient : IAsyncDisposable
 
         this._connection.On<ConnectionInfo>("ConnectionChanged", async (connectionInfo) =>
         {
-            this._logger.LogInformation("Connection changed - ConnectionId: {ConnectionId}, PresenterClientId: {PresenterClientId}, ViewerCount: {ViewerCount}", connectionInfo.ConnectionId, connectionInfo.PresenterClientId, connectionInfo.ViewerClientIds.Count);
+            this._logger.LogInformation("Connection changed - ConnectionId: {ConnectionId}, PresenterClientId: {PresenterClientId}, ViewerCount: {ViewerCount}", connectionInfo.ConnectionId, connectionInfo.Presenter.ClientId, connectionInfo.Viewers.Count);
 
             var connection = await this.WaitForConnection(connectionInfo.ConnectionId);
-            connection.OnViewersChanged(connectionInfo.ViewerClientIds);
+            connection.OnViewersChanged(connectionInfo.Viewers);
         });
 
         this._connection.On<string>("ConnectionStopped", async (connectionId) =>
@@ -162,6 +163,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
     public string? ClientId { get; private set; }
     public string? Username { get; private set; }
     public string? Password { get; private set; }
+    public string DisplayName { get; private set; } = Environment.UserName;
 
     public string? ServerVersion { get; private set; }
     public bool HasVersionMismatch { get; private set; }
@@ -256,6 +258,15 @@ public sealed class ConnectionHubClient : IAsyncDisposable
         this._logger.LogInformation("Generating new password");
         await this._connection.InvokeAsync("GenerateNewPassword");
         this._logger.LogInformation("New password generated");
+    }
+
+    public async Task SetDisplayName(string displayName)
+    {
+        this.DisplayName = displayName;
+
+        this._logger.LogInformation("Setting display name to: {DisplayName}", displayName);
+        await this._connection.InvokeAsync("SetDisplayName", displayName);
+        this._logger.LogInformation("Display name set successfully");
     }
 
     public async ValueTask DisposeAsync()

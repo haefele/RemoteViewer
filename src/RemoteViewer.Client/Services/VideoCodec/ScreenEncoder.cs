@@ -8,10 +8,11 @@ namespace RemoteViewer.Client.Services.VideoCodec;
 
 public sealed class ScreenEncoder : IDisposable
 {
-    private const int JpegQuality = 75;
+    private const int JpegQuality = 90;
+
     private readonly TJCompressor _compressor = new();
 
-    public EncodeResult ProcessFrame(
+    public (FrameCodec Codec, EncodedRegion[] Regions) ProcessFrame(
         GrabResult grabResult,
         int width,
         int height)
@@ -21,24 +22,20 @@ public sealed class ScreenEncoder : IDisposable
         {
             var jpegData = this.EncodeJpeg(grabResult.FullFramePixels.Span, width, height);
 
-            return new EncodeResult(
-                FrameType.Keyframe,
-                [new EncodedRegion(0, 0, width, height, jpegData)]);
+            return (FrameCodec.Jpeg90, [new EncodedRegion(true, 0, 0, width, height, jpegData)]);
         }
 
         // Delta frame: encode each dirty region
         var regions = new EncodedRegion[grabResult.DirtyRegions!.Length];
-
         for (var i = 0; i < grabResult.DirtyRegions.Length; i++)
         {
             var dirty = grabResult.DirtyRegions[i];
-
             var jpegData = this.EncodeJpeg(dirty.Pixels.Span, dirty.Width, dirty.Height);
 
-            regions[i] = new EncodedRegion(dirty.X, dirty.Y, dirty.Width, dirty.Height, jpegData);
+            regions[i] = new EncodedRegion(false, dirty.X, dirty.Y, dirty.Width, dirty.Height, jpegData);
         }
 
-        return new EncodeResult(FrameType.DeltaFrame, regions);
+        return (FrameCodec.Jpeg90, regions);
     }
 
     private IMemoryOwner<byte> EncodeJpeg(Span<byte> pixels, int width, int height)
@@ -72,12 +69,8 @@ public sealed class ScreenEncoder : IDisposable
     }
 }
 
-public readonly record struct EncodeResult(
-    FrameType FrameType,
-    EncodedRegion[] Regions
-);
-
 public readonly record struct EncodedRegion(
+    bool IsKeyframe,
     int X,
     int Y,
     int Width,

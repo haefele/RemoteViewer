@@ -243,7 +243,6 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
 
         var displays = this._displayService.GetDisplays();
         var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        const byte Quality = 75;
         var sentAnyFrame = false;
 
         foreach (var displayId in displayIds)
@@ -259,16 +258,16 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
             if (grabResult.Status != GrabStatus.Success)
                 continue;
 
-            var encodeResult = this._screenEncoder.ProcessFrame(
+            var (codec, encoded) = this._screenEncoder.ProcessFrame(
                 grabResult,
                 width,
                 height);
 
-            var regions = new FrameRegion[encodeResult.Regions.Length];
-            for (var i = 0; i < encodeResult.Regions.Length; i++)
+            var regions = new FrameRegion[encoded.Length];
+            for (var i = 0; i < encoded.Length; i++)
             {
-                var region = encodeResult.Regions[i];
-                regions[i] = new FrameRegion(region.X, region.Y, region.Width, region.Height, region.JpegData.Memory);
+                var region = encoded[i];
+                regions[i] = new FrameRegion(region.IsKeyframe, region.X, region.Y, region.Width, region.Height, region.JpegData.Memory);
             }
 
             try
@@ -276,19 +275,14 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
                 await this._connection.SendFrameAsync(
                     displayId!,
                     frameNumber,
-                    timestamp,
-                    FrameCodec.Jpeg,
-                    width,
-                    height,
-                    Quality,
-                    encodeResult.FrameType,
+                    codec,
                     regions);
 
                 sentAnyFrame = true;
             }
             finally
             {
-                foreach (var region in encodeResult.Regions)
+                foreach (var region in encoded)
                 {
                     region.JpegData.Dispose();
                 }

@@ -95,15 +95,15 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
             return;
 
         // Drop out-of-order delta frames (but always accept keyframes)
-        if (e.FrameType != FrameType.Keyframe && e.FrameNumber <= this._lastReceivedFrameNumber)
+        if (e.Regions is not [{ IsKeyframe: true }] && e.FrameNumber <= this._lastReceivedFrameNumber)
             return;
 
         try
         {
-            if (e.FrameType == FrameType.Keyframe)
+            if (e.Regions is [{ IsKeyframe: true }])
             {
                 // Apply full keyframe
-                this._compositor.ApplyKeyframe(e.Regions, e.Width, e.Height, e.FrameNumber);
+                this._compositor.ApplyKeyframe(e.Regions, e.FrameNumber);
             }
             else
             {

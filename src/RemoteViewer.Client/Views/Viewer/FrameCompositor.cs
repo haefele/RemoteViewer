@@ -51,10 +51,13 @@ public class FrameCompositor : IDisposable
     /// <param name="width">Full frame width</param>
     /// <param name="height">Full frame height</param>
     /// <param name="frameNumber">Frame number</param>
-    public void ApplyKeyframe(FrameRegion[] regions, int width, int height, ulong frameNumber)
+    public void ApplyKeyframe(FrameRegion[] regions, ulong frameNumber)
     {
         if (regions.Length == 0)
             return;
+
+        var width = regions[0].Width;
+        var height = regions[0].Height;
 
         // Resize canvas if needed
         if (this._canvas is null || this._width != width || this._height != height)

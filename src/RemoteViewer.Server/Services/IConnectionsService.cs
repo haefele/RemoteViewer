@@ -12,9 +12,10 @@ namespace RemoteViewer.Server.Services;
 
 public interface IConnectionsService
 {
-    Task Register(string signalrConnectionId);
+    Task Register(string signalrConnectionId, string? displayName);
     Task Unregister(string signalrConnectionId);
     Task GenerateNewPassword(string signalrConnectionId);
+    Task SetDisplayName(string signalrConnectionId, string displayName);
 
     Task<TryConnectError?> TryConnectTo(string signalrConnectionId, string username, string password);
     Task DisconnectFromConnection(string signalrConnectionId, string connectionId);
@@ -29,7 +30,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
     private readonly List<Connection> _connections = new();
     private readonly ReaderWriterLockSlim _lock = new();
 
-    public async Task Register(string signalrConnectionId)
+    public async Task Register(string signalrConnectionId, string? displayName)
     {
         this._logger.ClientRegistrationStarted(signalrConnectionId);
 
@@ -57,6 +58,11 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
 
                 var client = Client.Create(Guid.NewGuid().ToString(), credentials, signalrConnectionId, actions);
                 this._clients.Add(client);
+
+                if (!string.IsNullOrEmpty(displayName))
+                {
+                    client.SetDisplayName(displayName);
+                }
 
                 this._logger.ClientRegistered(client.Id, client.Credentials.Username, this._clients.Count);
 
@@ -127,6 +133,35 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
     {
         const string PasswordChars = "abcdefghijklmnopqrstuvwxyz0123456789";
         return Random.Shared.GetString(PasswordChars, 8);
+    }
+
+    public async Task SetDisplayName(string signalrConnectionId, string displayName)
+    {
+        this._logger.ClientDisplayNameChangeStarted(signalrConnectionId, displayName);
+
+        var actions = connectionHub.BatchedActions(this._logger);
+
+        using (this._lock.WriteLock())
+        {
+            var client = this._clients.FirstOrDefault(c => c.SignalrConnectionId == signalrConnectionId);
+            if (client is null)
+                return;
+
+            client.SetDisplayName(displayName);
+            this._logger.ClientDisplayNameChanged(client.Id, displayName);
+
+            // Broadcast ConnectionChanged to any connections this client is part of
+            foreach (var connection in this._connections)
+            {
+                if (connection.Presenter.SignalrConnectionId == signalrConnectionId ||
+                    connection.Viewers.Any(v => v.SignalrConnectionId == signalrConnectionId))
+                {
+                    connection.ConnectionChanged(actions);
+                }
+            }
+        }
+
+        await actions.ExecuteAll();
     }
 
     private static string FormatUsername(string username)
@@ -281,6 +316,9 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
         public string Id { get; }
         public Credentials Credentials { get; private set; }
         public string SignalrConnectionId { get; }
+        public string DisplayName { get; private set; } = string.Empty;
+
+        public void SetDisplayName(string displayName) => this.DisplayName = displayName;
 
         public void UpdatePassword(string newPassword, ConnectionHubBatchedActions actions)
         {
@@ -429,12 +467,12 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
             return true;
         }
 
-        private void ConnectionChanged(ConnectionHubBatchedActions actions)
+        public void ConnectionChanged(ConnectionHubBatchedActions actions)
         {
             var connectionInfo = new ConnectionInfo(
                 this.Id,
-                this.Presenter.Id,
-                this._viewers.Select(v => v.Id).ToList()
+                new ClientInfo(this.Presenter.Id, this.Presenter.DisplayName),
+                this._viewers.Select(v => new ClientInfo(v.Id, v.DisplayName)).ToList()
             );
 
             this._logger.ConnectionStateChange(this.Id, this._viewers.Count);

@@ -15,6 +15,12 @@ internal static partial class ConnectionsServiceLogs
     [LoggerMessage(Level = LogLevel.Information, Message = "Client password changed successfully. ClientId: {ClientId}")]
     public static partial void ClientPasswordChanged(this ILogger logger, string clientId);
 
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Client display name change started. SignalRConnectionId: {SignalRConnectionId}, DisplayName: {DisplayName}")]
+    public static partial void ClientDisplayNameChangeStarted(this ILogger logger, string signalRConnectionId, string displayName);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Client display name changed. ClientId: {ClientId}, DisplayName: {DisplayName}")]
+    public static partial void ClientDisplayNameChanged(this ILogger logger, string clientId, string displayName);
+
     [LoggerMessage(Level = LogLevel.Warning, Message = "Client registration required {Attempts} attempts due to username collisions")]
     public static partial void MultipleRegistrationAttempts(this ILogger logger, int attempts);
 

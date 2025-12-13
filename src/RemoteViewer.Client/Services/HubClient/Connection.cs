@@ -1,4 +1,4 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.ScreenCapture;
 using RemoteViewer.Server.SharedAPI;
@@ -156,12 +156,7 @@ public sealed class Connection
     public async Task SendFrameAsync(
         string displayId,
         ulong frameNumber,
-        long timestamp,
         FrameCodec codec,
-        int width,
-        int height,
-        byte quality,
-        FrameType frameType,
         FrameRegion[] regions)
     {
         if (!this.IsPresenter)
@@ -186,12 +181,7 @@ public sealed class Connection
         var message = new FrameMessage(
             displayId,
             frameNumber,
-            timestamp,
             codec,
-            width,
-            height,
-            quality,
-            frameType,
             regions
         );
 
@@ -199,7 +189,7 @@ public sealed class Connection
         await this._sendMessageAsync(MessageTypes.Screen.Frame, serializedData, MessageDestination.SpecificClients, targetViewerIds);
     }
 
-    internal void OnViewersChanged(IReadOnlyList<string> viewerClientIds)
+    internal void OnViewersChanged(IReadOnlyList<ClientInfo> viewers)
     {
         if (!this.IsPresenter)
             return;
@@ -209,12 +199,15 @@ public sealed class Connection
             // Preserve existing display selections for viewers that are still connected
             var existingSelections = this._viewers.ToDictionary(v => v.ClientId, v => v.SelectedDisplayId);
 
-            this._viewers = viewerClientIds
-                .Select(id => new ViewerInfo(id, existingSelections.GetValueOrDefault(id)))
+            this._viewers = viewers
+                .Select(v => new ViewerInfo(
+                    v.ClientId,
+                    existingSelections.GetValueOrDefault(v.ClientId),
+                    v.DisplayName))
                 .ToList();
         }
 
-        this._logger.LogDebug("Viewers changed: {ViewerCount} viewer(s)", viewerClientIds.Count);
+        this._logger.LogDebug("Viewers changed: {ViewerCount} viewer(s)", viewers.Count);
         this._viewersChanged?.Invoke(this, EventArgs.Empty);
     }
     internal async void OnMessageReceived(string senderClientId, string messageType, byte[] data)
@@ -291,11 +284,12 @@ public sealed class Connection
             var index = this._viewers.FindIndex(v => v.ClientId == senderClientId);
             if (index >= 0)
             {
-                this._viewers[index] = new ViewerInfo(senderClientId, message.DisplayId);
+                var existing = this._viewers[index];
+                this._viewers[index] = existing with { SelectedDisplayId = message.DisplayId };
             }
             else
             {
-                this._viewers.Add(new ViewerInfo(senderClientId, message.DisplayId));
+                this._viewers.Add(new ViewerInfo(senderClientId, message.DisplayId, senderClientId));
             }
         }
 
@@ -410,12 +404,7 @@ public sealed class Connection
         var args = new FrameReceivedEventArgs(
             message.DisplayId,
             message.FrameNumber,
-            message.Timestamp,
             message.Codec,
-            message.Width,
-            message.Height,
-            message.Quality,
-            message.FrameType,
             message.Regions);
 
         this.FrameReceived?.Invoke(this, args);
@@ -432,7 +421,7 @@ public sealed class Connection
 /// <summary>
 /// Information about a connected viewer, including their selected display.
 /// </summary>
-public sealed record ViewerInfo(string ClientId, string? SelectedDisplayId);
+public sealed record ViewerInfo(string ClientId, string? SelectedDisplayId, string DisplayName);
 
 /// <summary>
 /// Type of input event received from a viewer.
@@ -500,32 +489,17 @@ public sealed class FrameReceivedEventArgs : EventArgs
     public FrameReceivedEventArgs(
         string displayId,
         ulong frameNumber,
-        long timestamp,
         FrameCodec codec,
-        int width,
-        int height,
-        byte quality,
-        FrameType frameType,
         FrameRegion[] regions)
     {
         this.DisplayId = displayId;
         this.FrameNumber = frameNumber;
-        this.Timestamp = timestamp;
         this.Codec = codec;
-        this.Width = width;
-        this.Height = height;
-        this.Quality = quality;
-        this.FrameType = frameType;
         this.Regions = regions;
     }
 
     public string DisplayId { get; }
     public ulong FrameNumber { get; }
-    public long Timestamp { get; }
     public FrameCodec Codec { get; }
-    public int Width { get; }
-    public int Height { get; }
-    public byte Quality { get; }
-    public FrameType FrameType { get; }
     public FrameRegion[] Regions { get; }
 }
