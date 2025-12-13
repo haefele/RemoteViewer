@@ -224,49 +224,100 @@ public sealed class ConnectionHubClient : IAsyncDisposable
 
     public async Task<TryConnectError?> ConnectTo(string username, string password)
     {
-        this._logger.LogInformation("Attempting to connect to device with username: {Username}", username);
-        var error = await this._connection.InvokeAsync<TryConnectError?>("ConnectTo", username, password);
+        if (!this.IsConnected)
+            return null;
 
-        if (error is null)
+        try
         {
-            this._logger.LogInformation("Successfully connected to device with username: {Username}", username);
-        }
-        else
-        {
-            this._logger.LogWarning("Failed to connect to device with username: {Username}, Error: {Error}", username, error);
-        }
+            this._logger.LogInformation("Attempting to connect to device with username: {Username}", username);
+            var error = await this._connection.InvokeAsync<TryConnectError?>("ConnectTo", username, password);
 
-        return error;
+            if (error is null)
+            {
+                this._logger.LogInformation("Successfully connected to device with username: {Username}", username);
+            }
+            else
+            {
+                this._logger.LogWarning("Failed to connect to device with username: {Username}, Error: {Error}", username, error);
+            }
+
+            return error;
+        }
+        catch (Exception ex) when (!this.IsConnected)
+        {
+            this._logger.LogWarning(ex, "Failed to connect to device - hub disconnected");
+            return null;
+        }
     }
 
     public async Task SendMessage(string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null)
     {
-        this._logger.LogDebug("Sending message - ConnectionId: {ConnectionId}, MessageType: {MessageType}, DataLength: {DataLength}, Destination: {Destination}", connectionId, messageType, data.Length, destination);
-        await this._connection.SendAsync("SendMessage", connectionId, messageType, data, destination, targetClientIds);
-        this._logger.LogDebug("Message sent successfully");
+        if (!this.IsConnected)
+            return;
+
+        try
+        {
+            this._logger.LogDebug("Sending message - ConnectionId: {ConnectionId}, MessageType: {MessageType}, DataLength: {DataLength}, Destination: {Destination}", connectionId, messageType, data.Length, destination);
+            await this._connection.SendAsync("SendMessage", connectionId, messageType, data, destination, targetClientIds);
+            this._logger.LogDebug("Message sent successfully");
+        }
+        catch (Exception ex) when (!this.IsConnected)
+        {
+            this._logger.LogWarning(ex, "Failed to send message - hub disconnected");
+        }
     }
 
     public async Task Disconnect(string connectionId)
     {
-        this._logger.LogInformation("Disconnecting from connection: {ConnectionId}", connectionId);
-        await this._connection.InvokeAsync("Disconnect", connectionId);
-        this._logger.LogInformation("Disconnected from connection: {ConnectionId}", connectionId);
+        if (!this.IsConnected)
+            return;
+
+        try
+        {
+            this._logger.LogInformation("Disconnecting from connection: {ConnectionId}", connectionId);
+            await this._connection.InvokeAsync("Disconnect", connectionId);
+            this._logger.LogInformation("Disconnected from connection: {ConnectionId}", connectionId);
+        }
+        catch (Exception ex) when (!this.IsConnected)
+        {
+            this._logger.LogWarning(ex, "Failed to disconnect - hub disconnected");
+        }
     }
 
     public async Task GenerateNewPassword()
     {
-        this._logger.LogInformation("Generating new password");
-        await this._connection.InvokeAsync("GenerateNewPassword");
-        this._logger.LogInformation("New password generated");
+        if (!this.IsConnected)
+            return;
+
+        try
+        {
+            this._logger.LogInformation("Generating new password");
+            await this._connection.InvokeAsync("GenerateNewPassword");
+            this._logger.LogInformation("New password generated");
+        }
+        catch (Exception ex) when (!this.IsConnected)
+        {
+            this._logger.LogWarning(ex, "Failed to generate new password - hub disconnected");
+        }
     }
 
     public async Task SetDisplayName(string displayName)
     {
         this.DisplayName = displayName;
 
-        this._logger.LogInformation("Setting display name to: {DisplayName}", displayName);
-        await this._connection.InvokeAsync("SetDisplayName", displayName);
-        this._logger.LogInformation("Display name set successfully");
+        if (!this.IsConnected)
+            return;
+
+        try
+        {
+            this._logger.LogInformation("Setting display name to: {DisplayName}", displayName);
+            await this._connection.InvokeAsync("SetDisplayName", displayName);
+            this._logger.LogInformation("Display name set successfully");
+        }
+        catch (Exception ex) when (!this.IsConnected)
+        {
+            this._logger.LogWarning(ex, "Failed to set display name - hub disconnected");
+        }
     }
 
     public async ValueTask DisposeAsync()

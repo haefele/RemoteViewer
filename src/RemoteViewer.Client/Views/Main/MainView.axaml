@@ -19,24 +19,6 @@
     <Panel>
         <!-- Main Content -->
         <DockPanel>
-            <!-- Version Mismatch Warning Banner -->
-            <Border DockPanel.Dock="Top"
-                    Background="#FFF3CD"
-                    Padding="12,8"
-                    IsVisible="{Binding HasVersionMismatch}">
-                <Grid ColumnDefinitions="Auto,*">
-                    <mi:MaterialIcon Kind="AlertOutline"
-                                     Width="20" Height="20"
-                                     Foreground="#856404"
-                                     VerticalAlignment="Center"
-                                     Margin="0,0,10,0"/>
-                    <TextBlock Grid.Column="1"
-                               Text="{Binding VersionMismatchText}"
-                               Foreground="#856404"
-                               VerticalAlignment="Center"/>
-                </Grid>
-            </Border>
-
             <!-- Status Bar at Bottom -->
             <Border DockPanel.Dock="Bottom"
                     Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
@@ -67,19 +49,16 @@
                                    FontSize="16"
                                    Margin="0,0,0,12"/>
 
-                        <!-- Row 1: ID Label + Value, Password Label -->
+                        <!-- Row 1: ID Label + Value -->
                         <StackPanel Grid.Row="1" Grid.Column="0" Spacing="4">
                             <TextBlock Text="ID"
                                        FontSize="12"
                                        Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
                             <SelectableTextBlock Text="{Binding YourUsername}"
-                                                 Margin="0,8,0,12"
+                                                 Margin="0,8,0,0"
                                                  FontFamily="Consolas, Courier New, monospace"
                                                  FontSize="18"
                                                  FontWeight="Bold"/>
-                            <TextBlock Text="Password"
-                                       FontSize="12"
-                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
                         </StackPanel>
 
                         <!-- Copy button - spans rows 1-2, vertically centered -->
@@ -96,24 +75,29 @@
                                              Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
                         </Button>
 
-                        <!-- Row 2: Password Value with Refresh right next to it -->
-                        <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" Spacing="4">
-                            <SelectableTextBlock Text="{Binding YourPassword}"
-                                                 Margin="0,8,0,2"
-                                                 FontFamily="Consolas, Courier New, monospace"
-                                                 FontSize="18"
-                                                 FontWeight="Bold"
-                                                 VerticalAlignment="Center"/>
-                            <Button Command="{Binding GenerateNewPasswordCommand}"
-                                    ToolTip.Tip="Generate new password"
-                                    Background="Transparent"
-                                    BorderThickness="0"
-                                    Width="28" Height="28"
-                                    Padding="0"
-                                    VerticalAlignment="Center">
-                                <mi:MaterialIcon Kind="Refresh" Width="18" Height="18"
-                                                 Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
-                            </Button>
+                        <!-- Row 2: Password Label + Value with Refresh -->
+                        <StackPanel Grid.Row="2" Grid.Column="0" Spacing="4" Margin="0,12,0,0">
+                            <TextBlock Text="Password"
+                                       FontSize="12"
+                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                <SelectableTextBlock Text="{Binding YourPassword}"
+                                                     Margin="0,8,0,2"
+                                                     FontFamily="Consolas, Courier New, monospace"
+                                                     FontSize="18"
+                                                     FontWeight="Bold"
+                                                     VerticalAlignment="Center"/>
+                                <Button Command="{Binding GenerateNewPasswordCommand}"
+                                        ToolTip.Tip="Generate new password"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Width="28" Height="28"
+                                        Padding="0"
+                                        VerticalAlignment="Center">
+                                    <mi:MaterialIcon Kind="Refresh" Width="18" Height="18"
+                                                     Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                </Button>
+                            </StackPanel>
                         </StackPanel>
                     </Grid>
                 </Border>
@@ -172,5 +156,24 @@
                                   VerticalAlignment="Bottom"
                                   HorizontalAlignment="Right"
                                   Margin="0,0,8,8"/>
+
+        <!-- Version Mismatch Warning Banner (overlay) -->
+        <Border VerticalAlignment="Top"
+                HorizontalAlignment="Stretch"
+                Background="#FFF3CD"
+                Padding="12,8"
+                IsVisible="{Binding HasVersionMismatch}">
+            <Grid ColumnDefinitions="Auto,*">
+                <mi:MaterialIcon Kind="AlertOutline"
+                                 Width="20" Height="20"
+                                 Foreground="#856404"
+                                 VerticalAlignment="Center"
+                                 Margin="0,0,10,0"/>
+                <TextBlock Grid.Column="1"
+                           Text="{Binding VersionMismatchText}"
+                           Foreground="#856404"
+                           VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
     </Panel>
 </Window>

@@ -143,7 +143,7 @@ public partial class MainViewModel : ViewModelBase
     {
         if (string.IsNullOrWhiteSpace(this.TargetUsername) || string.IsNullOrWhiteSpace(this.TargetPassword))
         {
-            this.Toasts.Error("ID and password are required");
+            this.Toasts.Error("ID and password are required.");
             return;
         }
 
@@ -154,10 +154,10 @@ public partial class MainViewModel : ViewModelBase
         {
             var errorMessage = error switch
             {
-                TryConnectError.IncorrectUsernameOrPassword => "Incorrect ID or password",
-                TryConnectError.ViewerNotFound => "Connection error - please try again",
-                TryConnectError.CannotConnectToYourself => "Cannot connect to yourself",
-                _ => "Unknown error occurred"
+                TryConnectError.IncorrectUsernameOrPassword => "Incorrect ID or password.",
+                TryConnectError.ViewerNotFound => "Connection error - please try again.",
+                TryConnectError.CannotConnectToYourself => "Cannot connect to yourself.",
+                _ => "Unknown error occurred."
             };
 
             this._logger.ConnectionFailed(errorMessage);
@@ -176,7 +176,7 @@ public partial class MainViewModel : ViewModelBase
                     Password: {this.YourPassword}
                     """;
         this.CopyToClipboardRequested?.Invoke(this, text);
-        this.Toasts.Success("ID and password copied to clipboard");
+        this.Toasts.Success("ID and password copied to clipboard.");
 
         this._logger.CopiedCredentialsToClipboard();
     }
