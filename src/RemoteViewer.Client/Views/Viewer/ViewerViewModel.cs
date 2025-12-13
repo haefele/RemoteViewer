@@ -3,7 +3,9 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using RemoteViewer.Client.Controls.Toasts;
 using RemoteViewer.Client.Services.HubClient;
+using RemoteViewer.Client.Services.ViewModels;
 using RemoteViewer.Server.SharedAPI.Protocol;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
@@ -15,6 +17,8 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     private readonly Connection _connection;
     private readonly ILogger<ViewerViewModel> _logger;
     private readonly FrameCompositor _compositor = new();
+
+    public ToastsViewModel Toasts { get; }
 
     private readonly ConcurrentDictionary<ushort, object?> _pressedKeys = new();
 
@@ -58,10 +62,11 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     public event EventHandler? CloseRequested;
 
-    public ViewerViewModel(Connection connection, ILogger<ViewerViewModel> logger)
+    public ViewerViewModel(Connection connection, IViewModelFactory viewModelFactory, ILogger<ViewerViewModel> logger)
     {
         this._connection = connection;
         this._logger = logger;
+        this.Toasts = viewModelFactory.CreateToastsViewModel();
 
         // Subscribe to Connection events
         this._connection.DisplaysChanged += this.Connection_DisplaysChanged;

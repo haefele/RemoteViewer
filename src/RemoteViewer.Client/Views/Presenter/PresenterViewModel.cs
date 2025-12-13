@@ -2,12 +2,14 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using RemoteViewer.Client.Controls.Toasts;
 using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.Client.Services.ScreenCapture;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.VideoCodec;
+using RemoteViewer.Client.Services.ViewModels;
 
 namespace RemoteViewer.Client.Views.Presenter;
 
@@ -17,6 +19,8 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
     private readonly IDisplayService _displayService;
     private readonly IInputInjectionService _inputInjectionService;
     private readonly ILogger<PresenterViewModel> _logger;
+
+    public ToastsViewModel Toasts { get; }
 
     private DisplayCaptureManager? _captureManager;
     private bool _disposed;
@@ -44,6 +48,7 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
         IScreenshotService screenshotService,
         ScreenEncoder screenEncoder,
         IInputInjectionService inputInjectionService,
+        IViewModelFactory viewModelFactory,
         ILogger<PresenterViewModel> logger,
         ILoggerFactory loggerFactory)
     {
@@ -51,6 +56,7 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
         this._displayService = displayService;
         this._inputInjectionService = inputInjectionService;
         this._logger = logger;
+        this.Toasts = viewModelFactory.CreateToastsViewModel();
 
         this.IsPlatformSupported = screenshotService.IsSupported;
 

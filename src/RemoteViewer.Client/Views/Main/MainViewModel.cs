@@ -2,8 +2,8 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using RemoteViewer.Client.Controls.Toasts;
 using RemoteViewer.Client.Services.HubClient;
-using RemoteViewer.Client.Services.Toasts;
 using RemoteViewer.Client.Services.ViewModels;
 using RemoteViewer.Client.Views.Presenter;
 using RemoteViewer.Client.Views.Viewer;
@@ -16,7 +16,8 @@ public partial class MainViewModel : ViewModelBase
     private readonly ConnectionHubClient _hubClient;
     private readonly IViewModelFactory _viewModelFactory;
     private readonly ILogger<MainViewModel> _logger;
-    private readonly IToastService _toastService;
+
+    public ToastsViewModel Toasts { get; }
 
     [ObservableProperty]
     private string? _yourUsername;
@@ -40,12 +41,12 @@ public partial class MainViewModel : ViewModelBase
     public event EventHandler? RequestShowMainView;
     public event EventHandler<string>? CopyToClipboardRequested;
 
-    public MainViewModel(ConnectionHubClient hubClient, IViewModelFactory viewModelFactory, ILogger<MainViewModel> logger, IToastService toastService)
+    public MainViewModel(ConnectionHubClient hubClient, IViewModelFactory viewModelFactory, ILogger<MainViewModel> logger)
     {
         this._hubClient = hubClient;
         this._viewModelFactory = viewModelFactory;
         this._logger = logger;
-        this._toastService = toastService;
+        this.Toasts = viewModelFactory.CreateToastsViewModel();
 
         this._hubClient.HubConnectionStatusChanged += (_, _) =>
         {
@@ -134,7 +135,7 @@ public partial class MainViewModel : ViewModelBase
     {
         if (string.IsNullOrWhiteSpace(this.TargetUsername) || string.IsNullOrWhiteSpace(this.TargetPassword))
         {
-            this._toastService.Error("ID and password are required");
+            this.Toasts.Error("ID and password are required");
             return;
         }
 
@@ -152,7 +153,7 @@ public partial class MainViewModel : ViewModelBase
             };
 
             this._logger.ConnectionFailed(errorMessage);
-            this._toastService.Error(errorMessage);
+            this.Toasts.Error(errorMessage);
         }
     }
 
@@ -167,7 +168,7 @@ public partial class MainViewModel : ViewModelBase
                     Password: {this.YourPassword}
                     """;
         this.CopyToClipboardRequested?.Invoke(this, text);
-        this._toastService.Success("Copied to clipboard");
+        this.Toasts.Success("Copied to clipboard");
 
         this._logger.CopiedCredentialsToClipboard();
     }

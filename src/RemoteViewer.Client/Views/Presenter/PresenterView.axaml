@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:RemoteViewer.Client.Views.Presenter"
         xmlns:conv="using:RemoteViewer.Client.Converters"
+        xmlns:toastControls="using:RemoteViewer.Client.Controls.Toasts"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="250"
@@ -13,7 +14,8 @@
         WindowStartupLocation="CenterScreen"
         CanResize="False">
 
-    <DockPanel>
+    <Panel>
+        <DockPanel>
         <!-- Status Bar at Bottom -->
         <Border DockPanel.Dock="Bottom"
                 Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
@@ -75,6 +77,13 @@
                     HorizontalAlignment="Center"
                     Padding="20,10"/>
         </StackPanel>
-    </DockPanel>
+        </DockPanel>
+
+        <!-- Toast Notifications (overlay, bottom-right) -->
+        <toastControls:ToastsView DataContext="{Binding Toasts}"
+                                  VerticalAlignment="Bottom"
+                                  HorizontalAlignment="Right"
+                                  Margin="0,0,8,8"/>
+    </Panel>
 
 </Window>

@@ -7,7 +7,6 @@ using RemoteViewer.Client.Views.Main;
 using Serilog;
 using RemoteViewer.Client.Services.ViewModels;
 using RemoteViewer.Client.Services.HubClient;
-using RemoteViewer.Client.Services.Toasts;
 using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.VideoCodec;
@@ -66,7 +65,6 @@ public partial class App : Application
         // Services
         services.AddSingleton<ConnectionHubClient>();
         services.AddSingleton<IViewModelFactory, ViewModelFactory>();
-        services.AddSingleton<IToastService, ToastService>();
         services.AddSingleton<ScreenEncoder>();
 
 #if WINDOWS

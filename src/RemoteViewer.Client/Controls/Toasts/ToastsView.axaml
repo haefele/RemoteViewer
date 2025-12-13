@@ -1,0 +1,64 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mi="using:Material.Icons.Avalonia"
+             xmlns:toasts="using:RemoteViewer.Client.Controls.Toasts"
+             xmlns:conv="using:RemoteViewer.Client.Converters"
+             x:Class="RemoteViewer.Client.Controls.Toasts.ToastsView"
+             x:DataType="toasts:ToastsViewModel">
+
+    <ItemsControl ItemsSource="{Binding Items}">
+        <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+                <StackPanel Spacing="8"/>
+            </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+
+        <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="toasts:ToastItemViewModel">
+                <Border CornerRadius="4"
+                        Padding="8"
+                        MaxWidth="280"
+                        MinWidth="180"
+                        Background="{Binding Type, Converter={x:Static conv:ToastTypeToBackgroundConverter.Instance}}">
+                    <Border.Transitions>
+                        <Transitions>
+                            <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+                        </Transitions>
+                    </Border.Transitions>
+
+                    <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,0">
+                        <mi:MaterialIcon Grid.Column="0"
+                                         Kind="{Binding Type, Converter={x:Static conv:ToastTypeToIconConverter.Instance}}"
+                                         Width="16"
+                                         Height="16"
+                                         VerticalAlignment="Center"
+                                         Foreground="White"
+                                         Margin="0,0,8,0"/>
+
+                        <TextBlock Grid.Column="1"
+                                   Text="{Binding Message}"
+                                   VerticalAlignment="Center"
+                                   TextWrapping="Wrap"
+                                   Foreground="White"
+                                   Margin="0,0,12,0"/>
+
+                        <Button Grid.Column="2"
+                                Command="{Binding DismissCommand}"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Width="24"
+                                Height="24"
+                                Padding="0"
+                                VerticalAlignment="Center"
+                                Cursor="Hand">
+                            <mi:MaterialIcon Kind="Close"
+                                             Width="14"
+                                             Height="14"
+                                             Foreground="White"/>
+                        </Button>
+                    </Grid>
+                </Border>
+            </DataTemplate>
+        </ItemsControl.ItemTemplate>
+    </ItemsControl>
+</UserControl>
