@@ -2,6 +2,7 @@
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.HubClient;
+using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.VideoCodec;
 using RemoteViewer.Server.SharedAPI.Protocol;
 

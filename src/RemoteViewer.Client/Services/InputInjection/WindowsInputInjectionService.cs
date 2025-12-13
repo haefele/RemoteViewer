@@ -1,6 +1,6 @@
 ﻿#if WINDOWS
 using Microsoft.Extensions.Logging;
-using RemoteViewer.Client.Services.ScreenCapture;
+using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Server.SharedAPI.Protocol;
 using Windows.Win32;
 using WindowsInput;

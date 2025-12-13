@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.Displays;
-using RemoteViewer.Client.Services.ScreenCapture;
+using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Server.SharedAPI;
 using RemoteViewer.Server.SharedAPI.Protocol;
 

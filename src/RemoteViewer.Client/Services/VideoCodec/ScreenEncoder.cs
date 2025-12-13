@@ -1,6 +1,6 @@
 ﻿using System.Buffers;
 using RemoteViewer.Client.Common;
-using RemoteViewer.Client.Services.ScreenCapture;
+using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Server.SharedAPI.Protocol;
 using TurboJpegWrapper;
 

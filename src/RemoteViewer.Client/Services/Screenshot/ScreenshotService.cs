@@ -1,7 +1,7 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 
-namespace RemoteViewer.Client.Services.ScreenCapture;
+namespace RemoteViewer.Client.Services.Screenshot;
 
 public sealed class ScreenshotService : IScreenshotService
 {

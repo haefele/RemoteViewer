@@ -10,8 +10,8 @@ using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.Toasts;
 using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.Client.Services.Displays;
-using RemoteViewer.Client.Services.ScreenCapture;
 using RemoteViewer.Client.Services.VideoCodec;
+using RemoteViewer.Client.Services.Screenshot;
 
 namespace RemoteViewer.Client;
 

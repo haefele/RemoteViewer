@@ -1,4 +1,4 @@
-﻿using RemoteViewer.Client.Services.ScreenCapture;
+﻿using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Server.SharedAPI.Protocol;
 
 namespace RemoteViewer.Client.Services.InputInjection;

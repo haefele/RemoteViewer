@@ -12,7 +12,7 @@ using Windows.Win32.Graphics.Direct3D11;
 using Windows.Win32.Graphics.Dxgi;
 using Windows.Win32.Graphics.Dxgi.Common;
 
-namespace RemoteViewer.Client.Services.ScreenCapture;
+namespace RemoteViewer.Client.Services.Screenshot;
 
 public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabber
 {

@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.HubClient;
+using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.VideoCodec;
 
 namespace RemoteViewer.Client.Services.ScreenCapture;
@@ -16,7 +17,7 @@ public sealed class DisplayCaptureManager(
     private readonly Dictionary<string, DisplayCapturePipeline> _pipelines = new();
     private readonly object _pipelinesLock = new();
 
-    private int _targetFps = 15;
+    private int _targetFps = 30;
     private bool _started;
     private bool _disposed;
 

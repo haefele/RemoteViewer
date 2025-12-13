@@ -1,11 +1,11 @@
-#if WINDOWS
+﻿#if WINDOWS
 using System.Collections.Immutable;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
-using RemoteViewer.Client.Services.ScreenCapture;
 using Windows.Win32;
 using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.Foundation;
+using RemoteViewer.Client.Services.Screenshot;
 
 namespace RemoteViewer.Client.Services.Displays;
 

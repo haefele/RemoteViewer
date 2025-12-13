@@ -1,5 +1,5 @@
-using System.Collections.Immutable;
-using RemoteViewer.Client.Services.ScreenCapture;
+﻿using System.Collections.Immutable;
+using RemoteViewer.Client.Services.Screenshot;
 
 namespace RemoteViewer.Client.Services.Displays;
 

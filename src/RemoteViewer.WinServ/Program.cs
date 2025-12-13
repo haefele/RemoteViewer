@@ -1,5 +1,5 @@
 ﻿using RemoteViewer.Client.Services.Displays;
-using RemoteViewer.Client.Services.ScreenCapture;
+using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.WinServ.Options;
 using RemoteViewer.WinServ.Services;
 using Serilog;

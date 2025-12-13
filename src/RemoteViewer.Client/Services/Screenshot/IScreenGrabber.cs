@@ -1,6 +1,6 @@
 ﻿using RemoteViewer.Client.Common;
 
-namespace RemoteViewer.Client.Services.ScreenCapture;
+namespace RemoteViewer.Client.Services.Screenshot;
 
 public interface IScreenGrabber
 {

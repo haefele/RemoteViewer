@@ -1,4 +1,4 @@
-namespace RemoteViewer.Client.Services.ScreenCapture;
+﻿namespace RemoteViewer.Client.Services.Screenshot;
 
 public interface IScreenshotService
 {

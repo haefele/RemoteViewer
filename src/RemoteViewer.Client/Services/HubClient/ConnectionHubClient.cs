@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using Nerdbank.MessagePack.SignalR;
 using PolyType.ReflectionProvider;
 using RemoteViewer.Client.Services.Displays;
-using RemoteViewer.Client.Services.ScreenCapture;
+using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Server.SharedAPI;
 
 namespace RemoteViewer.Client.Services.HubClient;
