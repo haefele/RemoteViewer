@@ -14,7 +14,8 @@
       "Bash(git log:*)",
       "Bash(del \"C:\\Users\\haefe\\source\\repos\\RemoteViewer\\src\\RemoteViewer.Client\\Views\\Presenter\\PresenterViewModelLogs.cs\")",
       "Bash(del \"C:\\Users\\haefe\\source\\repos\\RemoteViewer\\src\\RemoteViewer.Client\\Views\\Viewer\\ViewerViewModelLogs.cs\")",
-      "Bash(powershell:*)"
+      "Bash(powershell:*)",
+      "Bash(del \"C:\\Users\\haefe\\source\\repos\\RemoteViewer\\src\\RemoteViewer.Client\\Services\\VideoCodec\\FrameDiffDetector.cs\")"
     ],
     "deny": [],
     "ask": []
