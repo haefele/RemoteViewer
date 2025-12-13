@@ -17,7 +17,7 @@ public sealed class DisplayCaptureManager(
     private readonly Dictionary<string, DisplayCapturePipeline> _pipelines = new();
     private readonly object _pipelinesLock = new();
 
-    private int _targetFps = 30;
+    private int _targetFps = 15;
     private bool _started;
     private bool _disposed;
 
