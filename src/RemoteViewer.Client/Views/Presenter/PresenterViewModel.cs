@@ -1,5 +1,4 @@
-﻿using System.Diagnostics;
-using Avalonia.Threading;
+﻿using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -8,7 +7,6 @@ using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.Client.Services.ScreenCapture;
 using RemoteViewer.Client.Services.VideoCodec;
-using RemoteViewer.Server.SharedAPI.Protocol;
 
 namespace RemoteViewer.Client.Views.Presenter;
 
@@ -16,13 +14,10 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
 {
     private readonly Connection _connection;
     private readonly IDisplayService _displayService;
-    private readonly IScreenshotService _screenshotService;
-    private readonly ScreenEncoder _screenEncoder;
     private readonly IInputInjectionService _inputInjectionService;
     private readonly ILogger<PresenterViewModel> _logger;
 
-    private CancellationTokenSource? _captureLoopCts;
-    private Task? _captureLoopTask;
+    private DisplayCaptureManager? _captureManager;
     private bool _disposed;
 
     [ObservableProperty]
@@ -48,12 +43,11 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
         IScreenshotService screenshotService,
         ScreenEncoder screenEncoder,
         IInputInjectionService inputInjectionService,
-        ILogger<PresenterViewModel> logger)
+        ILogger<PresenterViewModel> logger,
+        ILoggerFactory loggerFactory)
     {
         this._connection = connection;
         this._displayService = displayService;
-        this._screenshotService = screenshotService;
-        this._screenEncoder = screenEncoder;
         this._inputInjectionService = inputInjectionService;
         this._logger = logger;
 
@@ -74,8 +68,14 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
         this._connection.InputReceived += this.OnInputReceived;
         this._connection.Closed += this.OnConnectionClosed;
 
-        // Start presenting immediately
-        this.StartPresenting();
+        // Create and start capture manager
+        this._captureManager = new DisplayCaptureManager(
+            connection,
+            displayService,
+            screenshotService,
+            screenEncoder,
+            loggerFactory);
+        this._captureManager.Start();
     }
 
     private void OnViewersChanged(object? sender, EventArgs e)
@@ -153,7 +153,8 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
 
     private void OnConnectionClosed(object? sender, EventArgs e)
     {
-        this.StopPresenting();
+        this._captureManager?.Dispose();
+        this._captureManager = null;
 
         // Release any stuck modifier keys when connection closes
         this._inputInjectionService.ReleaseAllModifiers();
@@ -169,127 +170,6 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
     private Display? GetDisplayById(string displayId)
     {
         return this._displayService.GetDisplays().FirstOrDefault(d => d.Name == displayId);
-    }
-
-    private void StartPresenting()
-    {
-        this._logger.LogInformation("Starting presenter for connection {ConnectionId}", this._connection.ConnectionId);
-
-        this._captureLoopCts = new CancellationTokenSource();
-        this._captureLoopTask = Task.Run(() => this.CaptureLoopAsync(this._captureLoopCts.Token));
-    }
-
-    private void StopPresenting()
-    {
-        this._captureLoopCts?.Cancel();
-        this._logger.LogInformation("Stopped presenting for connection {ConnectionId}", this._connection.ConnectionId);
-    }
-
-    private async Task CaptureLoopAsync(CancellationToken ct)
-    {
-        const int TargetFps = 30;
-        var minFrameInterval = TimeSpan.FromMilliseconds(1000.0 / TargetFps);
-        ulong frameNumber = 0;
-        var frameStopwatch = Stopwatch.StartNew();
-
-        this._logger.LogInformation("Capture loop started for connection {ConnectionId}", this._connection.ConnectionId);
-
-        while (!ct.IsCancellationRequested)
-        {
-            try
-            {
-                var sentFrame = await this.CaptureAndSendFramesAsync(frameNumber++);
-                if (sentFrame)
-                {
-                    // Calculate remaining time to hit target FPS
-                    var elapsed = frameStopwatch.Elapsed;
-                    var sleepTime = minFrameInterval - elapsed;
-
-                    if (sleepTime > TimeSpan.Zero)
-                    {
-                        await Task.Delay(sleepTime, ct);
-                    }
-
-                    frameStopwatch.Restart();
-                }
-                else
-                {
-                    // No frame sent (no changes or no viewers) - 1ms delay for responsiveness
-                    await Task.Delay(1, ct);
-                }
-            }
-            catch (Exception ex) when (ex is not OperationCanceledException)
-            {
-                this._logger.LogError(ex, "Error in capture loop");
-            }
-        }
-
-        this._logger.LogInformation("Capture loop ended for connection {ConnectionId}", this._connection.ConnectionId);
-    }
-
-    private async Task<bool> CaptureAndSendFramesAsync(ulong frameNumber)
-    {
-        // Get unique displays that viewers are watching
-        var viewers = this._connection.Viewers;
-        var displayIds = viewers
-            .Select(v => v.SelectedDisplayId)
-            .Where(id => id is not null)
-            .Distinct()
-            .Cast<string>()
-            .ToList();
-
-        if (displayIds.Count == 0)
-            return false;
-
-        var displays = this._displayService.GetDisplays();
-        var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var sentAnyFrame = false;
-
-        foreach (var displayId in displayIds)
-        {
-            var display = displays.FirstOrDefault(d => d.Name == displayId);
-            if (display is null)
-                continue;
-
-            var width = display.Bounds.Width;
-            var height = display.Bounds.Height;
-
-            using var grabResult = this._screenshotService.CaptureDisplay(display);
-            if (grabResult.Status != GrabStatus.Success)
-                continue;
-
-            var (codec, encoded) = this._screenEncoder.ProcessFrame(
-                grabResult,
-                width,
-                height);
-
-            var regions = new FrameRegion[encoded.Length];
-            for (var i = 0; i < encoded.Length; i++)
-            {
-                var region = encoded[i];
-                regions[i] = new FrameRegion(region.IsKeyframe, region.X, region.Y, region.Width, region.Height, region.JpegData.Memory);
-            }
-
-            try
-            {
-                await this._connection.SendFrameAsync(
-                    displayId!,
-                    frameNumber,
-                    codec,
-                    regions);
-
-                sentAnyFrame = true;
-            }
-            finally
-            {
-                foreach (var region in encoded)
-                {
-                    region.JpegData.Dispose();
-                }
-            }
-        }
-
-        return sentAnyFrame;
     }
 
     [RelayCommand]
@@ -312,15 +192,7 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
 
         this._disposed = true;
 
-        // Stop capture loop and wait for it to complete
-        this.StopPresenting();
-        try
-        {
-            this._captureLoopTask?.Wait(TimeSpan.FromSeconds(2));
-        }
-        catch (AggregateException) { } // Ignore cancellation exceptions
-
-        this._captureLoopCts?.Dispose();
+        this._captureManager?.Dispose();
 
         // Unsubscribe from Connection events
         this._connection.ViewersChanged -= this.OnViewersChanged;
