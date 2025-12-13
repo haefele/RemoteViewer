@@ -3,6 +3,7 @@
         xmlns:vm="using:RemoteViewer.Client.Views.Main"
         xmlns:conv="using:RemoteViewer.Client.Converters"
         xmlns:toastControls="using:RemoteViewer.Client.Controls.Toasts"
+        xmlns:mi="using:Material.Icons.Avalonia"
 
         x:Class="RemoteViewer.Client.Views.Main.MainView"
         x:DataType="vm:MainViewModel"
@@ -18,16 +19,32 @@
     <Panel>
         <!-- Main Content -->
         <DockPanel>
+            <!-- Version Mismatch Warning Banner -->
+            <Border DockPanel.Dock="Top"
+                    Background="#FFF3CD"
+                    Padding="12,8"
+                    IsVisible="{Binding HasVersionMismatch}">
+                <Grid ColumnDefinitions="Auto,*">
+                    <mi:MaterialIcon Kind="AlertOutline"
+                                     Width="20" Height="20"
+                                     Foreground="#856404"
+                                     VerticalAlignment="Center"
+                                     Margin="0,0,10,0"/>
+                    <TextBlock Grid.Column="1"
+                               Text="{Binding VersionMismatchText}"
+                               Foreground="#856404"
+                               VerticalAlignment="Center"/>
+                </Grid>
+            </Border>
+
             <!-- Status Bar at Bottom -->
             <Border DockPanel.Dock="Bottom"
                     Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
                     Padding="10,6">
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                    <Ellipse Width="12" Height="12">
-                        <Ellipse.Fill>
-                            <SolidColorBrush Color="{Binding IsConnected, Converter={x:Static conv:BoolToColorConverter.Instance}}"/>
-                        </Ellipse.Fill>
-                    </Ellipse>
+                    <mi:MaterialIcon Kind="{Binding IsConnected, Converter={x:Static conv:BoolToConnectionIconConverter.Instance}}"
+                                     Width="16" Height="16"
+                                     Foreground="{Binding IsConnected, Converter={x:Static conv:BoolToColorConverter.Instance}}"/>
                     <TextBlock Text="{Binding StatusText}"
                                VerticalAlignment="Center"
                                FontSize="12"/>
@@ -62,20 +79,39 @@
                             <TextBlock Text="Password"
                                        FontSize="12"
                                        Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
-                            <SelectableTextBlock Text="{Binding YourPassword}"
-                                                 Margin="0, 8, 0, 2"
-                                                 FontFamily="Consolas, Courier New, monospace"
-                                                 FontSize="18"
-                                                 FontWeight="Bold"/>
-                        </StackPanel>
-
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button Content="Copy"
-                                    Command="{Binding CopyCredentialsCommand}"
-                                    Padding="12,6"/>
-                            <Button Content="New Password"
-                                    Command="{Binding GenerateNewPasswordCommand}"
-                                    Padding="12,6"/>
+                            <Grid ColumnDefinitions="*,Auto,Auto">
+                                <SelectableTextBlock Grid.Column="0"
+                                                     Text="{Binding YourPassword}"
+                                                     Margin="0,8,0,2"
+                                                     FontFamily="Consolas, Courier New, monospace"
+                                                     FontSize="18"
+                                                     FontWeight="Bold"
+                                                     VerticalAlignment="Center"/>
+                                <Button Grid.Column="1"
+                                        Command="{Binding CopyCredentialsCommand}"
+                                        ToolTip.Tip="Copy ID and password"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Width="28" Height="28"
+                                        Padding="0"
+                                        Margin="4,0,0,0"
+                                        VerticalAlignment="Center">
+                                    <mi:MaterialIcon Kind="ContentCopy" Width="18" Height="18"
+                                                     Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                </Button>
+                                <Button Grid.Column="2"
+                                        Command="{Binding GenerateNewPasswordCommand}"
+                                        ToolTip.Tip="Generate new password"
+                                        Background="Transparent"
+                                        BorderThickness="0"
+                                        Width="28" Height="28"
+                                        Padding="0"
+                                        Margin="4,0,0,0"
+                                        VerticalAlignment="Center">
+                                    <mi:MaterialIcon Kind="Refresh" Width="18" Height="18"
+                                                     Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                </Button>
+                            </Grid>
                         </StackPanel>
                     </StackPanel>
                 </Border>
@@ -114,13 +150,18 @@
                                      KeyDown="TargetPasswordBox_KeyDown"/>
                         </StackPanel>
 
-                        <Button Content="{Binding ConnectToDeviceCommand.IsRunning, Converter={x:Static conv:BoolToConnectTextConverter.Instance}}"
-                                Command="{Binding ConnectToDeviceCommand}"
+                        <Button Command="{Binding ConnectToDeviceCommand}"
                                 HorizontalAlignment="Stretch"
                                 HorizontalContentAlignment="Center"
                                 Classes="accent"
                                 IsEnabled="{Binding !ConnectToDeviceCommand.IsRunning}"
-                                Margin="0,4,0,0"/>
+                                Margin="0,4,0,0">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <mi:MaterialIcon Kind="Monitor" Width="18" Height="18"/>
+                                <TextBlock Text="{Binding ConnectToDeviceCommand.IsRunning, Converter={x:Static conv:BoolToConnectTextConverter.Instance}}"
+                                           VerticalAlignment="Center"/>
+                            </StackPanel>
+                        </Button>
                     </StackPanel>
                 </Border>
             </Grid>

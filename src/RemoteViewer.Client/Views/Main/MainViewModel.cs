@@ -37,6 +37,12 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     private string _statusText = "Connecting...";
 
+    [ObservableProperty]
+    private bool _hasVersionMismatch;
+
+    [ObservableProperty]
+    private string _versionMismatchText = string.Empty;
+
     public event EventHandler? RequestHideMainView;
     public event EventHandler? RequestShowMainView;
     public event EventHandler<string>? CopyToClipboardRequested;
@@ -53,12 +59,14 @@ public partial class MainViewModel : ViewModelBase
             Dispatcher.UIThread.Post(() =>
             {
                 this.IsConnected = this._hubClient.IsConnected;
-                this.StatusText = this._hubClient switch
+                this.HasVersionMismatch = this._hubClient.HasVersionMismatch;
+
+                if (this._hubClient.HasVersionMismatch)
                 {
-                    { IsConnected: false, HasVersionMismatch: true } => $"Version mismatch - Server: {this._hubClient.ServerVersion}, Client: {ThisAssembly.AssemblyInformationalVersion}",
-                    { IsConnected: false, HasVersionMismatch: false } => "Connecting...",
-                    { IsConnected: true } => "Connected",
-                };
+                    this.VersionMismatchText = $"Version mismatch: Server v{this._hubClient.ServerVersion}, Client v{ThisAssembly.AssemblyInformationalVersion}";
+                }
+
+                this.StatusText = this._hubClient.IsConnected ? "Connected" : "Connecting...";
 
                 this._logger.HubConnectionStatusChanged(this._hubClient.IsConnected, this.StatusText);
 
@@ -168,7 +176,7 @@ public partial class MainViewModel : ViewModelBase
                     Password: {this.YourPassword}
                     """;
         this.CopyToClipboardRequested?.Invoke(this, text);
-        this.Toasts.Success("Copied to clipboard");
+        this.Toasts.Success("ID and password copied to clipboard");
 
         this._logger.CopiedCredentialsToClipboard();
     }
