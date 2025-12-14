@@ -26,7 +26,7 @@ public sealed class DisplayCapturePipeline : IDisposable
     private readonly Task _sendTask;
 
     private ulong _frameNumber;
-    private bool _disposed;
+    private int _disposed;
 
     public bool IsFaulted { get; private set; }
 
@@ -89,7 +89,10 @@ public sealed class DisplayCapturePipeline : IDisposable
                     var frame = new CapturedFrame(frameNumber, grabResult);
 
                     if (this._captureToEncodeChannel.Writer.TryWrite(frame) is false)
+                    {
+                        this._logger.CapturedFrameDropped(this._display.Name, frameNumber);
                         frame.Dispose();
+                    }
 
                     // Frame rate throttling
                     var minFrameInterval = TimeSpan.FromMilliseconds(1000.0 / this._getTargetFps());
@@ -109,7 +112,7 @@ public sealed class DisplayCapturePipeline : IDisposable
                 }
                 else
                 {
-                    this._logger.ScreenGrabFailed(this._display.Name);
+                    this._logger.ScreenGrabFailed(this._display.Name, grabResult.Status);
                     grabResult.Dispose();
                     await Task.Delay(10, ct);
                 }
@@ -127,6 +130,7 @@ public sealed class DisplayCapturePipeline : IDisposable
         finally
         {
             this._captureToEncodeChannel.Writer.Complete();
+            this._logger.CaptureLoopCompleted(this._display.Name);
         }
     }
 
@@ -148,7 +152,10 @@ public sealed class DisplayCapturePipeline : IDisposable
                     var frame = new EncodedFrame(capturedFrame.FrameNumber, codec, encodedRegions);
 
                     if (this._encodeToSendChannel.Writer.TryWrite(frame) is false)
+                    {
+                        this._logger.EncodedFrameDropped(this._display.Name, capturedFrame.FrameNumber);
                         frame.Dispose();
+                    }
                 }
             }
         }
@@ -164,6 +171,7 @@ public sealed class DisplayCapturePipeline : IDisposable
         finally
         {
             this._encodeToSendChannel.Writer.Complete();
+            this._logger.EncodeLoopCompleted(this._display.Name);
         }
     }
 
@@ -208,28 +216,42 @@ public sealed class DisplayCapturePipeline : IDisposable
             this._logger.SendLoopFailed(ex, this._display.Name);
             this.IsFaulted = true;
         }
+        finally
+        {
+            this._logger.SendLoopCompleted(this._display.Name);
+        }
     }
 
     public void Dispose()
     {
-        if (this._disposed)
+        if (Interlocked.Exchange(ref this._disposed, 1) == 1)
             return;
-
-        this._disposed = true;
 
         this._pipelineCts.Cancel();
 
-        try
+        var tasksCompleted = Task.WaitAll(
+            [this._captureTask, this._encodeTask, this._sendTask],
+            TimeSpan.FromSeconds(2));
+
+        if (!tasksCompleted)
         {
-            Task.WaitAll([this._captureTask, this._encodeTask, this._sendTask], TimeSpan.FromSeconds(2));
+            this._logger.DisposeTimedOut(this._display.Name);
         }
-        catch (AggregateException)
-        {
-            // Ignore cancellation exceptions
-        }
+
+        // Drain any remaining frames from channels to prevent resource leaks
+        this.DrainChannel(this._captureToEncodeChannel.Reader);
+        this.DrainChannel(this._encodeToSendChannel.Reader);
 
         this._pipelineCts.Dispose();
         this._logger.PipelineStopped(this._display.Name);
+    }
+
+    private void DrainChannel<T>(ChannelReader<T> reader) where T : IDisposable
+    {
+        while (reader.TryRead(out var item))
+        {
+            item.Dispose();
+        }
     }
 
     private readonly record struct CapturedFrame(

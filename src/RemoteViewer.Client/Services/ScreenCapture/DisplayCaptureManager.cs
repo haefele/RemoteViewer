@@ -1,6 +1,4 @@
-﻿using System.Threading;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.Screenshot;
@@ -13,40 +11,43 @@ public sealed class DisplayCaptureManager(
     IDisplayService displayService,
     IScreenshotService screenshotService,
     ScreenEncoder screenEncoder,
-    ILoggerFactory loggerFactory) : IDisposable
+    ILoggerFactory loggerFactory,
+    ILogger<DisplayCaptureManager> logger) : IDisposable
 {
     private readonly Dictionary<string, DisplayCapturePipeline> _pipelines = new();
     private readonly Lock _pipelinesLock = new();
-    private readonly CancellationTokenSource _monitorCts = new();
 
+    private readonly CancellationTokenSource _monitorCts = new();
     private Task? _monitorTask;
-    private int _targetFps = 15;
-    private bool _started;
-    private bool _disposed;
+
+    private int _started;
+    private int _disposed;
 
     public int TargetFps
     {
-        get => this._targetFps;
+        get;
         set
         {
             if (value <= 0 || value > 120)
                 throw new ArgumentOutOfRangeException(nameof(value), "FPS must be between 1 and 120");
 
-            this._targetFps = value;
+            field = value;
         }
     }
 
     public void Start()
     {
-        if (this._started)
+        if (Interlocked.Exchange(ref this._started, 1) == 1)
             throw new InvalidOperationException("Already started");
 
-        this._started = true;
+        logger.ManagerStarted();
         this._monitorTask = Task.Run(() => this.MonitorLoopAsync(this._monitorCts.Token));
     }
 
     private async Task MonitorLoopAsync(CancellationToken ct)
     {
+        logger.MonitorLoopStarted();
+
         while (!ct.IsCancellationRequested)
         {
             try
@@ -58,12 +59,17 @@ public sealed class DisplayCaptureManager(
                 break;
             }
 
+            if (this._disposed == 1)
+                break;
+
+            // Get display info outside the lock to avoid holding it during external calls
+            var displayIdsWithViewers = this.GetDisplaysWithViewers();
+            var availableDisplays = displayService.GetDisplays();
+
             using (this._pipelinesLock.EnterScope())
             {
-                if (this._disposed)
+                if (this._disposed == 1)
                     break;
-
-                var displayIdsWithViewers = this.GetDisplaysWithViewers();
 
                 // Stop pipelines for displays with no viewers
                 var displaysToStop = this._pipelines.Keys
@@ -72,6 +78,7 @@ public sealed class DisplayCaptureManager(
 
                 foreach (var displayId in displaysToStop)
                 {
+                    logger.StoppingPipeline(displayId);
                     this.StopPipelineForDisplay(displayId);
                 }
 
@@ -83,6 +90,7 @@ public sealed class DisplayCaptureManager(
 
                 foreach (var displayId in faultedDisplays)
                 {
+                    logger.FaultedPipelineDetected(displayId);
                     this.StopPipelineForDisplay(displayId);
                 }
 
@@ -91,15 +99,22 @@ public sealed class DisplayCaptureManager(
                 {
                     if (this._pipelines.ContainsKey(displayId) is false)
                     {
-                        var display = displayService.GetDisplays().FirstOrDefault(d => d.Name == displayId);
+                        var display = availableDisplays.FirstOrDefault(d => d.Name == displayId);
                         if (display is not null)
                         {
+                            logger.StartingPipeline(displayId);
                             this.StartPipelineForDisplay(display);
+                        }
+                        else
+                        {
+                            logger.DisplayNotFound(displayId);
                         }
                     }
                 }
             }
         }
+
+        logger.MonitorLoopStopped();
     }
 
     private HashSet<string> GetDisplaysWithViewers()
@@ -134,22 +149,17 @@ public sealed class DisplayCaptureManager(
 
     public void Dispose()
     {
-        if (this._disposed)
+        if (Interlocked.Exchange(ref this._disposed, 1) == 1)
             return;
 
-        this._disposed = true;
-
-        if (this._started)
+        if (this._started == 1)
         {
             this._monitorCts.Cancel();
 
-            try
+            var completed = this._monitorTask?.Wait(TimeSpan.FromSeconds(2)) ?? true;
+            if (!completed)
             {
-                this._monitorTask?.Wait(TimeSpan.FromSeconds(2));
-            }
-            catch (AggregateException)
-            {
-                // Ignore cancellation exceptions
+                logger.MonitorLoopTimedOut();
             }
 
             using (this._pipelinesLock.EnterScope())
@@ -164,5 +174,6 @@ public sealed class DisplayCaptureManager(
         }
 
         this._monitorCts.Dispose();
+        logger.ManagerStopped();
     }
 }

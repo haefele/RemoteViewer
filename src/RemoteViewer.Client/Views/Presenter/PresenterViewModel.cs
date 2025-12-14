@@ -81,7 +81,8 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
             displayService,
             screenshotService,
             screenEncoder,
-            loggerFactory);
+            loggerFactory,
+            loggerFactory.CreateLogger<DisplayCaptureManager>());
         this._captureManager.Start();
     }
 

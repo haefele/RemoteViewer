@@ -1,4 +1,5 @@
 ﻿using System.Buffers;
+using System.Collections.Concurrent;
 using RemoteViewer.Client.Common;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Server.SharedAPI.Protocol;
@@ -10,44 +11,74 @@ public sealed class ScreenEncoder : IDisposable
 {
     private const int JpegQuality = 90;
 
-    private readonly TJCompressor _compressor = new();
+    private readonly ConcurrentBag<TJCompressor> _compressorPool = new();
+    private bool _disposed;
 
     public (FrameCodec Codec, EncodedRegion[] Regions) ProcessFrame(
         GrabResult grabResult,
         int width,
         int height)
     {
-        // Keyframe: encode full frame
-        if (grabResult.FullFramePixels is not null)
+        var compressor = this.RentCompressor();
+        try
         {
-            var jpegData = this.EncodeJpeg(grabResult.FullFramePixels.Span, width, height);
+            // Keyframe: encode full frame
+            if (grabResult.FullFramePixels is not null)
+            {
+                var jpegData = EncodeJpeg(compressor, grabResult.FullFramePixels.Span, width, height);
 
-            return (FrameCodec.Jpeg90, [new EncodedRegion(true, 0, 0, width, height, jpegData)]);
+                return (FrameCodec.Jpeg90, [new EncodedRegion(true, 0, 0, width, height, jpegData)]);
+            }
+
+            // Delta frame: encode each dirty region
+            var regions = new EncodedRegion[grabResult.DirtyRegions!.Length];
+            for (var i = 0; i < grabResult.DirtyRegions.Length; i++)
+            {
+                var dirty = grabResult.DirtyRegions[i];
+                var jpegData = EncodeJpeg(compressor, dirty.Pixels.Span, dirty.Width, dirty.Height);
+
+                regions[i] = new EncodedRegion(false, dirty.X, dirty.Y, dirty.Width, dirty.Height, jpegData);
+            }
+
+            return (FrameCodec.Jpeg90, regions);
         }
-
-        // Delta frame: encode each dirty region
-        var regions = new EncodedRegion[grabResult.DirtyRegions!.Length];
-        for (var i = 0; i < grabResult.DirtyRegions.Length; i++)
+        finally
         {
-            var dirty = grabResult.DirtyRegions[i];
-            var jpegData = this.EncodeJpeg(dirty.Pixels.Span, dirty.Width, dirty.Height);
-
-            regions[i] = new EncodedRegion(false, dirty.X, dirty.Y, dirty.Width, dirty.Height, jpegData);
+            this.ReturnCompressor(compressor);
         }
-
-        return (FrameCodec.Jpeg90, regions);
     }
 
-    private IMemoryOwner<byte> EncodeJpeg(Span<byte> pixels, int width, int height)
+    private TJCompressor RentCompressor()
+    {
+        ObjectDisposedException.ThrowIf(this._disposed, this);
+
+        if (this._compressorPool.TryTake(out var compressor))
+            return compressor;
+
+        return new TJCompressor();
+    }
+
+    private void ReturnCompressor(TJCompressor compressor)
+    {
+        if (this._disposed)
+        {
+            compressor.Dispose();
+            return;
+        }
+
+        this._compressorPool.Add(compressor);
+    }
+
+    private static IMemoryOwner<byte> EncodeJpeg(TJCompressor compressor, Span<byte> pixels, int width, int height)
     {
         // Get max possible JPEG size for this resolution
-        var maxSize = this._compressor.GetBufferSize(width, height, TJSubsamplingOption.Chrominance420);
+        var maxSize = compressor.GetBufferSize(width, height, TJSubsamplingOption.Chrominance420);
 
         // Allocate buffer with max size (ArrayPool will likely give us a larger array anyway)
         var memoryOwner = RefCountedMemoryOwner<byte>.Create(maxSize);
 
         // Encode directly into our buffer - returns slice with actual compressed size
-        var result = this._compressor.Compress(
+        var result = compressor.Compress(
             pixels,
             memoryOwner.Span,
             width,
@@ -65,7 +96,12 @@ public sealed class ScreenEncoder : IDisposable
 
     public void Dispose()
     {
-        this._compressor.Dispose();
+        this._disposed = true;
+
+        while (this._compressorPool.TryTake(out var compressor))
+        {
+            compressor.Dispose();
+        }
     }
 }
 
