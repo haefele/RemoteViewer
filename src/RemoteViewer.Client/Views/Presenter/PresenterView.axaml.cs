@@ -33,7 +33,7 @@ public partial class PresenterView : Window
         this.Close();
     }
 
-    protected override async void OnClosed(EventArgs e)
+    private async void Window_Closed(object? sender, EventArgs e)
     {
         if (this._viewModel is not null)
             await this._viewModel.DisposeAsync();
