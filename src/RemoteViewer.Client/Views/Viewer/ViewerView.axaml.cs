@@ -185,11 +185,6 @@ public partial class ViewerView : Window
         this.DisplayPanel.Focus();
     }
 
-    private void FullscreenDisplayComboBox_DropDownClosed(object? sender, EventArgs e)
-    {
-        this.DisplayPanel.Focus();
-    }
-
     private void Window_PointerMoved(object? sender, PointerEventArgs e)
     {
         if (this._viewModel is null || !this._viewModel.IsFullscreen)

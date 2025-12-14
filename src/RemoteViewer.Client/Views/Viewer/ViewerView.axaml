@@ -27,12 +27,37 @@
     </Design.DataContext>
 
     <Grid RowDefinitions="Auto,*">
-        <!-- Toolbar (row 0, visible in windowed mode) -->
-        <Border Grid.Row="0"
+        <!-- Unified Toolbar (switches between windowed and fullscreen styling) -->
+        <Border x:Name="ToolbarBorder"
+                Grid.Row="0"
+                Classes.fullscreen="{Binding IsFullscreen}"
                 Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
                 Padding="8,6"
-                IsVisible="{Binding !IsFullscreen}">
+                PointerEntered="Toolbar_PointerEntered"
+                PointerExited="Toolbar_PointerExited">
+
+            <!-- Visibility with MultiBinding -->
+            <Border.IsVisible>
+                <MultiBinding Converter="{x:Static conv:ToolbarVisibilityConverter.Instance}">
+                    <Binding Path="IsFullscreen"/>
+                    <Binding Path="IsToolbarVisible"/>
+                </MultiBinding>
+            </Border.IsVisible>
+
+            <!-- Fullscreen mode overrides -->
+            <Border.Styles>
+                <Style Selector="Border#ToolbarBorder.fullscreen">
+                    <Setter Property="Grid.RowSpan" Value="2"/>
+                    <Setter Property="ZIndex" Value="1"/>
+                    <Setter Property="Opacity" Value="0.9"/>
+                    <Setter Property="CornerRadius" Value="0,0,8,8"/>
+                    <Setter Property="HorizontalAlignment" Value="Center"/>
+                    <Setter Property="VerticalAlignment" Value="Top"/>
+                </Style>
+            </Border.Styles>
+
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                <!-- Display selector -->
                 <TextBlock Text="Display:" VerticalAlignment="Center" FontSize="12"/>
                 <ComboBox x:Name="DisplayComboBox"
                           ItemsSource="{Binding Displays}"
@@ -46,6 +71,8 @@
                         </DataTemplate>
                     </ComboBox.ItemTemplate>
                 </ComboBox>
+
+                <!-- Next display button -->
                 <Button Command="{Binding NextDisplayCommand}"
                         ToolTip.Tip="Next display"
                         Background="Transparent"
@@ -53,25 +80,26 @@
                         Width="28" Height="28"
                         Padding="0"
                         Margin="-4,0,0,0">
-                    <mi:MaterialIcon Kind="Monitor" Width="18" Height="18"/>
+                    <mi:MaterialIcon Kind="MonitorMultiple" Width="18" Height="18"/>
                 </Button>
-                <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,4"/>
+
+                <!-- Separator -->
+                <Border Width="1" 
+                        Margin="0,4" 
+                        Background="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+
+                <!-- Fullscreen toggle (dynamic icon + tooltip) -->
                 <Button Command="{Binding ToggleFullscreenCommand}"
-                        ToolTip.Tip="Enter fullscreen (F11)"
+                        ToolTip.Tip="{Binding IsFullscreen, Converter={x:Static conv:BoolToFullscreenTooltipConverter.Instance}}"
                         Background="Transparent"
                         BorderThickness="0"
                         Width="32" Height="32"
                         Padding="0">
-                    <mi:MaterialIcon Kind="Fullscreen" Width="20" Height="20"/>
+                    <mi:MaterialIcon Kind="{Binding IsFullscreen, Converter={x:Static conv:BoolToFullscreenIconConverter.Instance}}"
+                                     Width="20" Height="20"/>
                 </Button>
-                <Button Command="{Binding DisconnectCommand}"
-                        ToolTip.Tip="Disconnect"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Width="32" Height="32"
-                        Padding="0">
-                    <mi:MaterialIcon Kind="LanDisconnect" Width="20" Height="20" Foreground="#F44336"/>
-                </Button>
+
+                <!-- Participants flyout -->
                 <Button ToolTip.Tip="Participants"
                         Background="Transparent"
                         BorderThickness="0"
@@ -96,53 +124,13 @@
                     </Button.Flyout>
                     <mi:MaterialIcon Kind="AccountGroup" Width="20" Height="20"/>
                 </Button>
-            </StackPanel>
-        </Border>
+                
+                <!-- Separator -->
+                <Border Width="1" 
+                        Margin="0,4" 
+                        Background="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
 
-        <!-- Fullscreen Toolbar (overlay, top-center, auto-hide) -->
-        <Border Grid.Row="0" Grid.RowSpan="2"
-                ZIndex="1"
-                x:Name="FullscreenToolbar"
-                VerticalAlignment="Top"
-                HorizontalAlignment="Center"
-                Background="#E0202020"
-                CornerRadius="0,0,8,8"
-                Padding="16,8"
-                IsVisible="{Binding IsToolbarVisible}"
-                PointerEntered="Toolbar_PointerEntered"
-                PointerExited="Toolbar_PointerExited">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <TextBlock Text="Display:" VerticalAlignment="Center" FontSize="12" Foreground="White"/>
-                <ComboBox x:Name="FullscreenDisplayComboBox"
-                          ItemsSource="{Binding Displays}"
-                          SelectedValue="{Binding SelectedDisplayId}"
-                          SelectedValueBinding="{Binding Id}"
-                          DropDownClosed="FullscreenDisplayComboBox_DropDownClosed"
-                          MinWidth="140">
-                    <ComboBox.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding Name}"/>
-                        </DataTemplate>
-                    </ComboBox.ItemTemplate>
-                </ComboBox>
-                <Button Command="{Binding NextDisplayCommand}"
-                        ToolTip.Tip="Next display"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Width="28" Height="28"
-                        Padding="0"
-                        Margin="-4,0,0,0">
-                    <mi:MaterialIcon Kind="Monitor" Width="18" Height="18" Foreground="White"/>
-                </Button>
-                <Border Width="1" Background="#40FFFFFF" Margin="0,4"/>
-                <Button Command="{Binding ToggleFullscreenCommand}"
-                        ToolTip.Tip="Exit fullscreen (F11 / ESC)"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Width="32" Height="32"
-                        Padding="0">
-                    <mi:MaterialIcon Kind="FullscreenExit" Width="20" Height="20" Foreground="White"/>
-                </Button>
+                <!-- Disconnect button -->
                 <Button Command="{Binding DisconnectCommand}"
                         ToolTip.Tip="Disconnect"
                         Background="Transparent"
@@ -150,30 +138,6 @@
                         Width="32" Height="32"
                         Padding="0">
                     <mi:MaterialIcon Kind="LanDisconnect" Width="20" Height="20" Foreground="#F44336"/>
-                </Button>
-                <Button ToolTip.Tip="Participants"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Width="32" Height="32"
-                        Padding="0">
-                    <Button.Flyout>
-                        <Flyout Placement="Bottom">
-                            <ItemsControl ItemsSource="{Binding Participants}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate x:DataType="vm:ParticipantDisplay">
-                                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="4,2">
-                                            <mi:MaterialIcon Kind="{Binding IsPresenter, Converter={x:Static conv:BoolToParticipantIconConverter.Instance}}" Width="14" Height="14"/>
-                                            <TextBlock Text="{Binding DisplayName}"/>
-                                            <TextBlock Text="{Binding SelectedDisplayName, StringFormat='- {0}'}"
-                                                       IsVisible="{Binding SelectedDisplayName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
-                                        </StackPanel>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </Flyout>
-                    </Button.Flyout>
-                    <mi:MaterialIcon Kind="AccountGroup" Width="20" Height="20" Foreground="White"/>
                 </Button>
             </StackPanel>
         </Border>

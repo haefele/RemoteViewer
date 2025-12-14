@@ -1,0 +1,24 @@
+using System;
+using System.Globalization;
+using Avalonia.Data.Converters;
+
+namespace RemoteViewer.Client.Converters;
+
+public class BoolToFullscreenTooltipConverter : IValueConverter
+{
+    public static readonly BoolToFullscreenTooltipConverter Instance = new();
+
+    public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        if (value is bool isFullscreen)
+        {
+            return isFullscreen ? "Exit fullscreen (F11 / ESC)" : "Enter fullscreen (F11)";
+        }
+        return "Enter fullscreen (F11)";
+    }
+
+    public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}
