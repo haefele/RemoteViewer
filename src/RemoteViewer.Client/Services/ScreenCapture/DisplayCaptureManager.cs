@@ -1,4 +1,5 @@
-﻿using System.Threading.Tasks;
+﻿using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.HubClient;
@@ -15,7 +16,7 @@ public sealed class DisplayCaptureManager(
     ILoggerFactory loggerFactory) : IDisposable
 {
     private readonly Dictionary<string, DisplayCapturePipeline> _pipelines = new();
-    private readonly object _pipelinesLock = new();
+    private readonly Lock _pipelinesLock = new();
 
     private int _targetFps = 15;
     private bool _started;
@@ -47,7 +48,7 @@ public sealed class DisplayCaptureManager(
     {
         var displayIdsWithViewers = this.GetDisplaysWithViewers();
 
-        lock (this._pipelinesLock)
+        using (this._pipelinesLock.EnterScope())
         {
             // Stop pipelines for displays with no viewers
             var displaysToStop = this._pipelines.Keys
@@ -112,7 +113,7 @@ public sealed class DisplayCaptureManager(
             // Small delay to avoid rapid restart loops
             await Task.Delay(100);
 
-            lock (this._pipelinesLock)
+            using (this._pipelinesLock.EnterScope())
             {
                 if (this._disposed)
                     return;
@@ -147,7 +148,7 @@ public sealed class DisplayCaptureManager(
         {
             connection.ViewersChanged -= this.OnViewersChanged;
 
-            lock (this._pipelinesLock)
+            using (this._pipelinesLock.EnterScope())
             {
                 foreach (var pipeline in this._pipelines.Values)
                 {

@@ -1,9 +1,10 @@
 ﻿#if WINDOWS
-using Microsoft.Extensions.Logging;
+using System.Collections.Concurrent;
 using System.Drawing;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
+using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Common;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -23,8 +24,7 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
     public bool IsAvailable => OperatingSystem.IsOSPlatformVersionAtLeast("windows", 8);
     public int Priority => 100;
 
-    private readonly Dictionary<string, DxOutput> _outputs = new();
-    private readonly object _lock = new();
+    private readonly ConcurrentDictionary<string, DxOutput> _outputs = new();
 
     public GrabResult CaptureDisplay(Display display, bool forceKeyframe)
     {
@@ -297,119 +297,131 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
         }
     }
 
-    private unsafe DxOutput? GetOrCreateOutput(string deviceName)
+    private DxOutput? GetOrCreateOutput(string deviceName)
     {
         if (!OperatingSystem.IsOSPlatformVersionAtLeast("windows", 8))
             return null;
 
-        lock (this._lock)
+        // Try to get existing output first (fast path)
+        if (this._outputs.TryGetValue(deviceName, out var existingOutput))
+            return existingOutput;
+
+        // Create new output
+        var newOutput = this.CreateOutput(deviceName);
+        if (newOutput is null)
+            return null;
+
+        // Try to add it - if another thread added one first, dispose ours and use theirs
+        var output = this._outputs.GetOrAdd(deviceName, newOutput);
+        if (output == newOutput)
         {
-            if (this._outputs.TryGetValue(deviceName, out var existingOutput))
+            return newOutput;
+        }
+        else
+        {
+            newOutput.Dispose();
+            return output;
+        }
+    }
+
+    [SupportedOSPlatform("windows8.0")]
+    private unsafe DxOutput? CreateOutput(string deviceName)
+    {
+        try
+        {
+            var factoryGuid = typeof(IDXGIFactory1).GUID;
+            var factoryResult = PInvoke.CreateDXGIFactory1(factoryGuid, out var factoryObj);
+            if (factoryResult.Failed)
             {
-                return existingOutput;
+                logger.LogWarning("Failed to create DXGI Factory. HRESULT: {Result}", factoryResult);
+                return null;
             }
+
+            var factory = (IDXGIFactory1)factoryObj;
 
             try
             {
-                var factoryGuid = typeof(IDXGIFactory1).GUID;
-                var factoryResult = PInvoke.CreateDXGIFactory1(factoryGuid, out var factoryObj);
-                if (factoryResult.Failed)
+                var adapterOutput = FindOutput(factory, deviceName);
+                if (adapterOutput is null)
                 {
-                    logger.LogWarning("Failed to create DXGI Factory. HRESULT: {Result}", factoryResult);
+                    logger.LogWarning("Failed to find DXGI output for device {DeviceName}", deviceName);
                     return null;
                 }
 
-                var factory = (IDXGIFactory1)factoryObj;
+                var (adapter, output) = adapterOutput.Value;
 
-                try
+                var featureLevels = new[]
                 {
-                    var adapterOutput = FindOutput(factory, deviceName);
-                    if (adapterOutput is null)
-                    {
-                        logger.LogWarning("Failed to find DXGI output for device {DeviceName}", deviceName);
-                        return null;
-                    }
+                        D3D_FEATURE_LEVEL.D3D_FEATURE_LEVEL_11_1,
+                        D3D_FEATURE_LEVEL.D3D_FEATURE_LEVEL_11_0,
+                        D3D_FEATURE_LEVEL.D3D_FEATURE_LEVEL_10_1,
+                        D3D_FEATURE_LEVEL.D3D_FEATURE_LEVEL_10_0,
+                        D3D_FEATURE_LEVEL.D3D_FEATURE_LEVEL_9_3,
+                        D3D_FEATURE_LEVEL.D3D_FEATURE_LEVEL_9_2,
+                        D3D_FEATURE_LEVEL.D3D_FEATURE_LEVEL_9_1
+                    };
 
-                    var (adapter, output) = adapterOutput.Value;
+                var result = PInvoke.D3D11CreateDevice(
+                    adapter,
+                    D3D_DRIVER_TYPE.D3D_DRIVER_TYPE_UNKNOWN,
+                    HMODULE.Null,
+                    0,
+                    featureLevels,
+                    PInvoke.D3D11_SDK_VERSION,
+                    out var device,
+                    null,
+                    out var deviceContext);
 
-                    var featureLevels = new[]
-                    {
-                            D3D_FEATURE_LEVEL.D3D_FEATURE_LEVEL_11_1,
-                            D3D_FEATURE_LEVEL.D3D_FEATURE_LEVEL_11_0,
-                            D3D_FEATURE_LEVEL.D3D_FEATURE_LEVEL_10_1,
-                            D3D_FEATURE_LEVEL.D3D_FEATURE_LEVEL_10_0,
-                            D3D_FEATURE_LEVEL.D3D_FEATURE_LEVEL_9_3,
-                            D3D_FEATURE_LEVEL.D3D_FEATURE_LEVEL_9_2,
-                            D3D_FEATURE_LEVEL.D3D_FEATURE_LEVEL_9_1
-                        };
-
-                    var result = PInvoke.D3D11CreateDevice(
-                        adapter,
-                        D3D_DRIVER_TYPE.D3D_DRIVER_TYPE_UNKNOWN,
-                        HMODULE.Null,
-                        0,
-                        featureLevels,
-                        PInvoke.D3D11_SDK_VERSION,
-                        out var device,
-                        null,
-                        out var deviceContext);
-
-                    if (result.Failed)
-                    {
-                        logger.LogWarning("Failed to create D3D11 device. HRESULT: {Result}", result);
-                        Marshal.FinalReleaseComObject(output);
-                        Marshal.FinalReleaseComObject(adapter);
-                        return null;
-                    }
-
-                    output.DuplicateOutput(device, out var outputDuplication);
-
-                    if (outputDuplication is null)
-                    {
-                        logger.LogWarning("Failed to duplicate output for device {DeviceName}", deviceName);
-                        if (deviceContext is not null)
-                        {
-                            Marshal.FinalReleaseComObject(deviceContext);
-                        }
-                        if (device is not null)
-                        {
-                            Marshal.FinalReleaseComObject(device);
-                        }
-                        Marshal.FinalReleaseComObject(output);
-                        Marshal.FinalReleaseComObject(adapter);
-                        return null;
-                    }
-
-                    var dxOutput = new DxOutput(deviceName, device, deviceContext, outputDuplication);
-                    this._outputs[deviceName] = dxOutput;
-
+                if (result.Failed)
+                {
+                    logger.LogWarning("Failed to create D3D11 device. HRESULT: {Result}", result);
                     Marshal.FinalReleaseComObject(output);
                     Marshal.FinalReleaseComObject(adapter);
+                    return null;
+                }
 
-                    return dxOutput;
-                }
-                finally
+                output.DuplicateOutput(device, out var outputDuplication);
+
+                if (outputDuplication is null)
                 {
-                    Marshal.FinalReleaseComObject(factory);
+                    logger.LogWarning("Failed to duplicate output for device {DeviceName}", deviceName);
+                    if (deviceContext is not null)
+                    {
+                        Marshal.FinalReleaseComObject(deviceContext);
+                    }
+                    if (device is not null)
+                    {
+                        Marshal.FinalReleaseComObject(device);
+                    }
+                    Marshal.FinalReleaseComObject(output);
+                    Marshal.FinalReleaseComObject(adapter);
+                    return null;
                 }
+
+                var dxOutput = new DxOutput(deviceName, device, deviceContext, outputDuplication);
+
+                Marshal.FinalReleaseComObject(output);
+                Marshal.FinalReleaseComObject(adapter);
+
+                return dxOutput;
             }
-            catch (Exception exception)
+            finally
             {
-                logger.LogError(exception, "Failed to create DXGI output for device {DeviceName}", deviceName);
-                return null;
+                Marshal.FinalReleaseComObject(factory);
             }
+        }
+        catch (Exception exception)
+        {
+            logger.LogError(exception, "Failed to create DXGI output for device {DeviceName}", deviceName);
+            return null;
         }
     }
 
     public void ResetDisplay(string displayName)
     {
-        lock (this._lock)
+        if (this._outputs.TryRemove(displayName, out var output))
         {
-            if (this._outputs.TryGetValue(displayName, out var output))
-            {
-                output.Dispose();
-                this._outputs.Remove(displayName);
-            }
+            output.Dispose();
         }
     }
 
@@ -438,14 +450,11 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
 
     public void Dispose()
     {
-        lock (this._lock)
+        foreach (var output in this._outputs.Values)
         {
-            foreach (var output in this._outputs.Values)
-            {
-                output.Dispose();
-            }
-            this._outputs.Clear();
+            output.Dispose();
         }
+        this._outputs.Clear();
     }
 
     private sealed class DxOutput : IDisposable

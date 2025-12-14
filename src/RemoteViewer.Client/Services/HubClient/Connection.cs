@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Threading;
+using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Server.SharedAPI;
@@ -15,11 +16,11 @@ public sealed class Connection
     private readonly IScreenshotService? _screenshotService;
 
     // Thread-safe viewer list (presenter only)
-    private readonly object _viewersLock = new();
+    private readonly Lock _viewersLock = new();
     private List<ViewerInfo> _viewers = [];
 
     // Thread-safe displays list (viewer only)
-    private readonly object _displaysLock = new();
+    private readonly Lock _displaysLock = new();
     private List<DisplayInfo> _displays = [];
 
     internal Connection(
@@ -55,7 +56,7 @@ public sealed class Connection
     {
         get
         {
-            lock (this._viewersLock)
+            using (this._viewersLock.EnterScope())
             {
                 return this._viewers.ToList().AsReadOnly();
             }
@@ -65,7 +66,7 @@ public sealed class Connection
     {
         get
         {
-            lock (this._displaysLock)
+            using (this._displaysLock.EnterScope())
             {
                 return this._displays.ToList().AsReadOnly();
             }
@@ -82,7 +83,7 @@ public sealed class Connection
             this._viewersChanged += value;
 
             // Notify new subscriber of current state if viewers already exist
-            lock (this._viewersLock)
+            using (this._viewersLock.EnterScope())
             {
                 if (this._viewers.Count > 0)
                 {
@@ -103,7 +104,7 @@ public sealed class Connection
             this._displaysChanged += value;
 
             // Notify new subscriber of current state if displays already exist
-            lock (this._displaysLock)
+            using (this._displaysLock.EnterScope())
             {
                 if (this._displays.Count > 0)
                 {
@@ -167,7 +168,7 @@ public sealed class Connection
 
         // Get all viewers watching this display
         IReadOnlyList<string> targetViewerIds;
-        lock (this._viewersLock)
+        using (this._viewersLock.EnterScope())
         {
             targetViewerIds = this._viewers
                 .Where(v => v.SelectedDisplayId == displayId)
@@ -194,7 +195,7 @@ public sealed class Connection
         if (!this.IsPresenter)
             return;
 
-        lock (this._viewersLock)
+        using (this._viewersLock.EnterScope())
         {
             // Preserve existing display selections for viewers that are still connected
             var existingSelections = this._viewers.ToDictionary(v => v.ClientId, v => v.SelectedDisplayId);
@@ -279,7 +280,7 @@ public sealed class Connection
     {
         var message = ProtocolSerializer.Deserialize<DisplaySelectMessage>(data);
 
-        lock (this._viewersLock)
+        using (this._viewersLock.EnterScope())
         {
             var index = this._viewers.FindIndex(v => v.ClientId == senderClientId);
             if (index >= 0)
@@ -389,7 +390,7 @@ public sealed class Connection
     {
         var message = ProtocolSerializer.Deserialize<DisplayListMessage>(data);
 
-        lock (this._displaysLock)
+        using (this._displaysLock.EnterScope())
         {
             this._displays = [.. message.Displays];
         }
@@ -411,7 +412,7 @@ public sealed class Connection
     }
     private string? GetViewerDisplayId(string viewerClientId)
     {
-        lock (this._viewersLock)
+        using (this._viewersLock.EnterScope())
         {
             return this._viewers.FirstOrDefault(v => v.ClientId == viewerClientId)?.SelectedDisplayId;
         }

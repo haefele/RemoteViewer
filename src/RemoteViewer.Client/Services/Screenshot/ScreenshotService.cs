@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Concurrent;
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 
 namespace RemoteViewer.Client.Services.Screenshot;
@@ -9,8 +10,7 @@ public sealed class ScreenshotService : IScreenshotService
 
     private readonly ILogger<ScreenshotService> _logger;
     private readonly IScreenGrabber[] _sortedGrabbers;
-    private readonly Dictionary<string, DisplayState> _displayStates = new();
-    private readonly object _lock = new();
+    private readonly ConcurrentDictionary<string, DisplayState> _displayStates = new();
 
     public ScreenshotService(
         ILogger<ScreenshotService> logger,
@@ -63,25 +63,14 @@ public sealed class ScreenshotService : IScreenshotService
 
     private DisplayState GetOrCreateDisplayState(string displayName)
     {
-        lock (this._lock)
-        {
-            if (!this._displayStates.TryGetValue(displayName, out var state))
-            {
-                state = new DisplayState();
-                this._displayStates[displayName] = state;
-            }
-            return state;
-        }
+        return this._displayStates.GetOrAdd(displayName, _ => new DisplayState());
     }
 
     public void ForceKeyframe(string displayName)
     {
-        lock (this._lock)
+        if (this._displayStates.TryGetValue(displayName, out var state))
         {
-            if (this._displayStates.TryGetValue(displayName, out var state))
-            {
-                state.ForceNextKeyframe = true;
-            }
+            state.ForceNextKeyframe = true;
         }
     }
 

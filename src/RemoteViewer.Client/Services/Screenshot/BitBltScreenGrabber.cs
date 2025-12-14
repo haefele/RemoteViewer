@@ -1,7 +1,8 @@
 ﻿#if WINDOWS
+using System.Collections.Concurrent;
 using System.Drawing;
-using Microsoft.Extensions.Logging;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Common;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -13,8 +14,7 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : I
 {
     private const int BlockSize = 32;
 
-    private readonly Dictionary<string, BitBltDisplayState> _displayStates = new();
-    private readonly object _lock = new();
+    private readonly ConcurrentDictionary<string, BitBltDisplayState> _displayStates = new();
 
     public bool IsAvailable => OperatingSystem.IsWindows();
     public int Priority => 50;
@@ -207,39 +207,24 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : I
 
     private BitBltDisplayState GetOrCreateDisplayState(string displayName)
     {
-        lock (this._lock)
-        {
-            if (!this._displayStates.TryGetValue(displayName, out var state))
-            {
-                state = new BitBltDisplayState();
-                this._displayStates[displayName] = state;
-            }
-            return state;
-        }
+        return this._displayStates.GetOrAdd(displayName, _ => new BitBltDisplayState());
     }
 
     public void ResetDisplay(string displayName)
     {
-        lock (this._lock)
+        if (this._displayStates.TryRemove(displayName, out var state))
         {
-            if (this._displayStates.TryGetValue(displayName, out var state))
-            {
-                state.Dispose();
-                this._displayStates.Remove(displayName);
-            }
+            state.Dispose();
         }
     }
 
     public void Dispose()
     {
-        lock (this._lock)
+        foreach (var state in this._displayStates.Values)
         {
-            foreach (var state in this._displayStates.Values)
-            {
-                state.Dispose();
-            }
-            this._displayStates.Clear();
+            state.Dispose();
         }
+        this._displayStates.Clear();
     }
 
     private static Rectangle[]? DetectChanges(

@@ -1,4 +1,5 @@
 ﻿#if WINDOWS
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Server.SharedAPI.Protocol;
@@ -21,8 +22,7 @@ public class WindowsInputInjectionService : IInputInjectionService
     private readonly InputSimulator _simulator = new();
 
     // Track which modifier keys are currently pressed and when they were pressed
-    private readonly Dictionary<VirtualKeyCode, DateTime> _pressedModifiers = new();
-    private readonly object _modifierLock = new();
+    private readonly ConcurrentDictionary<VirtualKeyCode, DateTime> _pressedModifiers = new();
     private DateTime _lastInputTime = DateTime.UtcNow;
 
     // Accumulators for fractional scroll values (high-precision/smooth scrolling)
@@ -125,16 +125,13 @@ public class WindowsInputInjectionService : IInputInjectionService
         // Track modifier key state
         if (IsModifierKey(vk))
         {
-            lock (this._modifierLock)
+            if (isDown)
             {
-                if (isDown)
-                {
-                    this._pressedModifiers[vk] = DateTime.UtcNow;
-                }
-                else
-                {
-                    this._pressedModifiers.Remove(vk);
-                }
+                this._pressedModifiers[vk] = DateTime.UtcNow;
+            }
+            else
+            {
+                this._pressedModifiers.TryRemove(vk, out _);
             }
         }
 
@@ -154,15 +151,12 @@ public class WindowsInputInjectionService : IInputInjectionService
     /// </summary>
     public void ReleaseAllModifiers()
     {
-        lock (this._modifierLock)
+        foreach (var vk in this._pressedModifiers.Keys)
         {
-            foreach (var vk in this._pressedModifiers.Keys.ToList())
-            {
-                this._logger.LogInformation("Releasing modifier key on cleanup: {Key}", vk);
-                this._simulator.Keyboard.KeyUp(vk);
-            }
-            this._pressedModifiers.Clear();
+            this._logger.LogInformation("Releasing modifier key on cleanup: {Key}", vk);
+            this._simulator.Keyboard.KeyUp(vk);
         }
+        this._pressedModifiers.Clear();
     }
 
     private static bool IsModifierKey(VirtualKeyCode vk) => vk is
@@ -180,20 +174,17 @@ public class WindowsInputInjectionService : IInputInjectionService
         if (timeSinceLastInput < s_modifierTimeout)
             return;
 
-        lock (this._modifierLock)
-        {
-            if (this._pressedModifiers.Count == 0)
-                return;
+        if (this._pressedModifiers.IsEmpty)
+            return;
 
-            // Release any modifiers that have been held too long
-            foreach (var (vk, pressedTime) in this._pressedModifiers.ToList())
+        // Release any modifiers that have been held too long
+        foreach (var (vk, pressedTime) in this._pressedModifiers)
+        {
+            if (now - pressedTime >= s_modifierTimeout)
             {
-                if (now - pressedTime >= s_modifierTimeout)
-                {
-                    this._logger.LogWarning("Auto-releasing stuck modifier key: {Key} (held for {Duration:F1}s)", vk, (now - pressedTime).TotalSeconds);
-                    this._simulator.Keyboard.KeyUp(vk);
-                    this._pressedModifiers.Remove(vk);
-                }
+                this._logger.LogWarning("Auto-releasing stuck modifier key: {Key} (held for {Duration:F1}s)", vk, (now - pressedTime).TotalSeconds);
+                this._simulator.Keyboard.KeyUp(vk);
+                this._pressedModifiers.TryRemove(vk, out _);
             }
         }
     }
