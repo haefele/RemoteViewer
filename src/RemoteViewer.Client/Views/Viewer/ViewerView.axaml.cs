@@ -1,5 +1,6 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Threading;
 using Avalonia.Win32.Input;
 using System.ComponentModel;
 using ProtocolMouseButton = RemoteViewer.Server.SharedAPI.Protocol.MouseButton;
@@ -10,6 +11,9 @@ namespace RemoteViewer.Client.Views.Viewer;
 public partial class ViewerView : Window
 {
     private ViewerViewModel? _viewModel;
+    private DispatcherTimer? _toolbarHideTimer;
+    private const int ToolbarHideDelayMs = 1500;
+    private const int ToolbarTriggerZoneHeight = 50;
 
     public ViewerView()
     {
@@ -54,6 +58,23 @@ public partial class ViewerView : Window
 
         if (e.PropertyName == nameof(ViewerViewModel.DebugOverlayBitmap))
             this.DebugOverlayImage.InvalidateVisual();
+
+        if (e.PropertyName == nameof(ViewerViewModel.IsFullscreen))
+            this.UpdateFullscreenState();
+    }
+
+    private void UpdateFullscreenState()
+    {
+        if (this._viewModel?.IsFullscreen == true)
+        {
+            this.WindowState = WindowState.FullScreen;
+            this.SystemDecorations = SystemDecorations.None;
+        }
+        else
+        {
+            this.WindowState = WindowState.Normal;
+            this.SystemDecorations = SystemDecorations.Full;
+        }
     }
     private void ViewModel_CloseRequested(object? sender, EventArgs e)
     {
@@ -125,6 +146,22 @@ public partial class ViewerView : Window
         if (this._viewModel is null)
             return;
 
+        // Handle fullscreen toggle with F11
+        if (e.Key == Key.F11)
+        {
+            e.Handled = true;
+            this._viewModel.ToggleFullscreenCommand.Execute(null);
+            return;
+        }
+
+        // Handle exit fullscreen with ESC
+        if (e.Key == Key.Escape && this._viewModel.IsFullscreen)
+        {
+            e.Handled = true;
+            this._viewModel.ToggleFullscreenCommand.Execute(null);
+            return;
+        }
+
         e.Handled = true;
 
         var keyCode = (ushort)KeyInterop.VirtualKeyFromKey(e.Key);
@@ -146,6 +183,54 @@ public partial class ViewerView : Window
     private void DisplayComboBox_DropDownClosed(object? sender, EventArgs e)
     {
         this.DisplayPanel.Focus();
+    }
+
+    private void FullscreenDisplayComboBox_DropDownClosed(object? sender, EventArgs e)
+    {
+        this.DisplayPanel.Focus();
+    }
+
+    private void Window_PointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (this._viewModel is null || !this._viewModel.IsFullscreen)
+            return;
+
+        var position = e.GetPosition(this);
+
+        if (position.Y <= ToolbarTriggerZoneHeight)
+        {
+            this._viewModel.IsToolbarVisible = true;
+            this.ResetToolbarHideTimer();
+        }
+    }
+
+    private void Toolbar_PointerEntered(object? sender, PointerEventArgs e)
+    {
+        this._toolbarHideTimer?.Stop();
+    }
+
+    private void Toolbar_PointerExited(object? sender, PointerEventArgs e)
+    {
+        if (this._viewModel?.IsFullscreen == true)
+        {
+            this.ResetToolbarHideTimer();
+        }
+    }
+
+    private void ResetToolbarHideTimer()
+    {
+        this._toolbarHideTimer?.Stop();
+        this._toolbarHideTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(ToolbarHideDelayMs)
+        };
+        this._toolbarHideTimer.Tick += (s, e) =>
+        {
+            this._toolbarHideTimer?.Stop();
+            if (this._viewModel is { } vm)
+                vm.IsToolbarVisible = false;
+        };
+        this._toolbarHideTimer.Start();
     }
 
     private (float X, float Y) GetNormalizedPosition(PointerEventArgs e)

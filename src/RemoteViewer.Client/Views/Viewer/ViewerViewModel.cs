@@ -60,6 +60,12 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     [ObservableProperty]
     private string _statusText = "Waiting for display list...";
 
+    [ObservableProperty]
+    private bool _isFullscreen;
+
+    [ObservableProperty]
+    private bool _isToolbarVisible;
+
     public event EventHandler? CloseRequested;
 
     public ViewerViewModel(Connection connection, IViewModelFactory viewModelFactory, ILogger<ViewerViewModel> logger)
@@ -162,6 +168,29 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     {
         this._logger.LogInformation("User requested to disconnect from connection {ConnectionId}", this._connection.ConnectionId);
         await this._connection.DisconnectAsync();
+    }
+
+    [RelayCommand]
+    private void ToggleFullscreen()
+    {
+        this.IsFullscreen = !this.IsFullscreen;
+        if (this.IsFullscreen)
+            this.IsToolbarVisible = false;
+    }
+
+    [RelayCommand]
+    private void NextDisplay()
+    {
+        if (this.Displays.Count == 0)
+            return;
+
+        var currentIndex = this.Displays
+            .Select((d, i) => (Display: d, Index: i))
+            .FirstOrDefault(x => x.Display.Id == this.SelectedDisplayId)
+            .Index;
+
+        var nextIndex = (currentIndex + 1) % this.Displays.Count;
+        this.SelectedDisplayId = this.Displays[nextIndex].Id;
     }
 
     public async Task SendMouseMoveAsync(float x, float y)

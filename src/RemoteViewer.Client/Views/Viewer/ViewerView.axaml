@@ -3,102 +3,167 @@
         xmlns:vm="using:RemoteViewer.Client.Views.Viewer"
         xmlns:conv="using:RemoteViewer.Client.Converters"
         xmlns:toastControls="using:RemoteViewer.Client.Controls.Toasts"
+        xmlns:mi="using:Material.Icons.Avalonia"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="720"
         x:Class="RemoteViewer.Client.Views.Viewer.ViewerView"
         x:DataType="vm:ViewerViewModel"
-        
+
         Icon="/Assets/avalonia-logo.ico"
         Title="{Binding Title}"
-        Width="1280" 
+        Width="1280"
         Height="720"
         WindowStartupLocation="CenterScreen"
 
         DataContextChanged="Window_DataContextChanged"
         Opened="Window_Opened"
         Deactivated="Window_Deactivated"
-        Closed="Window_Closed">
+        Closed="Window_Closed"
+        PointerMoved="Window_PointerMoved">
 
     <Design.DataContext>
         <vm:ViewerViewModel/>
     </Design.DataContext>
 
-    <Panel>
-        <DockPanel>
-            <!-- Status Bar at Bottom -->
-            <Border DockPanel.Dock="Bottom"
-                    Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
-                    Padding="10,6">
-                <Grid ColumnDefinitions="Auto,*,Auto">
-                    <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
-                        <Ellipse Width="12" Height="12">
-                            <Ellipse.Fill>
-                                <SolidColorBrush Color="{Binding IsConnected, Converter={x:Static conv:BoolToColorConverter.Instance}}"/>
-                            </Ellipse.Fill>
-                        </Ellipse>
-                        <TextBlock Text="{Binding StatusText}"
-                                   VerticalAlignment="Center"
-                                   FontSize="12"/>
-                    </StackPanel>
+    <Grid RowDefinitions="Auto,*">
+        <!-- Toolbar (row 0, visible in windowed mode) -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
+                Padding="8,6"
+                IsVisible="{Binding !IsFullscreen}">
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                <mi:MaterialIcon Kind="Monitor" Width="16" Height="16" VerticalAlignment="Center"/>
+                <ComboBox x:Name="DisplayComboBox"
+                          ItemsSource="{Binding Displays}"
+                          SelectedValue="{Binding SelectedDisplayId}"
+                          SelectedValueBinding="{Binding Id}"
+                          DropDownClosed="DisplayComboBox_DropDownClosed"
+                          MinWidth="140">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Name}"/>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <Button Command="{Binding NextDisplayCommand}"
+                        ToolTip.Tip="Next display"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Width="28" Height="28"
+                        Padding="0"
+                        Margin="-4,0,0,0">
+                    <mi:MaterialIcon Kind="ChevronRight" Width="18" Height="18"/>
+                </Button>
+                <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,4"/>
+                <Button Command="{Binding ToggleFullscreenCommand}"
+                        ToolTip.Tip="Enter fullscreen (F11)"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Width="32" Height="32"
+                        Padding="0">
+                    <mi:MaterialIcon Kind="Fullscreen" Width="20" Height="20"/>
+                </Button>
+                <Button Command="{Binding DisconnectCommand}"
+                        ToolTip.Tip="Disconnect"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Width="32" Height="32"
+                        Padding="0">
+                    <mi:MaterialIcon Kind="LanDisconnect" Width="20" Height="20" Foreground="#F44336"/>
+                </Button>
+            </StackPanel>
+        </Border>
 
-                    <!-- Display selector and Disconnect button -->
-                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
-                        <TextBlock Text="Display:"
-                                   VerticalAlignment="Center"
-                                   FontSize="12"/>
-                        <ComboBox x:Name="DisplayComboBox"
-                                  ItemsSource="{Binding Displays}"
-                                  SelectedValue="{Binding SelectedDisplayId}"
-                                  SelectedValueBinding="{Binding Id}"
-                                  DropDownClosed="DisplayComboBox_DropDownClosed"
-                                  MinWidth="150">
-                            <ComboBox.ItemTemplate>
-                                <DataTemplate>
-                                    <TextBlock Text="{Binding Name}"/>
-                                </DataTemplate>
-                            </ComboBox.ItemTemplate>
-                        </ComboBox>
-                        <Button Content="Disconnect"
-                                Command="{Binding DisconnectCommand}"
-                                Padding="10,4"/>
-                    </StackPanel>
-                </Grid>
-            </Border>
+        <!-- Fullscreen Toolbar (overlay, top-center, auto-hide) -->
+        <Border Grid.Row="0" Grid.RowSpan="2"
+                ZIndex="1"
+                x:Name="FullscreenToolbar"
+                VerticalAlignment="Top"
+                HorizontalAlignment="Center"
+                Background="#E0202020"
+                CornerRadius="0,0,8,8"
+                Padding="16,8"
+                IsVisible="{Binding IsToolbarVisible}"
+                PointerEntered="Toolbar_PointerEntered"
+                PointerExited="Toolbar_PointerExited">
+            <StackPanel Orientation="Horizontal" Spacing="8">
+                <mi:MaterialIcon Kind="Monitor" Width="16" Height="16" Foreground="White" VerticalAlignment="Center"/>
+                <ComboBox x:Name="FullscreenDisplayComboBox"
+                          ItemsSource="{Binding Displays}"
+                          SelectedValue="{Binding SelectedDisplayId}"
+                          SelectedValueBinding="{Binding Id}"
+                          DropDownClosed="FullscreenDisplayComboBox_DropDownClosed"
+                          MinWidth="140">
+                    <ComboBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Name}"/>
+                        </DataTemplate>
+                    </ComboBox.ItemTemplate>
+                </ComboBox>
+                <Button Command="{Binding NextDisplayCommand}"
+                        ToolTip.Tip="Next display"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Width="28" Height="28"
+                        Padding="0"
+                        Margin="-4,0,0,0">
+                    <mi:MaterialIcon Kind="ChevronRight" Width="18" Height="18" Foreground="White"/>
+                </Button>
+                <Border Width="1" Background="#40FFFFFF" Margin="0,4"/>
+                <Button Command="{Binding ToggleFullscreenCommand}"
+                        ToolTip.Tip="Exit fullscreen (F11 / ESC)"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Width="32" Height="32"
+                        Padding="0">
+                    <mi:MaterialIcon Kind="FullscreenExit" Width="20" Height="20" Foreground="White"/>
+                </Button>
+                <Button Command="{Binding DisconnectCommand}"
+                        ToolTip.Tip="Disconnect"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Width="32" Height="32"
+                        Padding="0">
+                    <mi:MaterialIcon Kind="LanDisconnect" Width="20" Height="20" Foreground="#F44336"/>
+                </Button>
+            </StackPanel>
+        </Border>
 
-            <!-- Frame display -->
-            <Border x:Name="DisplayPanel"
-                    Background="Black"
-                    ClipToBounds="True"
-                    Focusable="True"
-                    PointerMoved="DisplayPanel_PointerMoved"
-                    PointerPressed="DisplayPanel_PointerPressed"
-                    PointerReleased="DisplayPanel_PointerReleased"
-                    PointerWheelChanged="DisplayPanel_PointerWheelChanged"
-                    KeyDown="DisplayPanel_KeyDown"
-                    KeyUp="DisplayPanel_KeyUp">
-                <Panel>
-                    <Image x:Name="FrameImage"
-                           Source="{Binding FrameBitmap}"
-                           Stretch="Uniform"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"/>
-                    <Image x:Name="DebugOverlayImage"
-                           Source="{Binding DebugOverlayBitmap}"
-                           Stretch="Uniform"
-                           HorizontalAlignment="Center"
-                           VerticalAlignment="Center"
-                           IsHitTestVisible="False"
-                           IsVisible="{Binding DebugOverlayBitmap, Converter={x:Static ObjectConverters.IsNotNull}}"/>
-                </Panel>
-            </Border>
-        </DockPanel>
+        <!-- Frame display (row 1) -->
+        <Border Grid.Row="1"
+                x:Name="DisplayPanel"
+                Background="Black"
+                ClipToBounds="True"
+                Focusable="True"
+                PointerMoved="DisplayPanel_PointerMoved"
+                PointerPressed="DisplayPanel_PointerPressed"
+                PointerReleased="DisplayPanel_PointerReleased"
+                PointerWheelChanged="DisplayPanel_PointerWheelChanged"
+                KeyDown="DisplayPanel_KeyDown"
+                KeyUp="DisplayPanel_KeyUp">
+            <Panel>
+                <Image x:Name="FrameImage"
+                       Source="{Binding FrameBitmap}"
+                       Stretch="Uniform"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"/>
+                <Image x:Name="DebugOverlayImage"
+                       Source="{Binding DebugOverlayBitmap}"
+                       Stretch="Uniform"
+                       HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       IsHitTestVisible="False"
+                       IsVisible="{Binding DebugOverlayBitmap, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+            </Panel>
+        </Border>
 
-        <!-- Toast Notifications (overlay, bottom-right) -->
-        <toastControls:ToastsView DataContext="{Binding Toasts}"
+        <!-- Toast Notifications (row 1, overlay bottom-right) -->
+        <toastControls:ToastsView Grid.Row="1"
+                                  DataContext="{Binding Toasts}"
                                   VerticalAlignment="Bottom"
                                   HorizontalAlignment="Right"
                                   Margin="0,0,8,8"/>
-    </Panel>
+    </Grid>
 
 </Window>
