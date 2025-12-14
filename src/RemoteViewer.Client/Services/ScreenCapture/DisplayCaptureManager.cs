@@ -17,7 +17,9 @@ public sealed class DisplayCaptureManager(
 {
     private readonly Dictionary<string, DisplayCapturePipeline> _pipelines = new();
     private readonly Lock _pipelinesLock = new();
+    private readonly CancellationTokenSource _monitorCts = new();
 
+    private Task? _monitorTask;
     private int _targetFps = 15;
     private bool _started;
     private bool _disposed;
@@ -40,35 +42,60 @@ public sealed class DisplayCaptureManager(
             throw new InvalidOperationException("Already started");
 
         this._started = true;
-
-        connection.ViewersChanged += this.OnViewersChanged;
+        this._monitorTask = Task.Run(() => this.MonitorLoopAsync(this._monitorCts.Token));
     }
 
-    private void OnViewersChanged(object? sender, EventArgs e)
+    private async Task MonitorLoopAsync(CancellationToken ct)
     {
-        var displayIdsWithViewers = this.GetDisplaysWithViewers();
-
-        using (this._pipelinesLock.EnterScope())
+        while (!ct.IsCancellationRequested)
         {
-            // Stop pipelines for displays with no viewers
-            var displaysToStop = this._pipelines.Keys
-                .Except(displayIdsWithViewers)
-                .ToList();
-
-            foreach (var displayId in displaysToStop)
+            try
             {
-                this.StopPipelineForDisplay(displayId);
+                await Task.Delay(100, ct);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
             }
 
-            // Start pipelines for displays with viewers
-            foreach (var displayId in displayIdsWithViewers)
+            using (this._pipelinesLock.EnterScope())
             {
-                if (this._pipelines.ContainsKey(displayId) is false)
+                if (this._disposed)
+                    break;
+
+                var displayIdsWithViewers = this.GetDisplaysWithViewers();
+
+                // Stop pipelines for displays with no viewers
+                var displaysToStop = this._pipelines.Keys
+                    .Except(displayIdsWithViewers)
+                    .ToList();
+
+                foreach (var displayId in displaysToStop)
                 {
-                    var display = displayService.GetDisplays().FirstOrDefault(d => d.Name == displayId);
-                    if (display is not null)
+                    this.StopPipelineForDisplay(displayId);
+                }
+
+                // Stop faulted pipelines (they will be restarted below if still needed)
+                var faultedDisplays = this._pipelines
+                    .Where(kv => kv.Value.IsFaulted)
+                    .Select(kv => kv.Key)
+                    .ToList();
+
+                foreach (var displayId in faultedDisplays)
+                {
+                    this.StopPipelineForDisplay(displayId);
+                }
+
+                // Start pipelines for displays with viewers (if not already running)
+                foreach (var displayId in displayIdsWithViewers)
+                {
+                    if (this._pipelines.ContainsKey(displayId) is false)
                     {
-                        this.StartPipelineForDisplay(display);
+                        var display = displayService.GetDisplays().FirstOrDefault(d => d.Name == displayId);
+                        if (display is not null)
+                        {
+                            this.StartPipelineForDisplay(display);
+                        }
                     }
                 }
             }
@@ -87,11 +114,11 @@ public sealed class DisplayCaptureManager(
     private void StartPipelineForDisplay(Display display)
     {
         var pipeline = new DisplayCapturePipeline(
-            this,
             display,
             connection,
             screenshotService,
             screenEncoder,
+            () => this.TargetFps,
             loggerFactory.CreateLogger<DisplayCapturePipeline>());
 
         this._pipelines[display.Name] = pipeline;
@@ -105,38 +132,6 @@ public sealed class DisplayCaptureManager(
         }
     }
 
-    public void RequestPipelineRestartForDisplay(string displayName)
-    {
-        // Do this in a background Task.Run, so the caller (the faulted Pipeline) is not blocked waiting for the restart to complete
-        _ = Task.Run(async () =>
-        {
-            // Small delay to avoid rapid restart loops
-            await Task.Delay(100);
-
-            using (this._pipelinesLock.EnterScope())
-            {
-                if (this._disposed)
-                    return;
-
-                // Stop old pipeline
-                this.StopPipelineForDisplay(displayName);
-
-                // Check if display still has viewers
-                var displayNamesWithViewers = this.GetDisplaysWithViewers();
-                if (displayNamesWithViewers.Contains(displayName) is false)
-                    return;
-
-                // Recreate pipeline
-                var display = displayService.GetDisplays().FirstOrDefault(d => d.Name == displayName);
-
-                if (display is not null)
-                {
-                    this.StartPipelineForDisplay(display);
-                }
-            }
-        });
-    }
-
     public void Dispose()
     {
         if (this._disposed)
@@ -146,7 +141,16 @@ public sealed class DisplayCaptureManager(
 
         if (this._started)
         {
-            connection.ViewersChanged -= this.OnViewersChanged;
+            this._monitorCts.Cancel();
+
+            try
+            {
+                this._monitorTask?.Wait(TimeSpan.FromSeconds(2));
+            }
+            catch (AggregateException)
+            {
+                // Ignore cancellation exceptions
+            }
 
             using (this._pipelinesLock.EnterScope())
             {
@@ -158,5 +162,7 @@ public sealed class DisplayCaptureManager(
                 this._pipelines.Clear();
             }
         }
+
+        this._monitorCts.Dispose();
     }
 }

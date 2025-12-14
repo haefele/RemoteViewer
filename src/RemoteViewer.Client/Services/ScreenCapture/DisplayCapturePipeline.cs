@@ -10,12 +10,12 @@ namespace RemoteViewer.Client.Services.ScreenCapture;
 
 public sealed class DisplayCapturePipeline : IDisposable
 {
-    private readonly DisplayCaptureManager _manager;
     private readonly Display _display;
     private readonly Connection _connection;
     private readonly IScreenshotService _screenshotService;
     private readonly ScreenEncoder _screenEncoder;
     private readonly ILogger<DisplayCapturePipeline> _logger;
+    private readonly Func<int> _getTargetFps;
 
     private readonly Channel<CapturedFrame> _captureToEncodeChannel;
     private readonly Channel<EncodedFrame> _encodeToSendChannel;
@@ -28,19 +28,21 @@ public sealed class DisplayCapturePipeline : IDisposable
     private ulong _frameNumber;
     private bool _disposed;
 
+    public bool IsFaulted { get; private set; }
+
     public DisplayCapturePipeline(
-        DisplayCaptureManager manager,
         Display display,
         Connection connection,
         IScreenshotService screenshotService,
         ScreenEncoder screenEncoder,
+        Func<int> getTargetFps,
         ILogger<DisplayCapturePipeline> logger)
     {
-        this._manager = manager;
         this._display = display;
         this._connection = connection;
         this._screenshotService = screenshotService;
         this._screenEncoder = screenEncoder;
+        this._getTargetFps = getTargetFps;
         this._logger = logger;
 
         this._logger.PipelineStarted(display.Name);
@@ -90,7 +92,7 @@ public sealed class DisplayCapturePipeline : IDisposable
                         frame.Dispose();
 
                     // Frame rate throttling
-                    var minFrameInterval = TimeSpan.FromMilliseconds(1000.0 / this._manager.TargetFps);
+                    var minFrameInterval = TimeSpan.FromMilliseconds(1000.0 / this._getTargetFps());
                     var elapsed = Stopwatch.GetElapsedTime(frameStartTimestamp);
                     var sleepTime = minFrameInterval - elapsed;
                     if (sleepTime > TimeSpan.Zero)
@@ -120,7 +122,7 @@ public sealed class DisplayCapturePipeline : IDisposable
         catch (Exception ex)
         {
             this._logger.CaptureLoopFailed(ex, this._display.Name);
-            this._manager.RequestPipelineRestartForDisplay(this._display.Name);
+            this.IsFaulted = true;
         }
         finally
         {
@@ -157,7 +159,7 @@ public sealed class DisplayCapturePipeline : IDisposable
         catch (Exception ex)
         {
             this._logger.EncodeLoopFailed(ex, this._display.Name);
-            this._manager.RequestPipelineRestartForDisplay(this._display.Name);
+            this.IsFaulted = true;
         }
         finally
         {
@@ -204,7 +206,7 @@ public sealed class DisplayCapturePipeline : IDisposable
         catch (Exception ex)
         {
             this._logger.SendLoopFailed(ex, this._display.Name);
-            this._manager.RequestPipelineRestartForDisplay(this._display.Name);
+            this.IsFaulted = true;
         }
     }
 
