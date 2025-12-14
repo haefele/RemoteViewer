@@ -63,7 +63,11 @@ public partial class MainViewModel : ViewModelBase
 
                 if (this._hubClient.HasVersionMismatch)
                 {
-                    this.VersionMismatchText = $"Version mismatch: Server v{this._hubClient.ServerVersion}, Client v{ThisAssembly.AssemblyInformationalVersion}";
+                    this.VersionMismatchText = $"""
+                                                Version mismatch!
+                                                Server v{this._hubClient.ServerVersion}
+                                                Client v{ThisAssembly.AssemblyInformationalVersion}
+                                                """;
                 }
 
                 this.StatusText = this._hubClient.IsConnected ? "Connected" : "Connecting...";

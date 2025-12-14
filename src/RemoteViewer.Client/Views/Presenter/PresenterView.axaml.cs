@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 
 namespace RemoteViewer.Client.Views.Presenter;
 
@@ -33,9 +33,9 @@ public partial class PresenterView : Window
         this.Close();
     }
 
-    protected override void OnClosed(EventArgs e)
+    protected override async void OnClosed(EventArgs e)
     {
-        base.OnClosed(e);
-        this._viewModel?.Dispose();
+        if (this._viewModel is not null)
+            await this._viewModel.DisposeAsync();
     }
 }

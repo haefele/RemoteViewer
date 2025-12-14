@@ -28,12 +28,12 @@ public sealed class DisplayCaptureManager(
         get;
         set
         {
-            if (value <= 0 || value > 120)
+            if (value <= 10 || value > 120)
                 throw new ArgumentOutOfRangeException(nameof(value), "FPS must be between 1 and 120");
 
             field = value;
         }
-    }
+    } = 15;
 
     public void Start()
     {

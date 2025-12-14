@@ -13,7 +13,7 @@ using RemoteViewer.Client.Services.ViewModels;
 
 namespace RemoteViewer.Client.Views.Presenter;
 
-public partial class PresenterViewModel : ViewModelBase, IDisposable
+public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 {
     private readonly Connection _connection;
     private readonly IDisplayService _displayService;
@@ -193,7 +193,7 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
         await this._connection.DisconnectAsync();
     }
 
-    public void Dispose()
+    public async ValueTask DisposeAsync()
     {
         if (this._disposed)
             return;
@@ -201,6 +201,7 @@ public partial class PresenterViewModel : ViewModelBase, IDisposable
         this._disposed = true;
 
         this._captureManager?.Dispose();
+        await this._connection.DisconnectAsync();
 
         // Unsubscribe from Connection events
         this._connection.ViewersChanged -= this.OnViewersChanged;
