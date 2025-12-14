@@ -33,7 +33,7 @@
                 Padding="8,6"
                 IsVisible="{Binding !IsFullscreen}">
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                <mi:MaterialIcon Kind="Monitor" Width="16" Height="16" VerticalAlignment="Center"/>
+                <TextBlock Text="Display:" VerticalAlignment="Center" FontSize="12"/>
                 <ComboBox x:Name="DisplayComboBox"
                           ItemsSource="{Binding Displays}"
                           SelectedValue="{Binding SelectedDisplayId}"
@@ -53,7 +53,7 @@
                         Width="28" Height="28"
                         Padding="0"
                         Margin="-4,0,0,0">
-                    <mi:MaterialIcon Kind="ChevronRight" Width="18" Height="18"/>
+                    <mi:MaterialIcon Kind="Monitor" Width="18" Height="18"/>
                 </Button>
                 <Border Width="1" Background="{DynamicResource SystemControlForegroundBaseMediumBrush}" Margin="0,4"/>
                 <Button Command="{Binding ToggleFullscreenCommand}"
@@ -72,6 +72,30 @@
                         Padding="0">
                     <mi:MaterialIcon Kind="LanDisconnect" Width="20" Height="20" Foreground="#F44336"/>
                 </Button>
+                <Button ToolTip.Tip="Participants"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Width="32" Height="32"
+                        Padding="0">
+                    <Button.Flyout>
+                        <Flyout Placement="Bottom">
+                            <ItemsControl ItemsSource="{Binding Participants}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ParticipantDisplay">
+                                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="4,2">
+                                            <mi:MaterialIcon Kind="{Binding IsPresenter, Converter={x:Static conv:BoolToParticipantIconConverter.Instance}}" Width="14" Height="14"/>
+                                            <TextBlock Text="{Binding DisplayName}"/>
+                                            <TextBlock Text="{Binding SelectedDisplayName, StringFormat='- {0}'}"
+                                                       IsVisible="{Binding SelectedDisplayName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Flyout>
+                    </Button.Flyout>
+                    <mi:MaterialIcon Kind="AccountGroup" Width="20" Height="20"/>
+                </Button>
             </StackPanel>
         </Border>
 
@@ -88,7 +112,7 @@
                 PointerEntered="Toolbar_PointerEntered"
                 PointerExited="Toolbar_PointerExited">
             <StackPanel Orientation="Horizontal" Spacing="8">
-                <mi:MaterialIcon Kind="Monitor" Width="16" Height="16" Foreground="White" VerticalAlignment="Center"/>
+                <TextBlock Text="Display:" VerticalAlignment="Center" FontSize="12" Foreground="White"/>
                 <ComboBox x:Name="FullscreenDisplayComboBox"
                           ItemsSource="{Binding Displays}"
                           SelectedValue="{Binding SelectedDisplayId}"
@@ -108,7 +132,7 @@
                         Width="28" Height="28"
                         Padding="0"
                         Margin="-4,0,0,0">
-                    <mi:MaterialIcon Kind="ChevronRight" Width="18" Height="18" Foreground="White"/>
+                    <mi:MaterialIcon Kind="Monitor" Width="18" Height="18" Foreground="White"/>
                 </Button>
                 <Border Width="1" Background="#40FFFFFF" Margin="0,4"/>
                 <Button Command="{Binding ToggleFullscreenCommand}"
@@ -126,6 +150,30 @@
                         Width="32" Height="32"
                         Padding="0">
                     <mi:MaterialIcon Kind="LanDisconnect" Width="20" Height="20" Foreground="#F44336"/>
+                </Button>
+                <Button ToolTip.Tip="Participants"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Width="32" Height="32"
+                        Padding="0">
+                    <Button.Flyout>
+                        <Flyout Placement="Bottom">
+                            <ItemsControl ItemsSource="{Binding Participants}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ParticipantDisplay">
+                                        <StackPanel Orientation="Horizontal" Spacing="6" Margin="4,2">
+                                            <mi:MaterialIcon Kind="{Binding IsPresenter, Converter={x:Static conv:BoolToParticipantIconConverter.Instance}}" Width="14" Height="14"/>
+                                            <TextBlock Text="{Binding DisplayName}"/>
+                                            <TextBlock Text="{Binding SelectedDisplayName, StringFormat='- {0}'}"
+                                                       IsVisible="{Binding SelectedDisplayName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
+                                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Flyout>
+                    </Button.Flyout>
+                    <mi:MaterialIcon Kind="AccountGroup" Width="20" Height="20" Foreground="White"/>
                 </Button>
             </StackPanel>
         </Border>

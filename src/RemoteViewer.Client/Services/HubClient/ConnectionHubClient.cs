@@ -73,7 +73,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
             this._logger.LogInformation("Connection changed - ConnectionId: {ConnectionId}, PresenterClientId: {PresenterClientId}, ViewerCount: {ViewerCount}", connectionInfo.ConnectionId, connectionInfo.Presenter.ClientId, connectionInfo.Viewers.Count);
 
             var connection = await this.WaitForConnection(connectionInfo.ConnectionId);
-            connection.OnViewersChanged(connectionInfo.Viewers);
+            connection.OnConnectionChanged(connectionInfo);
         });
 
         this._connection.On<string>("ConnectionStopped", async (connectionId) =>

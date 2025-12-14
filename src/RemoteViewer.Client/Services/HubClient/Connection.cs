@@ -15,8 +15,8 @@ public sealed class Connection
     private readonly IDisplayService? _displayService;
     private readonly IScreenshotService? _screenshotService;
 
-    // Thread-safe viewer list (presenter only)
-    private readonly Lock _viewersLock = new();
+    private readonly Lock _participantsLock = new();
+    private ClientInfo? _presenter;
     private List<ViewerInfo> _viewers = [];
 
     // Thread-safe displays list (viewer only)
@@ -52,11 +52,21 @@ public sealed class Connection
     public string ConnectionId { get; }
     public bool IsPresenter { get; }
     public bool IsClosed { get; private set; }
+    public ClientInfo? Presenter
+    {
+        get
+        {
+            using (this._participantsLock.EnterScope())
+            {
+                return this._presenter;
+            }
+        }
+    }
     public IReadOnlyList<ViewerInfo> Viewers
     {
         get
         {
-            using (this._viewersLock.EnterScope())
+            using (this._participantsLock.EnterScope())
             {
                 return this._viewers.ToList().AsReadOnly();
             }
@@ -83,7 +93,7 @@ public sealed class Connection
             this._viewersChanged += value;
 
             // Notify new subscriber of current state if viewers already exist
-            using (this._viewersLock.EnterScope())
+            using (this._participantsLock.EnterScope())
             {
                 if (this._viewers.Count > 0)
                 {
@@ -92,6 +102,25 @@ public sealed class Connection
             }
         }
         remove => this._viewersChanged -= value;
+    }
+
+    private EventHandler? _participantsChanged;
+    public event EventHandler? ParticipantsChanged
+    {
+        add
+        {
+            this._participantsChanged += value;
+
+            // Notify new subscriber of current state if participants already exist
+            using (this._participantsLock.EnterScope())
+            {
+                if (this._presenter is not null || this._viewers.Count > 0)
+                {
+                    value?.Invoke(this, EventArgs.Empty);
+                }
+            }
+        }
+        remove => this._participantsChanged -= value;
     }
 
     public event EventHandler<InputReceivedEventArgs>? InputReceived;
@@ -168,7 +197,7 @@ public sealed class Connection
 
         // Get all viewers watching this display
         IReadOnlyList<string> targetViewerIds;
-        using (this._viewersLock.EnterScope())
+        using (this._participantsLock.EnterScope())
         {
             targetViewerIds = this._viewers
                 .Where(v => v.SelectedDisplayId == displayId)
@@ -190,17 +219,17 @@ public sealed class Connection
         await this._sendMessageAsync(MessageTypes.Screen.Frame, serializedData, MessageDestination.SpecificClients, targetViewerIds);
     }
 
-    internal void OnViewersChanged(IReadOnlyList<ClientInfo> viewers)
+    internal void OnConnectionChanged(ConnectionInfo connectionInfo)
     {
-        if (!this.IsPresenter)
-            return;
-
-        using (this._viewersLock.EnterScope())
+        using (this._participantsLock.EnterScope())
         {
+            // Store presenter info
+            this._presenter = connectionInfo.Presenter;
+
             // Preserve existing display selections for viewers that are still connected
             var existingSelections = this._viewers.ToDictionary(v => v.ClientId, v => v.SelectedDisplayId);
 
-            this._viewers = viewers
+            this._viewers = connectionInfo.Viewers
                 .Select(v => new ViewerInfo(
                     v.ClientId,
                     existingSelections.GetValueOrDefault(v.ClientId),
@@ -208,8 +237,9 @@ public sealed class Connection
                 .ToList();
         }
 
-        this._logger.LogDebug("Viewers changed: {ViewerCount} viewer(s)", viewers.Count);
+        this._logger.LogDebug("Participants changed: presenter={PresenterName}, {ViewerCount} viewer(s)", connectionInfo.Presenter.DisplayName, connectionInfo.Viewers.Count);
         this._viewersChanged?.Invoke(this, EventArgs.Empty);
+        this._participantsChanged?.Invoke(this, EventArgs.Empty);
     }
     internal async void OnMessageReceived(string senderClientId, string messageType, byte[] data)
     {
@@ -280,7 +310,7 @@ public sealed class Connection
     {
         var message = ProtocolSerializer.Deserialize<DisplaySelectMessage>(data);
 
-        using (this._viewersLock.EnterScope())
+        using (this._participantsLock.EnterScope())
         {
             var index = this._viewers.FindIndex(v => v.ClientId == senderClientId);
             if (index >= 0)
@@ -412,7 +442,7 @@ public sealed class Connection
     }
     private string? GetViewerDisplayId(string viewerClientId)
     {
-        using (this._viewersLock.EnterScope())
+        using (this._participantsLock.EnterScope())
         {
             return this._viewers.FirstOrDefault(v => v.ClientId == viewerClientId)?.SelectedDisplayId;
         }

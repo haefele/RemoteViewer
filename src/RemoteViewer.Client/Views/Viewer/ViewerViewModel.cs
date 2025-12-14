@@ -55,6 +55,9 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     private ObservableCollection<DisplayInfo> _displays = new();
 
     [ObservableProperty]
+    private ObservableCollection<ParticipantDisplay> _participants = new();
+
+    [ObservableProperty]
     private bool _isConnected = true;
 
     [ObservableProperty]
@@ -76,6 +79,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
         // Subscribe to Connection events
         this._connection.DisplaysChanged += this.Connection_DisplaysChanged;
+        this._connection.ParticipantsChanged += this.Connection_ParticipantsChanged;
         this._connection.FrameReceived += this.Connection_FrameReceived;
         this._connection.Closed += this.Connection_Closed;
 
@@ -96,7 +100,37 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
             this.SelectedDisplayId ??= displays.FirstOrDefault(d => d.IsPrimary)?.Id;
             this.StatusText = $"{this.Displays.Count} display(s) available";
+
+            // Also update participants to refresh display names
+            this.UpdateParticipants();
         });
+    }
+
+    private void Connection_ParticipantsChanged(object? sender, EventArgs e)
+    {
+        Dispatcher.UIThread.Post(this.UpdateParticipants);
+    }
+
+    private void UpdateParticipants()
+    {
+        var presenter = this._connection.Presenter;
+        var viewers = this._connection.Viewers;
+        var displays = this._connection.Displays;
+
+        this.Participants.Clear();
+
+        // Add presenter first
+        if (presenter is not null)
+        {
+            this.Participants.Add(new ParticipantDisplay(presenter.DisplayName, IsPresenter: true, SelectedDisplayName: null));
+        }
+
+        // Add all viewers
+        foreach (var viewer in viewers)
+        {
+            var displayName = displays.FirstOrDefault(d => d.Id == viewer.SelectedDisplayId)?.Name;
+            this.Participants.Add(new ParticipantDisplay(viewer.DisplayName, IsPresenter: false, displayName));
+        }
     }
 
     private void Connection_FrameReceived(object? sender, FrameReceivedEventArgs e)
@@ -332,6 +366,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
         // Unsubscribe from Connection events
         this._connection.DisplaysChanged -= this.Connection_DisplaysChanged;
+        this._connection.ParticipantsChanged -= this.Connection_ParticipantsChanged;
         this._connection.FrameReceived -= this.Connection_FrameReceived;
         this._connection.Closed -= this.Connection_Closed;
 
@@ -340,3 +375,5 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         GC.SuppressFinalize(this);
     }
 }
+
+public record ParticipantDisplay(string DisplayName, bool IsPresenter, string? SelectedDisplayName);
