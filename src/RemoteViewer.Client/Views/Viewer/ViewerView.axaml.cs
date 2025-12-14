@@ -10,16 +10,16 @@ namespace RemoteViewer.Client.Views.Viewer;
 
 public partial class ViewerView : Window
 {
+    #region Constructor
     private ViewerViewModel? _viewModel;
-    private DispatcherTimer? _toolbarHideTimer;
-    private const int ToolbarHideDelayMs = 1500;
-    private const int ToolbarTriggerZoneHeight = 50;
 
     public ViewerView()
     {
         this.InitializeComponent();
     }
+    #endregion
 
+    #region Lifecycle Events
     private void Window_DataContextChanged(object? sender, EventArgs e)
     {
         if (this._viewModel is not null)
@@ -50,7 +50,9 @@ public partial class ViewerView : Window
         if (this._viewModel is not null)
             await this._viewModel.DisposeAsync();
     }
+    #endregion
 
+    #region ViewModel Event Handlers
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
         if (e.PropertyName == nameof(ViewerViewModel.FrameBitmap))
@@ -62,25 +64,13 @@ public partial class ViewerView : Window
         if (e.PropertyName == nameof(ViewerViewModel.IsFullscreen))
             this.UpdateFullscreenState();
     }
-
-    private void UpdateFullscreenState()
-    {
-        if (this._viewModel?.IsFullscreen == true)
-        {
-            this.WindowState = WindowState.FullScreen;
-            this.SystemDecorations = SystemDecorations.None;
-        }
-        else
-        {
-            this.WindowState = WindowState.Normal;
-            this.SystemDecorations = SystemDecorations.Full;
-        }
-    }
     private void ViewModel_CloseRequested(object? sender, EventArgs e)
     {
         this.Close();
     }
+    #endregion
 
+    #region Display Panel Input Handling
     private async void DisplayPanel_PointerMoved(object? sender, PointerEventArgs e)
     {
         if (this._viewModel is null)
@@ -179,12 +169,26 @@ public partial class ViewerView : Window
         var modifiers = this.GetKeyModifiers(e.KeyModifiers);
         await this._viewModel.SendKeyUpAsync(keyCode, modifiers);
     }
+    #endregion
 
-    private void DisplayComboBox_DropDownClosed(object? sender, EventArgs e)
+    #region Fullscreen & Toolbar Management
+    private DispatcherTimer? _toolbarHideTimer;
+    private const int ToolbarHideDelayMs = 1500;
+    private const int ToolbarTriggerZoneHeight = 50;
+
+    private void UpdateFullscreenState()
     {
-        this.DisplayPanel.Focus();
+        if (this._viewModel?.IsFullscreen == true)
+        {
+            this.WindowState = WindowState.FullScreen;
+            this.SystemDecorations = SystemDecorations.None;
+        }
+        else
+        {
+            this.WindowState = WindowState.Normal;
+            this.SystemDecorations = SystemDecorations.Full;
+        }
     }
-
     private void Window_PointerMoved(object? sender, PointerEventArgs e)
     {
         if (this._viewModel is null || !this._viewModel.IsFullscreen)
@@ -198,12 +202,10 @@ public partial class ViewerView : Window
             this.ResetToolbarHideTimer();
         }
     }
-
     private void Toolbar_PointerEntered(object? sender, PointerEventArgs e)
     {
         this._toolbarHideTimer?.Stop();
     }
-
     private void Toolbar_PointerExited(object? sender, PointerEventArgs e)
     {
         if (this._viewModel?.IsFullscreen == true)
@@ -211,7 +213,6 @@ public partial class ViewerView : Window
             this.ResetToolbarHideTimer();
         }
     }
-
     private void ResetToolbarHideTimer()
     {
         this._toolbarHideTimer?.Stop();
@@ -227,7 +228,9 @@ public partial class ViewerView : Window
         };
         this._toolbarHideTimer.Start();
     }
+    #endregion
 
+    #region Helper Methods
     private (float X, float Y) GetNormalizedPosition(PointerEventArgs e)
     {
         var point = e.GetPosition(this.FrameImage);
@@ -266,4 +269,5 @@ public partial class ViewerView : Window
 
         return result;
     }
+    #endregion
 }
