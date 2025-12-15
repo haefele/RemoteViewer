@@ -20,6 +20,7 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
     // Buffers for dirty/move rects - allocated once, kept for app lifetime
     private readonly byte[] _dirtyRectsBuffer = new byte[100 * Unsafe.SizeOf<RECT>()];
     private readonly byte[] _moveRectsBuffer = new byte[100 * Unsafe.SizeOf<DXGI_OUTDUPL_MOVE_RECT>()];
+    private readonly Lock _rectsBufferLock = new();
 
     public bool IsAvailable => OperatingSystem.IsOSPlatformVersionAtLeast("windows", 8);
     public int Priority => 100;
@@ -43,47 +44,50 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
                 return new GrabResult(GrabStatus.Failure, null, null, null);
             }
 
-            var outputDuplication = dxOutput.OutputDuplication;
-            var deviceContext = dxOutput.DeviceContext;
-
-            try
+            using (dxOutput.CaptureLock.EnterScope())
             {
-                outputDuplication.ReleaseFrame();
-            }
-            catch
-            {
-            }
+                var outputDuplication = dxOutput.OutputDuplication;
+                var deviceContext = dxOutput.DeviceContext;
 
-            outputDuplication.AcquireNextFrame(0, out var frameInfo, out var screenResource);
-
-            if (frameInfo.AccumulatedFrames == 0)
-            {
-                if (screenResource is not null)
+                try
                 {
-                    Marshal.FinalReleaseComObject(screenResource);
+                    outputDuplication.ReleaseFrame();
                 }
-                logger.LogDebug("No accumulated frames");
-                return new GrabResult(GrabStatus.NoChanges, null, null, null);
-            }
-
-            try
-            {
-                var sourceTexture = (ID3D11Texture2D)screenResource;
-
-                if (forceKeyframe)
+                catch
                 {
-                    return this.CaptureKeyframe(dxOutput, sourceTexture, width, height);
                 }
-                else
+
+                outputDuplication.AcquireNextFrame(0, out var frameInfo, out var screenResource);
+
+                if (frameInfo.AccumulatedFrames == 0)
                 {
-                    return this.CaptureDeltaFrame(dxOutput, sourceTexture, outputDuplication, width, height);
+                    if (screenResource is not null)
+                    {
+                        Marshal.FinalReleaseComObject(screenResource);
+                    }
+                    logger.LogDebug("No accumulated frames");
+                    return new GrabResult(GrabStatus.NoChanges, null, null, null);
                 }
-            }
-            finally
-            {
-                if (screenResource is not null)
+
+                try
                 {
-                    Marshal.FinalReleaseComObject(screenResource);
+                    var sourceTexture = (ID3D11Texture2D)screenResource;
+
+                    if (forceKeyframe)
+                    {
+                        return this.CaptureKeyframe(dxOutput, sourceTexture, width, height);
+                    }
+                    else
+                    {
+                        return this.CaptureDeltaFrame(dxOutput, sourceTexture, outputDuplication, width, height);
+                    }
+                }
+                finally
+                {
+                    if (screenResource is not null)
+                    {
+                        Marshal.FinalReleaseComObject(screenResource);
+                    }
                 }
             }
         }
@@ -216,31 +220,34 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
     {
         try
         {
-            fixed (byte* bufferPtr = this._dirtyRectsBuffer)
+            using (this._rectsBufferLock.EnterScope())
             {
-                var dirtyRectsPtr = (RECT*)bufferPtr;
-                uint actualSize = 0;
-
-                try
+                fixed (byte* bufferPtr = this._dirtyRectsBuffer)
                 {
-                    outputDuplication.GetFrameDirtyRects((uint)this._dirtyRectsBuffer.Length, dirtyRectsPtr, out actualSize);
-                }
-                catch (COMException ex) when ((uint)ex.HResult == 0x8007007A) // ERROR_INSUFFICIENT_BUFFER
-                {
-                    logger.LogDebug("Dirty rects buffer too small ({Capacity} bytes, needed {Required}), skipping dirty rects", this._dirtyRectsBuffer.Length, actualSize);
-                    return []; // Buffer too small - return empty and let it trigger a keyframe
-                }
+                    var dirtyRectsPtr = (RECT*)bufferPtr;
+                    uint actualSize = 0;
 
-                var numRects = (int)(actualSize / (uint)sizeof(RECT));
-                var dirtyRects = new Rectangle[numRects];
+                    try
+                    {
+                        outputDuplication.GetFrameDirtyRects((uint)this._dirtyRectsBuffer.Length, dirtyRectsPtr, out actualSize);
+                    }
+                    catch (COMException ex) when ((uint)ex.HResult == 0x8007007A) // ERROR_INSUFFICIENT_BUFFER
+                    {
+                        logger.LogDebug("Dirty rects buffer too small ({Capacity} bytes, needed {Required}), skipping dirty rects", this._dirtyRectsBuffer.Length, actualSize);
+                        return []; // Buffer too small - return empty and let it trigger a keyframe
+                    }
 
-                for (var i = 0; i < numRects; i++)
-                {
-                    var rect = dirtyRectsPtr[i];
-                    dirtyRects[i] = new Rectangle(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
+                    var numRects = (int)(actualSize / (uint)sizeof(RECT));
+                    var dirtyRects = new Rectangle[numRects];
+
+                    for (var i = 0; i < numRects; i++)
+                    {
+                        var rect = dirtyRectsPtr[i];
+                        dirtyRects[i] = new Rectangle(rect.left, rect.top, rect.right - rect.left, rect.bottom - rect.top);
+                    }
+
+                    return dirtyRects;
                 }
-
-                return dirtyRects;
             }
         }
         catch (Exception exception)
@@ -255,39 +262,42 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
     {
         try
         {
-            fixed (byte* bufferPtr = this._moveRectsBuffer)
+            using (this._rectsBufferLock.EnterScope())
             {
-                var moveRectsPtr = (DXGI_OUTDUPL_MOVE_RECT*)bufferPtr;
-                uint actualSize = 0;
-
-                try
+                fixed (byte* bufferPtr = this._moveRectsBuffer)
                 {
-                    outputDuplication.GetFrameMoveRects((uint)this._moveRectsBuffer.Length, moveRectsPtr, out actualSize);
+                    var moveRectsPtr = (DXGI_OUTDUPL_MOVE_RECT*)bufferPtr;
+                    uint actualSize = 0;
+
+                    try
+                    {
+                        outputDuplication.GetFrameMoveRects((uint)this._moveRectsBuffer.Length, moveRectsPtr, out actualSize);
+                    }
+                    catch (COMException ex) when ((uint)ex.HResult == 0x8007007A) // ERROR_INSUFFICIENT_BUFFER
+                    {
+                        logger.LogDebug("Move rects buffer too small ({Capacity} bytes, needed {Required}), skipping move rects", this._moveRectsBuffer.Length, actualSize);
+                        return [];
+                    }
+
+                    var numRects = (int)(actualSize / (uint)sizeof(DXGI_OUTDUPL_MOVE_RECT));
+                    var moveRects = new MoveRegion[numRects];
+
+                    for (var i = 0; i < numRects; i++)
+                    {
+                        var moveRect = moveRectsPtr[i];
+                        var destRect = moveRect.DestinationRect;
+
+                        moveRects[i] = new MoveRegion(
+                            moveRect.SourcePoint.X,
+                            moveRect.SourcePoint.Y,
+                            destRect.left,
+                            destRect.top,
+                            destRect.right - destRect.left,
+                            destRect.bottom - destRect.top);
+                    }
+
+                    return moveRects;
                 }
-                catch (COMException ex) when ((uint)ex.HResult == 0x8007007A) // ERROR_INSUFFICIENT_BUFFER
-                {
-                    logger.LogDebug("Move rects buffer too small ({Capacity} bytes, needed {Required}), skipping move rects", this._moveRectsBuffer.Length, actualSize);
-                    return [];
-                }
-
-                var numRects = (int)(actualSize / (uint)sizeof(DXGI_OUTDUPL_MOVE_RECT));
-                var moveRects = new MoveRegion[numRects];
-
-                for (var i = 0; i < numRects; i++)
-                {
-                    var moveRect = moveRectsPtr[i];
-                    var destRect = moveRect.DestinationRect;
-
-                    moveRects[i] = new MoveRegion(
-                        moveRect.SourcePoint.X,
-                        moveRect.SourcePoint.Y,
-                        destRect.left,
-                        destRect.top,
-                        destRect.right - destRect.left,
-                        destRect.bottom - destRect.top);
-                }
-
-                return moveRects;
             }
         }
         catch (Exception exception)
@@ -464,6 +474,7 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
         private int _cachedWidth;
         private int _cachedHeight;
 
+        public Lock CaptureLock { get; } = new();
         public string DeviceName { get; }
         public ID3D11Device Device { get; }
         public ID3D11DeviceContext DeviceContext { get; }
