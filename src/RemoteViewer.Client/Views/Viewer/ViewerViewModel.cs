@@ -1,4 +1,4 @@
-﻿using Avalonia.Media.Imaging;
+using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -14,40 +14,14 @@ namespace RemoteViewer.Client.Views.Viewer;
 
 public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 {
+    #region Core State & Constructor
     private readonly Connection _connection;
     private readonly ILogger<ViewerViewModel> _logger;
-    private readonly FrameCompositor _compositor = new();
 
     public ToastsViewModel Toasts { get; }
 
-    private readonly ConcurrentDictionary<ushort, object?> _pressedKeys = new();
-
-    private bool _disposed;
-    private ulong _lastReceivedFrameNumber;
-
-    [ObservableProperty]
-    private WriteableBitmap? _frameBitmap;
-
-    [ObservableProperty]
-    private WriteableBitmap? _debugOverlayBitmap;
-
     [ObservableProperty]
     private string _title = "Remote Viewer";
-
-    [ObservableProperty]
-    private ObservableCollection<ParticipantDisplay> _participants = new();
-
-    [ObservableProperty]
-    private bool _isConnected = true;
-
-    [ObservableProperty]
-    private string _statusText = "Connected";
-
-    [ObservableProperty]
-    private bool _isFullscreen;
-
-    [ObservableProperty]
-    private bool _isToolbarVisible;
 
     public event EventHandler? CloseRequested;
 
@@ -57,38 +31,23 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         this._logger = logger;
         this.Toasts = viewModelFactory.CreateToastsViewModel();
 
-        // Subscribe to Connection events
         this._connection.ParticipantsChanged += this.Connection_ParticipantsChanged;
         this._connection.FrameReceived += this.Connection_FrameReceived;
         this._connection.Closed += this.Connection_Closed;
 
         this.Title = $"Remote Viewer - {connection.ConnectionId[..8]}...";
     }
+    #endregion
 
-    private void Connection_ParticipantsChanged(object? sender, EventArgs e)
-    {
-        Dispatcher.UIThread.Post(this.UpdateParticipants);
-    }
+    #region Frame Display
+    private readonly FrameCompositor _compositor = new();
+    private ulong _lastReceivedFrameNumber;
 
-    private void UpdateParticipants()
-    {
-        var presenter = this._connection.Presenter;
-        var viewers = this._connection.Viewers;
+    [ObservableProperty]
+    private WriteableBitmap? _frameBitmap;
 
-        this.Participants.Clear();
-
-        // Add presenter first
-        if (presenter is not null)
-        {
-            this.Participants.Add(new ParticipantDisplay(presenter.DisplayName, IsPresenter: true));
-        }
-
-        // Add all viewers
-        foreach (var viewer in viewers)
-        {
-            this.Participants.Add(new ParticipantDisplay(viewer.DisplayName, IsPresenter: false));
-        }
-    }
+    [ObservableProperty]
+    private WriteableBitmap? _debugOverlayBitmap;
 
     private void Connection_FrameReceived(object? sender, FrameReceivedEventArgs e)
     {
@@ -100,12 +59,10 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         {
             if (e.Regions is [{ IsKeyframe: true }])
             {
-                // Apply full keyframe
                 this._compositor.ApplyKeyframe(e.Regions, e.FrameNumber);
             }
             else
             {
-                // Apply delta regions
                 this._compositor.ApplyDeltaRegions(e.Regions, e.FrameNumber);
             }
 
@@ -113,22 +70,18 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
             Dispatcher.UIThread.Post(() =>
             {
-                // Check if disposed before updating bitmap
                 if (this._disposed)
                     return;
 
-                // Force UI update by reassigning the bitmap reference if it changed
                 if (this._compositor.Canvas is { } canvas && this.FrameBitmap != canvas)
                 {
                     this.FrameBitmap = canvas;
                 }
                 else
                 {
-                    // Force property change notification for in-place updates
                     this.OnPropertyChanged(nameof(this.FrameBitmap));
                 }
 
-                // Update debug overlay
                 if (this._compositor.DebugOverlay is { } overlay && this.DebugOverlayBitmap != overlay)
                 {
                     this.DebugOverlayBitmap = overlay;
@@ -144,6 +97,34 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
             this._logger.LogError(ex, "Error processing frame");
         }
     }
+    #endregion
+
+    #region Session & Participants
+    [ObservableProperty]
+    private ObservableCollection<ParticipantDisplay> _participants = new();
+
+    private void Connection_ParticipantsChanged(object? sender, EventArgs e)
+    {
+        Dispatcher.UIThread.Post(this.UpdateParticipants);
+    }
+
+    private void UpdateParticipants()
+    {
+        var presenter = this._connection.Presenter;
+        var viewers = this._connection.Viewers;
+
+        this.Participants.Clear();
+
+        if (presenter is not null)
+        {
+            this.Participants.Add(new ParticipantDisplay(presenter.DisplayName, IsPresenter: true));
+        }
+
+        foreach (var viewer in viewers)
+        {
+            this.Participants.Add(new ParticipantDisplay(viewer.DisplayName, IsPresenter: false));
+        }
+    }
 
     private void Connection_Closed(object? sender, EventArgs e)
     {
@@ -156,26 +137,13 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         this._logger.LogInformation("User requested to disconnect from connection {ConnectionId}", this._connection.ConnectionId);
         await this._connection.DisconnectAsync();
     }
+    #endregion
 
-    [RelayCommand]
-    private void ToggleFullscreen()
-    {
-        this.IsFullscreen = !this.IsFullscreen;
-        if (this.IsFullscreen)
-            this.IsToolbarVisible = false;
-    }
-
-    [RelayCommand]
-    private async Task NextDisplay()
-    {
-        await this._connection.SwitchDisplayAsync();
-    }
+    #region Input Handling
+    private readonly ConcurrentDictionary<ushort, object?> _pressedKeys = new();
 
     public async Task SendMouseMoveAsync(float x, float y)
     {
-        if (this.IsConnected is false)
-            return;
-
         try
         {
             var message = new MouseMoveMessage(x, y);
@@ -190,9 +158,6 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     public async Task SendMouseDownAsync(MouseButton button, float x, float y)
     {
-        if (this.IsConnected is false)
-            return;
-
         try
         {
             var message = new MouseButtonMessage(button, x, y);
@@ -207,9 +172,6 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     public async Task SendMouseUpAsync(MouseButton button, float x, float y)
     {
-        if (this.IsConnected is false)
-            return;
-
         try
         {
             var message = new MouseButtonMessage(button, x, y);
@@ -224,9 +186,6 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     public async Task SendMouseWheelAsync(float deltaX, float deltaY, float x, float y)
     {
-        if (this.IsConnected is false)
-            return;
-
         try
         {
             var message = new MouseWheelMessage(deltaX, deltaY, x, y);
@@ -241,9 +200,6 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     public async Task SendKeyDownAsync(ushort keyCode, KeyModifiers modifiers)
     {
-        if (this.IsConnected is false)
-            return;
-
         try
         {
             this._pressedKeys.TryAdd(keyCode, null);
@@ -260,9 +216,6 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     public async Task SendKeyUpAsync(ushort keyCode, KeyModifiers modifiers)
     {
-        if (this.IsConnected is false)
-            return;
-
         try
         {
             this._pressedKeys.TryRemove(keyCode, out _);
@@ -279,7 +232,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     public async Task ReleaseAllKeysAsync()
     {
-        if (this.IsConnected is false || this._pressedKeys.IsEmpty)
+        if (this._pressedKeys.IsEmpty)
             return;
 
         foreach (var keyCode in this._pressedKeys.Keys)
@@ -298,6 +251,33 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
             }
         }
     }
+    #endregion
+
+    #region Fullscreen & Toolbar
+    [ObservableProperty]
+    private bool _isFullscreen;
+
+    [ObservableProperty]
+    private bool _isToolbarVisible;
+
+    [RelayCommand]
+    private void ToggleFullscreen()
+    {
+        this.IsFullscreen = !this.IsFullscreen;
+        if (this.IsFullscreen)
+            this.IsToolbarVisible = false;
+    }
+
+    [RelayCommand]
+    private async Task NextDisplay()
+    {
+        this.Toasts.Info("Switching display...");
+        await this._connection.SwitchDisplayAsync();
+    }
+    #endregion
+
+    #region Cleanup
+    private bool _disposed;
 
     public async ValueTask DisposeAsync()
     {
@@ -308,7 +288,6 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
         await this._connection.DisconnectAsync();
 
-        // Unsubscribe from Connection events
         this._connection.ParticipantsChanged -= this.Connection_ParticipantsChanged;
         this._connection.FrameReceived -= this.Connection_FrameReceived;
         this._connection.Closed -= this.Connection_Closed;
@@ -317,6 +296,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
         GC.SuppressFinalize(this);
     }
+    #endregion
 }
 
 public record ParticipantDisplay(string DisplayName, bool IsPresenter);
