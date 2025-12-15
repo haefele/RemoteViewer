@@ -73,7 +73,7 @@ public partial class ViewerView : Window
     #region Display Panel Input Handling
     private async void DisplayPanel_PointerMoved(object? sender, PointerEventArgs e)
     {
-        if (this._viewModel is null)
+        if (this._viewModel is not { IsInputEnabled: true })
             return;
 
         var (x, y) = this.GetNormalizedPosition(e);
@@ -84,7 +84,7 @@ public partial class ViewerView : Window
     }
     private async void DisplayPanel_PointerPressed(object? sender, PointerPressedEventArgs e)
     {
-        if (this._viewModel is null)
+        if (this._viewModel is not { IsInputEnabled: true })
             return;
 
         var (x, y) = this.GetNormalizedPosition(e);
@@ -100,7 +100,7 @@ public partial class ViewerView : Window
     }
     private async void DisplayPanel_PointerReleased(object? sender, PointerReleasedEventArgs e)
     {
-        if (this._viewModel is null)
+        if (this._viewModel is not { IsInputEnabled: true })
             return;
 
         var (x, y) = this.GetNormalizedPosition(e);
@@ -122,7 +122,7 @@ public partial class ViewerView : Window
     }
     private async void DisplayPanel_PointerWheelChanged(object? sender, PointerWheelEventArgs e)
     {
-        if (this._viewModel is null)
+        if (this._viewModel is not { IsInputEnabled: true })
             return;
 
         var (x, y) = this.GetNormalizedPosition(e);
@@ -136,7 +136,7 @@ public partial class ViewerView : Window
         if (this._viewModel is null)
             return;
 
-        // Handle fullscreen toggle with F11
+        // Handle fullscreen toggle with F11 (always works, even with input disabled)
         if (e.Key == Key.F11)
         {
             e.Handled = true;
@@ -144,13 +144,16 @@ public partial class ViewerView : Window
             return;
         }
 
-        // Handle exit fullscreen with ESC
+        // Handle exit fullscreen with ESC (always works, even with input disabled)
         if (e.Key == Key.Escape && this._viewModel.IsFullscreen)
         {
             e.Handled = true;
             this._viewModel.ToggleFullscreenCommand.Execute(null);
             return;
         }
+
+        if (!this._viewModel.IsInputEnabled)
+            return;
 
         e.Handled = true;
 
@@ -160,7 +163,7 @@ public partial class ViewerView : Window
     }
     private async void DisplayPanel_KeyUp(object? sender, KeyEventArgs e)
     {
-        if (this._viewModel is null)
+        if (this._viewModel is not { IsInputEnabled: true })
             return;
 
         e.Handled = true;

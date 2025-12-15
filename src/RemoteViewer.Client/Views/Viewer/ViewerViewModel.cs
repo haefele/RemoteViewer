@@ -142,6 +142,17 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     #region Input Handling
     private readonly ConcurrentDictionary<ushort, object?> _pressedKeys = new();
 
+    [ObservableProperty]
+    private bool _isInputEnabled = true;
+
+    [RelayCommand]
+    private async Task ToggleInputAsync()
+    {
+        this.IsInputEnabled = !this.IsInputEnabled;
+        if (!this.IsInputEnabled)
+            await this.ReleaseAllKeysAsync();
+    }
+
     public async Task SendMouseMoveAsync(float x, float y)
     {
         try

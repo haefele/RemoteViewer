@@ -78,6 +78,17 @@
                     <mi:MaterialIcon Kind="MonitorMultiple" Width="20" Height="20"/>
                 </Button>
 
+                <!-- Toggle input button -->
+                <Button Command="{Binding ToggleInputCommand}"
+                        ToolTip.Tip="{Binding IsInputEnabled, Converter={x:Static conv:BoolToInputTooltipConverter.Instance}}"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Width="32" Height="32"
+                        Padding="0">
+                    <mi:MaterialIcon Kind="{Binding IsInputEnabled, Converter={x:Static conv:BoolToInputIconConverter.Instance}}"
+                                     Width="20" Height="20"/>
+                </Button>
+
                 <!-- Separator -->
                 <Border Width="1"
                         Margin="0,4"
