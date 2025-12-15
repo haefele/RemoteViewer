@@ -65,7 +65,15 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
                     {
                         Marshal.FinalReleaseComObject(screenResource);
                     }
-                    logger.LogDebug("No accumulated frames");
+
+                    // If keyframe was requested but DXGI has no new frames, return Failure
+                    // so ScreenshotService can fall back to another grabber (e.g., BitBlt)
+                    if (forceKeyframe)
+                    {
+                        logger.LogDebug("Keyframe requested but no accumulated frames available");
+                        return new GrabResult(GrabStatus.Failure, null, null, null);
+                    }
+
                     return new GrabResult(GrabStatus.NoChanges, null, null, null);
                 }
 
