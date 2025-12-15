@@ -149,60 +149,61 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : I
         bool forceKeyframe)
     {
         var state = this.GetOrCreateDisplayState(displayName);
-        var stride = width * 4;
 
-        // If dimensions changed, reset state
-        if (width != state.Width || height != state.Height)
+        using (state.CaptureLock.EnterScope())
         {
-            state.PreviousFrame?.Dispose();
-            state.PreviousFrame = null;
-            state.Width = width;
-            state.Height = height;
-        }
+            // If dimensions changed, reset state
+            if (width != state.Width || height != state.Height)
+            {
+                state.PreviousFrame?.Dispose();
+                state.PreviousFrame = null;
+                state.Width = width;
+                state.Height = height;
+            }
 
-        // If forceKeyframe or no previous frame, return full frame
-        if (forceKeyframe || state.PreviousFrame is null)
-        {
-            state.PreviousFrame?.Dispose();
-            frameMemory.AddRef();
-            state.PreviousFrame = frameMemory;
-            return new GrabResult(GrabStatus.Success, frameMemory, null, null);
-        }
+            // If forceKeyframe or no previous frame, return full frame
+            if (forceKeyframe || state.PreviousFrame is null)
+            {
+                state.PreviousFrame?.Dispose();
+                frameMemory.AddRef();
+                state.PreviousFrame = frameMemory;
+                return new GrabResult(GrabStatus.Success, frameMemory, null, null);
+            }
 
-        // Detect changes
-        var dirtyRects = DetectChanges(
-            frameMemory.Span,
-            state.PreviousFrame.Span,
-            width,
-            height,
-            stride);
+            // Detect changes
+            var dirtyRects = DetectChanges(
+                frameMemory.Span,
+                state.PreviousFrame.Span,
+                width,
+                height);
 
-        // null = too many changes, send as keyframe
-        if (dirtyRects is null)
-        {
+            // null = too many changes, send as keyframe
+            if (dirtyRects is null)
+            {
+                state.PreviousFrame.Dispose();
+                frameMemory.AddRef();
+                state.PreviousFrame = frameMemory;
+                return new GrabResult(GrabStatus.Success, frameMemory, null, null);
+            }
+
+            // Empty array = no changes
+            if (dirtyRects.Length == 0)
+            {
+                frameMemory.Dispose();
+                return new GrabResult(GrabStatus.NoChanges, null, null, null);
+            }
+
+            // Extract dirty regions from full frame
+            var dirtyRegions = ExtractDirtyRegions(frameMemory.Span, dirtyRects, width);
+
+            // Update previous frame
             state.PreviousFrame.Dispose();
             frameMemory.AddRef();
             state.PreviousFrame = frameMemory;
-            return new GrabResult(GrabStatus.Success, frameMemory, null, null);
-        }
 
-        // Empty array = no changes
-        if (dirtyRects.Length == 0)
-        {
             frameMemory.Dispose();
-            return new GrabResult(GrabStatus.NoChanges, null, null, null);
+            return new GrabResult(GrabStatus.Success, null, dirtyRegions, null);
         }
-
-        // Extract dirty regions from full frame
-        var dirtyRegions = ExtractDirtyRegions(frameMemory.Span, dirtyRects, width);
-
-        // Update previous frame
-        state.PreviousFrame.Dispose();
-        frameMemory.AddRef();
-        state.PreviousFrame = frameMemory;
-
-        frameMemory.Dispose();
-        return new GrabResult(GrabStatus.Success, null, dirtyRegions, null);
     }
 
     private BitBltDisplayState GetOrCreateDisplayState(string displayName)
@@ -231,9 +232,9 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : I
         ReadOnlySpan<byte> currentPixels,
         ReadOnlySpan<byte> previousPixels,
         int width,
-        int height,
-        int stride)
+        int height)
     {
+        var stride = width * 4;
         var blocksX = (width + BlockSize - 1) / BlockSize;
         var blocksY = (height + BlockSize - 1) / BlockSize;
         var totalBlocks = blocksX * blocksY;
@@ -373,9 +374,10 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : I
 
     private sealed class BitBltDisplayState : IDisposable
     {
-        public RefCountedMemoryOwner<byte>? PreviousFrame;
-        public int Width;
-        public int Height;
+        public Lock CaptureLock { get; } = new();
+        public RefCountedMemoryOwner<byte>? PreviousFrame { get; set; }
+        public int Width { get; set; }
+        public int Height { get; set; }
 
         public void Dispose() => this.PreviousFrame?.Dispose();
     }
