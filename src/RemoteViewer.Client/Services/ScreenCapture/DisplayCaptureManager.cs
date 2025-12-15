@@ -33,7 +33,7 @@ public sealed class DisplayCaptureManager(
 
             field = value;
         }
-    } = 15;
+    } = 60;
 
     public void Start()
     {

@@ -96,12 +96,9 @@ public sealed class DisplayCapturePipeline : IDisposable
                     }
 
                     // Frame rate throttling
-                    var timePerFrameInMs = TimeSpan.FromMilliseconds(1000.0 / this._getTargetFps());
-                    var sleepTime = timePerFrameInMs - Stopwatch.GetElapsedTime(frameStartTimestamp);
-                    if (sleepTime > TimeSpan.Zero)
-                    {
-                        await Task.Delay(sleepTime, ct);
-                    }
+                    var timePerFrame = TimeSpan.FromMilliseconds(1000.0 / this._getTargetFps());
+                    var sleepTime = timePerFrame - Stopwatch.GetElapsedTime(frameStartTimestamp);
+                    await SleepHelper.DelayPrecise(sleepTime, ct);
 
                     frameStartTimestamp = Stopwatch.GetTimestamp();
                 }
