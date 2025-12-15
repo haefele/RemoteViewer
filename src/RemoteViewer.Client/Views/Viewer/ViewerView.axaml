@@ -97,9 +97,6 @@
                                         <StackPanel Orientation="Horizontal" Spacing="6" Margin="4,2">
                                             <mi:MaterialIcon Kind="{Binding IsPresenter, Converter={x:Static conv:BoolToParticipantIconConverter.Instance}}" Width="14" Height="14"/>
                                             <TextBlock Text="{Binding DisplayName}"/>
-                                            <TextBlock Text="{Binding SelectedDisplayName, StringFormat='- {0}'}"
-                                                       IsVisible="{Binding SelectedDisplayName, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"
-                                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
                                         </StackPanel>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>

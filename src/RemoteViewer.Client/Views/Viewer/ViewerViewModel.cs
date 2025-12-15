@@ -35,33 +35,13 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     private string _title = "Remote Viewer";
 
     [ObservableProperty]
-    private string? _selectedDisplayId;
-
-    async partial void OnSelectedDisplayIdChanged(string? value)
-    {
-        this._logger.LogInformation("Selected display {DisplayId}", value);
-
-        var display = this.Displays.FirstOrDefault(d => d.Id == value);
-        this.Title = display is null ? "Remote Viewer" : $"Remote Viewer - {display.Name}";
-
-        // Send display selection to presenter
-        if (display is not null)
-        {
-            await this._connection.SelectDisplayAsync(display.Id);
-        }
-    }
-
-    [ObservableProperty]
-    private ObservableCollection<DisplayInfo> _displays = new();
-
-    [ObservableProperty]
     private ObservableCollection<ParticipantDisplay> _participants = new();
 
     [ObservableProperty]
     private bool _isConnected = true;
 
     [ObservableProperty]
-    private string _statusText = "Waiting for display list...";
+    private string _statusText = "Connected";
 
     [ObservableProperty]
     private bool _isFullscreen;
@@ -78,32 +58,11 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         this.Toasts = viewModelFactory.CreateToastsViewModel();
 
         // Subscribe to Connection events
-        this._connection.DisplaysChanged += this.Connection_DisplaysChanged;
         this._connection.ParticipantsChanged += this.Connection_ParticipantsChanged;
         this._connection.FrameReceived += this.Connection_FrameReceived;
         this._connection.Closed += this.Connection_Closed;
 
         this.Title = $"Remote Viewer - {connection.ConnectionId[..8]}...";
-    }
-
-    private void Connection_DisplaysChanged(object? sender, EventArgs e)
-    {
-        Dispatcher.UIThread.Post(() =>
-        {
-            var displays = this._connection.Displays;
-
-            this.Displays.Clear();
-            foreach (var display in displays)
-            {
-                this.Displays.Add(display);
-            }
-
-            this.SelectedDisplayId ??= displays.FirstOrDefault(d => d.IsPrimary)?.Id;
-            this.StatusText = $"{this.Displays.Count} display(s) available";
-
-            // Also update participants to refresh display names
-            this.UpdateParticipants();
-        });
     }
 
     private void Connection_ParticipantsChanged(object? sender, EventArgs e)
@@ -115,30 +74,24 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     {
         var presenter = this._connection.Presenter;
         var viewers = this._connection.Viewers;
-        var displays = this._connection.Displays;
 
         this.Participants.Clear();
 
         // Add presenter first
         if (presenter is not null)
         {
-            this.Participants.Add(new ParticipantDisplay(presenter.DisplayName, IsPresenter: true, SelectedDisplayName: null));
+            this.Participants.Add(new ParticipantDisplay(presenter.DisplayName, IsPresenter: true));
         }
 
         // Add all viewers
         foreach (var viewer in viewers)
         {
-            var displayName = displays.FirstOrDefault(d => d.Id == viewer.SelectedDisplayId)?.Name;
-            this.Participants.Add(new ParticipantDisplay(viewer.DisplayName, IsPresenter: false, displayName));
+            this.Participants.Add(new ParticipantDisplay(viewer.DisplayName, IsPresenter: false));
         }
     }
 
     private void Connection_FrameReceived(object? sender, FrameReceivedEventArgs e)
     {
-        // Only process frames for the selected display
-        if (e.DisplayId != this.SelectedDisplayId)
-            return;
-
         // Drop out-of-order delta frames (but always accept keyframes)
         if (e.Regions is not [{ IsKeyframe: true }] && e.FrameNumber <= this._lastReceivedFrameNumber)
             return;
@@ -213,23 +166,14 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     }
 
     [RelayCommand]
-    private void NextDisplay()
+    private async Task NextDisplay()
     {
-        if (this.Displays.Count == 0)
-            return;
-
-        var currentIndex = this.Displays
-            .Select((d, i) => (Display: d, Index: i))
-            .FirstOrDefault(x => x.Display.Id == this.SelectedDisplayId)
-            .Index;
-
-        var nextIndex = (currentIndex + 1) % this.Displays.Count;
-        this.SelectedDisplayId = this.Displays[nextIndex].Id;
+        await this._connection.SwitchDisplayAsync();
     }
 
     public async Task SendMouseMoveAsync(float x, float y)
     {
-        if (this.IsConnected is false || this.SelectedDisplayId is null)
+        if (this.IsConnected is false)
             return;
 
         try
@@ -246,7 +190,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     public async Task SendMouseDownAsync(MouseButton button, float x, float y)
     {
-        if (this.IsConnected is false || this.SelectedDisplayId is null)
+        if (this.IsConnected is false)
             return;
 
         try
@@ -263,7 +207,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     public async Task SendMouseUpAsync(MouseButton button, float x, float y)
     {
-        if (this.IsConnected is false || this.SelectedDisplayId is null)
+        if (this.IsConnected is false)
             return;
 
         try
@@ -280,7 +224,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     public async Task SendMouseWheelAsync(float deltaX, float deltaY, float x, float y)
     {
-        if (this.IsConnected is false || this.SelectedDisplayId is null)
+        if (this.IsConnected is false)
             return;
 
         try
@@ -297,7 +241,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     public async Task SendKeyDownAsync(ushort keyCode, KeyModifiers modifiers)
     {
-        if (this.IsConnected is false || this.SelectedDisplayId is null)
+        if (this.IsConnected is false)
             return;
 
         try
@@ -316,7 +260,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     public async Task SendKeyUpAsync(ushort keyCode, KeyModifiers modifiers)
     {
-        if (this.IsConnected is false || this.SelectedDisplayId is null)
+        if (this.IsConnected is false)
             return;
 
         try
@@ -335,7 +279,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     public async Task ReleaseAllKeysAsync()
     {
-        if (this.IsConnected is false || this._pressedKeys.IsEmpty || this.SelectedDisplayId is null)
+        if (this.IsConnected is false || this._pressedKeys.IsEmpty)
             return;
 
         foreach (var keyCode in this._pressedKeys.Keys)
@@ -365,7 +309,6 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         await this._connection.DisconnectAsync();
 
         // Unsubscribe from Connection events
-        this._connection.DisplaysChanged -= this.Connection_DisplaysChanged;
         this._connection.ParticipantsChanged -= this.Connection_ParticipantsChanged;
         this._connection.FrameReceived -= this.Connection_FrameReceived;
         this._connection.Closed -= this.Connection_Closed;
@@ -376,4 +319,4 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     }
 }
 
-public record ParticipantDisplay(string DisplayName, bool IsPresenter, string? SelectedDisplayName);
+public record ParticipantDisplay(string DisplayName, bool IsPresenter);

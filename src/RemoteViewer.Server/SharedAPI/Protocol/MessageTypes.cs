@@ -7,14 +7,8 @@ public static class MessageTypes
 {
     public static class Display
     {
-        /// <summary>List of available displays (Presenter → Viewers)</summary>
-        public const string List = "display.list";
-
-        /// <summary>Request to watch a specific display (Viewer → Presenter)</summary>
-        public const string Select = "display.select";
-
-        /// <summary>Request display list (Viewer → Presenter)</summary>
-        public const string RequestList = "display.list.request";
+        /// <summary>Request to switch to the next display (Viewer → Presenter)</summary>
+        public const string Switch = "display.switch";
     }
 
     public static class Screen

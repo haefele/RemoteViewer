@@ -19,9 +19,6 @@ public sealed class Connection
     private ClientInfo? _presenter;
     private List<ViewerInfo> _viewers = [];
 
-    // Thread-safe displays list (viewer only)
-    private readonly Lock _displaysLock = new();
-    private List<DisplayInfo> _displays = [];
 
     internal Connection(
         string connectionId,
@@ -39,14 +36,6 @@ public sealed class Connection
         this._sendMessageAsync = sendMessageAsync;
         this._disconnectAsync = disconnectAsync;
         this._logger = logger;
-
-        // Automatically request display list when connecting as a viewer
-        if (!isPresenter)
-        {
-            var message = new RequestDisplayListMessage();
-            var data = ProtocolSerializer.Serialize(message);
-            _ = this._sendMessageAsync(MessageTypes.Display.RequestList, data, MessageDestination.PresenterOnly, null);
-        }
     }
 
     public string ConnectionId { get; }
@@ -69,16 +58,6 @@ public sealed class Connection
             using (this._participantsLock.EnterScope())
             {
                 return this._viewers.ToList().AsReadOnly();
-            }
-        }
-    }
-    public IReadOnlyList<DisplayInfo> Displays
-    {
-        get
-        {
-            using (this._displaysLock.EnterScope())
-            {
-                return this._displays.ToList().AsReadOnly();
             }
         }
     }
@@ -125,25 +104,6 @@ public sealed class Connection
 
     public event EventHandler<InputReceivedEventArgs>? InputReceived;
 
-    private EventHandler? _displaysChanged;
-    public event EventHandler? DisplaysChanged
-    {
-        add
-        {
-            this._displaysChanged += value;
-
-            // Notify new subscriber of current state if displays already exist
-            using (this._displaysLock.EnterScope())
-            {
-                if (this._displays.Count > 0)
-                {
-                    value?.Invoke(this, EventArgs.Empty);
-                }
-            }
-        }
-        remove => this._displaysChanged -= value;
-    }
-
     public event EventHandler<FrameReceivedEventArgs>? FrameReceived;
 
     public Task DisconnectAsync()
@@ -154,20 +114,20 @@ public sealed class Connection
         return this._disconnectAsync();
     }
 
-    /// <summary>Viewer-only: Select a display to watch.</summary>
-    public async Task SelectDisplayAsync(string displayId)
+    /// <summary>Viewer-only: Request to switch to the next display.</summary>
+    public async Task SwitchDisplayAsync()
     {
         if (this.IsPresenter)
-            throw new InvalidOperationException("SelectDisplayAsync is only valid for viewers");
+            throw new InvalidOperationException("SwitchDisplayAsync is only valid for viewers");
 
         if (this.IsClosed)
             return;
 
-        var message = new DisplaySelectMessage(displayId);
+        var message = new SwitchDisplayMessage();
         var data = ProtocolSerializer.Serialize(message);
-        await this._sendMessageAsync(MessageTypes.Display.Select, data, MessageDestination.PresenterOnly, null);
+        await this._sendMessageAsync(MessageTypes.Display.Switch, data, MessageDestination.PresenterOnly, null);
 
-        this._logger.LogDebug("Selected display {DisplayId}", displayId);
+        this._logger.LogDebug("Requested display switch");
     }
 
     /// <summary>Viewer-only: Send input to the presenter.</summary>
@@ -221,18 +181,23 @@ public sealed class Connection
 
     internal void OnConnectionChanged(ConnectionInfo connectionInfo)
     {
+        // Get primary display ID for new viewers (presenter-side only)
+        var primaryDisplayId = this._displayService?.GetDisplays()
+            .FirstOrDefault(d => d.IsPrimary)?.Name;
+
         using (this._participantsLock.EnterScope())
         {
             // Store presenter info
             this._presenter = connectionInfo.Presenter;
 
-            // Preserve existing display selections for viewers that are still connected
+            // Preserve existing display selections for viewers that are still connected,
+            // assign primary display to new viewers
             var existingSelections = this._viewers.ToDictionary(v => v.ClientId, v => v.SelectedDisplayId);
 
             this._viewers = connectionInfo.Viewers
                 .Select(v => new ViewerInfo(
                     v.ClientId,
-                    existingSelections.GetValueOrDefault(v.ClientId),
+                    existingSelections.GetValueOrDefault(v.ClientId, primaryDisplayId),
                     v.DisplayName))
                 .ToList();
         }
@@ -241,19 +206,15 @@ public sealed class Connection
         this._viewersChanged?.Invoke(this, EventArgs.Empty);
         this._participantsChanged?.Invoke(this, EventArgs.Empty);
     }
-    internal async void OnMessageReceived(string senderClientId, string messageType, byte[] data)
+    internal void OnMessageReceived(string senderClientId, string messageType, byte[] data)
     {
         try
         {
             switch (messageType)
             {
                 // Presenter-side messages (from viewers)
-                case MessageTypes.Display.Select:
-                    this.HandleDisplaySelect(senderClientId, data);
-                    break;
-
-                case MessageTypes.Display.RequestList:
-                    await this.HandleDisplayListRequest(senderClientId);
+                case MessageTypes.Display.Switch:
+                    this.HandleSwitchDisplay(senderClientId);
                     break;
 
                 case MessageTypes.Input.MouseMove:
@@ -281,10 +242,6 @@ public sealed class Connection
                     break;
 
                 // Viewer-side messages (from presenter)
-                case MessageTypes.Display.List:
-                    this.HandleDisplayList(data);
-                    break;
-
                 case MessageTypes.Screen.Frame:
                     this.HandleFrame(data);
                     break;
@@ -306,56 +263,42 @@ public sealed class Connection
         this.Closed?.Invoke(this, EventArgs.Empty);
     }
 
-    private void HandleDisplaySelect(string senderClientId, byte[] data)
-    {
-        var message = ProtocolSerializer.Deserialize<DisplaySelectMessage>(data);
-
-        using (this._participantsLock.EnterScope())
-        {
-            var index = this._viewers.FindIndex(v => v.ClientId == senderClientId);
-            if (index >= 0)
-            {
-                var existing = this._viewers[index];
-                this._viewers[index] = existing with { SelectedDisplayId = message.DisplayId };
-            }
-            else
-            {
-                this._viewers.Add(new ViewerInfo(senderClientId, message.DisplayId, senderClientId));
-            }
-        }
-
-        this._logger.LogDebug("Viewer {ViewerId} selected display {DisplayId}", senderClientId, message.DisplayId);
-        this._viewersChanged?.Invoke(this, EventArgs.Empty);
-
-        // Force immediate keyframe so new viewer doesn't see black screen
-        this._screenshotService?.ForceKeyframe(message.DisplayId);
-    }
-    private async Task HandleDisplayListRequest(string senderClientId)
+    private void HandleSwitchDisplay(string senderClientId)
     {
         if (this._displayService is null)
-        {
-            this._logger.LogWarning("Cannot respond to display list request - no display service available");
             return;
-        }
 
         var displays = this._displayService.GetDisplays();
-        var displayInfos = displays
-            .Select(d => new DisplayInfo(
-                d.Name,
-                d.Name,
-                d.IsPrimary,
-                d.Bounds.Left,
-                d.Bounds.Top,
-                d.Bounds.Width,
-                d.Bounds.Height
-            ))
-            .ToArray();
+        if (displays.Count == 0)
+            return;
 
-        var message = new DisplayListMessage(displayInfos);
-        var data = ProtocolSerializer.Serialize(message);
-        await this._sendMessageAsync(MessageTypes.Display.List, data, MessageDestination.SpecificClients, [senderClientId]);
+        string? newDisplayId;
+        using (this._participantsLock.EnterScope())
+        {
+            var viewerIndex = this._viewers.FindIndex(v => v.ClientId == senderClientId);
+            if (viewerIndex < 0)
+                return;
 
-        this._logger.LogDebug("Sent display list to viewer {ViewerId}", senderClientId);
+            var viewer = this._viewers[viewerIndex];
+
+            // Find current display index
+            var currentDisplayIndex = displays
+                .Select((d, i) => (Display: d, Index: i))
+                .FirstOrDefault(x => x.Display.Name == viewer.SelectedDisplayId)
+                .Index;
+
+            // Cycle to next display
+            var nextDisplayIndex = (currentDisplayIndex + 1) % displays.Count;
+            newDisplayId = displays[nextDisplayIndex].Name;
+
+            this._viewers[viewerIndex] = viewer with { SelectedDisplayId = newDisplayId };
+        }
+
+        this._logger.LogDebug("Viewer {ViewerId} switched to display {DisplayId}", senderClientId, newDisplayId);
+        this._viewersChanged?.Invoke(this, EventArgs.Empty);
+
+        // Force immediate keyframe so viewer doesn't see black screen
+        this._screenshotService?.ForceKeyframe(newDisplayId);
     }
     private void HandleMouseMove(string senderClientId, byte[] data)
     {
@@ -415,18 +358,6 @@ public sealed class Connection
             modifiers: message.Modifiers);
 
         this.InputReceived?.Invoke(this, args);
-    }
-    private void HandleDisplayList(byte[] data)
-    {
-        var message = ProtocolSerializer.Deserialize<DisplayListMessage>(data);
-
-        using (this._displaysLock.EnterScope())
-        {
-            this._displays = [.. message.Displays];
-        }
-
-        this._logger.LogDebug("Received display list: {DisplayCount} display(s)", message.Displays.Length);
-        this._displaysChanged?.Invoke(this, EventArgs.Empty);
     }
     private void HandleFrame(byte[] data)
     {
