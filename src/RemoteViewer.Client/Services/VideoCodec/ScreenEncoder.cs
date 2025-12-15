@@ -69,7 +69,7 @@ public sealed class ScreenEncoder : IDisposable
         this._compressorPool.Add(compressor);
     }
 
-    private static IMemoryOwner<byte> EncodeJpeg(TJCompressor compressor, Span<byte> pixels, int width, int height)
+    private static RefCountedMemoryOwner<byte> EncodeJpeg(TJCompressor compressor, Span<byte> pixels, int width, int height)
     {
         // Get max possible JPEG size for this resolution
         var maxSize = compressor.GetBufferSize(width, height, TJSubsamplingOption.Chrominance420);
@@ -111,5 +111,11 @@ public readonly record struct EncodedRegion(
     int Y,
     int Width,
     int Height,
-    IMemoryOwner<byte> JpegData
-);
+    RefCountedMemoryOwner<byte> JpegData
+) : IDisposable
+{
+    public void Dispose()
+    {
+        this.JpegData.Dispose();
+    }
+}

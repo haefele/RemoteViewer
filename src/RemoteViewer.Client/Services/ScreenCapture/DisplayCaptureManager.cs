@@ -155,12 +155,7 @@ public sealed class DisplayCaptureManager(
         if (this._started == 1)
         {
             this._monitorCts.Cancel();
-
-            var completed = this._monitorTask?.Wait(TimeSpan.FromSeconds(2)) ?? true;
-            if (!completed)
-            {
-                logger.MonitorLoopTimedOut();
-            }
+            this._monitorTask?.Wait();
 
             using (this._pipelinesLock.EnterScope())
             {

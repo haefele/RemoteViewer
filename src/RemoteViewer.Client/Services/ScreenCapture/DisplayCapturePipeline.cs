@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
+using RemoteViewer.Client.Common;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.VideoCodec;
@@ -95,9 +96,8 @@ public sealed class DisplayCapturePipeline : IDisposable
                     }
 
                     // Frame rate throttling
-                    var minFrameInterval = TimeSpan.FromMilliseconds(1000.0 / this._getTargetFps());
-                    var elapsed = Stopwatch.GetElapsedTime(frameStartTimestamp);
-                    var sleepTime = minFrameInterval - elapsed;
+                    var timePerFrameInMs = TimeSpan.FromMilliseconds(1000.0 / this._getTargetFps());
+                    var sleepTime = timePerFrameInMs - Stopwatch.GetElapsedTime(frameStartTimestamp);
                     if (sleepTime > TimeSpan.Zero)
                     {
                         await Task.Delay(sleepTime, ct);
@@ -229,29 +229,13 @@ public sealed class DisplayCapturePipeline : IDisposable
 
         this._pipelineCts.Cancel();
 
-        var tasksCompleted = Task.WaitAll(
-            [this._captureTask, this._encodeTask, this._sendTask],
-            TimeSpan.FromSeconds(2));
+        Task.WaitAll([this._captureTask, this._encodeTask, this._sendTask]);
 
-        if (!tasksCompleted)
-        {
-            this._logger.DisposeTimedOut(this._display.Name);
-        }
-
-        // Drain any remaining frames from channels to prevent resource leaks
-        this.DrainChannel(this._captureToEncodeChannel.Reader);
-        this.DrainChannel(this._encodeToSendChannel.Reader);
+        this._captureToEncodeChannel.DisposeItems();
+        this._encodeToSendChannel.DisposeItems();
 
         this._pipelineCts.Dispose();
         this._logger.PipelineStopped(this._display.Name);
-    }
-
-    private void DrainChannel<T>(ChannelReader<T> reader) where T : IDisposable
-    {
-        while (reader.TryRead(out var item))
-        {
-            item.Dispose();
-        }
     }
 
     private readonly record struct CapturedFrame(
@@ -270,7 +254,7 @@ public sealed class DisplayCapturePipeline : IDisposable
         {
             foreach (var region in this.Regions)
             {
-                region.JpegData.Dispose();
+                region.Dispose();
             }
         }
     }
