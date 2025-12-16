@@ -1,8 +1,9 @@
 ﻿using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
+using RemoteViewer.Client.Common;
 using RemoteViewer.Server.SharedAPI.Protocol;
-using SkiaSharp;
+using TurboJpegWrapper;
 
 namespace RemoteViewer.Client.Views.Viewer;
 
@@ -12,6 +13,9 @@ namespace RemoteViewer.Client.Views.Viewer;
 /// </summary>
 public class FrameCompositor : IDisposable
 {
+    private readonly TJDecompressor _decompressor = new();
+    private readonly Lock _decompressorLock = new();
+
     private WriteableBitmap? _canvas;
     private WriteableBitmap? _debugOverlay;
     private int _width;
@@ -105,33 +109,48 @@ public class FrameCompositor : IDisposable
         if (this._canvas is null)
             return;
 
-        // Decode region JPEG
-        using var regionBitmap = SKBitmap.Decode(region.Data.Span);
-        if (regionBitmap is null)
+        // Clamp region to canvas bounds first to avoid unnecessary work
+        var regionX = Math.Max(0, region.X);
+        var regionY = Math.Max(0, region.Y);
+        var regionWidth = Math.Min(region.Width, this._width - regionX);
+        var regionHeight = Math.Min(region.Height, this._height - regionY);
+
+        if (regionWidth <= 0 || regionHeight <= 0)
             return;
 
-        using (var framebuffer = this._canvas.Lock())
+        lock (this._decompressorLock)
         {
-            var destStride = framebuffer.RowBytes;
-            var destBase = (byte*)framebuffer.Address;
-            var srcPixels = (byte*)regionBitmap.GetPixels();
-            var srcStride = regionBitmap.RowBytes;
+            // Calculate buffer size (4 bytes per pixel for BGRA)
+            var bufferSize = region.Width * region.Height * 4;
+            using var pixelBuffer = RefCountedMemoryOwner<byte>.Create(bufferSize);
 
-            // Clamp region to canvas bounds
-            var regionX = Math.Max(0, region.X);
-            var regionY = Math.Max(0, region.Y);
-            var regionWidth = Math.Min(region.Width, this._width - regionX);
-            var regionHeight = Math.Min(region.Height, this._height - regionY);
-
-            if (regionWidth <= 0 || regionHeight <= 0)
-                return;
-
-            // Copy region to canvas at correct position
-            for (var y = 0; y < regionHeight; y++)
+            fixed (byte* jpegPtr = region.Data.Span)
+            fixed (byte* outPtr = pixelBuffer.Span)
             {
-                var destRow = destBase + (regionY + y) * destStride + regionX * 4;
-                var srcRow = srcPixels + y * srcStride;
-                Buffer.MemoryCopy(srcRow, destRow, regionWidth * 4, regionWidth * 4);
+                this._decompressor.Decompress(
+                    (nint)jpegPtr,
+                    (ulong)region.Data.Length,
+                    (nint)outPtr,
+                    bufferSize,
+                    TJPixelFormat.BGRA,
+                    TJFlags.FastDct,
+                    out _,
+                    out _,
+                    out var srcStride);
+
+                using (var framebuffer = this._canvas.Lock())
+                {
+                    var destStride = framebuffer.RowBytes;
+                    var destBase = (byte*)framebuffer.Address;
+
+                    // Copy region to canvas at correct position
+                    for (var y = 0; y < regionHeight; y++)
+                    {
+                        var destRow = destBase + (regionY + y) * destStride + regionX * 4;
+                        var srcRow = outPtr + y * srcStride;
+                        Buffer.MemoryCopy(srcRow, destRow, regionWidth * 4, regionWidth * 4);
+                    }
+                }
             }
         }
     }
@@ -222,6 +241,7 @@ public class FrameCompositor : IDisposable
             return;
 
         this._disposed = true;
+        this._decompressor.Dispose();
         this._canvas?.Dispose();
         this._canvas = null;
         this._debugOverlay?.Dispose();

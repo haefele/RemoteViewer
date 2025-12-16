@@ -42,7 +42,6 @@
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageReference Include="Serilog.Sinks.Debug" Version="3.0.0" />
     <PackageReference Include="Quamotion.TurboJpegWrapper" Version="2.0.32" />
-    <PackageReference Include="SkiaSharp" Version="3.119.1" />
   </ItemGroup>
 
   <ItemGroup Condition="$(TargetFramework.Contains('windows'))">
