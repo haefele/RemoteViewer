@@ -1,4 +1,5 @@
-﻿using Avalonia.Threading;
+﻿using System.Collections.ObjectModel;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -16,6 +17,7 @@ namespace RemoteViewer.Client.Views.Presenter;
 public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 {
     private readonly Connection _connection;
+    private readonly ConnectionHubClient _hubClient;
     private readonly IDisplayService _displayService;
     private readonly IInputInjectionService _inputInjectionService;
     private readonly ILogger<PresenterViewModel> _logger;
@@ -29,21 +31,22 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
     private string _title = "Presenting";
 
     [ObservableProperty]
-    private int _viewerCount;
+    private string? _yourId;
 
     [ObservableProperty]
-    private bool _isPresenting = true;
+    private string? _yourPassword;
 
     [ObservableProperty]
-    private string _statusText = "Waiting for viewers...";
+    private bool _isInputBlockedGlobally;
 
-    [ObservableProperty]
-    private bool _isPlatformSupported;
+    public ObservableCollection<PresenterViewerDisplay> Viewers { get; } = [];
 
     public event EventHandler? CloseRequested;
+    public event EventHandler<string>? CopyToClipboardRequested;
 
     public PresenterViewModel(
         Connection connection,
+        ConnectionHubClient hubClient,
         IDisplayService displayService,
         IScreenshotService screenshotService,
         ScreenEncoder screenEncoder,
@@ -53,20 +56,11 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         ILoggerFactory loggerFactory)
     {
         this._connection = connection;
+        this._hubClient = hubClient;
         this._displayService = displayService;
         this._inputInjectionService = inputInjectionService;
         this._logger = logger;
         this.Toasts = viewModelFactory.CreateToastsViewModel();
-
-        this.IsPlatformSupported = screenshotService.IsSupported;
-
-        if (!this.IsPlatformSupported)
-        {
-            this.Title = "Presenter - Not Supported";
-            this.StatusText = "Not supported on this platform";
-            this.IsPresenting = false;
-            return;
-        }
 
         this.Title = $"Presenting - {connection.ConnectionId[..8]}...";
 
@@ -74,6 +68,9 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         this._connection.ViewersChanged += this.OnViewersChanged;
         this._connection.InputReceived += this.OnInputReceived;
         this._connection.Closed += this.OnConnectionClosed;
+
+        // Subscribe to credentials changes
+        this._hubClient.CredentialsAssigned += this.OnCredentialsAssigned;
 
         // Create and start capture manager
         this._captureManager = new DisplayCaptureManager(
@@ -86,6 +83,15 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         this._captureManager.Start();
     }
 
+    private void OnCredentialsAssigned(object? sender, CredentialsAssignedEventArgs e)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            this.YourId = e.Username;
+            this.YourPassword = e.Password;
+        });
+    }
+
     private void OnViewersChanged(object? sender, EventArgs e)
     {
         var viewers = this._connection.Viewers;
@@ -96,15 +102,48 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         // Update UI
         Dispatcher.UIThread.Post(() =>
         {
-            this.ViewerCount = viewers.Count;
-            this.StatusText = this.ViewerCount == 0
-                ? "Waiting for viewers..."
-                : $"{this.ViewerCount} viewer(s) connected";
+            this.UpdateViewers(viewers);
         });
+    }
+
+    private void UpdateViewers(IReadOnlyList<ViewerInfo> viewers)
+    {
+        // Build set of current viewer IDs
+        var currentViewerIds = viewers.Select(v => v.ClientId).ToHashSet();
+
+        // Remove viewers that are no longer connected
+        for (var i = this.Viewers.Count - 1; i >= 0; i--)
+        {
+            if (!currentViewerIds.Contains(this.Viewers[i].ClientId))
+            {
+                this.Viewers.RemoveAt(i);
+            }
+        }
+
+        // Add new viewers
+        var existingIds = this.Viewers.Select(p => p.ClientId).ToHashSet();
+        foreach (var viewer in viewers)
+        {
+            if (!existingIds.Contains(viewer.ClientId))
+            {
+                this.Viewers.Add(new PresenterViewerDisplay(
+                    viewer.ClientId,
+                    viewer.DisplayName));
+            }
+        }
     }
 
     private void OnInputReceived(object? sender, InputReceivedEventArgs e)
     {
+        // Check if input is blocked globally
+        if (this.IsInputBlockedGlobally)
+            return;
+
+        // Check if this specific viewer's input is blocked
+        var viewer = this.Viewers.FirstOrDefault(v => v.ClientId == e.SenderClientId);
+        if (viewer?.IsInputBlocked == true)
+            return;
+
         // Get the display for this viewer's selection
         if (e.DisplayId is null)
             return;
@@ -169,8 +208,6 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 
         Dispatcher.UIThread.Post(() =>
         {
-            this.IsPresenting = false;
-            this.StatusText = "Connection closed";
             CloseRequested?.Invoke(this, EventArgs.Empty);
         });
     }
@@ -183,14 +220,34 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
     [RelayCommand]
     private async Task StopPresentingAsync()
     {
-        if (this.IsPlatformSupported is false)
-        {
-            this.CloseRequested?.Invoke(this, EventArgs.Empty);
-            return;
-        }
-
         this._logger.LogInformation("User requested to stop presenting for connection {ConnectionId}", this._connection.ConnectionId);
         await this._connection.DisconnectAsync();
+    }
+
+    [RelayCommand]
+    private void CopyCredentials()
+    {
+        if (this.YourId is null || this.YourPassword is null)
+            return;
+
+        var text = $"""
+                    ID: {this.YourId}
+                    Password: {this.YourPassword}
+                    """;
+        this.CopyToClipboardRequested?.Invoke(this, text);
+        this.Toasts.Success("ID and password copied to clipboard.");
+    }
+
+    [RelayCommand]
+    private async Task GenerateNewPasswordAsync()
+    {
+        await this._hubClient.GenerateNewPassword();
+    }
+
+    [RelayCommand]
+    private void ToggleGlobalInputBlock()
+    {
+        this.IsInputBlockedGlobally = !this.IsInputBlockedGlobally;
     }
 
     public async ValueTask DisposeAsync()
@@ -207,6 +264,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         this._connection.ViewersChanged -= this.OnViewersChanged;
         this._connection.InputReceived -= this.OnInputReceived;
         this._connection.Closed -= this.OnConnectionClosed;
+        this._hubClient.CredentialsAssigned -= this.OnCredentialsAssigned;
 
         GC.SuppressFinalize(this);
     }

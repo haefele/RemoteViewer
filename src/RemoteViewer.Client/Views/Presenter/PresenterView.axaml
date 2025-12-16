@@ -3,83 +3,172 @@
         xmlns:vm="using:RemoteViewer.Client.Views.Presenter"
         xmlns:conv="using:RemoteViewer.Client.Converters"
         xmlns:toastControls="using:RemoteViewer.Client.Controls.Toasts"
+        xmlns:mi="using:Material.Icons.Avalonia"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="250"
+        mc:Ignorable="d" d:DesignWidth="400" d:DesignHeight="380"
         x:Class="RemoteViewer.Client.Views.Presenter.PresenterView"
         x:DataType="vm:PresenterViewModel"
         Icon="/Assets/avalonia-logo.ico"
         Title="{Binding Title}"
-        Width="400" Height="250"
+        Width="300" 
+        Height="380"
         WindowStartupLocation="CenterScreen"
         CanResize="False"
-        Closed="Window_Closed"
-        >
+        DataContextChanged="Window_DataContextChanged"
+        Closed="Window_Closed">
 
     <Panel>
-        <DockPanel>
-        <!-- Status Bar at Bottom -->
-        <Border DockPanel.Dock="Bottom"
-                Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
-                Padding="10,6">
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <Ellipse Width="12" Height="12">
-                    <Ellipse.Fill>
-                        <SolidColorBrush Color="{Binding IsPresenting, Converter={x:Static conv:BoolToColorConverter.Instance}}"/>
-                    </Ellipse.Fill>
-                </Ellipse>
-                <TextBlock Text="{Binding StatusText}"
-                           VerticalAlignment="Center"
-                           FontSize="12"/>
-            </StackPanel>
-        </Border>
+        <!-- Main Content -->
+        <Grid RowDefinitions="Auto,*,Auto" Margin="16">
 
-        <!-- Main Content - Platform Supported -->
-        <StackPanel Margin="20" Spacing="20" VerticalAlignment="Center" HorizontalAlignment="Center"
-                    IsVisible="{Binding IsPlatformSupported}">
-            <TextBlock Text="You are presenting your screen"
-                       FontSize="16"
-                       FontWeight="SemiBold"
-                       HorizontalAlignment="Center"/>
+            <!-- Row 0: Your Credentials -->
+            <Border Grid.Row="0"
+                    Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+                    CornerRadius="8"
+                    Padding="16"
+                    Margin="0,0,0,12">
+                <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
+                    <!-- Row 0: Title -->
+                    <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
+                               Text="Your Credentials"
+                               FontWeight="SemiBold"
+                               FontSize="16"
+                               Margin="0,0,0,12"/>
 
-            <StackPanel Spacing="4" HorizontalAlignment="Center">
-                <TextBlock Text="Connected Viewers"
-                           FontSize="12"
-                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                           HorizontalAlignment="Center"/>
-                <TextBlock Text="{Binding ViewerCount}"
-                           FontSize="36"
-                           FontWeight="Bold"
-                           HorizontalAlignment="Center"/>
-            </StackPanel>
+                    <!-- Row 1: ID Label + Value -->
+                    <StackPanel Grid.Row="1" Grid.Column="0" Spacing="4">
+                        <TextBlock Text="ID"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                        <SelectableTextBlock Text="{Binding YourId}"
+                                             Margin="0,8,0,0"
+                                             FontFamily="Consolas, Courier New, monospace"
+                                             FontSize="18"
+                                             FontWeight="Bold"/>
+                    </StackPanel>
 
-            <Button Content="Stop Presenting"
+                    <!-- Copy button - spans rows 1-2, vertically centered -->
+                    <Button Grid.Row="1" Grid.RowSpan="2" Grid.Column="1"
+                            VerticalAlignment="Center"
+                            Command="{Binding CopyCredentialsCommand}"
+                            ToolTip.Tip="Copy ID and password"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Width="32" Height="32"
+                            Padding="0"
+                            Margin="8,0,0,0">
+                        <mi:MaterialIcon Kind="ContentCopy" Width="20" Height="20"
+                                         Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                    </Button>
+
+                    <!-- Row 2: Password Label + Value with Refresh -->
+                    <StackPanel Grid.Row="2" Grid.Column="0" Spacing="4" Margin="0,12,0,0">
+                        <TextBlock Text="Password"
+                                   FontSize="12"
+                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <SelectableTextBlock Text="{Binding YourPassword}"
+                                                 Margin="0,8,0,2"
+                                                 FontFamily="Consolas, Courier New, monospace"
+                                                 FontSize="18"
+                                                 FontWeight="Bold"
+                                                 VerticalAlignment="Center"/>
+                            <Button Command="{Binding GenerateNewPasswordCommand}"
+                                    ToolTip.Tip="Generate new password"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Width="28" Height="28"
+                                    Padding="0"
+                                    VerticalAlignment="Center">
+                                <mi:MaterialIcon Kind="Refresh" Width="18" Height="18"
+                                                 Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                            </Button>
+                        </StackPanel>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Row 1: Connected Viewers -->
+            <Border Grid.Row="1"
+                    Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+                    CornerRadius="8"
+                    Padding="16"
+                    Margin="0,0,0,12">
+                <Grid RowDefinitions="Auto,*">
+                    <!-- Header -->
+                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                        <TextBlock Text="{Binding Viewers.Count, StringFormat='Viewers ({0})'}"
+                                   FontWeight="SemiBold"
+                                   FontSize="16"
+                                   VerticalAlignment="Center"/>
+
+                        <!-- Block All toggle -->
+                        <Button Grid.Column="1"
+                                Command="{Binding ToggleGlobalInputBlockCommand}"
+                                ToolTip.Tip="Block input from all viewers"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Width="32" Height="32"
+                                Padding="0">
+                            <mi:MaterialIcon Kind="{Binding IsInputBlockedGlobally, Converter={x:Static conv:BoolToBlockIconConverter.Instance}}"
+                                             Width="18" Height="18"/>
+                        </Button>
+                    </Grid>
+
+                    <!-- Viewers list -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding Viewers}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:PresenterViewerDisplay">
+                                    <Border Padding="8,6" Margin="0,2" CornerRadius="4"
+                                            Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}">
+                                        <Grid ColumnDefinitions="*,Auto">
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
+                                                <mi:MaterialIcon Kind="Account" Width="16" Height="16"
+                                                                 VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding DisplayName}"
+                                                           FontWeight="SemiBold"
+                                                           VerticalAlignment="Center"/>
+                                            </StackPanel>
+
+                                            <!-- Block button for this viewer -->
+                                            <Button Grid.Column="1"
+                                                    Command="{Binding ToggleInputBlockCommand}"
+                                                    ToolTip.Tip="Block this viewer's input"
+                                                    Background="Transparent"
+                                                    BorderThickness="0"
+                                                    Width="32" Height="32"
+                                                    Padding="0">
+                                                <mi:MaterialIcon Kind="{Binding IsInputBlocked, Converter={x:Static conv:BoolToBlockIconConverter.Instance}}"
+                                                                 Width="18" Height="18"/>
+                                            </Button>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <!-- Empty state -->
+                    <TextBlock Grid.Row="1"
+                               Text="No viewers connected"
+                               FontSize="14"
+                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                               HorizontalAlignment="Center"
+                               VerticalAlignment="Center"
+                               IsVisible="{Binding !Viewers.Count}"/>
+                </Grid>
+            </Border>
+
+            <!-- Row 2: Stop Presenting Button -->
+            <Button Grid.Row="2"
+                    Content="Stop Presenting"
                     Command="{Binding StopPresentingCommand}"
-                    HorizontalAlignment="Center"
-                    Padding="20,10"/>
-        </StackPanel>
-
-        <!-- Main Content - Platform Not Supported -->
-        <StackPanel Margin="20" Spacing="20" VerticalAlignment="Center" HorizontalAlignment="Center"
-                    IsVisible="{Binding !IsPlatformSupported}">
-            <TextBlock Text="Presenter Mode Not Available"
-                       FontSize="16"
-                       FontWeight="SemiBold"
-                       HorizontalAlignment="Center"/>
-
-            <TextBlock Text="Screen sharing is not supported on this platform."
-                       FontSize="14"
-                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                       HorizontalAlignment="Center"
-                       TextWrapping="Wrap"
-                       TextAlignment="Center"/>
-
-            <Button Content="Close"
-                    Command="{Binding StopPresentingCommand}"
-                    HorizontalAlignment="Center"
-                    Padding="20,10"/>
-        </StackPanel>
-        </DockPanel>
+                    HorizontalAlignment="Stretch"
+                    HorizontalContentAlignment="Center"
+                    Padding="20,12"/>
+        </Grid>
 
         <!-- Toast Notifications (overlay, bottom-right) -->
         <toastControls:ToastsView DataContext="{Binding Toasts}"
