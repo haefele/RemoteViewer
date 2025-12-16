@@ -15,9 +15,26 @@
 
         DataContextChanged="Window_DataContextChanged"
         Closed="Window_Closed">
-    <Panel>
+    <Grid RowDefinitions="Auto,*">
+        <!-- Toolbar -->
+        <Border Grid.Row="0"
+                Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
+                Padding="8,6">
+            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                <!-- Stop Presenting button -->
+                <Button Command="{Binding StopPresentingCommand}"
+                        ToolTip.Tip="Stop Presenting"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Width="32" Height="32"
+                        Padding="0">
+                    <mi:MaterialIcon Kind="LanDisconnect" Width="20" Height="20" Foreground="#F44336"/>
+                </Button>
+            </StackPanel>
+        </Border>
+
         <!-- Main Content -->
-        <StackPanel Spacing="16" Margin="16">
+        <StackPanel Grid.Row="1" Spacing="16" Margin="16">
 
             <!-- Row 0: Your Credentials -->
             <Border Grid.Row="0"
@@ -137,20 +154,13 @@
                     </ScrollViewer>
                 </Grid>
             </Border>
-
-            <!-- Row 2: Stop Presenting Button -->
-            <Button Grid.Row="2"
-                    Content="Stop Presenting"
-                    Command="{Binding StopPresentingCommand}"
-                    HorizontalAlignment="Stretch"
-                    HorizontalContentAlignment="Center"
-                    Padding="20,12"/>
         </StackPanel>
 
         <!-- Toast Notifications (overlay, bottom-right) -->
-        <toastControls:ToastsView DataContext="{Binding Toasts}"
+        <toastControls:ToastsView Grid.Row="1"
+                                  DataContext="{Binding Toasts}"
                                   VerticalAlignment="Bottom"
                                   HorizontalAlignment="Right"
                                   Margin="0,0,8,8"/>
-    </Panel>
+    </Grid>
 </Window>
