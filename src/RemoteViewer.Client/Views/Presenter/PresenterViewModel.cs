@@ -36,9 +36,6 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
     [ObservableProperty]
     private string? _yourPassword;
 
-    [ObservableProperty]
-    private bool _isInputBlockedGlobally;
-
     public ObservableCollection<PresenterViewerDisplay> Viewers { get; } = [];
 
     public event EventHandler? CloseRequested;
@@ -135,10 +132,6 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 
     private void OnInputReceived(object? sender, InputReceivedEventArgs e)
     {
-        // Check if input is blocked globally
-        if (this.IsInputBlockedGlobally)
-            return;
-
         // Check if this specific viewer's input is blocked
         var viewer = this.Viewers.FirstOrDefault(v => v.ClientId == e.SenderClientId);
         if (viewer?.IsInputBlocked == true)
@@ -242,12 +235,6 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
     private async Task GenerateNewPasswordAsync()
     {
         await this._hubClient.GenerateNewPassword();
-    }
-
-    [RelayCommand]
-    private void ToggleGlobalInputBlock()
-    {
-        this.IsInputBlockedGlobally = !this.IsInputBlockedGlobally;
     }
 
     public async ValueTask DisposeAsync()

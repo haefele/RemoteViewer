@@ -1,21 +1,20 @@
-﻿using System;
+using System;
 using System.Globalization;
 using Avalonia.Data.Converters;
-using Material.Icons;
 
 namespace RemoteViewer.Client.Converters;
 
-public class BoolToParticipantIconConverter : IValueConverter
+public class BoolToBlockTooltipConverter : IValueConverter
 {
-    public static readonly BoolToParticipantIconConverter Instance = new();
+    public static readonly BoolToBlockTooltipConverter Instance = new();
 
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
-        if (value is bool isPresenter)
+        if (value is bool isBlocked)
         {
-            return isPresenter ? MaterialIconKind.Monitor : MaterialIconKind.Account;
+            return isBlocked ? "Unblock input" : "Block input";
         }
-        return MaterialIconKind.Account;
+        return "Block input";
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
