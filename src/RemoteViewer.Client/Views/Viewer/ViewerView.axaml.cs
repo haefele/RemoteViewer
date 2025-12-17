@@ -213,6 +213,14 @@ public partial class ViewerView : Window
             return;
         }
 
+        // Handle Ctrl+V to paste files from clipboard (always works, even with input disabled)
+        if (e.Key == Key.V && e.KeyModifiers == KeyModifiers.Control)
+        {
+            e.Handled = true;
+            await this.PasteFilesFromClipboardAsync();
+            return;
+        }
+
         if (!this._viewModel.IsInputEnabled)
             return;
 
@@ -291,6 +299,30 @@ public partial class ViewerView : Window
                 vm.IsToolbarVisible = false;
         };
         this._toolbarHideTimer.Start();
+    }
+    #endregion
+
+    #region Clipboard File Transfer
+    private async Task PasteFilesFromClipboardAsync()
+    {
+        if (this._viewModel is null)
+            return;
+
+        var clipboard = this.Clipboard;
+        if (clipboard is null)
+            return;
+
+        var files = await clipboard.GetDataAsync(DataFormats.Files);
+        if (files is not IEnumerable<IStorageItem> storageItems)
+            return;
+
+        foreach (var item in storageItems)
+        {
+            if (item.TryGetLocalPath() is { } path && File.Exists(path))
+            {
+                await this._viewModel.SendFileFromPathAsync(path);
+            }
+        }
     }
     #endregion
 
