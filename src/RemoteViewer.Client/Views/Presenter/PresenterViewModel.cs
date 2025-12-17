@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -82,8 +82,6 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         // Subscribe to file transfer service events
         this._connection.FileTransfers.IncomingFileRequested += this.OnIncomingFileRequested;
         this._connection.FileTransfers.DownloadRequested += this.OnDownloadRequested;
-        this._connection.FileTransfers.TransferCompleted += this.OnTransferCompleted;
-        this._connection.FileTransfers.TransferFailed += this.OnTransferFailed;
 
         // Subscribe to credentials changes
         this._hubClient.CredentialsAssigned += this.OnCredentialsAssigned;
@@ -280,23 +278,12 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         this.FileDownloadConfirmationRequested?.Invoke(this, e);
     }
 
-    private void OnTransferCompleted(object? sender, TransferCompletedEventArgs e)
-    {
-        var action = e.Transfer is FileSendOperation ? "sent" : "received";
-        this.Toasts.Success($"File {action}: {e.Transfer.FileName}");
-    }
-
-    private void OnTransferFailed(object? sender, TransferFailedEventArgs e)
-    {
-        var action = e.Transfer is FileSendOperation ? "send" : "receive";
-        this.Toasts.Error($"File {action} failed: {e.Transfer.ErrorMessage ?? "Unknown error"}");
-    }
-
     public async Task AcceptFileTransferAsync(string senderClientId, string transferId, string fileName, long fileSize)
     {
         var transfer = await this._connection.FileTransfers.AcceptIncomingFileAsync(
             senderClientId, transferId, fileName, fileSize);
 
+        this.Toasts.AddTransfer(transfer, isUpload: false);
         this._logger.LogInformation("Accepted file upload: {TransferId} -> {DestinationPath}", transferId, transfer.DestinationPath);
     }
 
@@ -323,9 +310,10 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
             }
 
             var fileInfo = new FileInfo(filePath);
-            await this._connection.FileTransfers.AcceptDownloadRequestAsync(
+            var transfer = await this._connection.FileTransfers.AcceptDownloadRequestAsync(
                 requesterClientId, transferId, filePath, fileInfo.Name, fileInfo.Length);
 
+            this.Toasts.AddTransfer(transfer, isUpload: true);
             this._logger.LogInformation("Started serving download: {FilePath} -> {ClientId}", filePath, requesterClientId);
         }
         catch (Exception ex)
@@ -361,8 +349,6 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         // Unsubscribe from file transfer service events
         this._connection.FileTransfers.IncomingFileRequested -= this.OnIncomingFileRequested;
         this._connection.FileTransfers.DownloadRequested -= this.OnDownloadRequested;
-        this._connection.FileTransfers.TransferCompleted -= this.OnTransferCompleted;
-        this._connection.FileTransfers.TransferFailed -= this.OnTransferFailed;
 
         await this._connection.FileTransfers.CancelAllAsync();
 

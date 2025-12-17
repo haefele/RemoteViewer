@@ -3,7 +3,6 @@
         xmlns:vm="using:RemoteViewer.Client.Views.Viewer"
         xmlns:conv="using:RemoteViewer.Client.Converters"
         xmlns:toastControls="using:RemoteViewer.Client.Controls.Toasts"
-        xmlns:fileTransfer="using:RemoteViewer.Client.Controls.FileTransfer"
         xmlns:mi="using:Material.Icons.Avalonia"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -189,17 +188,6 @@
                        IsVisible="{Binding DebugOverlayBitmap, Converter={x:Static ObjectConverters.IsNotNull}}"/>
             </Panel>
         </Border>
-
-        <!-- File Transfer Progress (row 1, overlay bottom-right, above toasts) -->
-        <StackPanel Grid.Row="1"
-                    VerticalAlignment="Bottom"
-                    HorizontalAlignment="Right"
-                    Margin="0,0,8,60"
-                    Spacing="8"
-                    IsHitTestVisible="True">
-            <fileTransfer:FileTransferProgressView DataContext="{Binding}"/>
-            <fileTransfer:FileDownloadProgressView DataContext="{Binding}"/>
-        </StackPanel>
 
         <!-- Toast Notifications (row 1, overlay bottom-right) -->
         <toastControls:ToastsView Grid.Row="1"

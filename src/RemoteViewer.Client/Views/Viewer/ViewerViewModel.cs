@@ -41,22 +41,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         this._connection.FrameReceived += this.Connection_FrameReceived;
         this._connection.Closed += this.Connection_Closed;
 
-        this._connection.FileTransfers.TransferCompleted += this.OnTransferCompleted;
-        this._connection.FileTransfers.TransferFailed += this.OnTransferFailed;
-
         this.Title = $"Remote Viewer - {connection.ConnectionId[..8]}...";
-    }
-
-    private void OnTransferCompleted(object? sender, TransferCompletedEventArgs e)
-    {
-        var action = e.Transfer is FileSendOperation ? "sent" : "received";
-        this.Toasts.Success($"File {action}: {e.Transfer.FileName}");
-    }
-
-    private void OnTransferFailed(object? sender, TransferFailedEventArgs e)
-    {
-        var action = e.Transfer is FileSendOperation ? "upload" : "download";
-        this.Toasts.Error($"File {action} failed: {e.Transfer.ErrorMessage ?? "Unknown error"}");
     }
     #endregion
 
@@ -329,6 +314,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
             }
 
             var transfer = await this._connection.FileTransfers.SendFileAsync(filePath);
+            this.Toasts.AddTransfer(transfer, isUpload: true);
             this._logger.LogInformation("Started file upload: {FileName} ({FileSize} bytes)", transfer.FileName, transfer.FileSize);
         }
         catch (Exception ex)
@@ -348,7 +334,8 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     {
         try
         {
-            await this._connection.FileTransfers.RequestDownloadAsync(filePath);
+            var transfer = await this._connection.FileTransfers.RequestDownloadAsync(filePath);
+            this.Toasts.AddTransfer(transfer, isUpload: false);
             this._logger.LogInformation("Started download request: {FilePath}", filePath);
         }
         catch (Exception ex)
@@ -374,9 +361,6 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
             return;
 
         this._disposed = true;
-
-        this._connection.FileTransfers.TransferCompleted -= this.OnTransferCompleted;
-        this._connection.FileTransfers.TransferFailed -= this.OnTransferFailed;
 
         await this._connection.FileTransfers.CancelAllAsync();
         await this._connection.DisconnectAsync();
