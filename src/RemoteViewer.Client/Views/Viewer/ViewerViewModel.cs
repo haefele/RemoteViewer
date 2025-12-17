@@ -4,9 +4,9 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Controls.Toasts;
+using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.ViewModels;
-using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Server.SharedAPI.Protocol;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
@@ -41,7 +41,22 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         this._connection.FrameReceived += this.Connection_FrameReceived;
         this._connection.Closed += this.Connection_Closed;
 
+        this._connection.FileTransfers.TransferCompleted += this.OnTransferCompleted;
+        this._connection.FileTransfers.TransferFailed += this.OnTransferFailed;
+
         this.Title = $"Remote Viewer - {connection.ConnectionId[..8]}...";
+    }
+
+    private void OnTransferCompleted(object? sender, TransferCompletedEventArgs e)
+    {
+        var action = e.Transfer is FileSendOperation ? "sent" : "received";
+        this.Toasts.Success($"File {action}: {e.Transfer.FileName}");
+    }
+
+    private void OnTransferFailed(object? sender, TransferFailedEventArgs e)
+    {
+        var action = e.Transfer is FileSendOperation ? "upload" : "download";
+        this.Toasts.Error($"File {action} failed: {e.Transfer.ErrorMessage ?? "Unknown error"}");
     }
     #endregion
 
@@ -293,8 +308,9 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     }
     #endregion
 
-    #region File Upload (Viewer sends to Presenter)
-    public ObservableCollection<OutgoingFileTransfer> ActiveUploads { get; } = [];
+    #region File Transfer
+    public FileTransferService FileTransfers => this._connection.FileTransfers;
+    public Connection Connection => this._connection;
 
     [RelayCommand]
     private void SendFile()
@@ -312,30 +328,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
                 return;
             }
 
-            var transfer = new OutgoingFileTransfer(
-                filePath,
-                this._connection,
-                sendChunk: this._connection.SendFileChunkAsync,
-                sendComplete: this._connection.SendFileCompleteAsync,
-                requiresAcceptance: true);
-
-            transfer.Completed += (_, _) => Dispatcher.UIThread.Post(() =>
-            {
-                this.ActiveUploads.Remove(transfer);
-                this.Toasts.Success($"File sent: {transfer.FileName}");
-                transfer.Dispose();
-            });
-
-            transfer.Failed += (_, _) => Dispatcher.UIThread.Post(() =>
-            {
-                this.ActiveUploads.Remove(transfer);
-                this.Toasts.Error($"Upload failed: {transfer.ErrorMessage ?? "Unknown error"}");
-                transfer.Dispose();
-            });
-
-            this.ActiveUploads.Add(transfer);
-            await transfer.StartAsync();
-
+            var transfer = await this._connection.FileTransfers.SendFileAsync(filePath);
             this._logger.LogInformation("Started file upload: {FileName} ({FileSize} bytes)", transfer.FileName, transfer.FileSize);
         }
         catch (Exception ex)
@@ -344,20 +337,6 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
             this.Toasts.Error($"Failed to send file: {ex.Message}");
         }
     }
-
-    [RelayCommand]
-    private async Task CancelUpload(OutgoingFileTransfer transfer)
-    {
-        await transfer.CancelAsync();
-        this.ActiveUploads.Remove(transfer);
-        transfer.Dispose();
-    }
-    #endregion
-
-    #region File Download (Viewer downloads from Presenter)
-    public ObservableCollection<IncomingFileTransfer> ActiveDownloads { get; } = [];
-
-    public Connection Connection => this._connection;
 
     [RelayCommand]
     private void BrowsePresenterFiles()
@@ -369,29 +348,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     {
         try
         {
-            var transferId = Guid.NewGuid().ToString("N");
-            var transfer = new IncomingFileTransfer(
-                transferId,
-                this._connection,
-                sendRequest: () => this._connection.SendFileDownloadRequestAsync(transferId, filePath));
-
-            transfer.Completed += (_, _) => Dispatcher.UIThread.Post(() =>
-            {
-                this.ActiveDownloads.Remove(transfer);
-                this.Toasts.Success($"Downloaded: {transfer.FileName}");
-                transfer.Dispose();
-            });
-
-            transfer.Failed += (_, _) => Dispatcher.UIThread.Post(() =>
-            {
-                this.ActiveDownloads.Remove(transfer);
-                this.Toasts.Error($"Download failed: {transfer.ErrorMessage ?? "Unknown error"}");
-                transfer.Dispose();
-            });
-
-            this.ActiveDownloads.Add(transfer);
-            await transfer.StartAsync();
-
+            await this._connection.FileTransfers.RequestDownloadAsync(filePath);
             this._logger.LogInformation("Started download request: {FilePath}", filePath);
         }
         catch (Exception ex)
@@ -402,11 +359,9 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     }
 
     [RelayCommand]
-    private async Task CancelDownload(IncomingFileTransfer transfer)
+    private async Task CancelTransfer(IFileTransfer transfer)
     {
         await transfer.CancelAsync();
-        this.ActiveDownloads.Remove(transfer);
-        transfer.Dispose();
     }
     #endregion
 
@@ -420,22 +375,10 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
         this._disposed = true;
 
-        // Cancel and dispose all active uploads
-        foreach (var transfer in this.ActiveUploads.ToList())
-        {
-            await transfer.CancelAsync();
-            transfer.Dispose();
-        }
-        this.ActiveUploads.Clear();
+        this._connection.FileTransfers.TransferCompleted -= this.OnTransferCompleted;
+        this._connection.FileTransfers.TransferFailed -= this.OnTransferFailed;
 
-        // Cancel and dispose all active downloads
-        foreach (var transfer in this.ActiveDownloads.ToList())
-        {
-            await transfer.CancelAsync();
-            transfer.Dispose();
-        }
-        this.ActiveDownloads.Clear();
-
+        await this._connection.FileTransfers.CancelAllAsync();
         await this._connection.DisconnectAsync();
 
         this._connection.ParticipantsChanged -= this.Connection_ParticipantsChanged;

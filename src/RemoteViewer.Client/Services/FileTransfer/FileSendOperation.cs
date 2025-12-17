@@ -4,7 +4,7 @@ using RemoteViewer.Server.SharedAPI.Protocol;
 
 namespace RemoteViewer.Client.Services.FileTransfer;
 
-public partial class OutgoingFileTransfer : ObservableObject, IDisposable
+public partial class FileSendOperation : ObservableObject, IFileTransfer
 {
     private const int ChunkSize = 256 * 1024; // 256 KB
 
@@ -15,7 +15,7 @@ public partial class OutgoingFileTransfer : ObservableObject, IDisposable
     private FileStream? _fileStream;
     private bool _disposed;
 
-    public OutgoingFileTransfer(
+    public FileSendOperation(
         string filePath,
         Connection connection,
         Func<FileChunkMessage, Task> sendChunk,
@@ -36,7 +36,6 @@ public partial class OutgoingFileTransfer : ObservableObject, IDisposable
         this.FileSize = fileInfo.Length;
         this.TotalChunks = (int)Math.Ceiling((double)fileInfo.Length / ChunkSize);
 
-        // Subscribe to cancel/error events
         this._connection.FileCancelReceived += this.OnFileCancelReceived;
         this._connection.FileErrorReceived += this.OnFileErrorReceived;
 
@@ -48,7 +47,7 @@ public partial class OutgoingFileTransfer : ObservableObject, IDisposable
 
     public string TransferId { get; }
     public string FilePath { get; }
-    public string FileName { get; }
+    public string? FileName { get; }
     public long FileSize { get; }
     public int TotalChunks { get; }
 
@@ -59,12 +58,12 @@ public partial class OutgoingFileTransfer : ObservableObject, IDisposable
     private double _progress;
 
     [ObservableProperty]
-    private FileSendState _state = FileSendState.Pending;
+    private FileTransferState _state = FileTransferState.Pending;
 
     [ObservableProperty]
     private string? _errorMessage;
 
-    public string FileSizeFormatted => FormatFileSize(this.FileSize);
+    public string FileSizeFormatted => FileTransferHelpers.FormatFileSize(this.FileSize);
     public int ProgressPercent => (int)(this.Progress * 100);
 
     public event EventHandler? Completed;
@@ -72,27 +71,27 @@ public partial class OutgoingFileTransfer : ObservableObject, IDisposable
 
     public async Task StartAsync()
     {
-        if (this.State != FileSendState.Pending)
+        if (this.State != FileTransferState.Pending)
             return;
 
         if (this._requiresAcceptance)
         {
-            this.State = FileSendState.WaitingForAcceptance;
-            await this._connection.SendFileSendRequestAsync(this.TransferId, this.FileName, this.FileSize);
+            this.State = FileTransferState.WaitingForAcceptance;
+            await this._connection.SendFileSendRequestAsync(this.TransferId, this.FileName!, this.FileSize);
         }
         else
         {
-            this.State = FileSendState.Transferring;
+            this.State = FileTransferState.Transferring;
             await this.SendChunksAsync();
         }
     }
 
     public async Task CancelAsync()
     {
-        if (this.State is FileSendState.Completed or FileSendState.Failed or FileSendState.Cancelled)
+        if (this.State is FileTransferState.Completed or FileTransferState.Failed or FileTransferState.Cancelled)
             return;
 
-        this.State = FileSendState.Cancelled;
+        this.State = FileTransferState.Cancelled;
         await this._connection.SendFileCancelAsync(this.TransferId, "Cancelled by user");
         this.Cleanup();
     }
@@ -104,12 +103,12 @@ public partial class OutgoingFileTransfer : ObservableObject, IDisposable
 
         if (e.Accepted)
         {
-            this.State = FileSendState.Transferring;
+            this.State = FileTransferState.Transferring;
             _ = Task.Run(this.SendChunksAsync);
         }
         else
         {
-            this.State = FileSendState.Failed;
+            this.State = FileTransferState.Rejected;
             this.ErrorMessage = e.ErrorMessage ?? "Transfer rejected";
             this.Cleanup();
             this.Failed?.Invoke(this, EventArgs.Empty);
@@ -121,7 +120,7 @@ public partial class OutgoingFileTransfer : ObservableObject, IDisposable
         if (e.TransferId != this.TransferId)
             return;
 
-        this.State = FileSendState.Cancelled;
+        this.State = FileTransferState.Cancelled;
         this.ErrorMessage = e.Reason;
         this.Cleanup();
         this.Failed?.Invoke(this, EventArgs.Empty);
@@ -132,7 +131,7 @@ public partial class OutgoingFileTransfer : ObservableObject, IDisposable
         if (e.TransferId != this.TransferId)
             return;
 
-        this.State = FileSendState.Failed;
+        this.State = FileTransferState.Failed;
         this.ErrorMessage = e.ErrorMessage;
         this.Cleanup();
         this.Failed?.Invoke(this, EventArgs.Empty);
@@ -145,7 +144,7 @@ public partial class OutgoingFileTransfer : ObservableObject, IDisposable
             this._fileStream = new FileStream(this.FilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
             var buffer = new byte[ChunkSize];
 
-            while (this.State == FileSendState.Transferring)
+            while (this.State == FileTransferState.Transferring)
             {
                 var bytesRead = await this._fileStream.ReadAsync(buffer);
                 if (bytesRead == 0)
@@ -166,10 +165,10 @@ public partial class OutgoingFileTransfer : ObservableObject, IDisposable
                 await Task.Delay(1);
             }
 
-            if (this.State == FileSendState.Transferring)
+            if (this.State == FileTransferState.Transferring)
             {
                 await this._sendComplete(this.TransferId);
-                this.State = FileSendState.Completed;
+                this.State = FileTransferState.Completed;
                 this.Progress = 1.0;
                 this.Cleanup();
                 this.Completed?.Invoke(this, EventArgs.Empty);
@@ -177,7 +176,7 @@ public partial class OutgoingFileTransfer : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            this.State = FileSendState.Failed;
+            this.State = FileTransferState.Failed;
             this.ErrorMessage = ex.Message;
             await this._connection.SendFileErrorAsync(this.TransferId, ex.Message);
             this.Cleanup();
@@ -208,29 +207,4 @@ public partial class OutgoingFileTransfer : ObservableObject, IDisposable
         this.Cleanup();
         GC.SuppressFinalize(this);
     }
-
-    private static string FormatFileSize(long bytes)
-    {
-        string[] sizes = ["B", "KB", "MB", "GB", "TB"];
-        var order = 0;
-        var size = (double)bytes;
-
-        while (size >= 1024 && order < sizes.Length - 1)
-        {
-            order++;
-            size /= 1024;
-        }
-
-        return $"{size:0.##} {sizes[order]}";
-    }
-}
-
-public enum FileSendState
-{
-    Pending,
-    WaitingForAcceptance,
-    Transferring,
-    Completed,
-    Failed,
-    Cancelled
 }

@@ -33,6 +33,5 @@ public partial class FileBrowserWindow : Window
     private void OnClosed(object? sender, EventArgs e)
     {
         this._browserViewModel.FileDownloadRequested -= this.OnFileDownloadRequested;
-        this._browserViewModel.Cleanup();
     }
 }

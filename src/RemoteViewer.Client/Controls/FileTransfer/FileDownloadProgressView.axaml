@@ -6,7 +6,7 @@
              x:Class="RemoteViewer.Client.Controls.FileTransfer.FileDownloadProgressView"
              x:DataType="viewer:ViewerViewModel">
 
-    <ItemsControl ItemsSource="{Binding ActiveDownloads}">
+    <ItemsControl ItemsSource="{Binding FileTransfers.ActiveReceives}">
         <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
                 <StackPanel Spacing="8"/>
@@ -14,7 +14,7 @@
         </ItemsControl.ItemsPanel>
 
         <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="ft:IncomingFileTransfer">
+            <DataTemplate x:DataType="ft:IFileTransfer">
                 <Border CornerRadius="4"
                         Padding="12"
                         MaxWidth="300"
@@ -40,7 +40,7 @@
                                        ToolTip.Tip="{Binding FileName}"/>
 
                             <Button Grid.Column="2"
-                                    Command="{Binding $parent[ItemsControl].((viewer:ViewerViewModel)DataContext).CancelDownloadCommand}"
+                                    Command="{Binding $parent[ItemsControl].((viewer:ViewerViewModel)DataContext).CancelTransferCommand}"
                                     CommandParameter="{Binding}"
                                     Background="Transparent"
                                     BorderThickness="0"

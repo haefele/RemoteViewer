@@ -1,12 +1,15 @@
 ﻿using System.Threading;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.Displays;
+using RemoteViewer.Client.Services.FileSystem;
+using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Server.SharedAPI;
 using RemoteViewer.Server.SharedAPI.Protocol;
 
 namespace RemoteViewer.Client.Services.HubClient;
 
+#pragma warning disable CA1001 // Disposal is handled via OnClosed() which is called externally
 public sealed class Connection
 {
     private readonly ILogger<Connection> _logger;
@@ -26,6 +29,8 @@ public sealed class Connection
         Func<string, ReadOnlyMemory<byte>, MessageDestination, IReadOnlyList<string>?, Task> sendMessageAsync,
         Func<Task> disconnectAsync,
         ILogger<Connection> logger,
+        ILoggerFactory loggerFactory,
+        IFileSystemService fileSystemService,
         IDisplayService? displayService = null,
         IScreenshotService? screenshotService = null)
     {
@@ -36,6 +41,8 @@ public sealed class Connection
         this._sendMessageAsync = sendMessageAsync;
         this._disconnectAsync = disconnectAsync;
         this._logger = logger;
+
+        this.FileTransfers = new FileTransferService(this, fileSystemService, loggerFactory.CreateLogger<FileTransferService>());
     }
 
     public string ConnectionId { get; }
@@ -61,6 +68,8 @@ public sealed class Connection
             }
         }
     }
+
+    public FileTransferService FileTransfers { get; }
 
     public event EventHandler? Closed;
 
@@ -476,6 +485,7 @@ public sealed class Connection
     internal void OnClosed()
     {
         this.IsClosed = true;
+        this.FileTransfers.Dispose();
         this._logger.LogDebug("Connection closed: {ConnectionId}", this.ConnectionId);
         this.Closed?.Invoke(this, EventArgs.Empty);
     }

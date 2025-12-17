@@ -1,6 +1,7 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
 using MsBox.Avalonia;
 using MsBox.Avalonia.Enums;
+using RemoteViewer.Client.Services.FileTransfer;
 
 namespace RemoteViewer.Client.Views.Presenter;
 
@@ -54,12 +55,12 @@ public partial class PresenterView : Window
         }
     }
 
-    private async void ViewModel_FileTransferConfirmationRequested(object? sender, FileTransferConfirmationEventArgs e)
+    private async void ViewModel_FileTransferConfirmationRequested(object? sender, IncomingFileRequestedEventArgs e)
     {
         if (this._viewModel is null)
             return;
 
-        var fileSizeFormatted = FormatFileSize(e.FileSize);
+        var fileSizeFormatted = FileTransferHelpers.FormatFileSize(e.FileSize);
         var message = $"A viewer wants to send you a file:\n\n{e.FileName} ({fileSizeFormatted})\n\nAccept this file?";
 
         var box = MessageBoxManager.GetMessageBoxStandard(
@@ -80,7 +81,7 @@ public partial class PresenterView : Window
         }
     }
 
-    private async void ViewModel_FileDownloadConfirmationRequested(object? sender, FileDownloadConfirmationEventArgs e)
+    private async void ViewModel_FileDownloadConfirmationRequested(object? sender, DownloadRequestedEventArgs e)
     {
         if (this._viewModel is null)
             return;
@@ -103,20 +104,5 @@ public partial class PresenterView : Window
         {
             await this._viewModel.RejectFileDownloadAsync(e.RequesterClientId, e.TransferId);
         }
-    }
-
-    private static string FormatFileSize(long bytes)
-    {
-        string[] sizes = ["B", "KB", "MB", "GB", "TB"];
-        var order = 0;
-        var size = (double)bytes;
-
-        while (size >= 1024 && order < sizes.Length - 1)
-        {
-            order++;
-            size /= 1024;
-        }
-
-        return $"{size:0.##} {sizes[order]}";
     }
 }

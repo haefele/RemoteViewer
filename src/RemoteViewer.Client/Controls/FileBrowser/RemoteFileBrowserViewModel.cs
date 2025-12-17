@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -10,7 +9,6 @@ namespace RemoteViewer.Client.Controls.FileBrowser;
 public partial class RemoteFileBrowserViewModel : ObservableObject
 {
     private readonly Connection _connection;
-    private readonly ConcurrentDictionary<string, TaskCompletionSource<DirectoryListResponseReceivedEventArgs>> _pendingRequests = new();
 
     [ObservableProperty]
     private string _currentPath = "";
@@ -32,7 +30,6 @@ public partial class RemoteFileBrowserViewModel : ObservableObject
     public RemoteFileBrowserViewModel(Connection connection)
     {
         this._connection = connection;
-        this._connection.DirectoryListResponseReceived += this.OnDirectoryListResponseReceived;
     }
 
     public async Task LoadAsync(string path = "")
@@ -42,37 +39,23 @@ public partial class RemoteFileBrowserViewModel : ObservableObject
 
         try
         {
-            var requestId = Guid.NewGuid().ToString("N");
-            var tcs = new TaskCompletionSource<DirectoryListResponseReceivedEventArgs>();
-            this._pendingRequests[requestId] = tcs;
+            var result = await this._connection.FileTransfers.BrowseDirectoryAsync(path);
 
-            await this._connection.SendDirectoryListRequestAsync(requestId, path);
-
-            // Wait with timeout
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
-            cts.Token.Register(() => tcs.TrySetCanceled());
-
-            var response = await tcs.Task;
-
-            if (response.ErrorMessage is not null)
+            if (!result.IsSuccess)
             {
-                this.ErrorMessage = response.ErrorMessage;
+                this.ErrorMessage = result.ErrorMessage;
             }
             else
             {
-                this.CurrentPath = response.Path;
+                this.CurrentPath = result.Path;
                 this.UpdatePathSegments();
 
                 this.Entries.Clear();
-                foreach (var entry in response.Entries)
+                foreach (var entry in result.Entries)
                 {
                     this.Entries.Add(entry);
                 }
             }
-        }
-        catch (OperationCanceledException)
-        {
-            this.ErrorMessage = "Request timed out";
         }
         catch (Exception ex)
         {
@@ -81,14 +64,6 @@ public partial class RemoteFileBrowserViewModel : ObservableObject
         finally
         {
             this.IsLoading = false;
-        }
-    }
-
-    private void OnDirectoryListResponseReceived(object? sender, DirectoryListResponseReceivedEventArgs e)
-    {
-        if (this._pendingRequests.TryRemove(e.RequestId, out var tcs))
-        {
-            tcs.TrySetResult(e);
         }
     }
 
@@ -159,11 +134,6 @@ public partial class RemoteFileBrowserViewModel : ObservableObject
         {
             this.FileDownloadRequested?.Invoke(this, entry);
         }
-    }
-
-    public void Cleanup()
-    {
-        this._connection.DirectoryListResponseReceived -= this.OnDirectoryListResponseReceived;
     }
 }
 

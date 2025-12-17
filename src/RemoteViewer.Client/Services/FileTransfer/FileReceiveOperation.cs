@@ -3,59 +3,94 @@ using RemoteViewer.Client.Services.HubClient;
 
 namespace RemoteViewer.Client.Services.FileTransfer;
 
-public partial class IncomingFileTransfer : ObservableObject, IDisposable
+public partial class FileReceiveOperation : ObservableObject, IFileTransfer
 {
     private readonly Connection _connection;
     private readonly Func<Task>? _sendRequest;
     private readonly Func<Task>? _sendAcceptResponse;
+    private readonly bool _metadataKnown;
     private FileStream? _fileStream;
     private bool _disposed;
-    private bool _metadataKnown;
+
+    private FileReceiveOperation(
+        string transferId,
+        Connection connection,
+        string? fileName,
+        long fileSize,
+        bool metadataKnown,
+        Func<Task>? sendRequest,
+        Func<Task>? sendAcceptResponse)
+    {
+        this._connection = connection;
+        this._sendRequest = sendRequest;
+        this._sendAcceptResponse = sendAcceptResponse;
+        this._metadataKnown = metadataKnown;
+
+        this.TransferId = transferId;
+        this.FileName = fileName;
+        this.FileSize = fileSize;
+
+        if (metadataKnown && fileName is not null)
+        {
+            this.SetupDestinationPath(fileName);
+        }
+
+        if (!metadataKnown)
+        {
+            this._connection.FileDownloadResponseReceived += this.OnFileDownloadResponseReceived;
+        }
+    }
 
     /// <summary>
-    /// Creates an incoming file transfer where metadata is already known (e.g., upload from viewer).
+    /// Creates a receive operation for an incoming file where metadata is already known.
+    /// Used when accepting an upload from another party.
     /// Call AcceptAsync() to start receiving.
     /// </summary>
-    public IncomingFileTransfer(
+    public static FileReceiveOperation ForIncomingFile(
         string transferId,
         string fileName,
         long fileSize,
         Connection connection,
         Func<Task>? sendAcceptResponse = null)
     {
-        this._connection = connection;
-        this._sendAcceptResponse = sendAcceptResponse;
-        this._metadataKnown = true;
-
-        this.TransferId = transferId;
-        this.FileName = fileName;
-        this.FileSize = fileSize;
-
-        this.SetupDestinationPath(fileName);
+        return new FileReceiveOperation(
+            transferId,
+            connection,
+            fileName,
+            fileSize,
+            metadataKnown: true,
+            sendRequest: null,
+            sendAcceptResponse);
     }
 
     /// <summary>
-    /// Creates an incoming file transfer where metadata will be received in response (e.g., download request).
+    /// Creates a receive operation for a download request where metadata will be received in response.
+    /// Used when requesting a file from another party.
     /// Call StartAsync() to send the request and wait for metadata.
     /// </summary>
-    public IncomingFileTransfer(
+    public static FileReceiveOperation ForDownloadRequest(
         string transferId,
         Connection connection,
         Func<Task> sendRequest)
     {
-        this._connection = connection;
-        this._sendRequest = sendRequest;
-        this._metadataKnown = false;
-
-        this.TransferId = transferId;
-
-        // Subscribe to download response to get metadata
-        this._connection.FileDownloadResponseReceived += this.OnFileDownloadResponseReceived;
+        return new FileReceiveOperation(
+            transferId,
+            connection,
+            fileName: null,
+            fileSize: 0,
+            metadataKnown: false,
+            sendRequest,
+            sendAcceptResponse: null);
     }
 
     public string TransferId { get; }
-    public string? FileName { get; private set; }
-    public long FileSize { get; private set; }
+
+    [ObservableProperty]
+    private string? _fileName;
+
+    [ObservableProperty]
+    private long _fileSize;
+
     public string TempPath { get; private set; } = string.Empty;
     public string DestinationPath { get; private set; } = string.Empty;
 
@@ -66,12 +101,12 @@ public partial class IncomingFileTransfer : ObservableObject, IDisposable
     private double _progress;
 
     [ObservableProperty]
-    private FileReceiveState _state = FileReceiveState.Pending;
+    private FileTransferState _state = FileTransferState.Pending;
 
     [ObservableProperty]
     private string? _errorMessage;
 
-    public string FileSizeFormatted => FormatFileSize(this.FileSize);
+    public string FileSizeFormatted => FileTransferHelpers.FormatFileSize(this.FileSize);
     public int ProgressPercent => (int)(this.Progress * 100);
 
     public event EventHandler? Completed;
@@ -82,7 +117,7 @@ public partial class IncomingFileTransfer : ObservableObject, IDisposable
     /// </summary>
     public async Task StartAsync()
     {
-        if (this.State != FileReceiveState.Pending || this._sendRequest is null)
+        if (this.State != FileTransferState.Pending || this._sendRequest is null)
             return;
 
         await this._sendRequest();
@@ -94,12 +129,12 @@ public partial class IncomingFileTransfer : ObservableObject, IDisposable
     /// </summary>
     public async Task AcceptAsync()
     {
-        if (this.State != FileReceiveState.Pending || !this._metadataKnown)
+        if (this.State != FileTransferState.Pending || !this._metadataKnown)
             return;
 
         this.SubscribeToChunkEvents();
         this.OpenTempFile();
-        this.State = FileReceiveState.Transferring;
+        this.State = FileTransferState.Transferring;
 
         if (this._sendAcceptResponse is not null)
         {
@@ -109,10 +144,10 @@ public partial class IncomingFileTransfer : ObservableObject, IDisposable
 
     public async Task CancelAsync()
     {
-        if (this.State is FileReceiveState.Completed or FileReceiveState.Failed or FileReceiveState.Cancelled or FileReceiveState.Rejected)
+        if (this.State is FileTransferState.Completed or FileTransferState.Failed or FileTransferState.Cancelled or FileTransferState.Rejected)
             return;
 
-        this.State = FileReceiveState.Cancelled;
+        this.State = FileTransferState.Cancelled;
         await this._connection.SendFileCancelAsync(this.TransferId, "Cancelled by user");
         this.DeleteTempFile();
         this.Cleanup();
@@ -131,11 +166,11 @@ public partial class IncomingFileTransfer : ObservableObject, IDisposable
 
             this.SubscribeToChunkEvents();
             this.OpenTempFile();
-            this.State = FileReceiveState.Transferring;
+            this.State = FileTransferState.Transferring;
         }
         else
         {
-            this.State = FileReceiveState.Rejected;
+            this.State = FileTransferState.Rejected;
             this.ErrorMessage = e.ErrorMessage ?? "Download rejected";
             this.Cleanup();
             this.Failed?.Invoke(this, EventArgs.Empty);
@@ -152,11 +187,8 @@ public partial class IncomingFileTransfer : ObservableObject, IDisposable
 
     private void SetupDestinationPath(string fileName)
     {
-        var downloadsPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            "Downloads");
-
-        this.DestinationPath = GetUniqueFilePath(downloadsPath, fileName);
+        var downloadsPath = FileTransferHelpers.GetDownloadsFolder();
+        this.DestinationPath = FileTransferHelpers.GetUniqueFilePath(downloadsPath, fileName);
         this.TempPath = this.DestinationPath + ".part";
     }
 
@@ -170,7 +202,7 @@ public partial class IncomingFileTransfer : ObservableObject, IDisposable
         if (e.Chunk.TransferId != this.TransferId)
             return;
 
-        if (this._fileStream is null || this.State != FileReceiveState.Transferring)
+        if (this._fileStream is null || this.State != FileTransferState.Transferring)
             return;
 
         try
@@ -181,7 +213,7 @@ public partial class IncomingFileTransfer : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            this.State = FileReceiveState.Failed;
+            this.State = FileTransferState.Failed;
             this.ErrorMessage = ex.Message;
             this.DeleteTempFile();
             this.Cleanup();
@@ -204,14 +236,14 @@ public partial class IncomingFileTransfer : ObservableObject, IDisposable
                 File.Move(this.TempPath, this.DestinationPath, overwrite: true);
             }
 
-            this.State = FileReceiveState.Completed;
+            this.State = FileTransferState.Completed;
             this.Progress = 1.0;
             this.Cleanup();
             this.Completed?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception ex)
         {
-            this.State = FileReceiveState.Failed;
+            this.State = FileTransferState.Failed;
             this.ErrorMessage = ex.Message;
             this.DeleteTempFile();
             this.Cleanup();
@@ -224,7 +256,7 @@ public partial class IncomingFileTransfer : ObservableObject, IDisposable
         if (e.TransferId != this.TransferId)
             return;
 
-        this.State = FileReceiveState.Cancelled;
+        this.State = FileTransferState.Cancelled;
         this.ErrorMessage = e.Reason;
         this.DeleteTempFile();
         this.Cleanup();
@@ -236,7 +268,7 @@ public partial class IncomingFileTransfer : ObservableObject, IDisposable
         if (e.TransferId != this.TransferId)
             return;
 
-        this.State = FileReceiveState.Failed;
+        this.State = FileTransferState.Failed;
         this.ErrorMessage = e.ErrorMessage;
         this.DeleteTempFile();
         this.Cleanup();
@@ -280,48 +312,4 @@ public partial class IncomingFileTransfer : ObservableObject, IDisposable
         this.Cleanup();
         GC.SuppressFinalize(this);
     }
-
-    private static string GetUniqueFilePath(string directory, string fileName)
-    {
-        var path = Path.Combine(directory, fileName);
-        if (!File.Exists(path))
-            return path;
-
-        var baseName = Path.GetFileNameWithoutExtension(fileName);
-        var extension = Path.GetExtension(fileName);
-        var counter = 1;
-
-        while (File.Exists(path))
-        {
-            path = Path.Combine(directory, $"{baseName} ({counter}){extension}");
-            counter++;
-        }
-
-        return path;
-    }
-
-    private static string FormatFileSize(long bytes)
-    {
-        string[] sizes = ["B", "KB", "MB", "GB", "TB"];
-        var order = 0;
-        var size = (double)bytes;
-
-        while (size >= 1024 && order < sizes.Length - 1)
-        {
-            order++;
-            size /= 1024;
-        }
-
-        return $"{size:0.##} {sizes[order]}";
-    }
-}
-
-public enum FileReceiveState
-{
-    Pending,
-    Transferring,
-    Completed,
-    Failed,
-    Cancelled,
-    Rejected
 }
