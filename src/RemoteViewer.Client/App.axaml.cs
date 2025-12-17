@@ -11,6 +11,7 @@ using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.VideoCodec;
 using RemoteViewer.Client.Services.Screenshot;
+using RemoteViewer.Client.Services.LocalInputMonitor;
 
 namespace RemoteViewer.Client;
 
@@ -72,9 +73,11 @@ public partial class App : Application
         services.AddSingleton<IScreenGrabber, DxgiScreenGrabber>();
         services.AddSingleton<IScreenGrabber, BitBltScreenGrabber>();
         services.AddSingleton<IInputInjectionService, WindowsInputInjectionService>();
+        services.AddSingleton<ILocalInputMonitorService, WindowsLocalInputMonitorService>();
 #else
         services.AddSingleton<IDisplayService, NullDisplayService>();
         services.AddSingleton<IInputInjectionService, NullInputInjectionService>();
+        services.AddSingleton<ILocalInputMonitorService, NullLocalInputMonitorService>();
 #endif
         services.AddSingleton<IScreenshotService, ScreenshotService>();
 

@@ -7,6 +7,7 @@ using RemoteViewer.Client.Controls.Toasts;
 using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.InputInjection;
+using RemoteViewer.Client.Services.LocalInputMonitor;
 using RemoteViewer.Client.Services.ScreenCapture;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.VideoCodec;
@@ -20,6 +21,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
     private readonly ConnectionHubClient _hubClient;
     private readonly IDisplayService _displayService;
     private readonly IInputInjectionService _inputInjectionService;
+    private readonly ILocalInputMonitorService _localInputMonitor;
     private readonly ILogger<PresenterViewModel> _logger;
 
     public ToastsViewModel Toasts { get; }
@@ -48,6 +50,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         IScreenshotService screenshotService,
         ScreenEncoder screenEncoder,
         IInputInjectionService inputInjectionService,
+        ILocalInputMonitorService localInputMonitor,
         IViewModelFactory viewModelFactory,
         ILogger<PresenterViewModel> logger,
         ILoggerFactory loggerFactory)
@@ -56,6 +59,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         this._hubClient = hubClient;
         this._displayService = displayService;
         this._inputInjectionService = inputInjectionService;
+        this._localInputMonitor = localInputMonitor;
         this._logger = logger;
         this.Toasts = viewModelFactory.CreateToastsViewModel();
 
@@ -68,6 +72,9 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 
         // Subscribe to credentials changes
         this._hubClient.CredentialsAssigned += this.OnCredentialsAssigned;
+
+        // Start monitoring for local input to auto-suppress viewer input
+        this._localInputMonitor.StartMonitoring();
 
         // Create and start capture manager
         this._captureManager = new DisplayCaptureManager(
@@ -132,6 +139,10 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 
     private void OnInputReceived(object? sender, InputReceivedEventArgs e)
     {
+        // Check for local presenter activity - suppress viewer input temporarily
+        if (this._localInputMonitor.ShouldSuppressViewerInput())
+            return;
+
         // Check if this specific viewer's input is blocked
         var viewer = this.Viewers.FirstOrDefault(v => v.ClientId == e.SenderClientId);
         if (viewer?.IsInputBlocked == true)
@@ -243,6 +254,9 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
             return;
 
         this._disposed = true;
+
+        // Stop monitoring local input
+        this._localInputMonitor.StopMonitoring();
 
         this._captureManager?.Dispose();
         await this._connection.DisconnectAsync();
