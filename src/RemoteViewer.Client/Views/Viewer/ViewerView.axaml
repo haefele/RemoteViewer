@@ -99,6 +99,16 @@
                     <mi:MaterialIcon Kind="FileUpload" Width="20" Height="20"/>
                 </Button>
 
+                <!-- Browse Presenter Files button -->
+                <Button Command="{Binding BrowsePresenterFilesCommand}"
+                        ToolTip.Tip="Browse presenter's files"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Width="32" Height="32"
+                        Padding="0">
+                    <mi:MaterialIcon Kind="FolderDownload" Width="20" Height="20"/>
+                </Button>
+
                 <!-- Separator -->
                 <Border Width="1"
                         Margin="0,4"
@@ -181,12 +191,15 @@
         </Border>
 
         <!-- File Transfer Progress (row 1, overlay bottom-right, above toasts) -->
-        <fileTransfer:FileTransferProgressView Grid.Row="1"
-                                               DataContext="{Binding}"
-                                               VerticalAlignment="Bottom"
-                                               HorizontalAlignment="Right"
-                                               Margin="0,0,8,60"
-                                               IsHitTestVisible="True"/>
+        <StackPanel Grid.Row="1"
+                    VerticalAlignment="Bottom"
+                    HorizontalAlignment="Right"
+                    Margin="0,0,8,60"
+                    Spacing="8"
+                    IsHitTestVisible="True">
+            <fileTransfer:FileTransferProgressView DataContext="{Binding}"/>
+            <fileTransfer:FileDownloadProgressView DataContext="{Binding}"/>
+        </StackPanel>
 
         <!-- Toast Notifications (row 1, overlay bottom-right) -->
         <toastControls:ToastsView Grid.Row="1"

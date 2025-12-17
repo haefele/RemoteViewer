@@ -3,6 +3,7 @@ using Avalonia.Input;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.Win32.Input;
+using RemoteViewer.Client.Controls.FileBrowser;
 using System.ComponentModel;
 using ProtocolMouseButton = RemoteViewer.Server.SharedAPI.Protocol.MouseButton;
 using ProtocolKeyModifiers = RemoteViewer.Server.SharedAPI.Protocol.KeyModifiers;
@@ -28,6 +29,7 @@ public partial class ViewerView : Window
             this._viewModel.PropertyChanged -= this.ViewModel_PropertyChanged;
             this._viewModel.CloseRequested -= this.ViewModel_CloseRequested;
             this._viewModel.OpenFilePickerRequested -= this.ViewModel_OpenFilePickerRequested;
+            this._viewModel.OpenFileBrowserRequested -= this.ViewModel_OpenFileBrowserRequested;
         }
 
         this._viewModel = this.DataContext as ViewerViewModel;
@@ -37,6 +39,7 @@ public partial class ViewerView : Window
             this._viewModel.CloseRequested += this.ViewModel_CloseRequested;
             this._viewModel.PropertyChanged += this.ViewModel_PropertyChanged;
             this._viewModel.OpenFilePickerRequested += this.ViewModel_OpenFilePickerRequested;
+            this._viewModel.OpenFileBrowserRequested += this.ViewModel_OpenFileBrowserRequested;
         }
     }
     private void Window_Opened(object? sender, EventArgs e)
@@ -91,6 +94,14 @@ public partial class ViewerView : Window
         {
             await this._viewModel.SendFileFromPathAsync(path);
         }
+    }
+    private void ViewModel_OpenFileBrowserRequested(object? sender, EventArgs e)
+    {
+        if (this._viewModel is null)
+            return;
+
+        var browserWindow = new FileBrowserWindow(this._viewModel);
+        browserWindow.Show(this);
     }
     #endregion
 

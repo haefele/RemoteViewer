@@ -3,10 +3,10 @@
              xmlns:mi="using:Material.Icons.Avalonia"
              xmlns:viewer="using:RemoteViewer.Client.Views.Viewer"
              xmlns:ft="using:RemoteViewer.Client.Services.FileTransfer"
-             x:Class="RemoteViewer.Client.Controls.FileTransfer.FileTransferProgressView"
+             x:Class="RemoteViewer.Client.Controls.FileTransfer.FileDownloadProgressView"
              x:DataType="viewer:ViewerViewModel">
 
-    <ItemsControl ItemsSource="{Binding ActiveUploads}">
+    <ItemsControl ItemsSource="{Binding ActiveDownloads}">
         <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
                 <StackPanel Spacing="8"/>
@@ -14,7 +14,7 @@
         </ItemsControl.ItemsPanel>
 
         <ItemsControl.ItemTemplate>
-            <DataTemplate x:DataType="ft:OutgoingFileTransfer">
+            <DataTemplate x:DataType="ft:IncomingFileTransfer">
                 <Border CornerRadius="4"
                         Padding="12"
                         MaxWidth="300"
@@ -24,7 +24,7 @@
                         <!-- Header: Icon, Filename, Cancel button -->
                         <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,8">
                             <mi:MaterialIcon Grid.Column="0"
-                                             Kind="FileUpload"
+                                             Kind="FileDownload"
                                              Width="16"
                                              Height="16"
                                              VerticalAlignment="Center"
@@ -32,7 +32,7 @@
                                              Margin="0,0,8,0"/>
 
                             <TextBlock Grid.Column="1"
-                                       Text="{Binding FileName}"
+                                       Text="{Binding FileName, FallbackValue='Requesting...'}"
                                        VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"
                                        Foreground="White"
@@ -40,7 +40,7 @@
                                        ToolTip.Tip="{Binding FileName}"/>
 
                             <Button Grid.Column="2"
-                                    Command="{Binding $parent[ItemsControl].((viewer:ViewerViewModel)DataContext).CancelUploadCommand}"
+                                    Command="{Binding $parent[ItemsControl].((viewer:ViewerViewModel)DataContext).CancelDownloadCommand}"
                                     CommandParameter="{Binding}"
                                     Background="Transparent"
                                     BorderThickness="0"
@@ -49,7 +49,7 @@
                                     Padding="0"
                                     VerticalAlignment="Center"
                                     Cursor="Hand"
-                                    ToolTip.Tip="Cancel transfer">
+                                    ToolTip.Tip="Cancel download">
                                 <mi:MaterialIcon Kind="Close"
                                                  Width="14"
                                                  Height="14"
@@ -64,7 +64,7 @@
                                      Maximum="1"
                                      Height="4"
                                      CornerRadius="2"
-                                     Foreground="#4CAF50"
+                                     Foreground="#2196F3"
                                      Background="#555555"/>
 
                         <!-- Size and percentage -->

@@ -1,10 +1,11 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Controls.Toasts;
 using RemoteViewer.Client.Services.Displays;
+using RemoteViewer.Client.Services.FileSystem;
 using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.InputInjection;
@@ -13,6 +14,7 @@ using RemoteViewer.Client.Services.ScreenCapture;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.VideoCodec;
 using RemoteViewer.Client.Services.ViewModels;
+using RemoteViewer.Server.SharedAPI.Protocol;
 
 namespace RemoteViewer.Client.Views.Presenter;
 
@@ -23,6 +25,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
     private readonly IDisplayService _displayService;
     private readonly IInputInjectionService _inputInjectionService;
     private readonly ILocalInputMonitorService _localInputMonitor;
+    private readonly IFileSystemService _fileSystemService;
     private readonly ILogger<PresenterViewModel> _logger;
 
     public ToastsViewModel Toasts { get; }
@@ -40,11 +43,13 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
     private string? _yourPassword;
 
     public ObservableCollection<PresenterViewerDisplay> Viewers { get; } = [];
-    public ObservableCollection<IncomingFileTransfer> ActiveTransfers { get; } = [];
+    public ObservableCollection<IncomingFileTransfer> ActiveUploads { get; } = [];
+    public ObservableCollection<OutgoingFileTransfer> ActiveDownloads { get; } = [];
 
     public event EventHandler? CloseRequested;
     public event EventHandler<string>? CopyToClipboardRequested;
     public event EventHandler<FileTransferConfirmationEventArgs>? FileTransferConfirmationRequested;
+    public event EventHandler<FileDownloadConfirmationEventArgs>? FileDownloadConfirmationRequested;
 
     public PresenterViewModel(
         Connection connection,
@@ -54,6 +59,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         ScreenEncoder screenEncoder,
         IInputInjectionService inputInjectionService,
         ILocalInputMonitorService localInputMonitor,
+        IFileSystemService fileSystemService,
         IViewModelFactory viewModelFactory,
         ILogger<PresenterViewModel> logger,
         ILoggerFactory loggerFactory)
@@ -63,6 +69,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         this._displayService = displayService;
         this._inputInjectionService = inputInjectionService;
         this._localInputMonitor = localInputMonitor;
+        this._fileSystemService = fileSystemService;
         this._logger = logger;
         this.Toasts = viewModelFactory.CreateToastsViewModel();
 
@@ -73,8 +80,10 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         this._connection.InputReceived += this.OnInputReceived;
         this._connection.Closed += this.OnConnectionClosed;
 
-        // Subscribe to file transfer request event
+        // Subscribe to file transfer events
         this._connection.FileSendRequestReceived += this.OnFileSendRequestReceived;
+        this._connection.DirectoryListRequestReceived += this.OnDirectoryListRequestReceived;
+        this._connection.FileDownloadRequestReceived += this.OnFileDownloadRequestReceived;
 
         // Subscribe to credentials changes
         this._hubClient.CredentialsAssigned += this.OnCredentialsAssigned;
@@ -254,15 +263,14 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         await this._hubClient.GenerateNewPassword();
     }
 
-    #region File Transfer
+    #region File Transfer (Viewer uploads to Presenter)
     private void OnFileSendRequestReceived(object? sender, FileSendRequestReceivedEventArgs e)
     {
-        this._logger.LogInformation("Received file send request: {FileName} ({FileSize} bytes) from {ClientId}",
+        this._logger.LogInformation("Received file upload request: {FileName} ({FileSize} bytes) from {ClientId}",
             e.FileName, e.FileSize, e.SenderClientId);
 
         Dispatcher.UIThread.Post(() =>
         {
-            // Raise event so the view can show a confirmation dialog
             var args = new FileTransferConfirmationEventArgs(
                 e.SenderClientId,
                 e.TransferId,
@@ -275,39 +283,165 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 
     public async Task AcceptFileTransferAsync(string senderClientId, string transferId, string fileName, long fileSize)
     {
-        var transfer = new IncomingFileTransfer(senderClientId, transferId, fileName, fileSize, this._connection);
+        var transfer = new IncomingFileTransfer(
+            transferId,
+            fileName,
+            fileSize,
+            this._connection,
+            sendAcceptResponse: () => this._connection.SendFileSendResponseAsync(transferId, accepted: true, error: null, senderClientId));
 
         transfer.Completed += (_, _) => Dispatcher.UIThread.Post(() =>
         {
-            this.ActiveTransfers.Remove(transfer);
+            this.ActiveUploads.Remove(transfer);
             this.Toasts.Success($"File received: {transfer.FileName}");
             transfer.Dispose();
         });
 
         transfer.Failed += (_, _) => Dispatcher.UIThread.Post(() =>
         {
-            this.ActiveTransfers.Remove(transfer);
-            this.Toasts.Error($"Transfer failed: {transfer.ErrorMessage ?? "Unknown error"}");
+            this.ActiveUploads.Remove(transfer);
+            this.Toasts.Error($"Upload failed: {transfer.ErrorMessage ?? "Unknown error"}");
             transfer.Dispose();
         });
 
-        this.ActiveTransfers.Add(transfer);
+        this.ActiveUploads.Add(transfer);
         await transfer.AcceptAsync();
 
-        this._logger.LogInformation("Accepted file transfer: {TransferId} -> {DestinationPath}", transferId, transfer.DestinationPath);
+        this._logger.LogInformation("Accepted file upload: {TransferId} -> {DestinationPath}", transferId, transfer.DestinationPath);
     }
 
     public async Task RejectFileTransferAsync(string senderClientId, string transferId)
     {
         await this._connection.SendFileSendResponseAsync(transferId, accepted: false, error: "Transfer rejected by user", senderClientId);
-        this._logger.LogInformation("Rejected file transfer: {TransferId}", transferId);
+        this._logger.LogInformation("Rejected file upload: {TransferId}", transferId);
     }
 
     [RelayCommand]
-    private async Task CancelTransfer(IncomingFileTransfer transfer)
+    private async Task CancelUpload(IncomingFileTransfer transfer)
     {
         await transfer.CancelAsync();
-        this.ActiveTransfers.Remove(transfer);
+        this.ActiveUploads.Remove(transfer);
+        transfer.Dispose();
+    }
+    #endregion
+
+    #region File Download (Viewer downloads from Presenter)
+    private async void OnDirectoryListRequestReceived(object? sender, DirectoryListRequestReceivedEventArgs e)
+    {
+        this._logger.LogDebug("Directory list request from {ClientId}: {Path}", e.SenderClientId, e.Path);
+
+        try
+        {
+            DirectoryEntry[] entries;
+            string path;
+
+            if (string.IsNullOrEmpty(e.Path))
+            {
+                // Return root drives
+                path = "";
+                entries = this._fileSystemService.GetRootPaths()
+                    .Select(p => new DirectoryEntry(p, p, IsDirectory: true, 0))
+                    .ToArray();
+            }
+            else
+            {
+                path = e.Path;
+                entries = this._fileSystemService.GetDirectoryEntries(e.Path);
+            }
+
+            await this._connection.SendDirectoryListResponseAsync(e.RequestId, path, entries, null, e.SenderClientId);
+        }
+        catch (Exception ex)
+        {
+            this._logger.LogWarning(ex, "Failed to list directory: {Path}", e.Path);
+            await this._connection.SendDirectoryListResponseAsync(e.RequestId, e.Path, [], ex.Message, e.SenderClientId);
+        }
+    }
+
+    private void OnFileDownloadRequestReceived(object? sender, FileDownloadRequestReceivedEventArgs e)
+    {
+        this._logger.LogInformation("Received file download request: {FilePath} from {ClientId}",
+            e.FilePath, e.SenderClientId);
+
+        Dispatcher.UIThread.Post(() =>
+        {
+            var args = new FileDownloadConfirmationEventArgs(
+                e.SenderClientId,
+                e.TransferId,
+                e.FilePath);
+
+            this.FileDownloadConfirmationRequested?.Invoke(this, args);
+        });
+    }
+
+    public async Task AcceptFileDownloadAsync(string requesterClientId, string transferId, string filePath)
+    {
+        try
+        {
+            if (!File.Exists(filePath))
+            {
+                await this._connection.SendFileDownloadResponseAsync(transferId, false, null, null, "File not found", requesterClientId);
+                return;
+            }
+
+            if (!this._fileSystemService.IsPathAllowed(filePath))
+            {
+                await this._connection.SendFileDownloadResponseAsync(transferId, false, null, null, "Access denied", requesterClientId);
+                return;
+            }
+
+            var fileInfo = new FileInfo(filePath);
+
+            // Send acceptance with file info
+            await this._connection.SendFileDownloadResponseAsync(
+                transferId, true, fileInfo.Name, fileInfo.Length, null, requesterClientId);
+
+            // Create and start the download transfer (presenter sends to specific viewer)
+            var transfer = new OutgoingFileTransfer(
+                filePath,
+                this._connection,
+                sendChunk: chunk => this._connection.SendFileChunkToViewerAsync(chunk, requesterClientId),
+                sendComplete: tid => this._connection.SendFileCompleteToViewerAsync(tid, requesterClientId),
+                requiresAcceptance: false,
+                transferId: transferId);
+
+            transfer.Completed += (_, _) => Dispatcher.UIThread.Post(() =>
+            {
+                this.ActiveDownloads.Remove(transfer);
+                this.Toasts.Success($"File sent: {transfer.FileName}");
+                transfer.Dispose();
+            });
+
+            transfer.Failed += (_, _) => Dispatcher.UIThread.Post(() =>
+            {
+                this.ActiveDownloads.Remove(transfer);
+                this.Toasts.Error($"Download failed: {transfer.ErrorMessage ?? "Unknown error"}");
+                transfer.Dispose();
+            });
+
+            this.ActiveDownloads.Add(transfer);
+            _ = Task.Run(transfer.StartAsync);
+
+            this._logger.LogInformation("Started serving download: {FilePath} -> {ClientId}", filePath, requesterClientId);
+        }
+        catch (Exception ex)
+        {
+            this._logger.LogError(ex, "Failed to accept download request for {FilePath}", filePath);
+            await this._connection.SendFileDownloadResponseAsync(transferId, false, null, null, ex.Message, requesterClientId);
+        }
+    }
+
+    public async Task RejectFileDownloadAsync(string requesterClientId, string transferId)
+    {
+        await this._connection.SendFileDownloadResponseAsync(transferId, false, null, null, "Download rejected by presenter", requesterClientId);
+        this._logger.LogInformation("Rejected file download: {TransferId}", transferId);
+    }
+
+    [RelayCommand]
+    private async Task CancelDownload(OutgoingFileTransfer transfer)
+    {
+        await transfer.CancelAsync();
+        this.ActiveDownloads.Remove(transfer);
         transfer.Dispose();
     }
     #endregion
@@ -322,13 +456,21 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         // Stop monitoring local input
         this._localInputMonitor.StopMonitoring();
 
-        // Cancel and dispose all active transfers
-        foreach (var transfer in this.ActiveTransfers.ToList())
+        // Cancel and dispose all active uploads
+        foreach (var transfer in this.ActiveUploads.ToList())
         {
             await transfer.CancelAsync();
             transfer.Dispose();
         }
-        this.ActiveTransfers.Clear();
+        this.ActiveUploads.Clear();
+
+        // Cancel and dispose all active downloads
+        foreach (var transfer in this.ActiveDownloads.ToList())
+        {
+            await transfer.CancelAsync();
+            transfer.Dispose();
+        }
+        this.ActiveDownloads.Clear();
 
         this._captureManager?.Dispose();
         await this._connection.DisconnectAsync();
@@ -339,6 +481,8 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         this._connection.Closed -= this.OnConnectionClosed;
         this._hubClient.CredentialsAssigned -= this.OnCredentialsAssigned;
         this._connection.FileSendRequestReceived -= this.OnFileSendRequestReceived;
+        this._connection.DirectoryListRequestReceived -= this.OnDirectoryListRequestReceived;
+        this._connection.FileDownloadRequestReceived -= this.OnFileDownloadRequestReceived;
 
         GC.SuppressFinalize(this);
     }
@@ -358,4 +502,18 @@ public sealed class FileTransferConfirmationEventArgs : EventArgs
     public string TransferId { get; }
     public string FileName { get; }
     public long FileSize { get; }
+}
+
+public sealed class FileDownloadConfirmationEventArgs : EventArgs
+{
+    public FileDownloadConfirmationEventArgs(string requesterClientId, string transferId, string filePath)
+    {
+        this.RequesterClientId = requesterClientId;
+        this.TransferId = transferId;
+        this.FilePath = filePath;
+    }
+
+    public string RequesterClientId { get; }
+    public string TransferId { get; }
+    public string FilePath { get; }
 }

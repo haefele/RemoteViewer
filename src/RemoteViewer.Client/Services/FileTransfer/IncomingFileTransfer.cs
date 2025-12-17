@@ -1,43 +1,63 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using RemoteViewer.Client.Services.HubClient;
-using RemoteViewer.Server.SharedAPI.Protocol;
 
 namespace RemoteViewer.Client.Services.FileTransfer;
 
 public partial class IncomingFileTransfer : ObservableObject, IDisposable
 {
     private readonly Connection _connection;
-    private readonly string _senderClientId;
+    private readonly Func<Task>? _sendRequest;
+    private readonly Func<Task>? _sendAcceptResponse;
     private FileStream? _fileStream;
     private bool _disposed;
+    private bool _metadataKnown;
 
+    /// <summary>
+    /// Creates an incoming file transfer where metadata is already known (e.g., upload from viewer).
+    /// Call AcceptAsync() to start receiving.
+    /// </summary>
     public IncomingFileTransfer(
-        string senderClientId,
         string transferId,
         string fileName,
         long fileSize,
-        Connection connection)
+        Connection connection,
+        Func<Task>? sendAcceptResponse = null)
     {
-        this._senderClientId = senderClientId;
         this._connection = connection;
+        this._sendAcceptResponse = sendAcceptResponse;
+        this._metadataKnown = true;
+
         this.TransferId = transferId;
         this.FileName = fileName;
         this.FileSize = fileSize;
 
-        // Calculate destination path
-        var downloadsPath = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
-            "Downloads");
+        this.SetupDestinationPath(fileName);
+    }
 
-        this.DestinationPath = GetUniqueFilePath(downloadsPath, fileName);
-        this.TempPath = this.DestinationPath + ".part";
+    /// <summary>
+    /// Creates an incoming file transfer where metadata will be received in response (e.g., download request).
+    /// Call StartAsync() to send the request and wait for metadata.
+    /// </summary>
+    public IncomingFileTransfer(
+        string transferId,
+        Connection connection,
+        Func<Task> sendRequest)
+    {
+        this._connection = connection;
+        this._sendRequest = sendRequest;
+        this._metadataKnown = false;
+
+        this.TransferId = transferId;
+
+        // Subscribe to download response to get metadata
+        this._connection.FileDownloadResponseReceived += this.OnFileDownloadResponseReceived;
     }
 
     public string TransferId { get; }
-    public string FileName { get; }
-    public long FileSize { get; }
-    public string TempPath { get; }
-    public string DestinationPath { get; }
+    public string? FileName { get; private set; }
+    public long FileSize { get; private set; }
+    public string TempPath { get; private set; } = string.Empty;
+    public string DestinationPath { get; private set; } = string.Empty;
 
     [ObservableProperty]
     private int _chunksReceived;
@@ -46,7 +66,7 @@ public partial class IncomingFileTransfer : ObservableObject, IDisposable
     private double _progress;
 
     [ObservableProperty]
-    private IncomingTransferState _state = IncomingTransferState.Pending;
+    private FileReceiveState _state = FileReceiveState.Pending;
 
     [ObservableProperty]
     private string? _errorMessage;
@@ -57,43 +77,92 @@ public partial class IncomingFileTransfer : ObservableObject, IDisposable
     public event EventHandler? Completed;
     public event EventHandler? Failed;
 
-    public async Task AcceptAsync()
+    /// <summary>
+    /// Starts by sending a request (for download scenario). Waits for response with metadata.
+    /// </summary>
+    public async Task StartAsync()
     {
-        if (this.State != IncomingTransferState.Pending)
+        if (this.State != FileReceiveState.Pending || this._sendRequest is null)
             return;
 
-        // Subscribe to connection events
-        this._connection.FileChunkReceived += this.OnFileChunkReceived;
-        this._connection.FileCompleteReceived += this.OnFileCompleteReceived;
-        this._connection.FileCancelReceived += this.OnFileCancelReceived;
-        this._connection.FileErrorReceived += this.OnFileErrorReceived;
-
-        // Open temp file for writing
-        this._fileStream = new FileStream(this.TempPath, FileMode.Create, FileAccess.Write, FileShare.None);
-
-        this.State = IncomingTransferState.Transferring;
-        await this._connection.SendFileSendResponseAsync(this.TransferId, accepted: true, error: null, this._senderClientId);
+        await this._sendRequest();
+        // Will continue in OnFileDownloadResponseReceived
     }
 
-    public async Task RejectAsync()
+    /// <summary>
+    /// Accepts an incoming transfer (for upload scenario). Metadata must already be known.
+    /// </summary>
+    public async Task AcceptAsync()
     {
-        if (this.State != IncomingTransferState.Pending)
+        if (this.State != FileReceiveState.Pending || !this._metadataKnown)
             return;
 
-        this.State = IncomingTransferState.Rejected;
-        await this._connection.SendFileSendResponseAsync(this.TransferId, accepted: false, error: "Rejected by user", this._senderClientId);
-        this.Cleanup();
+        this.SubscribeToChunkEvents();
+        this.OpenTempFile();
+        this.State = FileReceiveState.Transferring;
+
+        if (this._sendAcceptResponse is not null)
+        {
+            await this._sendAcceptResponse();
+        }
     }
 
     public async Task CancelAsync()
     {
-        if (this.State is IncomingTransferState.Completed or IncomingTransferState.Failed or IncomingTransferState.Cancelled or IncomingTransferState.Rejected)
+        if (this.State is FileReceiveState.Completed or FileReceiveState.Failed or FileReceiveState.Cancelled or FileReceiveState.Rejected)
             return;
 
-        this.State = IncomingTransferState.Cancelled;
-        await this._connection.SendFileCancelAsync(this.TransferId, "Cancelled by presenter");
+        this.State = FileReceiveState.Cancelled;
+        await this._connection.SendFileCancelAsync(this.TransferId, "Cancelled by user");
         this.DeleteTempFile();
         this.Cleanup();
+    }
+
+    private void OnFileDownloadResponseReceived(object? sender, FileDownloadResponseReceivedEventArgs e)
+    {
+        if (e.TransferId != this.TransferId)
+            return;
+
+        if (e.Accepted && e.FileName is not null && e.FileSize.HasValue)
+        {
+            this.FileName = e.FileName;
+            this.FileSize = e.FileSize.Value;
+            this.SetupDestinationPath(e.FileName);
+
+            this.SubscribeToChunkEvents();
+            this.OpenTempFile();
+            this.State = FileReceiveState.Transferring;
+        }
+        else
+        {
+            this.State = FileReceiveState.Rejected;
+            this.ErrorMessage = e.ErrorMessage ?? "Download rejected";
+            this.Cleanup();
+            this.Failed?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    private void SubscribeToChunkEvents()
+    {
+        this._connection.FileChunkReceived += this.OnFileChunkReceived;
+        this._connection.FileCompleteReceived += this.OnFileCompleteReceived;
+        this._connection.FileCancelReceived += this.OnFileCancelReceived;
+        this._connection.FileErrorReceived += this.OnFileErrorReceived;
+    }
+
+    private void SetupDestinationPath(string fileName)
+    {
+        var downloadsPath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            "Downloads");
+
+        this.DestinationPath = GetUniqueFilePath(downloadsPath, fileName);
+        this.TempPath = this.DestinationPath + ".part";
+    }
+
+    private void OpenTempFile()
+    {
+        this._fileStream = new FileStream(this.TempPath, FileMode.Create, FileAccess.Write, FileShare.None);
     }
 
     private void OnFileChunkReceived(object? sender, FileChunkReceivedEventArgs e)
@@ -101,7 +170,7 @@ public partial class IncomingFileTransfer : ObservableObject, IDisposable
         if (e.Chunk.TransferId != this.TransferId)
             return;
 
-        if (this._fileStream is null || this.State != IncomingTransferState.Transferring)
+        if (this._fileStream is null || this.State != FileReceiveState.Transferring)
             return;
 
         try
@@ -112,7 +181,7 @@ public partial class IncomingFileTransfer : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            this.State = IncomingTransferState.Failed;
+            this.State = FileReceiveState.Failed;
             this.ErrorMessage = ex.Message;
             this.DeleteTempFile();
             this.Cleanup();
@@ -127,24 +196,22 @@ public partial class IncomingFileTransfer : ObservableObject, IDisposable
 
         try
         {
-            // Close the stream before moving the file
             this._fileStream?.Dispose();
             this._fileStream = null;
 
-            // Move temp file to final destination
             if (File.Exists(this.TempPath))
             {
                 File.Move(this.TempPath, this.DestinationPath, overwrite: true);
             }
 
-            this.State = IncomingTransferState.Completed;
+            this.State = FileReceiveState.Completed;
             this.Progress = 1.0;
             this.Cleanup();
             this.Completed?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception ex)
         {
-            this.State = IncomingTransferState.Failed;
+            this.State = FileReceiveState.Failed;
             this.ErrorMessage = ex.Message;
             this.DeleteTempFile();
             this.Cleanup();
@@ -157,7 +224,7 @@ public partial class IncomingFileTransfer : ObservableObject, IDisposable
         if (e.TransferId != this.TransferId)
             return;
 
-        this.State = IncomingTransferState.Cancelled;
+        this.State = FileReceiveState.Cancelled;
         this.ErrorMessage = e.Reason;
         this.DeleteTempFile();
         this.Cleanup();
@@ -169,7 +236,7 @@ public partial class IncomingFileTransfer : ObservableObject, IDisposable
         if (e.TransferId != this.TransferId)
             return;
 
-        this.State = IncomingTransferState.Failed;
+        this.State = FileReceiveState.Failed;
         this.ErrorMessage = e.ErrorMessage;
         this.DeleteTempFile();
         this.Cleanup();
@@ -183,7 +250,7 @@ public partial class IncomingFileTransfer : ObservableObject, IDisposable
 
         try
         {
-            if (File.Exists(this.TempPath))
+            if (!string.IsNullOrEmpty(this.TempPath) && File.Exists(this.TempPath))
                 File.Delete(this.TempPath);
         }
         catch
@@ -197,7 +264,7 @@ public partial class IncomingFileTransfer : ObservableObject, IDisposable
         this._fileStream?.Dispose();
         this._fileStream = null;
 
-        // Unsubscribe from events
+        this._connection.FileDownloadResponseReceived -= this.OnFileDownloadResponseReceived;
         this._connection.FileChunkReceived -= this.OnFileChunkReceived;
         this._connection.FileCompleteReceived -= this.OnFileCompleteReceived;
         this._connection.FileCancelReceived -= this.OnFileCancelReceived;
@@ -249,7 +316,7 @@ public partial class IncomingFileTransfer : ObservableObject, IDisposable
     }
 }
 
-public enum IncomingTransferState
+public enum FileReceiveState
 {
     Pending,
     Transferring,

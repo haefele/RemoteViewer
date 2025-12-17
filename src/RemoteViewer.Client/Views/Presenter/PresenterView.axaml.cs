@@ -20,6 +20,7 @@ public partial class PresenterView : Window
             this._viewModel.CloseRequested -= this.ViewModel_CloseRequested;
             this._viewModel.CopyToClipboardRequested -= this.ViewModel_CopyToClipboardRequested;
             this._viewModel.FileTransferConfirmationRequested -= this.ViewModel_FileTransferConfirmationRequested;
+            this._viewModel.FileDownloadConfirmationRequested -= this.ViewModel_FileDownloadConfirmationRequested;
         }
 
         this._viewModel = this.DataContext as PresenterViewModel;
@@ -29,6 +30,7 @@ public partial class PresenterView : Window
             this._viewModel.CloseRequested += this.ViewModel_CloseRequested;
             this._viewModel.CopyToClipboardRequested += this.ViewModel_CopyToClipboardRequested;
             this._viewModel.FileTransferConfirmationRequested += this.ViewModel_FileTransferConfirmationRequested;
+            this._viewModel.FileDownloadConfirmationRequested += this.ViewModel_FileDownloadConfirmationRequested;
         }
     }
 
@@ -75,6 +77,31 @@ public partial class PresenterView : Window
         else
         {
             await this._viewModel.RejectFileTransferAsync(e.SenderClientId, e.TransferId);
+        }
+    }
+
+    private async void ViewModel_FileDownloadConfirmationRequested(object? sender, FileDownloadConfirmationEventArgs e)
+    {
+        if (this._viewModel is null)
+            return;
+
+        var message = $"A viewer wants to download a file from you:\n\n{e.FilePath}\n\nAllow this download?";
+
+        var box = MessageBoxManager.GetMessageBoxStandard(
+            "File Download Request",
+            message,
+            ButtonEnum.YesNo,
+            MsBox.Avalonia.Enums.Icon.Question);
+
+        var result = await box.ShowWindowDialogAsync(this);
+
+        if (result == ButtonResult.Yes)
+        {
+            await this._viewModel.AcceptFileDownloadAsync(e.RequesterClientId, e.TransferId, e.FilePath);
+        }
+        else
+        {
+            await this._viewModel.RejectFileDownloadAsync(e.RequesterClientId, e.TransferId);
         }
     }
 
