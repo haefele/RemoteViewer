@@ -76,7 +76,7 @@
                     </Border.Transitions>
 
                     <Grid RowDefinitions="Auto,Auto,Auto">
-                        <!-- Header: Icon, Filename, Cancel button -->
+                        <!-- Header: Icon, Filename/Status, Cancel button -->
                         <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,8">
                             <mi:MaterialIcon Grid.Column="0"
                                              Kind="{Binding IsUpload, Converter={x:Static conv:BoolToUploadDownloadIconConverter.Instance}}"
@@ -86,8 +86,18 @@
                                              Foreground="White"
                                              Margin="0,0,8,0"/>
 
+                            <!-- Waiting state: show "Sending/Requesting file..." -->
                             <TextBlock Grid.Column="1"
-                                       Text="{Binding Transfer.FileName, FallbackValue=Requesting...}"
+                                       IsVisible="{Binding Transfer.State, Converter={x:Static conv:FileTransferStateToIsWaitingConverter.Instance}}"
+                                       Text="{Binding IsUpload, Converter={x:Static conv:BoolToSendingRequestingConverter.Instance}}"
+                                       VerticalAlignment="Center"
+                                       Foreground="White"
+                                       FontWeight="SemiBold"/>
+
+                            <!-- Transferring state: show filename -->
+                            <TextBlock Grid.Column="1"
+                                       IsVisible="{Binding Transfer.State, Converter={x:Static conv:FileTransferStateToIsTransferringConverter.Instance}}"
+                                       Text="{Binding Transfer.FileName}"
                                        VerticalAlignment="Center"
                                        TextTrimming="CharacterEllipsis"
                                        Foreground="White"
@@ -111,8 +121,18 @@
                             </Button>
                         </Grid>
 
-                        <!-- Progress bar -->
+                        <!-- Waiting state: indeterminate progress bar -->
                         <ProgressBar Grid.Row="1"
+                                     IsVisible="{Binding Transfer.State, Converter={x:Static conv:FileTransferStateToIsWaitingConverter.Instance}}"
+                                     IsIndeterminate="True"
+                                     Height="4"
+                                     CornerRadius="2"
+                                     Foreground="{Binding IsUpload, Converter={x:Static conv:BoolToUploadDownloadColorConverter.Instance}}"
+                                     Background="#555555"/>
+
+                        <!-- Transferring state: progress bar -->
+                        <ProgressBar Grid.Row="1"
+                                     IsVisible="{Binding Transfer.State, Converter={x:Static conv:FileTransferStateToIsTransferringConverter.Instance}}"
                                      Value="{Binding Transfer.Progress}"
                                      Minimum="0"
                                      Maximum="1"
@@ -121,8 +141,19 @@
                                      Foreground="{Binding IsUpload, Converter={x:Static conv:BoolToUploadDownloadColorConverter.Instance}}"
                                      Background="#555555"/>
 
-                        <!-- Size and percentage -->
-                        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,6,0,0">
+                        <!-- Waiting state: "Waiting for presenter..." -->
+                        <TextBlock Grid.Row="2"
+                                   IsVisible="{Binding Transfer.State, Converter={x:Static conv:FileTransferStateToIsWaitingConverter.Instance}}"
+                                   Text="Waiting for presenter..."
+                                   Foreground="#AAAAAA"
+                                   FontSize="11"
+                                   Margin="0,6,0,0"/>
+
+                        <!-- Transferring state: Size and percentage -->
+                        <Grid Grid.Row="2"
+                              IsVisible="{Binding Transfer.State, Converter={x:Static conv:FileTransferStateToIsTransferringConverter.Instance}}"
+                              ColumnDefinitions="*,Auto"
+                              Margin="0,6,0,0">
                             <TextBlock Grid.Column="0"
                                        Text="{Binding Transfer.FileSizeFormatted}"
                                        Foreground="#AAAAAA"
