@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Controls.Toasts;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.ViewModels;
+using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Server.SharedAPI.Protocol;
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
@@ -24,8 +25,12 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     private string _title = "Remote Viewer";
 
     public event EventHandler? CloseRequested;
+    public event EventHandler? OpenFilePickerRequested;
 
-    public ViewerViewModel(Connection connection, IViewModelFactory viewModelFactory, ILogger<ViewerViewModel> logger)
+    public ViewerViewModel(
+        Connection connection,
+        IViewModelFactory viewModelFactory,
+        ILogger<ViewerViewModel> logger)
     {
         this._connection = connection;
         this._logger = logger;
@@ -287,6 +292,62 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     }
     #endregion
 
+    #region File Transfer
+    public ObservableCollection<OutgoingFileTransfer> ActiveTransfers { get; } = [];
+
+    [RelayCommand]
+    private void SendFile()
+    {
+        this.OpenFilePickerRequested?.Invoke(this, EventArgs.Empty);
+    }
+
+    public async Task SendFileFromPathAsync(string filePath)
+    {
+        try
+        {
+            if (!File.Exists(filePath))
+            {
+                this.Toasts.Error($"File not found: {filePath}");
+                return;
+            }
+
+            var transfer = new OutgoingFileTransfer(filePath, this._connection);
+
+            transfer.Completed += (_, _) => Dispatcher.UIThread.Post(() =>
+            {
+                this.ActiveTransfers.Remove(transfer);
+                this.Toasts.Success($"File sent: {transfer.FileName}");
+                transfer.Dispose();
+            });
+
+            transfer.Failed += (_, _) => Dispatcher.UIThread.Post(() =>
+            {
+                this.ActiveTransfers.Remove(transfer);
+                this.Toasts.Error($"Transfer failed: {transfer.ErrorMessage ?? "Unknown error"}");
+                transfer.Dispose();
+            });
+
+            this.ActiveTransfers.Add(transfer);
+            await transfer.StartAsync();
+
+            this._logger.LogInformation("Started file transfer: {FileName} ({FileSize} bytes)", transfer.FileName, transfer.FileSize);
+        }
+        catch (Exception ex)
+        {
+            this._logger.LogError(ex, "Failed to initiate file transfer for {FilePath}", filePath);
+            this.Toasts.Error($"Failed to send file: {ex.Message}");
+        }
+    }
+
+    [RelayCommand]
+    private async Task CancelTransfer(OutgoingFileTransfer transfer)
+    {
+        await transfer.CancelAsync();
+        this.ActiveTransfers.Remove(transfer);
+        transfer.Dispose();
+    }
+    #endregion
+
     #region Cleanup
     private bool _disposed;
 
@@ -296,6 +357,14 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
             return;
 
         this._disposed = true;
+
+        // Cancel and dispose all active transfers
+        foreach (var transfer in this.ActiveTransfers.ToList())
+        {
+            await transfer.CancelAsync();
+            transfer.Dispose();
+        }
+        this.ActiveTransfers.Clear();
 
         await this._connection.DisconnectAsync();
 

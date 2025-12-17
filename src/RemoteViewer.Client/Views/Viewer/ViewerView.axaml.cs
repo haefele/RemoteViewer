@@ -1,5 +1,6 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.Win32.Input;
 using System.ComponentModel;
@@ -26,6 +27,7 @@ public partial class ViewerView : Window
         {
             this._viewModel.PropertyChanged -= this.ViewModel_PropertyChanged;
             this._viewModel.CloseRequested -= this.ViewModel_CloseRequested;
+            this._viewModel.OpenFilePickerRequested -= this.ViewModel_OpenFilePickerRequested;
         }
 
         this._viewModel = this.DataContext as ViewerViewModel;
@@ -34,11 +36,17 @@ public partial class ViewerView : Window
         {
             this._viewModel.CloseRequested += this.ViewModel_CloseRequested;
             this._viewModel.PropertyChanged += this.ViewModel_PropertyChanged;
+            this._viewModel.OpenFilePickerRequested += this.ViewModel_OpenFilePickerRequested;
         }
     }
     private void Window_Opened(object? sender, EventArgs e)
     {
         this.DisplayPanel.Focus();
+
+        // Enable drag-drop for file transfer
+        DragDrop.SetAllowDrop(this.DisplayPanel, true);
+        this.DisplayPanel.AddHandler(DragDrop.DropEvent, this.DisplayPanel_Drop);
+        this.DisplayPanel.AddHandler(DragDrop.DragOverEvent, this.DisplayPanel_DragOver);
     }
     private async void Window_Deactivated(object? sender, EventArgs e)
     {
@@ -67,6 +75,48 @@ public partial class ViewerView : Window
     private void ViewModel_CloseRequested(object? sender, EventArgs e)
     {
         this.Close();
+    }
+    private async void ViewModel_OpenFilePickerRequested(object? sender, EventArgs e)
+    {
+        if (this._viewModel is null)
+            return;
+
+        var files = await this.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            AllowMultiple = false,
+            Title = "Select file to send"
+        });
+
+        if (files.Count > 0 && files[0].TryGetLocalPath() is { } path)
+        {
+            await this._viewModel.SendFileFromPathAsync(path);
+        }
+    }
+    #endregion
+
+    #region File Transfer Drag-Drop
+    private void DisplayPanel_DragOver(object? sender, DragEventArgs e)
+    {
+        e.DragEffects = e.Data.Contains(DataFormats.Files)
+            ? DragDropEffects.Copy
+            : DragDropEffects.None;
+    }
+    private async void DisplayPanel_Drop(object? sender, DragEventArgs e)
+    {
+        if (this._viewModel is null)
+            return;
+
+        var files = e.Data.GetFiles();
+        if (files is null)
+            return;
+
+        foreach (var file in files)
+        {
+            if (file.TryGetLocalPath() is { } path)
+            {
+                await this._viewModel.SendFileFromPathAsync(path);
+            }
+        }
     }
     #endregion
 

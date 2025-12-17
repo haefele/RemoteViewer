@@ -16,7 +16,9 @@
       "Bash(del \"C:\\Users\\haefe\\source\\repos\\RemoteViewer\\src\\RemoteViewer.Client\\Views\\Viewer\\ViewerViewModelLogs.cs\")",
       "Bash(powershell:*)",
       "Bash(del \"C:\\Users\\haefe\\source\\repos\\RemoteViewer\\src\\RemoteViewer.Client\\Services\\VideoCodec\\FrameDiffDetector.cs\")",
-      "WebFetch(domain:docs.avaloniaui.net)"
+      "WebFetch(domain:docs.avaloniaui.net)",
+      "Bash(del \"C:\\Users\\haefe\\source\\repos\\RemoteViewer\\src\\RemoteViewer.Client\\Services\\FileTransfer\\FileTransferService.cs\")",
+      "Bash(del \"C:\\Users\\haefe\\source\\repos\\RemoteViewer\\src\\RemoteViewer.Client\\Services\\FileTransfer\\FileTransferServiceLogs.cs\")"
     ],
     "deny": [],
     "ask": []

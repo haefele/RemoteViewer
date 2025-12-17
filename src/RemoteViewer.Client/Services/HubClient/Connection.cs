@@ -106,6 +106,14 @@ public sealed class Connection
 
     public event EventHandler<FrameReceivedEventArgs>? FrameReceived;
 
+    // File transfer events
+    public event EventHandler<FileSendRequestReceivedEventArgs>? FileSendRequestReceived;
+    public event EventHandler<FileSendResponseReceivedEventArgs>? FileSendResponseReceived;
+    public event EventHandler<FileChunkReceivedEventArgs>? FileChunkReceived;
+    public event EventHandler<FileCompleteReceivedEventArgs>? FileCompleteReceived;
+    public event EventHandler<FileCancelReceivedEventArgs>? FileCancelReceived;
+    public event EventHandler<FileErrorReceivedEventArgs>? FileErrorReceived;
+
     public Task DisconnectAsync()
     {
         if (this.IsClosed)
@@ -179,6 +187,81 @@ public sealed class Connection
         await this._sendMessageAsync(MessageTypes.Screen.Frame, serializedData, MessageDestination.SpecificClients, targetViewerIds);
     }
 
+    // File transfer methods (Viewer-side)
+    public async Task SendFileSendRequestAsync(string transferId, string fileName, long fileSize)
+    {
+        if (this.IsPresenter)
+            throw new InvalidOperationException("SendFileSendRequestAsync is only valid for viewers");
+
+        if (this.IsClosed)
+            return;
+
+        var message = new FileSendRequestMessage(transferId, fileName, fileSize);
+        var data = ProtocolSerializer.Serialize(message);
+        await this._sendMessageAsync(MessageTypes.FileTransfer.SendRequest, data, MessageDestination.PresenterOnly, null);
+    }
+
+    public async Task SendFileChunkAsync(FileChunkMessage chunk)
+    {
+        if (this.IsPresenter)
+            throw new InvalidOperationException("SendFileChunkAsync is only valid for viewers");
+
+        if (this.IsClosed)
+            return;
+
+        var data = ProtocolSerializer.Serialize(chunk);
+        await this._sendMessageAsync(MessageTypes.FileTransfer.Chunk, data, MessageDestination.PresenterOnly, null);
+    }
+
+    public async Task SendFileCompleteAsync(string transferId)
+    {
+        if (this.IsPresenter)
+            throw new InvalidOperationException("SendFileCompleteAsync is only valid for viewers");
+
+        if (this.IsClosed)
+            return;
+
+        var message = new FileCompleteMessage(transferId);
+        var data = ProtocolSerializer.Serialize(message);
+        await this._sendMessageAsync(MessageTypes.FileTransfer.Complete, data, MessageDestination.PresenterOnly, null);
+    }
+
+    public async Task SendFileCancelAsync(string transferId, string reason)
+    {
+        if (this.IsClosed)
+            return;
+
+        var message = new FileCancelMessage(transferId, reason);
+        var data = ProtocolSerializer.Serialize(message);
+        var destination = this.IsPresenter ? MessageDestination.AllViewers : MessageDestination.PresenterOnly;
+        await this._sendMessageAsync(MessageTypes.FileTransfer.Cancel, data, destination, null);
+    }
+
+    // File transfer methods (Presenter-side)
+    public async Task SendFileSendResponseAsync(string transferId, bool accepted, string? error, string senderClientId)
+    {
+        if (!this.IsPresenter)
+            throw new InvalidOperationException("SendFileSendResponseAsync is only valid for presenters");
+
+        if (this.IsClosed)
+            return;
+
+        var message = new FileSendResponseMessage(transferId, accepted, error);
+        var data = ProtocolSerializer.Serialize(message);
+        await this._sendMessageAsync(MessageTypes.FileTransfer.SendResponse, data, MessageDestination.SpecificClients, [senderClientId]);
+    }
+
+    public async Task SendFileErrorAsync(string transferId, string error)
+    {
+        if (this.IsClosed)
+            return;
+
+        var message = new FileErrorMessage(transferId, error);
+        var data = ProtocolSerializer.Serialize(message);
+        var destination = this.IsPresenter ? MessageDestination.AllViewers : MessageDestination.PresenterOnly;
+        await this._sendMessageAsync(MessageTypes.FileTransfer.Error, data, destination, null);
+    }
+
     internal void OnConnectionChanged(ConnectionInfo connectionInfo)
     {
         // Get primary display ID for new viewers (presenter-side only)
@@ -244,6 +327,33 @@ public sealed class Connection
                 // Viewer-side messages (from presenter)
                 case MessageTypes.Screen.Frame:
                     this.HandleFrame(data);
+                    break;
+
+                // File transfer messages (Presenter receives from Viewer)
+                case MessageTypes.FileTransfer.SendRequest:
+                    this.HandleFileSendRequest(senderClientId, data);
+                    break;
+
+                case MessageTypes.FileTransfer.Chunk:
+                    this.HandleFileChunk(senderClientId, data);
+                    break;
+
+                case MessageTypes.FileTransfer.Complete:
+                    this.HandleFileComplete(senderClientId, data);
+                    break;
+
+                // File transfer messages (Viewer receives from Presenter)
+                case MessageTypes.FileTransfer.SendResponse:
+                    this.HandleFileSendResponse(data);
+                    break;
+
+                // Bidirectional file transfer messages
+                case MessageTypes.FileTransfer.Cancel:
+                    this.HandleFileCancel(senderClientId, data);
+                    break;
+
+                case MessageTypes.FileTransfer.Error:
+                    this.HandleFileError(senderClientId, data);
                     break;
 
                 default:
@@ -378,6 +488,60 @@ public sealed class Connection
             return this._viewers.FirstOrDefault(v => v.ClientId == viewerClientId)?.SelectedDisplayId;
         }
     }
+
+    // File transfer handlers
+    private void HandleFileSendRequest(string senderClientId, byte[] data)
+    {
+        var message = ProtocolSerializer.Deserialize<FileSendRequestMessage>(data);
+        this.FileSendRequestReceived?.Invoke(this, new FileSendRequestReceivedEventArgs(
+            senderClientId,
+            message.TransferId,
+            message.FileName,
+            message.FileSize));
+    }
+
+    private void HandleFileSendResponse(byte[] data)
+    {
+        var message = ProtocolSerializer.Deserialize<FileSendResponseMessage>(data);
+        this.FileSendResponseReceived?.Invoke(this, new FileSendResponseReceivedEventArgs(
+            message.TransferId,
+            message.Accepted,
+            message.ErrorMessage));
+    }
+
+    private void HandleFileChunk(string senderClientId, byte[] data)
+    {
+        var message = ProtocolSerializer.Deserialize<FileChunkMessage>(data);
+        this.FileChunkReceived?.Invoke(this, new FileChunkReceivedEventArgs(
+            senderClientId,
+            message));
+    }
+
+    private void HandleFileComplete(string senderClientId, byte[] data)
+    {
+        var message = ProtocolSerializer.Deserialize<FileCompleteMessage>(data);
+        this.FileCompleteReceived?.Invoke(this, new FileCompleteReceivedEventArgs(
+            senderClientId,
+            message.TransferId));
+    }
+
+    private void HandleFileCancel(string senderClientId, byte[] data)
+    {
+        var message = ProtocolSerializer.Deserialize<FileCancelMessage>(data);
+        this.FileCancelReceived?.Invoke(this, new FileCancelReceivedEventArgs(
+            senderClientId,
+            message.TransferId,
+            message.Reason));
+    }
+
+    private void HandleFileError(string senderClientId, byte[] data)
+    {
+        var message = ProtocolSerializer.Deserialize<FileErrorMessage>(data);
+        this.FileErrorReceived?.Invoke(this, new FileErrorReceivedEventArgs(
+            senderClientId,
+            message.TransferId,
+            message.ErrorMessage));
+    }
 }
 
 /// <summary>
@@ -464,4 +628,87 @@ public sealed class FrameReceivedEventArgs : EventArgs
     public ulong FrameNumber { get; }
     public FrameCodec Codec { get; }
     public FrameRegion[] Regions { get; }
+}
+
+// File transfer event args
+public sealed class FileSendRequestReceivedEventArgs : EventArgs
+{
+    public FileSendRequestReceivedEventArgs(string senderClientId, string transferId, string fileName, long fileSize)
+    {
+        this.SenderClientId = senderClientId;
+        this.TransferId = transferId;
+        this.FileName = fileName;
+        this.FileSize = fileSize;
+    }
+
+    public string SenderClientId { get; }
+    public string TransferId { get; }
+    public string FileName { get; }
+    public long FileSize { get; }
+}
+
+public sealed class FileSendResponseReceivedEventArgs : EventArgs
+{
+    public FileSendResponseReceivedEventArgs(string transferId, bool accepted, string? errorMessage)
+    {
+        this.TransferId = transferId;
+        this.Accepted = accepted;
+        this.ErrorMessage = errorMessage;
+    }
+
+    public string TransferId { get; }
+    public bool Accepted { get; }
+    public string? ErrorMessage { get; }
+}
+
+public sealed class FileChunkReceivedEventArgs : EventArgs
+{
+    public FileChunkReceivedEventArgs(string senderClientId, FileChunkMessage chunk)
+    {
+        this.SenderClientId = senderClientId;
+        this.Chunk = chunk;
+    }
+
+    public string SenderClientId { get; }
+    public FileChunkMessage Chunk { get; }
+}
+
+public sealed class FileCompleteReceivedEventArgs : EventArgs
+{
+    public FileCompleteReceivedEventArgs(string senderClientId, string transferId)
+    {
+        this.SenderClientId = senderClientId;
+        this.TransferId = transferId;
+    }
+
+    public string SenderClientId { get; }
+    public string TransferId { get; }
+}
+
+public sealed class FileCancelReceivedEventArgs : EventArgs
+{
+    public FileCancelReceivedEventArgs(string senderClientId, string transferId, string reason)
+    {
+        this.SenderClientId = senderClientId;
+        this.TransferId = transferId;
+        this.Reason = reason;
+    }
+
+    public string SenderClientId { get; }
+    public string TransferId { get; }
+    public string Reason { get; }
+}
+
+public sealed class FileErrorReceivedEventArgs : EventArgs
+{
+    public FileErrorReceivedEventArgs(string senderClientId, string transferId, string errorMessage)
+    {
+        this.SenderClientId = senderClientId;
+        this.TransferId = transferId;
+        this.ErrorMessage = errorMessage;
+    }
+
+    public string SenderClientId { get; }
+    public string TransferId { get; }
+    public string ErrorMessage { get; }
 }

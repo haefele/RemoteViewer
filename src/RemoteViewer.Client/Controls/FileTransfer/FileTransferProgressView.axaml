@@ -1,0 +1,87 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mi="using:Material.Icons.Avalonia"
+             xmlns:viewer="using:RemoteViewer.Client.Views.Viewer"
+             xmlns:ft="using:RemoteViewer.Client.Services.FileTransfer"
+             x:Class="RemoteViewer.Client.Controls.FileTransfer.FileTransferProgressView"
+             x:DataType="viewer:ViewerViewModel">
+
+    <ItemsControl ItemsSource="{Binding ActiveTransfers}">
+        <ItemsControl.ItemsPanel>
+            <ItemsPanelTemplate>
+                <StackPanel Spacing="8"/>
+            </ItemsPanelTemplate>
+        </ItemsControl.ItemsPanel>
+
+        <ItemsControl.ItemTemplate>
+            <DataTemplate x:DataType="ft:OutgoingFileTransfer">
+                <Border CornerRadius="4"
+                        Padding="12"
+                        MaxWidth="300"
+                        MinWidth="250"
+                        Background="#E0333333">
+                    <Grid RowDefinitions="Auto,Auto,Auto">
+                        <!-- Header: Icon, Filename, Cancel button -->
+                        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto" Margin="0,0,0,8">
+                            <mi:MaterialIcon Grid.Column="0"
+                                             Kind="FileUpload"
+                                             Width="16"
+                                             Height="16"
+                                             VerticalAlignment="Center"
+                                             Foreground="White"
+                                             Margin="0,0,8,0"/>
+
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding FileName}"
+                                       VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis"
+                                       Foreground="White"
+                                       FontWeight="SemiBold"
+                                       ToolTip.Tip="{Binding FileName}"/>
+
+                            <Button Grid.Column="2"
+                                    Command="{Binding $parent[ItemsControl].((viewer:ViewerViewModel)DataContext).CancelTransferCommand}"
+                                    CommandParameter="{Binding}"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Width="24"
+                                    Height="24"
+                                    Padding="0"
+                                    VerticalAlignment="Center"
+                                    Cursor="Hand"
+                                    ToolTip.Tip="Cancel transfer">
+                                <mi:MaterialIcon Kind="Close"
+                                                 Width="14"
+                                                 Height="14"
+                                                 Foreground="#AAAAAA"/>
+                            </Button>
+                        </Grid>
+
+                        <!-- Progress bar -->
+                        <ProgressBar Grid.Row="1"
+                                     Value="{Binding Progress}"
+                                     Minimum="0"
+                                     Maximum="1"
+                                     Height="4"
+                                     CornerRadius="2"
+                                     Foreground="#4CAF50"
+                                     Background="#555555"/>
+
+                        <!-- Size and percentage -->
+                        <Grid Grid.Row="2" ColumnDefinitions="*,Auto" Margin="0,6,0,0">
+                            <TextBlock Grid.Column="0"
+                                       Text="{Binding FileSizeFormatted}"
+                                       Foreground="#AAAAAA"
+                                       FontSize="11"/>
+
+                            <TextBlock Grid.Column="1"
+                                       Text="{Binding ProgressPercent, StringFormat={}{0}%}"
+                                       Foreground="#AAAAAA"
+                                       FontSize="11"/>
+                        </Grid>
+                    </Grid>
+                </Border>
+            </DataTemplate>
+        </ItemsControl.ItemTemplate>
+    </ItemsControl>
+</UserControl>

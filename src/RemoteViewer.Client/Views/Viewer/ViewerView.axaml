@@ -3,6 +3,7 @@
         xmlns:vm="using:RemoteViewer.Client.Views.Viewer"
         xmlns:conv="using:RemoteViewer.Client.Converters"
         xmlns:toastControls="using:RemoteViewer.Client.Controls.Toasts"
+        xmlns:fileTransfer="using:RemoteViewer.Client.Controls.FileTransfer"
         xmlns:mi="using:Material.Icons.Avalonia"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -88,6 +89,16 @@
                                      Width="20" Height="20"/>
                 </Button>
 
+                <!-- Send File button -->
+                <Button Command="{Binding SendFileCommand}"
+                        ToolTip.Tip="Send file to presenter"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Width="32" Height="32"
+                        Padding="0">
+                    <mi:MaterialIcon Kind="FileUpload" Width="20" Height="20"/>
+                </Button>
+
                 <!-- Separator -->
                 <Border Width="1"
                         Margin="0,4"
@@ -168,6 +179,14 @@
                        IsVisible="{Binding DebugOverlayBitmap, Converter={x:Static ObjectConverters.IsNotNull}}"/>
             </Panel>
         </Border>
+
+        <!-- File Transfer Progress (row 1, overlay bottom-right, above toasts) -->
+        <fileTransfer:FileTransferProgressView Grid.Row="1"
+                                               DataContext="{Binding}"
+                                               VerticalAlignment="Bottom"
+                                               HorizontalAlignment="Right"
+                                               Margin="0,0,8,60"
+                                               IsHitTestVisible="True"/>
 
         <!-- Toast Notifications (row 1, overlay bottom-right) -->
         <toastControls:ToastsView Grid.Row="1"

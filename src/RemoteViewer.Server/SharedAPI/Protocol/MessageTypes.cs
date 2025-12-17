@@ -37,4 +37,25 @@ public static class MessageTypes
         /// <summary>Mouse wheel scroll (Viewer → Presenter)</summary>
         public const string MouseWheel = "input.mouse.wheel";
     }
+
+    public static class FileTransfer
+    {
+        /// <summary>Request to send a file (Viewer → Presenter)</summary>
+        public const string SendRequest = "file.send.request";
+
+        /// <summary>Response to send request (Presenter → Viewer)</summary>
+        public const string SendResponse = "file.send.response";
+
+        /// <summary>File chunk data (Viewer → Presenter)</summary>
+        public const string Chunk = "file.chunk";
+
+        /// <summary>Transfer complete notification (Viewer → Presenter)</summary>
+        public const string Complete = "file.complete";
+
+        /// <summary>Cancel transfer (Bidirectional)</summary>
+        public const string Cancel = "file.cancel";
+
+        /// <summary>Transfer error (Bidirectional)</summary>
+        public const string Error = "file.error";
+    }
 }
