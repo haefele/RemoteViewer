@@ -1,4 +1,5 @@
-﻿using CommunityToolkit.Mvvm.ComponentModel;
+﻿using System.Diagnostics;
+using CommunityToolkit.Mvvm.ComponentModel;
 using RemoteViewer.Client.Common;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Server.SharedAPI.Protocol;
@@ -8,6 +9,7 @@ namespace RemoteViewer.Client.Services.FileTransfer;
 public partial class FileSendOperation : ObservableObject, IFileTransfer
 {
     private const int ChunkSize = 256 * 1024; // 256 KB
+    private const long MaxBytesPerSecond = 2 * 1024 * 1024; // 2 MB/s bandwidth cap
 
     private readonly Connection _connection;
     private readonly Func<FileChunkMessage, Task> _sendChunk;
@@ -151,8 +153,12 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
             this._fileStream = new FileStream(this.FilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
             using var buffer = RefCountedMemoryOwner<byte>.Create(ChunkSize);
 
+            var delayPerChunk = TimeSpan.FromSeconds((double)ChunkSize / MaxBytesPerSecond);
+
             while (this.State == FileTransferState.Transferring)
             {
+                var chunkStart = Stopwatch.GetTimestamp();
+
                 var bytesRead = await this._fileStream.ReadAtLeastAsync(buffer.Memory, buffer.Length, throwOnEndOfStream: false);
                 if (bytesRead == 0)
                     break;
@@ -168,8 +174,12 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
                 this.CurrentChunk++;
                 this.Progress = (double)this.CurrentChunk / this.TotalChunks;
 
-                // Small yield to avoid overwhelming the connection
-                await Task.Delay(1);
+                // Bandwidth throttling: wait for the remainder of the chunk interval
+                var elapsed = Stopwatch.GetElapsedTime(chunkStart);
+                var sleepTime = delayPerChunk - elapsed;
+
+                if (sleepTime > TimeSpan.Zero && this.State == FileTransferState.Transferring)
+                    await Task.Delay(sleepTime);
             }
 
             if (this.State == FileTransferState.Transferring)
