@@ -202,7 +202,7 @@ public sealed class Connection
         await this._sendMessageAsync(MessageTypes.Screen.Frame, serializedData, MessageDestination.SpecificClients, targetViewerIds);
     }
 
-    // File transfer methods (Viewer-side)
+    // File transfer: Send (upload) - Viewer initiates, Presenter responds
     public async Task SendFileSendRequestAsync(string transferId, string fileName, long fileSize)
     {
         if (this.IsPresenter)
@@ -216,43 +216,6 @@ public sealed class Connection
         await this._sendMessageAsync(MessageTypes.FileTransfer.SendRequest, data, MessageDestination.PresenterOnly, null);
     }
 
-    public async Task SendFileChunkAsync(FileChunkMessage chunk)
-    {
-        if (this.IsPresenter)
-            throw new InvalidOperationException("SendFileChunkAsync is only valid for viewers");
-
-        if (this.IsClosed)
-            return;
-
-        var data = ProtocolSerializer.Serialize(chunk);
-        await this._sendMessageAsync(MessageTypes.FileTransfer.Chunk, data, MessageDestination.PresenterOnly, null);
-    }
-
-    public async Task SendFileCompleteAsync(string transferId)
-    {
-        if (this.IsPresenter)
-            throw new InvalidOperationException("SendFileCompleteAsync is only valid for viewers");
-
-        if (this.IsClosed)
-            return;
-
-        var message = new FileCompleteMessage(transferId);
-        var data = ProtocolSerializer.Serialize(message);
-        await this._sendMessageAsync(MessageTypes.FileTransfer.Complete, data, MessageDestination.PresenterOnly, null);
-    }
-
-    public async Task SendFileCancelAsync(string transferId, string reason)
-    {
-        if (this.IsClosed)
-            return;
-
-        var message = new FileCancelMessage(transferId, reason);
-        var data = ProtocolSerializer.Serialize(message);
-        var destination = this.IsPresenter ? MessageDestination.AllViewers : MessageDestination.PresenterOnly;
-        await this._sendMessageAsync(MessageTypes.FileTransfer.Cancel, data, destination, null);
-    }
-
-    // File transfer methods (Presenter-side)
     public async Task SendFileSendResponseAsync(string transferId, bool accepted, string? error, string senderClientId)
     {
         if (!this.IsPresenter)
@@ -266,32 +229,7 @@ public sealed class Connection
         await this._sendMessageAsync(MessageTypes.FileTransfer.SendResponse, data, MessageDestination.SpecificClients, [senderClientId]);
     }
 
-    public async Task SendFileErrorAsync(string transferId, string error)
-    {
-        if (this.IsClosed)
-            return;
-
-        var message = new FileErrorMessage(transferId, error);
-        var data = ProtocolSerializer.Serialize(message);
-        var destination = this.IsPresenter ? MessageDestination.AllViewers : MessageDestination.PresenterOnly;
-        await this._sendMessageAsync(MessageTypes.FileTransfer.Error, data, destination, null);
-    }
-
-    // Directory browsing methods (Viewer-side)
-    public async Task SendDirectoryListRequestAsync(string requestId, string path)
-    {
-        if (this.IsPresenter)
-            throw new InvalidOperationException("SendDirectoryListRequestAsync is only valid for viewers");
-
-        if (this.IsClosed)
-            return;
-
-        var message = new DirectoryListRequestMessage(requestId, path);
-        var data = ProtocolSerializer.Serialize(message);
-        await this._sendMessageAsync(MessageTypes.FileTransfer.DirectoryListRequest, data, MessageDestination.PresenterOnly, null);
-    }
-
-    // File download request (Viewer-side)
+    // File transfer: Download - Viewer requests, Presenter responds
     public async Task SendFileDownloadRequestAsync(string transferId, string filePath)
     {
         if (this.IsPresenter)
@@ -305,21 +243,6 @@ public sealed class Connection
         await this._sendMessageAsync(MessageTypes.FileTransfer.DownloadRequest, data, MessageDestination.PresenterOnly, null);
     }
 
-    // Directory listing response (Presenter-side)
-    public async Task SendDirectoryListResponseAsync(string requestId, string path, DirectoryEntry[] entries, string? error, string requesterClientId)
-    {
-        if (!this.IsPresenter)
-            throw new InvalidOperationException("SendDirectoryListResponseAsync is only valid for presenters");
-
-        if (this.IsClosed)
-            return;
-
-        var message = new DirectoryListResponseMessage(requestId, path, entries, error);
-        var data = ProtocolSerializer.Serialize(message);
-        await this._sendMessageAsync(MessageTypes.FileTransfer.DirectoryListResponse, data, MessageDestination.SpecificClients, [requesterClientId]);
-    }
-
-    // File download response (Presenter-side)
     public async Task SendFileDownloadResponseAsync(string transferId, bool accepted, string? fileName, long? fileSize, string? error, string requesterClientId)
     {
         if (!this.IsPresenter)
@@ -333,31 +256,119 @@ public sealed class Connection
         await this._sendMessageAsync(MessageTypes.FileTransfer.DownloadResponse, data, MessageDestination.SpecificClients, [requesterClientId]);
     }
 
-    // Presenter sends file chunks TO a specific viewer (for downloads)
-    public async Task SendFileChunkToViewerAsync(FileChunkMessage chunk, string targetClientId)
+    // File transfer: Chunk/Complete/Cancel/Error - Bidirectional with optional targetClientId
+    public async Task SendFileChunkAsync(FileChunkMessage chunk, string? targetClientId = null)
     {
-        if (!this.IsPresenter)
-            throw new InvalidOperationException("SendFileChunkToViewerAsync is only valid for presenters");
-
         if (this.IsClosed)
             return;
 
         var data = ProtocolSerializer.Serialize(chunk);
-        await this._sendMessageAsync(MessageTypes.FileTransfer.Chunk, data, MessageDestination.SpecificClients, [targetClientId]);
+
+        if (targetClientId is not null)
+        {
+            if (!this.IsPresenter)
+                throw new InvalidOperationException("SendFileChunkAsync with targetClientId is only valid for presenters");
+            await this._sendMessageAsync(MessageTypes.FileTransfer.Chunk, data, MessageDestination.SpecificClients, [targetClientId]);
+        }
+        else
+        {
+            if (this.IsPresenter)
+                throw new InvalidOperationException("SendFileChunkAsync without targetClientId is only valid for viewers");
+            await this._sendMessageAsync(MessageTypes.FileTransfer.Chunk, data, MessageDestination.PresenterOnly, null);
+        }
     }
 
-    // Presenter notifies download complete TO a specific viewer
-    public async Task SendFileCompleteToViewerAsync(string transferId, string targetClientId)
+    public async Task SendFileCompleteAsync(string transferId, string? targetClientId = null)
     {
-        if (!this.IsPresenter)
-            throw new InvalidOperationException("SendFileCompleteToViewerAsync is only valid for presenters");
-
         if (this.IsClosed)
             return;
 
         var message = new FileCompleteMessage(transferId);
         var data = ProtocolSerializer.Serialize(message);
-        await this._sendMessageAsync(MessageTypes.FileTransfer.Complete, data, MessageDestination.SpecificClients, [targetClientId]);
+
+        if (targetClientId is not null)
+        {
+            if (!this.IsPresenter)
+                throw new InvalidOperationException("SendFileCompleteAsync with targetClientId is only valid for presenters");
+            await this._sendMessageAsync(MessageTypes.FileTransfer.Complete, data, MessageDestination.SpecificClients, [targetClientId]);
+        }
+        else
+        {
+            if (this.IsPresenter)
+                throw new InvalidOperationException("SendFileCompleteAsync without targetClientId is only valid for viewers");
+            await this._sendMessageAsync(MessageTypes.FileTransfer.Complete, data, MessageDestination.PresenterOnly, null);
+        }
+    }
+
+    public async Task SendFileCancelAsync(string transferId, string reason, string? targetClientId = null)
+    {
+        if (this.IsClosed)
+            return;
+
+        var message = new FileCancelMessage(transferId, reason);
+        var data = ProtocolSerializer.Serialize(message);
+
+        if (targetClientId is not null)
+        {
+            if (!this.IsPresenter)
+                throw new InvalidOperationException("SendFileCancelAsync with targetClientId is only valid for presenters");
+            await this._sendMessageAsync(MessageTypes.FileTransfer.Cancel, data, MessageDestination.SpecificClients, [targetClientId]);
+        }
+        else
+        {
+            if (this.IsPresenter)
+                throw new InvalidOperationException("SendFileCancelAsync without targetClientId is only valid for viewers");
+            await this._sendMessageAsync(MessageTypes.FileTransfer.Cancel, data, MessageDestination.PresenterOnly, null);
+        }
+    }
+
+    public async Task SendFileErrorAsync(string transferId, string error, string? targetClientId = null)
+    {
+        if (this.IsClosed)
+            return;
+
+        var message = new FileErrorMessage(transferId, error);
+        var data = ProtocolSerializer.Serialize(message);
+
+        if (targetClientId is not null)
+        {
+            if (!this.IsPresenter)
+                throw new InvalidOperationException("SendFileErrorAsync with targetClientId is only valid for presenters");
+            await this._sendMessageAsync(MessageTypes.FileTransfer.Error, data, MessageDestination.SpecificClients, [targetClientId]);
+        }
+        else
+        {
+            if (this.IsPresenter)
+                throw new InvalidOperationException("SendFileErrorAsync without targetClientId is only valid for viewers");
+            await this._sendMessageAsync(MessageTypes.FileTransfer.Error, data, MessageDestination.PresenterOnly, null);
+        }
+    }
+
+    // File transfer: Directory listing - Viewer requests, Presenter responds
+    public async Task SendDirectoryListRequestAsync(string requestId, string path)
+    {
+        if (this.IsPresenter)
+            throw new InvalidOperationException("SendDirectoryListRequestAsync is only valid for viewers");
+
+        if (this.IsClosed)
+            return;
+
+        var message = new DirectoryListRequestMessage(requestId, path);
+        var data = ProtocolSerializer.Serialize(message);
+        await this._sendMessageAsync(MessageTypes.FileTransfer.DirectoryListRequest, data, MessageDestination.PresenterOnly, null);
+    }
+
+    public async Task SendDirectoryListResponseAsync(string requestId, string path, DirectoryEntry[] entries, string? error, string requesterClientId)
+    {
+        if (!this.IsPresenter)
+            throw new InvalidOperationException("SendDirectoryListResponseAsync is only valid for presenters");
+
+        if (this.IsClosed)
+            return;
+
+        var message = new DirectoryListResponseMessage(requestId, path, entries, error);
+        var data = ProtocolSerializer.Serialize(message);
+        await this._sendMessageAsync(MessageTypes.FileTransfer.DirectoryListResponse, data, MessageDestination.SpecificClients, [requesterClientId]);
     }
 
     internal void OnConnectionChanged(ConnectionInfo connectionInfo)
@@ -427,11 +438,25 @@ public sealed class Connection
                     this.HandleFrame(data);
                     break;
 
-                // File transfer messages (Presenter receives from Viewer)
+                // File transfer: Send (upload)
                 case MessageTypes.FileTransfer.SendRequest:
                     this.HandleFileSendRequest(senderClientId, data);
                     break;
 
+                case MessageTypes.FileTransfer.SendResponse:
+                    this.HandleFileSendResponse(data);
+                    break;
+
+                // File transfer: Download
+                case MessageTypes.FileTransfer.DownloadRequest:
+                    this.HandleFileDownloadRequest(senderClientId, data);
+                    break;
+
+                case MessageTypes.FileTransfer.DownloadResponse:
+                    this.HandleFileDownloadResponse(data);
+                    break;
+
+                // File transfer: Chunk/Complete/Cancel/Error (bidirectional)
                 case MessageTypes.FileTransfer.Chunk:
                     this.HandleFileChunk(senderClientId, data);
                     break;
@@ -440,12 +465,6 @@ public sealed class Connection
                     this.HandleFileComplete(senderClientId, data);
                     break;
 
-                // File transfer messages (Viewer receives from Presenter)
-                case MessageTypes.FileTransfer.SendResponse:
-                    this.HandleFileSendResponse(data);
-                    break;
-
-                // Bidirectional file transfer messages
                 case MessageTypes.FileTransfer.Cancel:
                     this.HandleFileCancel(senderClientId, data);
                     break;
@@ -454,22 +473,13 @@ public sealed class Connection
                     this.HandleFileError(senderClientId, data);
                     break;
 
-                // Directory browsing messages
+                // File transfer: Directory listing
                 case MessageTypes.FileTransfer.DirectoryListRequest:
                     this.HandleDirectoryListRequest(senderClientId, data);
                     break;
 
                 case MessageTypes.FileTransfer.DirectoryListResponse:
                     this.HandleDirectoryListResponse(data);
-                    break;
-
-                // File download messages
-                case MessageTypes.FileTransfer.DownloadRequest:
-                    this.HandleFileDownloadRequest(senderClientId, data);
-                    break;
-
-                case MessageTypes.FileTransfer.DownloadResponse:
-                    this.HandleFileDownloadResponse(data);
                     break;
 
                 default:
@@ -626,6 +636,26 @@ public sealed class Connection
             message.ErrorMessage));
     }
 
+    private void HandleFileDownloadRequest(string senderClientId, byte[] data)
+    {
+        var message = ProtocolSerializer.Deserialize<FileDownloadRequestMessage>(data);
+        this.FileDownloadRequestReceived?.Invoke(this, new FileDownloadRequestReceivedEventArgs(
+            senderClientId,
+            message.TransferId,
+            message.FilePath));
+    }
+
+    private void HandleFileDownloadResponse(byte[] data)
+    {
+        var message = ProtocolSerializer.Deserialize<FileDownloadResponseMessage>(data);
+        this.FileDownloadResponseReceived?.Invoke(this, new FileDownloadResponseReceivedEventArgs(
+            message.TransferId,
+            message.Accepted,
+            message.FileName,
+            message.FileSize,
+            message.ErrorMessage));
+    }
+
     private void HandleFileChunk(string senderClientId, byte[] data)
     {
         var message = ProtocolSerializer.Deserialize<FileChunkMessage>(data);
@@ -677,26 +707,6 @@ public sealed class Connection
             message.RequestId,
             message.Path,
             message.Entries,
-            message.ErrorMessage));
-    }
-
-    private void HandleFileDownloadRequest(string senderClientId, byte[] data)
-    {
-        var message = ProtocolSerializer.Deserialize<FileDownloadRequestMessage>(data);
-        this.FileDownloadRequestReceived?.Invoke(this, new FileDownloadRequestReceivedEventArgs(
-            senderClientId,
-            message.TransferId,
-            message.FilePath));
-    }
-
-    private void HandleFileDownloadResponse(byte[] data)
-    {
-        var message = ProtocolSerializer.Deserialize<FileDownloadResponseMessage>(data);
-        this.FileDownloadResponseReceived?.Invoke(this, new FileDownloadResponseReceivedEventArgs(
-            message.TransferId,
-            message.Accepted,
-            message.FileName,
-            message.FileSize,
             message.ErrorMessage));
     }
 }

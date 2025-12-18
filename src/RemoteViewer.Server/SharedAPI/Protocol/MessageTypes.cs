@@ -1,4 +1,4 @@
-namespace RemoteViewer.Server.SharedAPI.Protocol;
+﻿namespace RemoteViewer.Server.SharedAPI.Protocol;
 
 /// <summary>
 /// Protocol message type identifiers used with SendMessage.
@@ -46,6 +46,14 @@ public static class MessageTypes
         /// <summary>Response to send request (Presenter → Viewer)</summary>
         public const string SendResponse = "file.send.response";
 
+
+        /// <summary>Request to download a file (Viewer → Presenter)</summary>
+        public const string DownloadRequest = "file.download.request";
+
+        /// <summary>Response to download request (Presenter → Viewer)</summary>
+        public const string DownloadResponse = "file.download.response";
+
+
         /// <summary>File chunk data (Bidirectional)</summary>
         public const string Chunk = "file.chunk";
 
@@ -58,16 +66,11 @@ public static class MessageTypes
         /// <summary>Transfer error (Bidirectional)</summary>
         public const string Error = "file.error";
 
+
         /// <summary>Request directory listing (Viewer → Presenter)</summary>
         public const string DirectoryListRequest = "file.directory.request";
 
         /// <summary>Directory listing response (Presenter → Viewer)</summary>
         public const string DirectoryListResponse = "file.directory.response";
-
-        /// <summary>Request to download a file (Viewer → Presenter)</summary>
-        public const string DownloadRequest = "file.download.request";
-
-        /// <summary>Response to download request (Presenter → Viewer)</summary>
-        public const string DownloadResponse = "file.download.response";
     }
 }

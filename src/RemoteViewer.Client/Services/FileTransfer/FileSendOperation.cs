@@ -1,4 +1,5 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using RemoteViewer.Client.Common;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Server.SharedAPI.Protocol;
 
@@ -11,6 +12,8 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
     private readonly Connection _connection;
     private readonly Func<FileChunkMessage, Task> _sendChunk;
     private readonly Func<string, Task> _sendComplete;
+    private readonly Func<string, string, Task> _sendCancel;
+    private readonly Func<string, string, Task> _sendError;
     private readonly bool _requiresAcceptance;
     private FileStream? _fileStream;
     private bool _disposed;
@@ -20,12 +23,16 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
         Connection connection,
         Func<FileChunkMessage, Task> sendChunk,
         Func<string, Task> sendComplete,
+        Func<string, string, Task> sendCancel,
+        Func<string, string, Task> sendError,
         bool requiresAcceptance = false,
         string? transferId = null)
     {
         this._connection = connection;
         this._sendChunk = sendChunk;
         this._sendComplete = sendComplete;
+        this._sendCancel = sendCancel;
+        this._sendError = sendError;
         this._requiresAcceptance = requiresAcceptance;
 
         this.FilePath = filePath;
@@ -92,7 +99,7 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
             return;
 
         this.State = FileTransferState.Cancelled;
-        await this._connection.SendFileCancelAsync(this.TransferId, "Cancelled by user");
+        await this._sendCancel(this.TransferId, "Cancelled by user");
         this.Cleanup();
     }
 
@@ -142,11 +149,11 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
         try
         {
             this._fileStream = new FileStream(this.FilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            var buffer = new byte[ChunkSize];
+            using var buffer = RefCountedMemoryOwner<byte>.Create(ChunkSize);
 
             while (this.State == FileTransferState.Transferring)
             {
-                var bytesRead = await this._fileStream.ReadAsync(buffer);
+                var bytesRead = await this._fileStream.ReadAtLeastAsync(buffer.Memory, buffer.Length, throwOnEndOfStream: false);
                 if (bytesRead == 0)
                     break;
 
@@ -154,7 +161,7 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
                     this.TransferId,
                     this.CurrentChunk,
                     this.TotalChunks,
-                    buffer.AsMemory(0, bytesRead));
+                    buffer.Memory[..bytesRead]);
 
                 await this._sendChunk(chunk);
 
@@ -178,7 +185,7 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
         {
             this.State = FileTransferState.Failed;
             this.ErrorMessage = ex.Message;
-            await this._connection.SendFileErrorAsync(this.TransferId, ex.Message);
+            await this._sendError(this.TransferId, ex.Message);
             this.Cleanup();
             this.Failed?.Invoke(this, EventArgs.Empty);
         }

@@ -129,8 +129,10 @@ public sealed class FileTransferService : IDisposable
         var transfer = new FileSendOperation(
             filePath,
             this._connection,
-            sendChunk: this._connection.SendFileChunkAsync,
-            sendComplete: this._connection.SendFileCompleteAsync,
+            sendChunk: chunk => this._connection.SendFileChunkAsync(chunk),
+            sendComplete: tid => this._connection.SendFileCompleteAsync(tid),
+            sendCancel: (tid, reason) => this._connection.SendFileCancelAsync(tid, reason),
+            sendError: (tid, error) => this._connection.SendFileErrorAsync(tid, error),
             requiresAcceptance: true);
 
         this.TrackSend(transfer);
@@ -147,7 +149,8 @@ public sealed class FileTransferService : IDisposable
         var transfer = FileReceiveOperation.ForDownloadRequest(
             transferId,
             this._connection,
-            sendRequest: () => this._connection.SendFileDownloadRequestAsync(transferId, remotePath));
+            sendRequest: () => this._connection.SendFileDownloadRequestAsync(transferId, remotePath),
+            sendCancel: (tid, reason) => this._connection.SendFileCancelAsync(tid, reason));
 
         this.TrackReceive(transfer);
         await transfer.StartAsync();
@@ -172,6 +175,7 @@ public sealed class FileTransferService : IDisposable
             fileName,
             fileSize,
             this._connection,
+            sendCancel: (tid, reason) => this._connection.SendFileCancelAsync(tid, reason, senderClientId),
             sendAcceptResponse: () => this._connection.SendFileSendResponseAsync(
                 transferId, accepted: true, error: null, senderClientId));
 
@@ -207,8 +211,10 @@ public sealed class FileTransferService : IDisposable
         var transfer = new FileSendOperation(
             filePath,
             this._connection,
-            sendChunk: chunk => this._connection.SendFileChunkToViewerAsync(chunk, requesterClientId),
-            sendComplete: tid => this._connection.SendFileCompleteToViewerAsync(tid, requesterClientId),
+            sendChunk: chunk => this._connection.SendFileChunkAsync(chunk, requesterClientId),
+            sendComplete: tid => this._connection.SendFileCompleteAsync(tid, requesterClientId),
+            sendCancel: (tid, reason) => this._connection.SendFileCancelAsync(tid, reason, requesterClientId),
+            sendError: (tid, error) => this._connection.SendFileErrorAsync(tid, error, requesterClientId),
             requiresAcceptance: false,
             transferId: transferId);
 

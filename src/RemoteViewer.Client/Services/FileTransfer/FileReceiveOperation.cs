@@ -8,6 +8,7 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
     private readonly Connection _connection;
     private readonly Func<Task>? _sendRequest;
     private readonly Func<Task>? _sendAcceptResponse;
+    private readonly Func<string, string, Task> _sendCancel;
     private readonly bool _metadataKnown;
     private FileStream? _fileStream;
     private bool _disposed;
@@ -19,11 +20,13 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
         long fileSize,
         bool metadataKnown,
         Func<Task>? sendRequest,
-        Func<Task>? sendAcceptResponse)
+        Func<Task>? sendAcceptResponse,
+        Func<string, string, Task> sendCancel)
     {
         this._connection = connection;
         this._sendRequest = sendRequest;
         this._sendAcceptResponse = sendAcceptResponse;
+        this._sendCancel = sendCancel;
         this._metadataKnown = metadataKnown;
 
         this.TransferId = transferId;
@@ -51,6 +54,7 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
         string fileName,
         long fileSize,
         Connection connection,
+        Func<string, string, Task> sendCancel,
         Func<Task>? sendAcceptResponse = null)
     {
         return new FileReceiveOperation(
@@ -60,7 +64,8 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
             fileSize,
             metadataKnown: true,
             sendRequest: null,
-            sendAcceptResponse);
+            sendAcceptResponse,
+            sendCancel);
     }
 
     /// <summary>
@@ -71,7 +76,8 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
     public static FileReceiveOperation ForDownloadRequest(
         string transferId,
         Connection connection,
-        Func<Task> sendRequest)
+        Func<Task> sendRequest,
+        Func<string, string, Task> sendCancel)
     {
         return new FileReceiveOperation(
             transferId,
@@ -80,7 +86,8 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
             fileSize: 0,
             metadataKnown: false,
             sendRequest,
-            sendAcceptResponse: null);
+            sendAcceptResponse: null,
+            sendCancel);
     }
 
     public string TransferId { get; }
@@ -148,7 +155,7 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
             return;
 
         this.State = FileTransferState.Cancelled;
-        await this._connection.SendFileCancelAsync(this.TransferId, "Cancelled by user");
+        await this._sendCancel(this.TransferId, "Cancelled by user");
         this.DeleteTempFile();
         this.Cleanup();
     }
