@@ -1,9 +1,11 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mi="using:Material.Icons.Avalonia"
+             xmlns:mik="using:Material.Icons"
              xmlns:toasts="using:RemoteViewer.Client.Controls.Toasts"
              xmlns:ft="using:RemoteViewer.Client.Services.FileTransfer"
              xmlns:conv="using:RemoteViewer.Client.Converters"
+             xmlns:sys="using:System"
              x:Class="RemoteViewer.Client.Controls.Toasts.ToastsView"
              x:DataType="toasts:ToastsViewModel">
 
@@ -20,8 +22,33 @@
                 <Border CornerRadius="4"
                         Padding="8"
                         MaxWidth="280"
-                        MinWidth="180"
-                        Background="{Binding Type, Converter={x:Static conv:ToastTypeToBackgroundConverter.Instance}}">
+                        MinWidth="180">
+                    <Border.Background>
+                        <Binding Path="Type">
+                            <Binding.Converter>
+                                <conv:ObjectToObject>
+                                    <conv:ObjectToObject.DefaultValue>
+                                        <SolidColorBrush Color="#2196F3"/>
+                                    </conv:ObjectToObject.DefaultValue>
+                                    <conv:MapItem From="{x:Static toasts:ToastType.Success}">
+                                        <conv:MapItem.To>
+                                            <SolidColorBrush Color="#4CAF50"/>
+                                        </conv:MapItem.To>
+                                    </conv:MapItem>
+                                    <conv:MapItem From="{x:Static toasts:ToastType.Error}">
+                                        <conv:MapItem.To>
+                                            <SolidColorBrush Color="#F44336"/>
+                                        </conv:MapItem.To>
+                                    </conv:MapItem>
+                                    <conv:MapItem From="{x:Static toasts:ToastType.Info}">
+                                        <conv:MapItem.To>
+                                            <SolidColorBrush Color="#2196F3"/>
+                                        </conv:MapItem.To>
+                                    </conv:MapItem>
+                                </conv:ObjectToObject>
+                            </Binding.Converter>
+                        </Binding>
+                    </Border.Background>
                     <Border.Transitions>
                         <Transitions>
                             <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
@@ -30,12 +57,23 @@
 
                     <Grid ColumnDefinitions="Auto,*,Auto">
                         <mi:MaterialIcon Grid.Column="0"
-                                         Kind="{Binding Type, Converter={x:Static conv:ToastTypeToIconConverter.Instance}}"
                                          Width="16"
                                          Height="16"
                                          VerticalAlignment="Center"
                                          Foreground="White"
-                                         Margin="0,0,8,0"/>
+                                         Margin="0,0,8,0">
+                            <mi:MaterialIcon.Kind>
+                                <Binding Path="Type">
+                                    <Binding.Converter>
+                                        <conv:ObjectToObject DefaultValue="{x:Static mik:MaterialIconKind.InformationOutline}">
+                                            <conv:MapItem From="{x:Static toasts:ToastType.Success}" To="{x:Static mik:MaterialIconKind.CheckCircle}"/>
+                                            <conv:MapItem From="{x:Static toasts:ToastType.Error}" To="{x:Static mik:MaterialIconKind.AlertCircle}"/>
+                                            <conv:MapItem From="{x:Static toasts:ToastType.Info}" To="{x:Static mik:MaterialIconKind.InformationOutline}"/>
+                                        </conv:ObjectToObject>
+                                    </Binding.Converter>
+                                </Binding>
+                            </mi:MaterialIcon.Kind>
+                        </mi:MaterialIcon>
 
                         <TextBlock Grid.Column="1"
                                    Text="{Binding Message}"
@@ -79,7 +117,7 @@
                         <!-- Row 0: Header with icon, direction label, cancel button -->
                         <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
                             <mi:MaterialIcon Grid.Column="0"
-                                             Kind="{Binding IsUpload, Converter={x:Static conv:BoolToUploadDownloadIconConverter.Instance}}"
+                                             Kind="{Binding IsUpload, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.FileUpload}, FalseValue={x:Static mik:MaterialIconKind.FileDownload}}}"
                                              Width="16"
                                              Height="16"
                                              VerticalAlignment="Center"
@@ -87,7 +125,7 @@
                                              Margin="0,0,8,0"/>
 
                             <TextBlock Grid.Column="1"
-                                       Text="{Binding IsUpload, Converter={x:Static conv:BoolToSendingReceivingConverter.Instance}}"
+                                       Text="{Binding IsUpload, Converter={conv:BoolToObject TrueValue='Sending file', FalseValue='Receiving file'}}"
                                        VerticalAlignment="Center"
                                        Foreground="White"
                                        FontWeight="SemiBold"/>
@@ -120,26 +158,54 @@
 
                         <!-- Row 2: Progress bar -->
                         <ProgressBar Grid.Row="2"
-                                     IsIndeterminate="{Binding Transfer.State, Converter={x:Static conv:FileTransferStateToIsWaitingConverter.Instance}}"
                                      Value="{Binding Transfer.Progress}"
                                      Minimum="0"
                                      Maximum="1"
                                      Height="4"
                                      CornerRadius="2"
-                                     Background="#555555"/>
+                                     Background="#555555">
+                            <ProgressBar.IsIndeterminate>
+                                <Binding Path="Transfer.State">
+                                    <Binding.Converter>
+                                        <conv:ObjectToObject DefaultValue="False">
+                                            <conv:MapItem From="{x:Static ft:FileTransferState.Pending}" To="True"/>
+                                            <conv:MapItem From="{x:Static ft:FileTransferState.WaitingForAcceptance}" To="True"/>
+                                        </conv:ObjectToObject>
+                                    </Binding.Converter>
+                                </Binding>
+                            </ProgressBar.IsIndeterminate>
+                        </ProgressBar>
 
                         <!-- Row 3: Footer - waiting text OR size/percent -->
                         <TextBlock Grid.Row="3"
-                                   IsVisible="{Binding Transfer.State, Converter={x:Static conv:FileTransferStateToIsWaitingConverter.Instance}}"
                                    Text="Waiting for approval..."
                                    Foreground="#AAAAAA"
                                    FontSize="11"
-                                   Margin="0,6,0,0"/>
+                                   Margin="0,6,0,0">
+                            <TextBlock.IsVisible>
+                                <Binding Path="Transfer.State">
+                                    <Binding.Converter>
+                                        <conv:ObjectToObject DefaultValue="False">
+                                            <conv:MapItem From="{x:Static ft:FileTransferState.Pending}" To="True"/>
+                                            <conv:MapItem From="{x:Static ft:FileTransferState.WaitingForAcceptance}" To="True"/>
+                                        </conv:ObjectToObject>
+                                    </Binding.Converter>
+                                </Binding>
+                            </TextBlock.IsVisible>
+                        </TextBlock>
 
                         <Grid Grid.Row="3"
-                              IsVisible="{Binding Transfer.State, Converter={x:Static conv:FileTransferStateToIsTransferringConverter.Instance}}"
                               ColumnDefinitions="*,Auto"
                               Margin="0,6,0,0">
+                            <Grid.IsVisible>
+                                <Binding Path="Transfer.State">
+                                    <Binding.Converter>
+                                        <conv:ObjectToObject DefaultValue="False">
+                                            <conv:MapItem From="{x:Static ft:FileTransferState.Transferring}" To="True"/>
+                                        </conv:ObjectToObject>
+                                    </Binding.Converter>
+                                </Binding>
+                            </Grid.IsVisible>
                             <TextBlock Grid.Column="0"
                                        Text="{Binding Transfer.FileSizeFormatted}"
                                        Foreground="#AAAAAA"

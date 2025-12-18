@@ -4,6 +4,7 @@
         xmlns:conv="using:RemoteViewer.Client.Converters"
         xmlns:toastControls="using:RemoteViewer.Client.Controls.Toasts"
         xmlns:mi="using:Material.Icons.Avalonia"
+        xmlns:mik="using:Material.Icons"
 
         x:Class="RemoteViewer.Client.Views.Main.MainView"
         x:DataType="vm:MainViewModel"
@@ -24,9 +25,9 @@
                     Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
                     Padding="10,6">
                 <StackPanel Orientation="Horizontal" Spacing="8">
-                    <mi:MaterialIcon Kind="{Binding IsConnected, Converter={x:Static conv:BoolToConnectionIconConverter.Instance}}"
+                    <mi:MaterialIcon Kind="{Binding IsConnected, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.CloudCheck}, FalseValue={x:Static mik:MaterialIconKind.CloudOffOutline}}}"
                                      Width="16" Height="16"
-                                     Foreground="{Binding IsConnected, Converter={x:Static conv:BoolToColorConverter.Instance}}"/>
+                                     Foreground="{Binding IsConnected, Converter={conv:BoolToObject TrueValue='#4CAF50', FalseValue='#F44336'}}"/>
                     <TextBlock Text="{Binding StatusText}"
                                VerticalAlignment="Center"
                                FontSize="12"/>

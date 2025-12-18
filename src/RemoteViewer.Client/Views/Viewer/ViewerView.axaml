@@ -4,6 +4,7 @@
         xmlns:conv="using:RemoteViewer.Client.Converters"
         xmlns:toastControls="using:RemoteViewer.Client.Controls.Toasts"
         xmlns:mi="using:Material.Icons.Avalonia"
+        xmlns:mik="using:Material.Icons"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         x:Class="RemoteViewer.Client.Views.Viewer.ViewerView"
@@ -58,12 +59,12 @@
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                 <!-- Fullscreen toggle (dynamic icon + tooltip) -->
                 <Button Command="{Binding ToggleFullscreenCommand}"
-                        ToolTip.Tip="{Binding IsFullscreen, Converter={x:Static conv:BoolToFullscreenTooltipConverter.Instance}}"
+                        ToolTip.Tip="{Binding IsFullscreen, Converter={conv:BoolToObject TrueValue='Exit fullscreen (F11 / ESC)', FalseValue='Enter fullscreen (F11)'}}"
                         Background="Transparent"
                         BorderThickness="0"
                         Width="32" Height="32"
                         Padding="0">
-                    <mi:MaterialIcon Kind="{Binding IsFullscreen, Converter={x:Static conv:BoolToFullscreenIconConverter.Instance}}"
+                    <mi:MaterialIcon Kind="{Binding IsFullscreen, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.FullscreenExit}, FalseValue={x:Static mik:MaterialIconKind.Fullscreen}}}"
                                      Width="20" Height="20"/>
                 </Button>
 
@@ -79,12 +80,12 @@
 
                 <!-- Toggle input button -->
                 <Button Command="{Binding ToggleInputCommand}"
-                        ToolTip.Tip="{Binding IsInputEnabled, Converter={x:Static conv:BoolToInputTooltipConverter.Instance}}"
+                        ToolTip.Tip="{Binding IsInputEnabled, Converter={conv:BoolToObject TrueValue='Disable input', FalseValue='Enable input'}}"
                         Background="Transparent"
                         BorderThickness="0"
                         Width="32" Height="32"
                         Padding="0">
-                    <mi:MaterialIcon Kind="{Binding IsInputEnabled, Converter={x:Static conv:BoolToInputIconConverter.Instance}}"
+                    <mi:MaterialIcon Kind="{Binding IsInputEnabled, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.Mouse}, FalseValue={x:Static mik:MaterialIconKind.MouseOff}}}"
                                      Width="20" Height="20"/>
                 </Button>
 
@@ -126,12 +127,22 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="vm:ParticipantDisplay">
                                             <Border Padding="8,6"
-                                                    CornerRadius="4"
-                                                    Background="{Binding IsPresenter, Converter={x:Static conv:BoolToPresenterBackgroundConverter.Instance}}">
+                                                    CornerRadius="4">
+                                                <Border.Background>
+                                                    <Binding Path="IsPresenter">
+                                                        <Binding.Converter>
+                                                            <conv:BoolToObject FalseValue="{x:Static Brushes.Transparent}">
+                                                                <conv:BoolToObject.TrueValue>
+                                                                    <SolidColorBrush Color="#1A0078D4"/>
+                                                                </conv:BoolToObject.TrueValue>
+                                                            </conv:BoolToObject>
+                                                        </Binding.Converter>
+                                                    </Binding>
+                                                </Border.Background>
                                                 <StackPanel Orientation="Horizontal" Spacing="8">
-                                                    <mi:MaterialIcon Kind="{Binding IsPresenter, Converter={x:Static conv:BoolToParticipantIconConverter.Instance}}"
+                                                    <mi:MaterialIcon Kind="{Binding IsPresenter, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.Monitor}, FalseValue={x:Static mik:MaterialIconKind.Account}}}"
                                                                      Width="16" Height="16"
-                                                                     ToolTip.Tip="{Binding IsPresenter, Converter={x:Static conv:BoolToRoleTooltipConverter.Instance}}"/>
+                                                                     ToolTip.Tip="{Binding IsPresenter, Converter={conv:BoolToObject TrueValue='Presenter', FalseValue='Viewer'}}"/>
                                                     <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
                                                 </StackPanel>
                                             </Border>

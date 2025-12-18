@@ -4,6 +4,7 @@
         xmlns:conv="using:RemoteViewer.Client.Converters"
         xmlns:toastControls="using:RemoteViewer.Client.Controls.Toasts"
         xmlns:mi="using:Material.Icons.Avalonia"
+        xmlns:mik="using:Material.Icons"
         x:Class="RemoteViewer.Client.Views.Presenter.PresenterView"
         x:DataType="vm:PresenterViewModel"
 
@@ -137,13 +138,13 @@
                                         <!-- Block button for this viewer -->
                                         <Button Grid.Column="1"
                                                 Command="{Binding ToggleInputBlockCommand}"
-                                                ToolTip.Tip="{Binding IsInputBlocked, Converter={x:Static conv:BoolToBlockTooltipConverter.Instance}}"
+                                                ToolTip.Tip="{Binding IsInputBlocked, Converter={conv:BoolToObject TrueValue='Unblock input', FalseValue='Block input'}}"
                                                 Background="Transparent"
                                                 BorderThickness="0"
                                                 Width="32"
                                                 Height="32"
                                                 Padding="0">
-                                            <mi:MaterialIcon Kind="{Binding IsInputBlocked, Converter={x:Static conv:BoolToBlockIconConverter.Instance}}"
+                                            <mi:MaterialIcon Kind="{Binding IsInputBlocked, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.MouseOff}, FalseValue={x:Static mik:MaterialIconKind.Mouse}}}"
                                                              Width="18"
                                                              Height="18"/>
                                         </Button>

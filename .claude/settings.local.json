@@ -18,7 +18,9 @@
       "Bash(del \"C:\\Users\\haefe\\source\\repos\\RemoteViewer\\src\\RemoteViewer.Client\\Services\\VideoCodec\\FrameDiffDetector.cs\")",
       "WebFetch(domain:docs.avaloniaui.net)",
       "Bash(del \"C:\\Users\\haefe\\source\\repos\\RemoteViewer\\src\\RemoteViewer.Client\\Services\\FileTransfer\\FileTransferService.cs\")",
-      "Bash(del \"C:\\Users\\haefe\\source\\repos\\RemoteViewer\\src\\RemoteViewer.Client\\Services\\FileTransfer\\FileTransferServiceLogs.cs\")"
+      "Bash(del \"C:\\Users\\haefe\\source\\repos\\RemoteViewer\\src\\RemoteViewer.Client\\Services\\FileTransfer\\FileTransferServiceLogs.cs\")",
+      "Bash(del \"C:\\Users\\haefe\\source\\repos\\RemoteViewer\\src\\RemoteViewer.Client\\Converters\\ToastTypeToBackgroundConverter.cs\")",
+      "Bash(del \"C:\\Users\\haefe\\source\\repos\\RemoteViewer\\src\\RemoteViewer.Client\\Converters\\ToastTypeToIconConverter.cs\")"
     ],
     "deny": [],
     "ask": []

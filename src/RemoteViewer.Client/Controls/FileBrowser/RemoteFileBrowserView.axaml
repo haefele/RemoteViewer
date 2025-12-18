@@ -1,7 +1,9 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mi="using:Material.Icons.Avalonia"
+             xmlns:mik="using:Material.Icons"
              xmlns:fb="using:RemoteViewer.Client.Controls.FileBrowser"
+             xmlns:conv="using:RemoteViewer.Client.Converters"
              xmlns:protocol="using:RemoteViewer.Server.SharedAPI.Protocol"
              x:Class="RemoteViewer.Client.Controls.FileBrowser.RemoteFileBrowserView"
              x:DataType="fb:RemoteFileBrowserViewModel">
@@ -65,9 +67,23 @@
                 <DataTemplate x:DataType="protocol:DirectoryEntry">
                     <Grid ColumnDefinitions="Auto,*,Auto" Margin="4,2">
                         <mi:MaterialIcon Grid.Column="0"
-                                         Kind="{Binding IsDirectory, Converter={x:Static fb:BoolToFolderFileIconConverter.Instance}}"
-                                         Width="20" Height="20" Margin="0,0,8,0"
-                                         Foreground="{Binding IsDirectory, Converter={x:Static fb:BoolToFolderColorConverter.Instance}}"/>
+                                         Kind="{Binding IsDirectory, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.Folder}, FalseValue={x:Static mik:MaterialIconKind.File}}}"
+                                         Width="20" Height="20" Margin="0,0,8,0">
+                            <mi:MaterialIcon.Foreground>
+                                <Binding Path="IsDirectory">
+                                    <Binding.Converter>
+                                        <conv:BoolToObject>
+                                            <conv:BoolToObject.TrueValue>
+                                                <SolidColorBrush Color="#FFD54F"/>
+                                            </conv:BoolToObject.TrueValue>
+                                            <conv:BoolToObject.FalseValue>
+                                                <SolidColorBrush Color="#90CAF9"/>
+                                            </conv:BoolToObject.FalseValue>
+                                        </conv:BoolToObject>
+                                    </Binding.Converter>
+                                </Binding>
+                            </mi:MaterialIcon.Foreground>
+                        </mi:MaterialIcon>
                         <TextBlock Grid.Column="1"
                                    Text="{Binding Name}"
                                    VerticalAlignment="Center"
