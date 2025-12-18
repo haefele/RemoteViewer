@@ -243,7 +243,7 @@ public sealed class Connection
         await this._sendMessageAsync(MessageTypes.FileTransfer.DownloadRequest, data, MessageDestination.PresenterOnly, null);
     }
 
-    public async Task SendFileDownloadResponseAsync(string transferId, bool accepted, string? fileName, long? fileSize, string? error, string requesterClientId)
+    public async Task SendFileDownloadResponseAsync(string transferId, bool accepted, string? error, string requesterClientId)
     {
         if (!this.IsPresenter)
             throw new InvalidOperationException("SendFileDownloadResponseAsync is only valid for presenters");
@@ -251,7 +251,7 @@ public sealed class Connection
         if (this.IsClosed)
             return;
 
-        var message = new FileDownloadResponseMessage(transferId, accepted, fileName, fileSize, error);
+        var message = new FileDownloadResponseMessage(transferId, accepted, error);
         var data = ProtocolSerializer.Serialize(message);
         await this._sendMessageAsync(MessageTypes.FileTransfer.DownloadResponse, data, MessageDestination.SpecificClients, [requesterClientId]);
     }
@@ -651,8 +651,6 @@ public sealed class Connection
         this.FileDownloadResponseReceived?.Invoke(this, new FileDownloadResponseReceivedEventArgs(
             message.TransferId,
             message.Accepted,
-            message.FileName,
-            message.FileSize,
             message.ErrorMessage));
     }
 
@@ -927,18 +925,14 @@ public sealed class FileDownloadRequestReceivedEventArgs : EventArgs
 
 public sealed class FileDownloadResponseReceivedEventArgs : EventArgs
 {
-    public FileDownloadResponseReceivedEventArgs(string transferId, bool accepted, string? fileName, long? fileSize, string? errorMessage)
+    public FileDownloadResponseReceivedEventArgs(string transferId, bool accepted, string? errorMessage)
     {
         this.TransferId = transferId;
         this.Accepted = accepted;
-        this.FileName = fileName;
-        this.FileSize = fileSize;
         this.ErrorMessage = errorMessage;
     }
 
     public string TransferId { get; }
     public bool Accepted { get; }
-    public string? FileName { get; }
-    public long? FileSize { get; }
     public string? ErrorMessage { get; }
 }

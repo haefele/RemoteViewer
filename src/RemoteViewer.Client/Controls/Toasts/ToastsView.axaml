@@ -68,7 +68,7 @@
                         Padding="12"
                         MaxWidth="300"
                         MinWidth="250"
-                        Background="#E0333333">
+                        Background="#333333">
                     <Border.Transitions>
                         <Transitions>
                             <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>

@@ -16,10 +16,7 @@ public sealed class FileTransferService : IDisposable
     private readonly ConcurrentDictionary<string, TaskCompletionSource<DirectoryBrowseResult>> _pendingDirectoryRequests = new();
     private bool _disposed;
 
-    public FileTransferService(
-        Connection connection,
-        IFileSystemService fileSystemService,
-        ILogger<FileTransferService> logger)
+    public FileTransferService(Connection connection, IFileSystemService fileSystemService, ILogger<FileTransferService> logger)
     {
         this._connection = connection;
         this._fileSystemService = fileSystemService;
@@ -126,7 +123,9 @@ public sealed class FileTransferService : IDisposable
     /// </summary>
     public async Task<FileSendOperation> SendFileAsync(string filePath)
     {
+        var transferId = Guid.NewGuid().ToString("N");
         var transfer = new FileSendOperation(
+            transferId,
             filePath,
             this._connection,
             sendChunk: chunk => this._connection.SendFileChunkAsync(chunk),
@@ -143,14 +142,16 @@ public sealed class FileTransferService : IDisposable
     /// <summary>
     /// Requests a file download from the presenter. Used by viewers.
     /// </summary>
-    public async Task<FileReceiveOperation> RequestDownloadAsync(string remotePath)
+    public async Task<FileReceiveOperation> RequestDownloadAsync(string remotePath, string fileName, long fileSize)
     {
         var transferId = Guid.NewGuid().ToString("N");
-        var transfer = FileReceiveOperation.ForDownloadRequest(
+        var transfer = new FileReceiveOperation(
             transferId,
+            fileName,
+            fileSize,
             this._connection,
-            sendRequest: () => this._connection.SendFileDownloadRequestAsync(transferId, remotePath),
-            sendCancel: (tid, reason) => this._connection.SendFileCancelAsync(tid, reason));
+            sendCancel: (tid, reason) => this._connection.SendFileCancelAsync(tid, reason),
+            sendRequest: () => this._connection.SendFileDownloadRequestAsync(transferId, remotePath));
 
         this.TrackReceive(transfer);
         await transfer.StartAsync();
@@ -164,20 +165,15 @@ public sealed class FileTransferService : IDisposable
     /// <summary>
     /// Accepts an incoming file upload from a viewer. Used by presenters.
     /// </summary>
-    public async Task<FileReceiveOperation> AcceptIncomingFileAsync(
-        string senderClientId,
-        string transferId,
-        string fileName,
-        long fileSize)
+    public async Task<FileReceiveOperation> AcceptIncomingFileAsync(string senderClientId, string transferId, string fileName, long fileSize)
     {
-        var transfer = FileReceiveOperation.ForIncomingFile(
+        var transfer = new FileReceiveOperation(
             transferId,
             fileName,
             fileSize,
             this._connection,
             sendCancel: (tid, reason) => this._connection.SendFileCancelAsync(tid, reason, senderClientId),
-            sendAcceptResponse: () => this._connection.SendFileSendResponseAsync(
-                transferId, accepted: true, error: null, senderClientId));
+            sendAcceptResponse: () => this._connection.SendFileSendResponseAsync(transferId, accepted: true, error: null, senderClientId));
 
         this.TrackReceive(transfer);
         await transfer.AcceptAsync();
@@ -189,37 +185,33 @@ public sealed class FileTransferService : IDisposable
     /// </summary>
     public async Task RejectIncomingFileAsync(string senderClientId, string transferId)
     {
-        await this._connection.SendFileSendResponseAsync(
-            transferId, accepted: false, error: "Transfer rejected by user", senderClientId);
+        await this._connection.SendFileSendResponseAsync(transferId, accepted: false, error: "Transfer rejected by user", senderClientId);
     }
 
     /// <summary>
     /// Accepts a download request from a viewer and starts sending the file. Used by presenters.
     /// </summary>
-    public async Task<FileSendOperation> AcceptDownloadRequestAsync(
-        string requesterClientId,
-        string transferId,
-        string filePath,
-        string fileName,
-        long fileSize)
+    public async Task<FileSendOperation> AcceptDownloadRequestAsync(string requesterClientId, string transferId, string filePath)
     {
-        // Send acceptance with file info
-        await this._connection.SendFileDownloadResponseAsync(
-            transferId, true, fileName, fileSize, null, requesterClientId);
-
         // Create and start the transfer
         var transfer = new FileSendOperation(
+            transferId,
             filePath,
             this._connection,
             sendChunk: chunk => this._connection.SendFileChunkAsync(chunk, requesterClientId),
             sendComplete: tid => this._connection.SendFileCompleteAsync(tid, requesterClientId),
             sendCancel: (tid, reason) => this._connection.SendFileCancelAsync(tid, reason, requesterClientId),
             sendError: (tid, error) => this._connection.SendFileErrorAsync(tid, error, requesterClientId),
-            requiresAcceptance: false,
-            transferId: transferId);
+            requiresAcceptance: false);
 
         this.TrackSend(transfer);
-        _ = Task.Run(transfer.StartAsync);
+
+        // Send acceptance
+        await this._connection.SendFileDownloadResponseAsync(transferId, true, null, requesterClientId);
+
+        // Start sending the file
+        _ = transfer.StartAsync();
+
         return transfer;
     }
 
@@ -228,8 +220,7 @@ public sealed class FileTransferService : IDisposable
     /// </summary>
     public async Task RejectDownloadRequestAsync(string requesterClientId, string transferId, string? reason = null)
     {
-        await this._connection.SendFileDownloadResponseAsync(
-            transferId, false, null, null, reason ?? "Download rejected by presenter", requesterClientId);
+        await this._connection.SendFileDownloadResponseAsync(transferId, false, reason ?? "Download rejected by presenter", requesterClientId);
     }
 
     #endregion

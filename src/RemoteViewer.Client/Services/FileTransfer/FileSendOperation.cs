@@ -21,14 +21,14 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
     private bool _disposed;
 
     public FileSendOperation(
+        string transferId,
         string filePath,
         Connection connection,
         Func<FileChunkMessage, Task> sendChunk,
         Func<string, Task> sendComplete,
         Func<string, string, Task> sendCancel,
         Func<string, string, Task> sendError,
-        bool requiresAcceptance = false,
-        string? transferId = null)
+        bool requiresAcceptance = false)
     {
         this._connection = connection;
         this._sendChunk = sendChunk;
@@ -38,7 +38,7 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
         this._requiresAcceptance = requiresAcceptance;
 
         this.FilePath = filePath;
-        this.TransferId = transferId ?? Guid.NewGuid().ToString("N");
+        this.TransferId = transferId;
 
         var fileInfo = new FileInfo(filePath);
         this.FileName = fileInfo.Name;
@@ -64,6 +64,7 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
     private int _currentChunk;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProgressPercent))]
     private double _progress;
 
     [ObservableProperty]
@@ -101,8 +102,10 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
             return;
 
         this.State = FileTransferState.Cancelled;
-        await this._sendCancel(this.TransferId, "Cancelled by user");
+        this.ErrorMessage = "Cancelled by user";
+        await this._sendCancel(this.TransferId, this.ErrorMessage);
         this.Cleanup();
+        this.Failed?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnFileSendResponseReceived(object? sender, FileSendResponseReceivedEventArgs e)
@@ -113,7 +116,7 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
         if (e.Accepted)
         {
             this.State = FileTransferState.Transferring;
-            _ = Task.Run(this.SendChunksAsync);
+            _ = this.SendChunksAsync();
         }
         else
         {

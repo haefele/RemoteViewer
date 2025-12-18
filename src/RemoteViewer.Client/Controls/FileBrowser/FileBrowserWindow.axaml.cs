@@ -26,7 +26,7 @@ public partial class FileBrowserWindow : Window
 
     private async void OnFileDownloadRequested(object? sender, DirectoryEntry entry)
     {
-        await this._viewerViewModel.DownloadFileAsync(entry.FullPath);
+        await this._viewerViewModel.DownloadFileAsync(entry.FullPath, entry.Name, entry.Size);
         this.Close();
     }
 

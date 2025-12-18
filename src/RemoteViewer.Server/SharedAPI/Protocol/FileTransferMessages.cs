@@ -1,7 +1,8 @@
-using PolyType;
+﻿using PolyType;
 
 namespace RemoteViewer.Server.SharedAPI.Protocol;
 
+// File send messages (Viewer → Presenter → Viewer)
 [GenerateShape]
 public sealed partial record FileSendRequestMessage(
     string TransferId,
@@ -16,6 +17,21 @@ public sealed partial record FileSendResponseMessage(
     string? ErrorMessage
 );
 
+// File download messages (Viewer → Presenter → Viewer)
+[GenerateShape]
+public sealed partial record FileDownloadRequestMessage(
+    string TransferId,
+    string FilePath
+);
+
+[GenerateShape]
+public sealed partial record FileDownloadResponseMessage(
+    string TransferId,
+    bool Accepted,
+    string? ErrorMessage
+);
+
+// File transfer data messages (Bidirectional)
 [GenerateShape]
 public sealed partial record FileChunkMessage(
     string TransferId,
@@ -54,20 +70,4 @@ public sealed partial record DirectoryEntry(
     string FullPath,
     bool IsDirectory,
     long Size
-);
-
-// File download messages (Viewer → Presenter → Viewer)
-[GenerateShape]
-public sealed partial record FileDownloadRequestMessage(
-    string TransferId,
-    string FilePath
-);
-
-[GenerateShape]
-public sealed partial record FileDownloadResponseMessage(
-    string TransferId,
-    bool Accepted,
-    string? FileName,
-    long? FileSize,
-    string? ErrorMessage
 );

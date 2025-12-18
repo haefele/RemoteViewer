@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using RemoteViewer.Client.Services.HubClient;
 
 namespace RemoteViewer.Client.Services.FileTransfer;
@@ -9,85 +9,32 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
     private readonly Func<Task>? _sendRequest;
     private readonly Func<Task>? _sendAcceptResponse;
     private readonly Func<string, string, Task> _sendCancel;
-    private readonly bool _metadataKnown;
     private FileStream? _fileStream;
     private bool _disposed;
 
-    private FileReceiveOperation(
-        string transferId,
-        Connection connection,
-        string? fileName,
-        long fileSize,
-        bool metadataKnown,
-        Func<Task>? sendRequest,
-        Func<Task>? sendAcceptResponse,
-        Func<string, string, Task> sendCancel)
-    {
-        this._connection = connection;
-        this._sendRequest = sendRequest;
-        this._sendAcceptResponse = sendAcceptResponse;
-        this._sendCancel = sendCancel;
-        this._metadataKnown = metadataKnown;
-
-        this.TransferId = transferId;
-        this.FileName = fileName;
-        this.FileSize = fileSize;
-
-        if (metadataKnown && fileName is not null)
-        {
-            this.SetupDestinationPath(fileName);
-        }
-
-        if (!metadataKnown)
-        {
-            this._connection.FileDownloadResponseReceived += this.OnFileDownloadResponseReceived;
-        }
-    }
-
-    /// <summary>
-    /// Creates a receive operation for an incoming file where metadata is already known.
-    /// Used when accepting an upload from another party.
-    /// Call AcceptAsync() to start receiving.
-    /// </summary>
-    public static FileReceiveOperation ForIncomingFile(
+    public FileReceiveOperation(
         string transferId,
         string fileName,
         long fileSize,
         Connection connection,
         Func<string, string, Task> sendCancel,
+        Func<Task>? sendRequest = null,
         Func<Task>? sendAcceptResponse = null)
     {
-        return new FileReceiveOperation(
-            transferId,
-            connection,
-            fileName,
-            fileSize,
-            metadataKnown: true,
-            sendRequest: null,
-            sendAcceptResponse,
-            sendCancel);
-    }
+        this._connection = connection;
+        this._sendRequest = sendRequest;
+        this._sendAcceptResponse = sendAcceptResponse;
+        this._sendCancel = sendCancel;
 
-    /// <summary>
-    /// Creates a receive operation for a download request where metadata will be received in response.
-    /// Used when requesting a file from another party.
-    /// Call StartAsync() to send the request and wait for metadata.
-    /// </summary>
-    public static FileReceiveOperation ForDownloadRequest(
-        string transferId,
-        Connection connection,
-        Func<Task> sendRequest,
-        Func<string, string, Task> sendCancel)
-    {
-        return new FileReceiveOperation(
-            transferId,
-            connection,
-            fileName: null,
-            fileSize: 0,
-            metadataKnown: false,
-            sendRequest,
-            sendAcceptResponse: null,
-            sendCancel);
+        this.TransferId = transferId;
+        this.FileName = fileName;
+        this.FileSize = fileSize;
+        this.SetupDestinationPath(fileName);
+
+        if (sendRequest is not null)
+        {
+            this._connection.FileDownloadResponseReceived += this.OnFileDownloadResponseReceived;
+        }
     }
 
     public string TransferId { get; }
@@ -105,6 +52,7 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
     private int _chunksReceived;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProgressPercent))]
     private double _progress;
 
     [ObservableProperty]
@@ -120,7 +68,7 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
     public event EventHandler? Failed;
 
     /// <summary>
-    /// Starts by sending a request (for download scenario). Waits for response with metadata.
+    /// Starts by sending a request (for download scenario). Waits for response.
     /// </summary>
     public async Task StartAsync()
     {
@@ -132,11 +80,11 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
     }
 
     /// <summary>
-    /// Accepts an incoming transfer (for upload scenario). Metadata must already be known.
+    /// Accepts an incoming transfer (for upload scenario).
     /// </summary>
     public async Task AcceptAsync()
     {
-        if (this.State != FileTransferState.Pending || !this._metadataKnown)
+        if (this.State != FileTransferState.Pending)
             return;
 
         this.SubscribeToChunkEvents();
@@ -155,9 +103,11 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
             return;
 
         this.State = FileTransferState.Cancelled;
-        await this._sendCancel(this.TransferId, "Cancelled by user");
+        this.ErrorMessage = "Cancelled by user";
+        await this._sendCancel(this.TransferId, this.ErrorMessage);
         this.DeleteTempFile();
         this.Cleanup();
+        this.Failed?.Invoke(this, EventArgs.Empty);
     }
 
     private void OnFileDownloadResponseReceived(object? sender, FileDownloadResponseReceivedEventArgs e)
@@ -165,12 +115,8 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
         if (e.TransferId != this.TransferId)
             return;
 
-        if (e.Accepted && e.FileName is not null && e.FileSize.HasValue)
+        if (e.Accepted)
         {
-            this.FileName = e.FileName;
-            this.FileSize = e.FileSize.Value;
-            this.SetupDestinationPath(e.FileName);
-
             this.SubscribeToChunkEvents();
             this.OpenTempFile();
             this.State = FileTransferState.Transferring;

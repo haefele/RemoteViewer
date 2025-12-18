@@ -330,11 +330,11 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         this.OpenFileBrowserRequested?.Invoke(this, EventArgs.Empty);
     }
 
-    public async Task DownloadFileAsync(string filePath)
+    public async Task DownloadFileAsync(string filePath, string fileName, long fileSize)
     {
         try
         {
-            var transfer = await this._connection.FileTransfers.RequestDownloadAsync(filePath);
+            var transfer = await this._connection.FileTransfers.RequestDownloadAsync(filePath, fileName, fileSize);
             this.Toasts.AddTransfer(transfer, isUpload: false);
             this._logger.LogInformation("Started download request: {FilePath}", filePath);
         }
