@@ -42,17 +42,17 @@ public class FileTransferStateToIsTransferringConverter : IValueConverter
     }
 }
 
-public class BoolToSendingRequestingConverter : IValueConverter
+public class BoolToSendingReceivingConverter : IValueConverter
 {
-    public static readonly BoolToSendingRequestingConverter Instance = new();
+    public static readonly BoolToSendingReceivingConverter Instance = new();
 
     public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
     {
         if (value is bool isUpload)
         {
-            return isUpload ? "Sending file..." : "Requesting file...";
+            return isUpload ? "Sending file" : "Receiving file";
         }
-        return "Transferring...";
+        return "Transferring";
     }
 
     public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)
