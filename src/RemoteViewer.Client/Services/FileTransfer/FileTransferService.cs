@@ -17,8 +17,6 @@ public sealed class FileTransferService : IDisposable
     private readonly ILogger<FileTransferService> _logger;
     private readonly ConcurrentDictionary<string, TaskCompletionSource<DirectoryBrowseResult>> _pendingDirectoryRequests = new();
     private readonly ConcurrentDictionary<string, byte> _cancelledTransfers = new();
-    private readonly Queue<PendingConfirmation> _confirmationQueue = new();
-    private bool _isShowingDialog;
     private bool _disposed;
 
     public ToastsViewModel? Toasts { get; set; }
@@ -220,7 +218,6 @@ public sealed class FileTransferService : IDisposable
 
     private void OnFileCancelReceivedForPending(object? sender, FileCancelReceivedEventArgs e)
     {
-        // Track this transfer as cancelled (it might be pending approval)
         this._cancelledTransfers.TryAdd(e.TransferId, 0);
     }
 
@@ -229,16 +226,40 @@ public sealed class FileTransferService : IDisposable
         var viewer = this._connection.Viewers.FirstOrDefault(v => v.ClientId == e.SenderClientId);
         var displayName = viewer?.DisplayName ?? "Unknown Viewer";
 
-        var request = new PendingConfirmation(
-            e.SenderClientId,
-            e.TransferId,
-            e.FileName,
-            e.FileSize,
-            displayName,
-            IsUpload: true,
-            FilePath: null);
+        Dispatcher.UIThread.Post(async () =>
+        {
+            var fileSizeFormatted = FileTransferHelpers.FormatFileSize(e.FileSize);
+            var dialog = FileTransferConfirmationDialog.CreateForUpload(displayName, e.FileName, fileSizeFormatted);
+            dialog.Show();
 
-        Dispatcher.UIThread.Post(() => this.EnqueueConfirmation(request));
+            if (await dialog.ResultTask)
+            {
+                var transfer = new FileReceiveOperation(
+                    e.TransferId,
+                    e.FileName,
+                    e.FileSize,
+                    this._connection,
+                    sendCancel: (tid, reason) => this._connection.SendFileCancelAsync(tid, reason, e.SenderClientId),
+                    sendAcceptResponse: () => this._connection.SendFileSendResponseAsync(e.TransferId, true, null, e.SenderClientId));
+
+                if (this._cancelledTransfers.TryRemove(e.TransferId, out _))
+                {
+                    transfer.Dispose();
+                    return;
+                }
+
+                this.TrackReceive(transfer);
+                await transfer.AcceptAsync();
+                this.Toasts?.AddTransfer(transfer, isUpload: false);
+                this._logger.LogInformation("Accepted file upload: {TransferId} -> {DestinationPath}", e.TransferId, transfer.DestinationPath);
+            }
+            else
+            {
+                this._cancelledTransfers.TryRemove(e.TransferId, out _);
+                await this._connection.SendFileSendResponseAsync(e.TransferId, false, "Transfer rejected by user", e.SenderClientId);
+                this._logger.LogInformation("Rejected file upload: {TransferId}", e.TransferId);
+            }
+        });
     }
 
     private void OnFileDownloadRequestReceived(object? sender, FileDownloadRequestReceivedEventArgs e)
@@ -246,134 +267,57 @@ public sealed class FileTransferService : IDisposable
         var viewer = this._connection.Viewers.FirstOrDefault(v => v.ClientId == e.SenderClientId);
         var displayName = viewer?.DisplayName ?? "Unknown Viewer";
 
-        var request = new PendingConfirmation(
-            e.SenderClientId,
-            e.TransferId,
-            Path.GetFileName(e.FilePath),
-            FileSize: 0,
-            displayName,
-            IsUpload: false,
-            FilePath: e.FilePath);
-
-        Dispatcher.UIThread.Post(() => this.EnqueueConfirmation(request));
-    }
-
-    private void EnqueueConfirmation(PendingConfirmation request)
-    {
-        this._confirmationQueue.Enqueue(request);
-
-        if (!this._isShowingDialog)
+        Dispatcher.UIThread.Post(async () =>
         {
-            _ = this.ProcessNextConfirmationAsync();
-        }
-    }
+            var dialog = FileTransferConfirmationDialog.CreateForDownload(displayName, e.FilePath);
+            dialog.Show();
 
-    private async Task ProcessNextConfirmationAsync()
-    {
-        while (this._confirmationQueue.TryDequeue(out var request))
-        {
-            this._isShowingDialog = true;
-
-            try
+            if (await dialog.ResultTask)
             {
-                if (request.IsUpload)
+                if (!File.Exists(e.FilePath))
                 {
-                    var fileSizeFormatted = FileTransferHelpers.FormatFileSize(request.FileSize);
-                    var dialog = FileTransferConfirmationDialog.CreateForUpload(request.DisplayName, request.FileName, fileSizeFormatted);
-                    dialog.Show();
-
-                    if (await dialog.ResultTask)
-                    {
-                        // Accept upload
-                        var transfer = new FileReceiveOperation(
-                            request.TransferId,
-                            request.FileName,
-                            request.FileSize,
-                            this._connection,
-                            sendCancel: (tid, reason) => this._connection.SendFileCancelAsync(tid, reason, request.ClientId),
-                            sendAcceptResponse: () => this._connection.SendFileSendResponseAsync(request.TransferId, true, null, request.ClientId));
-
-                        if (this._cancelledTransfers.TryRemove(request.TransferId, out _))
-                        {
-                            transfer.Dispose();
-                            continue;
-                        }
-
-                        this.TrackReceive(transfer);
-                        await transfer.AcceptAsync();
-                        this.Toasts?.AddTransfer(transfer, isUpload: false);
-                        this._logger.LogInformation("Accepted file upload: {TransferId} -> {DestinationPath}", request.TransferId, transfer.DestinationPath);
-                    }
-                    else
-                    {
-                        // Reject upload
-                        this._cancelledTransfers.TryRemove(request.TransferId, out _);
-                        await this._connection.SendFileSendResponseAsync(request.TransferId, false, "Transfer rejected by user", request.ClientId);
-                        this._logger.LogInformation("Rejected file upload: {TransferId}", request.TransferId);
-                    }
+                    this._cancelledTransfers.TryRemove(e.TransferId, out _);
+                    await this._connection.SendFileDownloadResponseAsync(e.TransferId, false, "File not found", e.SenderClientId);
+                    return;
                 }
-                else
+
+                if (!this._fileSystemService.IsPathAllowed(e.FilePath))
                 {
-                    var dialog = FileTransferConfirmationDialog.CreateForDownload(request.DisplayName, request.FilePath!);
-                    dialog.Show();
-
-                    if (await dialog.ResultTask)
-                    {
-                        // Validate file
-                        if (!File.Exists(request.FilePath))
-                        {
-                            this._cancelledTransfers.TryRemove(request.TransferId, out _);
-                            await this._connection.SendFileDownloadResponseAsync(request.TransferId, false, "File not found", request.ClientId);
-                            continue;
-                        }
-
-                        if (!this._fileSystemService.IsPathAllowed(request.FilePath!))
-                        {
-                            this._cancelledTransfers.TryRemove(request.TransferId, out _);
-                            await this._connection.SendFileDownloadResponseAsync(request.TransferId, false, "Access denied", request.ClientId);
-                            continue;
-                        }
-
-                        // Accept download
-                        var transfer = new FileSendOperation(
-                            request.TransferId,
-                            request.FilePath!,
-                            this._connection,
-                            sendChunk: chunk => this._connection.SendFileChunkAsync(chunk, request.ClientId),
-                            sendComplete: tid => this._connection.SendFileCompleteAsync(tid, request.ClientId),
-                            sendCancel: (tid, reason) => this._connection.SendFileCancelAsync(tid, reason, request.ClientId),
-                            sendError: (tid, error) => this._connection.SendFileErrorAsync(tid, error, request.ClientId),
-                            requiresAcceptance: false);
-
-                        if (this._cancelledTransfers.TryRemove(request.TransferId, out _))
-                        {
-                            transfer.Dispose();
-                            continue;
-                        }
-
-                        this.TrackSend(transfer);
-                        await this._connection.SendFileDownloadResponseAsync(request.TransferId, true, null, request.ClientId);
-                        _ = transfer.StartAsync();
-
-                        this.Toasts?.AddTransfer(transfer, isUpload: true);
-                        this._logger.LogInformation("Started serving download: {FilePath} -> {ClientId}", request.FilePath, request.ClientId);
-                    }
-                    else
-                    {
-                        // Reject download
-                        this._cancelledTransfers.TryRemove(request.TransferId, out _);
-                        await this._connection.SendFileDownloadResponseAsync(request.TransferId, false, "Download rejected by presenter", request.ClientId);
-                        this._logger.LogInformation("Rejected file download: {TransferId}", request.TransferId);
-                    }
+                    this._cancelledTransfers.TryRemove(e.TransferId, out _);
+                    await this._connection.SendFileDownloadResponseAsync(e.TransferId, false, "Access denied", e.SenderClientId);
+                    return;
                 }
+
+                var transfer = new FileSendOperation(
+                    e.TransferId,
+                    e.FilePath,
+                    this._connection,
+                    sendChunk: chunk => this._connection.SendFileChunkAsync(chunk, e.SenderClientId),
+                    sendComplete: tid => this._connection.SendFileCompleteAsync(tid, e.SenderClientId),
+                    sendCancel: (tid, reason) => this._connection.SendFileCancelAsync(tid, reason, e.SenderClientId),
+                    sendError: (tid, error) => this._connection.SendFileErrorAsync(tid, error, e.SenderClientId),
+                    requiresAcceptance: false);
+
+                if (this._cancelledTransfers.TryRemove(e.TransferId, out _))
+                {
+                    transfer.Dispose();
+                    return;
+                }
+
+                this.TrackSend(transfer);
+                await this._connection.SendFileDownloadResponseAsync(e.TransferId, true, null, e.SenderClientId);
+                _ = transfer.StartAsync();
+
+                this.Toasts?.AddTransfer(transfer, isUpload: true);
+                this._logger.LogInformation("Started serving download: {FilePath} -> {ClientId}", e.FilePath, e.SenderClientId);
             }
-            catch (Exception ex)
+            else
             {
-                this._logger.LogError(ex, "Error processing file transfer confirmation");
+                this._cancelledTransfers.TryRemove(e.TransferId, out _);
+                await this._connection.SendFileDownloadResponseAsync(e.TransferId, false, "Download rejected by presenter", e.SenderClientId);
+                this._logger.LogInformation("Rejected file download: {TransferId}", e.TransferId);
             }
-        }
-
-        this._isShowingDialog = false;
+        });
     }
 
     #endregion
@@ -430,15 +374,6 @@ public sealed class FileTransferService : IDisposable
 }
 
 #region Types
-
-public record PendingConfirmation(
-    string ClientId,
-    string TransferId,
-    string FileName,
-    long FileSize,
-    string DisplayName,
-    bool IsUpload,
-    string? FilePath);
 
 public sealed class TransferCompletedEventArgs : EventArgs
 {
