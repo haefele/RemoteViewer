@@ -11,56 +11,49 @@
         ShowInTaskbar="False"
         WindowStartupLocation="CenterScreen">
 
-    <Border Background="#333333"
+    <Border Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
             CornerRadius="4"
-            Padding="20"
+            Margin="16"
+            Padding="16"
             MinWidth="320"
             MaxWidth="450">
 
         <StackPanel Spacing="16">
             <!-- Header with icon and title -->
-            <StackPanel Orientation="Horizontal" Spacing="12">
+            <StackPanel Orientation="Horizontal" Spacing="8">
                 <mi:MaterialIcon x:Name="HeaderIcon"
                                  Kind="FileUpload"
                                  Width="28"
-                                 Height="28"
-                                 Foreground="#4CAF50"/>
+                                 Height="28" />
                 <TextBlock x:Name="HeaderText"
                            Text="Incoming File Transfer"
                            FontSize="18"
                            FontWeight="SemiBold"
-                           Foreground="White"
                            VerticalAlignment="Center"/>
             </StackPanel>
-
-            <!-- Separator -->
-            <Border Height="1" Background="#555555"/>
 
             <!-- Message -->
             <StackPanel Spacing="8">
                 <TextBlock x:Name="SenderText"
                            FontSize="14"
-                           Foreground="#CCCCCC"
                            TextWrapping="Wrap"/>
 
-                <Border Background="#444444"
+                <Border Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
                         CornerRadius="4"
                         Padding="12">
                     <StackPanel Spacing="4">
                         <TextBlock x:Name="FileNameText"
                                    FontSize="14"
                                    FontWeight="SemiBold"
-                                   Foreground="White"
                                    TextWrapping="Wrap"/>
                         <TextBlock x:Name="FileSizeText"
-                                   FontSize="12"
-                                   Foreground="#AAAAAA"/>
+                                   FontSize="12"/>
                     </StackPanel>
                 </Border>
             </StackPanel>
 
             <!-- Buttons -->
-            <Grid ColumnDefinitions="*,12,*" Margin="0,8,0,0">
+            <Grid ColumnDefinitions="*,16,*">
                 <Button Grid.Column="0"
                         x:Name="RejectButton"
                         Content="Reject"
