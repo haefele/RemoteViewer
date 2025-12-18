@@ -283,6 +283,9 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         var transfer = await this._connection.FileTransfers.AcceptIncomingFileAsync(
             senderClientId, transferId, fileName, fileSize);
 
+        if (transfer is null)
+            return;
+
         this.Toasts.AddTransfer(transfer, isUpload: false);
         this._logger.LogInformation("Accepted file upload: {TransferId} -> {DestinationPath}", transferId, transfer.DestinationPath);
     }
@@ -311,6 +314,9 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 
             var transfer = await this._connection.FileTransfers.AcceptDownloadRequestAsync(
                 requesterClientId, transferId, filePath);
+
+            if (transfer is null)
+                return;
 
             this.Toasts.AddTransfer(transfer, isUpload: true);
             this._logger.LogInformation("Started serving download: {FilePath} -> {ClientId}", filePath, requesterClientId);

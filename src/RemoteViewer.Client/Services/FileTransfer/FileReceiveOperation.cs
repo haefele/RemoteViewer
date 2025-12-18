@@ -31,6 +31,8 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
         this.FileSize = fileSize;
         this.SetupDestinationPath(fileName);
 
+        this._connection.FileCancelReceived += this.OnFileCancelReceived;
+
         if (sendRequest is not null)
         {
             this._connection.FileDownloadResponseReceived += this.OnFileDownloadResponseReceived;
@@ -134,7 +136,6 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
     {
         this._connection.FileChunkReceived += this.OnFileChunkReceived;
         this._connection.FileCompleteReceived += this.OnFileCompleteReceived;
-        this._connection.FileCancelReceived += this.OnFileCancelReceived;
         this._connection.FileErrorReceived += this.OnFileErrorReceived;
     }
 

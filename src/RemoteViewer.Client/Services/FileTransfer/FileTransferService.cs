@@ -14,6 +14,7 @@ public sealed class FileTransferService : IDisposable
     private readonly IFileSystemService _fileSystemService;
     private readonly ILogger<FileTransferService> _logger;
     private readonly ConcurrentDictionary<string, TaskCompletionSource<DirectoryBrowseResult>> _pendingDirectoryRequests = new();
+    private readonly ConcurrentDictionary<string, byte> _cancelledTransfers = new();
     private bool _disposed;
 
     public FileTransferService(Connection connection, IFileSystemService fileSystemService, ILogger<FileTransferService> logger)
@@ -29,6 +30,9 @@ public sealed class FileTransferService : IDisposable
         // Directory browsing
         this._connection.DirectoryListResponseReceived += this.OnDirectoryListResponseReceived;
         this._connection.DirectoryListRequestReceived += this.OnDirectoryListRequestReceived;
+
+        // Track cancelled transfers that arrive before the operation is created
+        this._connection.FileCancelReceived += this.OnFileCancelReceivedForPending;
     }
 
     public ObservableCollection<IFileTransfer> ActiveSends { get; } = [];
@@ -164,9 +168,11 @@ public sealed class FileTransferService : IDisposable
 
     /// <summary>
     /// Accepts an incoming file upload from a viewer. Used by presenters.
+    /// Returns null if the viewer cancelled the transfer before we could accept.
     /// </summary>
-    public async Task<FileReceiveOperation> AcceptIncomingFileAsync(string senderClientId, string transferId, string fileName, long fileSize)
+    public async Task<FileReceiveOperation?> AcceptIncomingFileAsync(string senderClientId, string transferId, string fileName, long fileSize)
     {
+        // Create operation first (subscribes to cancel events in constructor)
         var transfer = new FileReceiveOperation(
             transferId,
             fileName,
@@ -174,6 +180,14 @@ public sealed class FileTransferService : IDisposable
             this._connection,
             sendCancel: (tid, reason) => this._connection.SendFileCancelAsync(tid, reason, senderClientId),
             sendAcceptResponse: () => this._connection.SendFileSendResponseAsync(transferId, accepted: true, error: null, senderClientId));
+
+        // Check if cancel arrived before operation was created
+        // Any cancel arriving after this point is handled by the operation's OnFileCancelReceived
+        if (this._cancelledTransfers.TryRemove(transferId, out _))
+        {
+            transfer.Dispose();
+            return null;
+        }
 
         this.TrackReceive(transfer);
         await transfer.AcceptAsync();
@@ -185,15 +199,18 @@ public sealed class FileTransferService : IDisposable
     /// </summary>
     public async Task RejectIncomingFileAsync(string senderClientId, string transferId)
     {
+        // Remove from cancelled set if present (user rejected anyway)
+        this._cancelledTransfers.TryRemove(transferId, out _);
         await this._connection.SendFileSendResponseAsync(transferId, accepted: false, error: "Transfer rejected by user", senderClientId);
     }
 
     /// <summary>
     /// Accepts a download request from a viewer and starts sending the file. Used by presenters.
+    /// Returns null if the viewer cancelled the request before we could accept.
     /// </summary>
-    public async Task<FileSendOperation> AcceptDownloadRequestAsync(string requesterClientId, string transferId, string filePath)
+    public async Task<FileSendOperation?> AcceptDownloadRequestAsync(string requesterClientId, string transferId, string filePath)
     {
-        // Create and start the transfer
+        // Create operation first (subscribes to cancel events in constructor)
         var transfer = new FileSendOperation(
             transferId,
             filePath,
@@ -203,6 +220,13 @@ public sealed class FileTransferService : IDisposable
             sendCancel: (tid, reason) => this._connection.SendFileCancelAsync(tid, reason, requesterClientId),
             sendError: (tid, error) => this._connection.SendFileErrorAsync(tid, error, requesterClientId),
             requiresAcceptance: false);
+
+        // Check if cancel arrived before operation was created
+        if (this._cancelledTransfers.TryRemove(transferId, out _))
+        {
+            transfer.Dispose();
+            return null;
+        }
 
         this.TrackSend(transfer);
 
@@ -220,6 +244,8 @@ public sealed class FileTransferService : IDisposable
     /// </summary>
     public async Task RejectDownloadRequestAsync(string requesterClientId, string transferId, string? reason = null)
     {
+        // Remove from cancelled set if present (user rejected anyway)
+        this._cancelledTransfers.TryRemove(transferId, out _);
         await this._connection.SendFileDownloadResponseAsync(transferId, false, reason ?? "Download rejected by presenter", requesterClientId);
     }
 
@@ -277,6 +303,12 @@ public sealed class FileTransferService : IDisposable
 
     #region Incoming Request Handlers
 
+    private void OnFileCancelReceivedForPending(object? sender, FileCancelReceivedEventArgs e)
+    {
+        // Track this transfer as cancelled (it might be pending approval)
+        this._cancelledTransfers.TryAdd(e.TransferId, 0);
+    }
+
     private void OnFileSendRequestReceived(object? sender, FileSendRequestReceivedEventArgs e)
     {
         Dispatcher.UIThread.Post(() =>
@@ -332,6 +364,7 @@ public sealed class FileTransferService : IDisposable
         this._connection.FileDownloadRequestReceived -= this.OnFileDownloadRequestReceived;
         this._connection.DirectoryListResponseReceived -= this.OnDirectoryListResponseReceived;
         this._connection.DirectoryListRequestReceived -= this.OnDirectoryListRequestReceived;
+        this._connection.FileCancelReceived -= this.OnFileCancelReceivedForPending;
 
         // Cancel any pending directory requests
         foreach (var tcs in this._pendingDirectoryRequests.Values)
