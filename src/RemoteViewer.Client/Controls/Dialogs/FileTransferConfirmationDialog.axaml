@@ -5,7 +5,8 @@
         xmlns:dialogs="using:RemoteViewer.Client.Controls.Dialogs"
         x:Class="RemoteViewer.Client.Controls.Dialogs.FileTransferConfirmationDialog"
         x:DataType="dialogs:FileTransferConfirmationDialog"
-        Title="File Transfer Request"
+        Title="File Transfer"
+        Icon="/Assets/avalonia-logo.ico"
         SizeToContent="WidthAndHeight"
         CanResize="False"
         ShowInTaskbar="False"
@@ -55,26 +56,34 @@
             <!-- Buttons -->
             <Grid ColumnDefinitions="*,16,*">
                 <Button Grid.Column="0"
-                        x:Name="RejectButton"
-                        Content="Reject"
-                        HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Center"
-                        Background="#F44336"
-                        Foreground="White"
-                        Padding="16,10"
-                        CornerRadius="4"
-                        Click="OnRejectClicked"/>
-
-                <Button Grid.Column="2"
                         x:Name="AcceptButton"
-                        Content="Accept"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Center"
                         Background="#4CAF50"
                         Foreground="White"
                         Padding="16,10"
                         CornerRadius="4"
-                        Click="OnAcceptClicked"/>
+                        Click="OnAcceptClicked">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <mi:MaterialIcon Kind="Check" Width="16" Height="16"/>
+                        <TextBlock Text="Accept" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
+
+                <Button Grid.Column="2"
+                        x:Name="RejectButton"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center"
+                        Background="#F44336"
+                        Foreground="White"
+                        Padding="16,10"
+                        CornerRadius="4"
+                        Click="OnRejectClicked">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <mi:MaterialIcon Kind="Close" Width="16" Height="16"/>
+                        <TextBlock Text="Reject" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
             </Grid>
         </StackPanel>
     </Border>

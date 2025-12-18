@@ -90,17 +90,6 @@ public partial class PresenterView : Window
         }
     }
 
-    private void SelectAllViewers_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        if (this._viewModel is null)
-            return;
-
-        foreach (var viewer in this._viewModel.Viewers)
-        {
-            viewer.IsSelected = true;
-        }
-    }
-
     private void SendFileToSelected_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (this._viewModel is null)

@@ -100,6 +100,74 @@
                 </Border>
             </DataTemplate>
 
+            <!-- Action toast (success with button) -->
+            <DataTemplate x:DataType="toasts:ActionToastItemViewModel">
+                <Border CornerRadius="4"
+                        Padding="8"
+                        MaxWidth="320"
+                        MinWidth="200"
+                        Background="#4CAF50">
+                    <Border.Transitions>
+                        <Transitions>
+                            <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
+                        </Transitions>
+                    </Border.Transitions>
+
+                    <Grid ColumnDefinitions="Auto,*,Auto">
+                        <!-- Left column: icon, vertically centered -->
+                        <mi:MaterialIcon Grid.Column="0"
+                                         Kind="CheckCircle"
+                                         Width="16"
+                                         Height="16"
+                                         VerticalAlignment="Center"
+                                         Foreground="White"
+                                         Margin="0,0,8,0"/>
+
+                        <!-- Middle column: message + action button -->
+                        <StackPanel Grid.Column="1" Spacing="8">
+                            <TextBlock Text="{Binding Message}"
+                                       TextWrapping="Wrap"
+                                       Foreground="White"/>
+
+                            <Button Command="{Binding ExecuteActionCommand}"
+                                    Background="White"
+                                    Foreground="#4CAF50"
+                                    CornerRadius="4"
+                                    Padding="8,4"
+                                    HorizontalAlignment="Right"
+                                    Cursor="Hand">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <mi:MaterialIcon Kind="{Binding ActionIcon}"
+                                                     Width="14"
+                                                     Height="14"
+                                                     VerticalAlignment="Center"/>
+                                    <TextBlock Text="{Binding ActionText}"
+                                               VerticalAlignment="Center"
+                                               FontSize="12"/>
+                                </StackPanel>
+                            </Button>
+                        </StackPanel>
+
+                        <!-- Right column: close button, vertically centered -->
+                        <Button Grid.Column="2"
+                                Command="{Binding DismissCommand}"
+                                Background="Transparent"
+                                BorderThickness="0"
+                                Width="24"
+                                Height="24"
+                                Padding="0"
+                                Margin="8,0,0,0"
+                                VerticalAlignment="Center"
+                                Cursor="Hand">
+                            <mi:MaterialIcon Kind="Close"
+                                             Width="14"
+                                             Height="14"
+                                             Foreground="White"/>
+                        </Button>
+                    </Grid>
+                </Border>
+            </DataTemplate>
+
             <!-- File transfer progress toast -->
             <DataTemplate x:DataType="toasts:TransferToastItemViewModel">
                 <Border CornerRadius="4"

@@ -85,7 +85,7 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
             return;
 
         this.State = FileTransferState.Cancelled;
-        this.ErrorMessage = "Cancelled by user";
+        this.ErrorMessage = "The file transfer was cancelled.";
         await this._sendCancel(this.TransferId, this.ErrorMessage);
         this.DeleteTempFile();
         this.Cleanup();

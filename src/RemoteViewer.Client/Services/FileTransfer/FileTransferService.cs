@@ -180,7 +180,7 @@ public sealed class FileTransferService : IDisposable
             {
                 this._cancelledTransfers.TryRemove(e.TransferId, out _);
                 var rejectTargetClientId = this._connection.IsPresenter ? e.SenderClientId : null;
-                await this._connection.SendFileSendResponseAsync(e.TransferId, false, "Transfer rejected by user", rejectTargetClientId);
+                await this._connection.SendFileSendResponseAsync(e.TransferId, false, "The recipient declined the file transfer.", rejectTargetClientId);
                 this._logger.LogInformation("Rejected file upload: {TransferId}", e.TransferId);
             }
         });

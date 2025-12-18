@@ -40,8 +40,6 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         this._connection.ParticipantsChanged += this.Connection_ParticipantsChanged;
         this._connection.FrameReceived += this.Connection_FrameReceived;
         this._connection.Closed += this.Connection_Closed;
-
-        this.Title = $"Remote Viewer - {connection.ConnectionId[..8]}...";
     }
     #endregion
 

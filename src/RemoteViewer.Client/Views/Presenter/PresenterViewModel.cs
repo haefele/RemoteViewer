@@ -68,8 +68,6 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         this.Toasts = viewModelFactory.CreateToastsViewModel();
         this._connection.FileTransfers.Toasts = this.Toasts;
 
-        this.Title = $"Presenting - {connection.ConnectionId[..8]}...";
-
         // Subscribe to Connection events
         this._connection.ViewersChanged += this.OnViewersChanged;
         this._connection.InputReceived += this.OnInputReceived;

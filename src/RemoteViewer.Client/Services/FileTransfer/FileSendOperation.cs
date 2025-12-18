@@ -105,7 +105,7 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
             return;
 
         this.State = FileTransferState.Cancelled;
-        this.ErrorMessage = "Cancelled by user";
+        this.ErrorMessage = "The file transfer was cancelled.";
         await this._sendCancel(this.TransferId, this.ErrorMessage);
         this.Cleanup();
         this.Failed?.Invoke(this, EventArgs.Empty);
@@ -124,7 +124,7 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
         else
         {
             this.State = FileTransferState.Rejected;
-            this.ErrorMessage = e.ErrorMessage ?? "Transfer rejected";
+            this.ErrorMessage = e.ErrorMessage ?? "The recipient declined the file transfer.";
             this.Cleanup();
             this.Failed?.Invoke(this, EventArgs.Empty);
         }
