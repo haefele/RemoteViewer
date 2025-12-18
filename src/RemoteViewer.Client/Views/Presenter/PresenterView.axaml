@@ -16,40 +16,63 @@
 
         DataContextChanged="Window_DataContextChanged"
         Closed="Window_Closed">
+
+    <Window.Resources>
+        <!-- Viewer selection flyout (shown programmatically for multiple viewers) -->
+        <Flyout x:Key="ViewerSelectionFlyout" Placement="Bottom">
+            <Border Padding="4" MinWidth="200">
+                <StackPanel Spacing="12">
+                    <!-- Header with icon -->
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <mi:MaterialIcon Kind="FileUpload" Width="18" Height="18"
+                                         Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                        <TextBlock Text="Send file to:" FontWeight="SemiBold"/>
+                    </StackPanel>
+
+                    <!-- Viewer checkboxes -->
+                    <ItemsControl ItemsSource="{Binding Viewers}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:PresenterViewerDisplay">
+                                <CheckBox Content="{Binding DisplayName}"
+                                          IsChecked="{Binding IsSelected}"
+                                          Padding="4,6"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <!-- Action buttons -->
+                    <StackPanel Orientation="Horizontal"
+                                Spacing="8"
+                                HorizontalAlignment="Right">
+                        <Button Content="Select All"
+                                Click="SelectAllViewers_Click"
+                                Padding="12,6"/>
+                        <Button Content="Send"
+                                Click="SendFileToSelected_Click"
+                                Classes="accent"
+                                Padding="16,6"/>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Flyout>
+    </Window.Resources>
+
     <Grid RowDefinitions="Auto,*">
         <!-- Toolbar -->
         <Border Grid.Row="0"
                 Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
                 Padding="8,6">
             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                <!-- Send File button with viewer selection flyout -->
-                <Button ToolTip.Tip="Send file to viewers"
+                <!-- Send File button - no flyout when single viewer -->
+                <Button x:Name="SendFileButton"
+                        ToolTip.Tip="Send file to viewers"
                         Background="Transparent"
                         BorderThickness="0"
                         Width="32" Height="32"
                         Padding="0"
-                        IsEnabled="{Binding Viewers.Count}">
-                    <Button.Flyout>
-                        <Flyout Placement="Bottom">
-                            <StackPanel MinWidth="180" Spacing="8">
-                                <TextBlock Text="Send file to:" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                                <ItemsControl ItemsSource="{Binding Viewers}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="vm:PresenterViewerDisplay">
-                                            <CheckBox Content="{Binding DisplayName}"
-                                                      IsChecked="{Binding IsSelected}"
-                                                      Margin="0,2"/>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-                                <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right" Margin="0,8,0,0">
-                                    <Button Content="Select All" Click="SelectAllViewers_Click" Padding="8,4"/>
-                                    <Button Content="Send" Click="SendFileToSelected_Click" Classes="accent" Padding="12,4"/>
-                                </StackPanel>
-                            </StackPanel>
-                        </Flyout>
-                    </Button.Flyout>
-                    <mi:MaterialIcon Kind="FileSend" Width="20" Height="20"/>
+                        IsEnabled="{Binding Viewers.Count}"
+                        Click="SendFileButton_Click">
+                    <mi:MaterialIcon Kind="FileUpload" Width="20" Height="20"/>
                 </Button>
 
                 <!-- Separator -->

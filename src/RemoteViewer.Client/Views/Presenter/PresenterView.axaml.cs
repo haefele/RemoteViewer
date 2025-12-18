@@ -1,5 +1,4 @@
 using Avalonia.Controls;
-using Avalonia.Input;
 using Avalonia.Platform.Storage;
 
 namespace RemoteViewer.Client.Views.Presenter;
@@ -11,11 +10,6 @@ public partial class PresenterView : Window
     public PresenterView()
     {
         this.InitializeComponent();
-
-        // Enable drag-drop for file transfer
-        DragDrop.SetAllowDrop(this, true);
-        this.AddHandler(DragDrop.DropEvent, this.Window_Drop);
-        this.AddHandler(DragDrop.DragOverEvent, this.Window_DragOver);
     }
 
     private void Window_DataContextChanged(object? sender, EventArgs e)
@@ -58,6 +52,26 @@ public partial class PresenterView : Window
     }
 
     #region File Transfer
+
+    private void SendFileButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        if (this._viewModel is null)
+            return;
+
+        // Single viewer: directly send (skip flyout)
+        if (this._viewModel.Viewers.Count == 1)
+        {
+            var viewerId = this._viewModel.Viewers[0].ClientId;
+            this._viewModel.SendFileCommand.Execute([viewerId]);
+            return;
+        }
+
+        // Multiple viewers: show the flyout
+        if (sender is Button button && this.TryFindResource("ViewerSelectionFlyout", out var resource) && resource is Flyout flyout)
+        {
+            flyout.ShowAt(button);
+        }
+    }
 
     private async void ViewModel_OpenFilePickerRequested(object? sender, IReadOnlyList<string> viewerIds)
     {
@@ -104,42 +118,6 @@ public partial class PresenterView : Window
         }
 
         this._viewModel.SendFileCommand.Execute(selectedViewerIds);
-    }
-
-    private void Window_DragOver(object? sender, DragEventArgs e)
-    {
-        e.DragEffects = e.Data.Contains(DataFormats.Files)
-            ? DragDropEffects.Copy
-            : DragDropEffects.None;
-    }
-
-    private async void Window_Drop(object? sender, DragEventArgs e)
-    {
-        if (this._viewModel is null || this._viewModel.Viewers.Count == 0)
-            return;
-
-        var files = e.Data.GetFiles();
-        if (files is null)
-            return;
-
-        // Get selected viewers or all viewers
-        var viewerIds = this._viewModel.Viewers
-            .Where(v => v.IsSelected)
-            .Select(v => v.ClientId)
-            .ToList();
-
-        if (viewerIds.Count == 0)
-        {
-            viewerIds = this._viewModel.Viewers.Select(v => v.ClientId).ToList();
-        }
-
-        foreach (var file in files)
-        {
-            if (file.TryGetLocalPath() is { } path)
-            {
-                await this._viewModel.SendFileToViewersAsync(path, viewerIds);
-            }
-        }
     }
 
     #endregion

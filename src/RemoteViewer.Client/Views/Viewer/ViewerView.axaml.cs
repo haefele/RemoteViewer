@@ -42,11 +42,6 @@ public partial class ViewerView : Window
     private void Window_Opened(object? sender, EventArgs e)
     {
         this.DisplayPanel.Focus();
-
-        // Enable drag-drop for file transfer
-        DragDrop.SetAllowDrop(this.DisplayPanel, true);
-        this.DisplayPanel.AddHandler(DragDrop.DropEvent, this.DisplayPanel_Drop);
-        this.DisplayPanel.AddHandler(DragDrop.DragOverEvent, this.DisplayPanel_DragOver);
     }
     private async void Window_Deactivated(object? sender, EventArgs e)
     {
@@ -90,32 +85,6 @@ public partial class ViewerView : Window
         if (files.Count > 0 && files[0].TryGetLocalPath() is { } path)
         {
             await this._viewModel.SendFileFromPathAsync(path);
-        }
-    }
-    #endregion
-
-    #region File Transfer Drag-Drop
-    private void DisplayPanel_DragOver(object? sender, DragEventArgs e)
-    {
-        e.DragEffects = e.Data.Contains(DataFormats.Files)
-            ? DragDropEffects.Copy
-            : DragDropEffects.None;
-    }
-    private async void DisplayPanel_Drop(object? sender, DragEventArgs e)
-    {
-        if (this._viewModel is null)
-            return;
-
-        var files = e.Data.GetFiles();
-        if (files is null)
-            return;
-
-        foreach (var file in files)
-        {
-            if (file.TryGetLocalPath() is { } path)
-            {
-                await this._viewModel.SendFileFromPathAsync(path);
-            }
         }
     }
     #endregion
@@ -202,14 +171,6 @@ public partial class ViewerView : Window
             return;
         }
 
-        // Handle Ctrl+V to paste files from clipboard (always works, even with input disabled)
-        if (e.Key == Key.V && e.KeyModifiers == KeyModifiers.Control)
-        {
-            e.Handled = true;
-            await this.PasteFilesFromClipboardAsync();
-            return;
-        }
-
         if (!this._viewModel.IsInputEnabled)
             return;
 
@@ -288,30 +249,6 @@ public partial class ViewerView : Window
                 vm.IsToolbarVisible = false;
         };
         this._toolbarHideTimer.Start();
-    }
-    #endregion
-
-    #region Clipboard File Transfer
-    private async Task PasteFilesFromClipboardAsync()
-    {
-        if (this._viewModel is null)
-            return;
-
-        var clipboard = this.Clipboard;
-        if (clipboard is null)
-            return;
-
-        var files = await clipboard.GetDataAsync(DataFormats.Files);
-        if (files is not IEnumerable<IStorageItem> storageItems)
-            return;
-
-        foreach (var item in storageItems)
-        {
-            if (item.TryGetLocalPath() is { } path && File.Exists(path))
-            {
-                await this._viewModel.SendFileFromPathAsync(path);
-            }
-        }
     }
     #endregion
 
