@@ -4,7 +4,6 @@ using Microsoft.Extensions.Logging;
 using Nerdbank.MessagePack.SignalR;
 using PolyType.ReflectionProvider;
 using RemoteViewer.Client.Services.Displays;
-using RemoteViewer.Client.Services.FileSystem;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Server.SharedAPI;
 
@@ -16,7 +15,6 @@ public sealed class ConnectionHubClient : IAsyncDisposable
     private readonly ILoggerFactory _loggerFactory;
     private readonly IDisplayService _displayService;
     private readonly IScreenshotService _screenshotService;
-    private readonly IFileSystemService _fileSystemService;
     private readonly HubConnection _connection;
     private readonly ConcurrentDictionary<string, Connection> _connections = new();
 
@@ -26,13 +24,12 @@ public sealed class ConnectionHubClient : IAsyncDisposable
     private static readonly string s_baseUrl = "https://rdp.xemio.net";
 #endif
 
-    public ConnectionHubClient(ILogger<ConnectionHubClient> logger, ILoggerFactory loggerFactory, IDisplayService displayService, IScreenshotService screenshotService, IFileSystemService fileSystemService)
+    public ConnectionHubClient(ILogger<ConnectionHubClient> logger, ILoggerFactory loggerFactory, IDisplayService displayService, IScreenshotService screenshotService)
     {
         this._logger = logger;
         this._loggerFactory = loggerFactory;
         this._displayService = displayService;
         this._screenshotService = screenshotService;
-        this._fileSystemService = fileSystemService;
 
         this._connection = new HubConnectionBuilder()
             .WithUrl($"{s_baseUrl}/connection", options =>
@@ -63,7 +60,6 @@ public sealed class ConnectionHubClient : IAsyncDisposable
                 disconnectAsync: () => this.Disconnect(connectionId),
                 this._loggerFactory.CreateLogger<Connection>(),
                 this._loggerFactory,
-                this._fileSystemService,
                 displayService: isPresenter ? this._displayService : null,
                 screenshotService: isPresenter ? this._screenshotService : null);
 

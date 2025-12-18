@@ -40,19 +40,11 @@ public static class MessageTypes
 
     public static class FileTransfer
     {
-        /// <summary>Request to send a file (Viewer → Presenter)</summary>
+        /// <summary>Request to send a file (Bidirectional)</summary>
         public const string SendRequest = "file.send.request";
 
-        /// <summary>Response to send request (Presenter → Viewer)</summary>
+        /// <summary>Response to send request (Bidirectional)</summary>
         public const string SendResponse = "file.send.response";
-
-
-        /// <summary>Request to download a file (Viewer → Presenter)</summary>
-        public const string DownloadRequest = "file.download.request";
-
-        /// <summary>Response to download request (Presenter → Viewer)</summary>
-        public const string DownloadResponse = "file.download.response";
-
 
         /// <summary>File chunk data (Bidirectional)</summary>
         public const string Chunk = "file.chunk";
@@ -65,12 +57,5 @@ public static class MessageTypes
 
         /// <summary>Transfer error (Bidirectional)</summary>
         public const string Error = "file.error";
-
-
-        /// <summary>Request directory listing (Viewer → Presenter)</summary>
-        public const string DirectoryListRequest = "file.directory.request";
-
-        /// <summary>Directory listing response (Presenter → Viewer)</summary>
-        public const string DirectoryListResponse = "file.directory.response";
     }
 }

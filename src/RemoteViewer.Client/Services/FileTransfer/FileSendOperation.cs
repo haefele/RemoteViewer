@@ -17,6 +17,7 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
     private readonly Func<string, string, Task> _sendCancel;
     private readonly Func<string, string, Task> _sendError;
     private readonly bool _requiresAcceptance;
+    private readonly string? _targetClientId;
     private FileStream? _fileStream;
     private bool _disposed;
 
@@ -28,7 +29,8 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
         Func<string, Task> sendComplete,
         Func<string, string, Task> sendCancel,
         Func<string, string, Task> sendError,
-        bool requiresAcceptance = false)
+        bool requiresAcceptance = false,
+        string? targetClientId = null)
     {
         this._connection = connection;
         this._sendChunk = sendChunk;
@@ -36,6 +38,7 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
         this._sendCancel = sendCancel;
         this._sendError = sendError;
         this._requiresAcceptance = requiresAcceptance;
+        this._targetClientId = targetClientId;
 
         this.FilePath = filePath;
         this.TransferId = transferId;
@@ -87,7 +90,7 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
         if (this._requiresAcceptance)
         {
             this.State = FileTransferState.WaitingForAcceptance;
-            await this._connection.SendFileSendRequestAsync(this.TransferId, this.FileName!, this.FileSize);
+            await this._connection.SendFileSendRequestAsync(this.TransferId, this.FileName!, this.FileSize, this._targetClientId);
         }
         else
         {

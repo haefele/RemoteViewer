@@ -99,16 +99,6 @@
                     <mi:MaterialIcon Kind="FileUpload" Width="20" Height="20"/>
                 </Button>
 
-                <!-- Browse Presenter Files button -->
-                <Button Command="{Binding BrowsePresenterFilesCommand}"
-                        ToolTip.Tip="Browse presenter's files"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Width="32" Height="32"
-                        Padding="0">
-                    <mi:MaterialIcon Kind="FolderDownload" Width="20" Height="20"/>
-                </Button>
-
                 <!-- Separator -->
                 <Border Width="1"
                         Margin="0,4"

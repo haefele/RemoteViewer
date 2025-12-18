@@ -5,7 +5,6 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Controls.Toasts;
 using RemoteViewer.Client.Services.Displays;
-using RemoteViewer.Client.Services.FileSystem;
 using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.InputInjection;
@@ -25,7 +24,6 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
     private readonly IDisplayService _displayService;
     private readonly IInputInjectionService _inputInjectionService;
     private readonly ILocalInputMonitorService _localInputMonitor;
-    private readonly IFileSystemService _fileSystemService;
     private readonly ILogger<PresenterViewModel> _logger;
 
     public ToastsViewModel Toasts { get; }
@@ -47,6 +45,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 
     public event EventHandler? CloseRequested;
     public event EventHandler<string>? CopyToClipboardRequested;
+    public event EventHandler<IReadOnlyList<string>>? OpenFilePickerRequested;
 
     public PresenterViewModel(
         Connection connection,
@@ -56,7 +55,6 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         ScreenEncoder screenEncoder,
         IInputInjectionService inputInjectionService,
         ILocalInputMonitorService localInputMonitor,
-        IFileSystemService fileSystemService,
         IViewModelFactory viewModelFactory,
         ILogger<PresenterViewModel> logger,
         ILoggerFactory loggerFactory)
@@ -66,7 +64,6 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         this._displayService = displayService;
         this._inputInjectionService = inputInjectionService;
         this._localInputMonitor = localInputMonitor;
-        this._fileSystemService = fileSystemService;
         this._logger = logger;
         this.Toasts = viewModelFactory.CreateToastsViewModel();
         this._connection.FileTransfers.Toasts = this.Toasts;
@@ -261,6 +258,81 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
     {
         await transfer.CancelAsync();
     }
+
+    #region File Transfer - Send to Viewers
+
+    private IReadOnlyList<string>? _pendingViewerIds;
+
+    [RelayCommand]
+    private void SendFile(IReadOnlyList<string>? viewerIds = null)
+    {
+        // If no specific viewers provided and multiple viewers, the UI should handle selection first
+        if (viewerIds is null or { Count: 0 })
+        {
+            if (this.Viewers.Count == 0)
+            {
+                this.Toasts.Info("No viewers connected.");
+                return;
+            }
+
+            // If only one viewer, auto-select
+            if (this.Viewers.Count == 1)
+            {
+                viewerIds = [this.Viewers[0].ClientId];
+            }
+            else
+            {
+                // UI should have provided viewer IDs for multi-viewer scenario
+                this.Toasts.Info("Select viewers first.");
+                return;
+            }
+        }
+
+        this._pendingViewerIds = viewerIds;
+        this.OpenFilePickerRequested?.Invoke(this, viewerIds);
+    }
+
+    public async Task SendFileFromPathAsync(string filePath)
+    {
+        var viewerIds = this._pendingViewerIds;
+        this._pendingViewerIds = null;
+
+        if (viewerIds is null or { Count: 0 })
+        {
+            // Fallback: send to all viewers
+            viewerIds = this.Viewers.Select(v => v.ClientId).ToList();
+        }
+
+        await this.SendFileToViewersAsync(filePath, viewerIds);
+    }
+
+    public async Task SendFileToViewersAsync(string filePath, IReadOnlyList<string> viewerIds)
+    {
+        if (!File.Exists(filePath))
+        {
+            this.Toasts.Error($"File not found: {filePath}");
+            return;
+        }
+
+        foreach (var viewerId in viewerIds)
+        {
+            try
+            {
+                var transfer = await this._connection.FileTransfers.SendFileToViewerAsync(filePath, viewerId);
+                this.Toasts.AddTransfer(transfer, isUpload: true);
+                var viewer = this.Viewers.FirstOrDefault(v => v.ClientId == viewerId);
+                this._logger.LogInformation("Started file send to {ViewerName}: {FileName} ({FileSize} bytes)",
+                    viewer?.DisplayName ?? viewerId, transfer.FileName, transfer.FileSize);
+            }
+            catch (Exception ex)
+            {
+                this._logger.LogError(ex, "Failed to initiate file send to {ViewerId} for {FilePath}", viewerId, filePath);
+                this.Toasts.Error($"Failed to send file: {ex.Message}");
+            }
+        }
+    }
+
+    #endregion
 
     public async ValueTask DisposeAsync()
     {

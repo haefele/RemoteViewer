@@ -17,6 +17,9 @@ public partial class PresenterViewerDisplay : ObservableObject
     [ObservableProperty]
     private bool _isInputBlocked;
 
+    [ObservableProperty]
+    private bool _isSelected = true;
+
     [RelayCommand]
     private void ToggleInputBlock()
     {

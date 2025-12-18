@@ -26,7 +26,6 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     public event EventHandler? CloseRequested;
     public event EventHandler? OpenFilePickerRequested;
-    public event EventHandler? OpenFileBrowserRequested;
 
     public ViewerViewModel(
         Connection connection,
@@ -36,6 +35,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         this._connection = connection;
         this._logger = logger;
         this.Toasts = viewModelFactory.CreateToastsViewModel();
+        this._connection.FileTransfers.Toasts = this.Toasts;
 
         this._connection.ParticipantsChanged += this.Connection_ParticipantsChanged;
         this._connection.FrameReceived += this.Connection_FrameReceived;
@@ -295,7 +295,6 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     #region File Transfer
     public FileTransferService FileTransfers => this._connection.FileTransfers;
-    public Connection Connection => this._connection;
 
     [RelayCommand]
     private void SendFile()
@@ -321,27 +320,6 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         {
             this._logger.LogError(ex, "Failed to initiate file upload for {FilePath}", filePath);
             this.Toasts.Error($"Failed to send file: {ex.Message}");
-        }
-    }
-
-    [RelayCommand]
-    private void BrowsePresenterFiles()
-    {
-        this.OpenFileBrowserRequested?.Invoke(this, EventArgs.Empty);
-    }
-
-    public async Task DownloadFileAsync(string filePath, string fileName, long fileSize)
-    {
-        try
-        {
-            var transfer = await this._connection.FileTransfers.RequestDownloadAsync(filePath, fileName, fileSize);
-            this.Toasts.AddTransfer(transfer, isUpload: false);
-            this._logger.LogInformation("Started download request: {FilePath}", filePath);
-        }
-        catch (Exception ex)
-        {
-            this._logger.LogError(ex, "Failed to initiate download for {FilePath}", filePath);
-            this.Toasts.Error($"Failed to download: {ex.Message}");
         }
     }
 

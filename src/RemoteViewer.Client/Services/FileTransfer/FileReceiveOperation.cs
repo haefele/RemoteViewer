@@ -6,7 +6,6 @@ namespace RemoteViewer.Client.Services.FileTransfer;
 public partial class FileReceiveOperation : ObservableObject, IFileTransfer
 {
     private readonly Connection _connection;
-    private readonly Func<Task>? _sendRequest;
     private readonly Func<Task>? _sendAcceptResponse;
     private readonly Func<string, string, Task> _sendCancel;
     private FileStream? _fileStream;
@@ -18,11 +17,9 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
         long fileSize,
         Connection connection,
         Func<string, string, Task> sendCancel,
-        Func<Task>? sendRequest = null,
         Func<Task>? sendAcceptResponse = null)
     {
         this._connection = connection;
-        this._sendRequest = sendRequest;
         this._sendAcceptResponse = sendAcceptResponse;
         this._sendCancel = sendCancel;
 
@@ -32,11 +29,6 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
         this.SetupDestinationPath(fileName);
 
         this._connection.FileCancelReceived += this.OnFileCancelReceived;
-
-        if (sendRequest is not null)
-        {
-            this._connection.FileDownloadResponseReceived += this.OnFileDownloadResponseReceived;
-        }
     }
 
     public string TransferId { get; }
@@ -70,19 +62,7 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
     public event EventHandler? Failed;
 
     /// <summary>
-    /// Starts by sending a request (for download scenario). Waits for response.
-    /// </summary>
-    public async Task StartAsync()
-    {
-        if (this.State != FileTransferState.Pending || this._sendRequest is null)
-            return;
-
-        await this._sendRequest();
-        // Will continue in OnFileDownloadResponseReceived
-    }
-
-    /// <summary>
-    /// Accepts an incoming transfer (for upload scenario).
+    /// Accepts an incoming file transfer.
     /// </summary>
     public async Task AcceptAsync()
     {
@@ -110,26 +90,6 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
         this.DeleteTempFile();
         this.Cleanup();
         this.Failed?.Invoke(this, EventArgs.Empty);
-    }
-
-    private void OnFileDownloadResponseReceived(object? sender, FileDownloadResponseReceivedEventArgs e)
-    {
-        if (e.TransferId != this.TransferId)
-            return;
-
-        if (e.Accepted)
-        {
-            this.SubscribeToChunkEvents();
-            this.OpenTempFile();
-            this.State = FileTransferState.Transferring;
-        }
-        else
-        {
-            this.State = FileTransferState.Rejected;
-            this.ErrorMessage = e.ErrorMessage ?? "Download rejected";
-            this.Cleanup();
-            this.Failed?.Invoke(this, EventArgs.Empty);
-        }
     }
 
     private void SubscribeToChunkEvents()
@@ -250,7 +210,6 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
         this._fileStream?.Dispose();
         this._fileStream = null;
 
-        this._connection.FileDownloadResponseReceived -= this.OnFileDownloadResponseReceived;
         this._connection.FileChunkReceived -= this.OnFileChunkReceived;
         this._connection.FileCompleteReceived -= this.OnFileCompleteReceived;
         this._connection.FileCancelReceived -= this.OnFileCancelReceived;

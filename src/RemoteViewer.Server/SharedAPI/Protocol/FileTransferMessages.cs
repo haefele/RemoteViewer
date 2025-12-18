@@ -17,20 +17,6 @@ public sealed partial record FileSendResponseMessage(
     string? ErrorMessage
 );
 
-// File download messages (Viewer → Presenter → Viewer)
-[GenerateShape]
-public sealed partial record FileDownloadRequestMessage(
-    string TransferId,
-    string FilePath
-);
-
-[GenerateShape]
-public sealed partial record FileDownloadResponseMessage(
-    string TransferId,
-    bool Accepted,
-    string? ErrorMessage
-);
-
 // File transfer data messages (Bidirectional)
 [GenerateShape]
 public sealed partial record FileChunkMessage(
@@ -48,26 +34,3 @@ public sealed partial record FileCancelMessage(string TransferId, string Reason)
 
 [GenerateShape]
 public sealed partial record FileErrorMessage(string TransferId, string ErrorMessage);
-
-// Directory browsing messages (Viewer → Presenter → Viewer)
-[GenerateShape]
-public sealed partial record DirectoryListRequestMessage(
-    string RequestId,
-    string Path
-);
-
-[GenerateShape]
-public sealed partial record DirectoryListResponseMessage(
-    string RequestId,
-    string Path,
-    DirectoryEntry[] Entries,
-    string? ErrorMessage
-);
-
-[GenerateShape]
-public sealed partial record DirectoryEntry(
-    string Name,
-    string FullPath,
-    bool IsDirectory,
-    long Size
-);

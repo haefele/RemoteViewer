@@ -12,7 +12,6 @@ using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.VideoCodec;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.LocalInputMonitor;
-using RemoteViewer.Client.Services.FileSystem;
 
 namespace RemoteViewer.Client;
 
@@ -81,7 +80,6 @@ public partial class App : Application
         services.AddSingleton<ILocalInputMonitorService, NullLocalInputMonitorService>();
 #endif
         services.AddSingleton<IScreenshotService, ScreenshotService>();
-        services.AddSingleton<IFileSystemService, FileSystemService>();
 
         return services.BuildServiceProvider();
     }
