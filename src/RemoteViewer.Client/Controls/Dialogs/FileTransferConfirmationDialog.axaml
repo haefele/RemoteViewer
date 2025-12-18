@@ -1,0 +1,88 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mi="using:Material.Icons.Avalonia"
+        xmlns:mik="using:Material.Icons"
+        xmlns:dialogs="using:RemoteViewer.Client.Controls.Dialogs"
+        x:Class="RemoteViewer.Client.Controls.Dialogs.FileTransferConfirmationDialog"
+        x:DataType="dialogs:FileTransferConfirmationDialog"
+        Title="File Transfer Request"
+        SizeToContent="WidthAndHeight"
+        CanResize="False"
+        ShowInTaskbar="False"
+        WindowStartupLocation="CenterScreen">
+
+    <Border Background="#333333"
+            CornerRadius="4"
+            Padding="20"
+            MinWidth="320"
+            MaxWidth="450">
+
+        <StackPanel Spacing="16">
+            <!-- Header with icon and title -->
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <mi:MaterialIcon x:Name="HeaderIcon"
+                                 Kind="FileUpload"
+                                 Width="28"
+                                 Height="28"
+                                 Foreground="#4CAF50"/>
+                <TextBlock x:Name="HeaderText"
+                           Text="Incoming File Transfer"
+                           FontSize="18"
+                           FontWeight="SemiBold"
+                           Foreground="White"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+
+            <!-- Separator -->
+            <Border Height="1" Background="#555555"/>
+
+            <!-- Message -->
+            <StackPanel Spacing="8">
+                <TextBlock x:Name="SenderText"
+                           FontSize="14"
+                           Foreground="#CCCCCC"
+                           TextWrapping="Wrap"/>
+
+                <Border Background="#444444"
+                        CornerRadius="4"
+                        Padding="12">
+                    <StackPanel Spacing="4">
+                        <TextBlock x:Name="FileNameText"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   Foreground="White"
+                                   TextWrapping="Wrap"/>
+                        <TextBlock x:Name="FileSizeText"
+                                   FontSize="12"
+                                   Foreground="#AAAAAA"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- Buttons -->
+            <Grid ColumnDefinitions="*,12,*" Margin="0,8,0,0">
+                <Button Grid.Column="0"
+                        x:Name="RejectButton"
+                        Content="Reject"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center"
+                        Background="#F44336"
+                        Foreground="White"
+                        Padding="16,10"
+                        CornerRadius="4"
+                        Click="OnRejectClicked"/>
+
+                <Button Grid.Column="2"
+                        x:Name="AcceptButton"
+                        Content="Accept"
+                        HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Center"
+                        Background="#4CAF50"
+                        Foreground="White"
+                        Padding="16,10"
+                        CornerRadius="4"
+                        Click="OnAcceptClicked"/>
+            </Grid>
+        </StackPanel>
+    </Border>
+</Window>

@@ -47,8 +47,6 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 
     public event EventHandler? CloseRequested;
     public event EventHandler<string>? CopyToClipboardRequested;
-    public event EventHandler<IncomingFileRequestedEventArgs>? FileTransferConfirmationRequested;
-    public event EventHandler<DownloadRequestedEventArgs>? FileDownloadConfirmationRequested;
 
     public PresenterViewModel(
         Connection connection,
@@ -71,6 +69,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         this._fileSystemService = fileSystemService;
         this._logger = logger;
         this.Toasts = viewModelFactory.CreateToastsViewModel();
+        this._connection.FileTransfers.Toasts = this.Toasts;
 
         this.Title = $"Presenting - {connection.ConnectionId[..8]}...";
 
@@ -78,10 +77,6 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         this._connection.ViewersChanged += this.OnViewersChanged;
         this._connection.InputReceived += this.OnInputReceived;
         this._connection.Closed += this.OnConnectionClosed;
-
-        // Subscribe to file transfer service events
-        this._connection.FileTransfers.IncomingFileRequested += this.OnIncomingFileRequested;
-        this._connection.FileTransfers.DownloadRequested += this.OnDownloadRequested;
 
         // Subscribe to credentials changes
         this._hubClient.CredentialsAssigned += this.OnCredentialsAssigned;
@@ -261,85 +256,11 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         await this._hubClient.GenerateNewPassword();
     }
 
-    #region File Transfer
-    private void OnIncomingFileRequested(object? sender, IncomingFileRequestedEventArgs e)
-    {
-        this._logger.LogInformation("Received file upload request: {FileName} ({FileSize} bytes) from {ClientId}",
-            e.FileName, e.FileSize, e.SenderClientId);
-
-        this.FileTransferConfirmationRequested?.Invoke(this, e);
-    }
-
-    private void OnDownloadRequested(object? sender, DownloadRequestedEventArgs e)
-    {
-        this._logger.LogInformation("Received file download request: {FilePath} from {ClientId}",
-            e.FilePath, e.RequesterClientId);
-
-        this.FileDownloadConfirmationRequested?.Invoke(this, e);
-    }
-
-    public async Task AcceptFileTransferAsync(string senderClientId, string transferId, string fileName, long fileSize)
-    {
-        var transfer = await this._connection.FileTransfers.AcceptIncomingFileAsync(
-            senderClientId, transferId, fileName, fileSize);
-
-        if (transfer is null)
-            return;
-
-        this.Toasts.AddTransfer(transfer, isUpload: false);
-        this._logger.LogInformation("Accepted file upload: {TransferId} -> {DestinationPath}", transferId, transfer.DestinationPath);
-    }
-
-    public async Task RejectFileTransferAsync(string senderClientId, string transferId)
-    {
-        await this._connection.FileTransfers.RejectIncomingFileAsync(senderClientId, transferId);
-        this._logger.LogInformation("Rejected file upload: {TransferId}", transferId);
-    }
-
-    public async Task AcceptFileDownloadAsync(string requesterClientId, string transferId, string filePath)
-    {
-        try
-        {
-            if (!File.Exists(filePath))
-            {
-                await this._connection.FileTransfers.RejectDownloadRequestAsync(requesterClientId, transferId, "File not found");
-                return;
-            }
-
-            if (!this._fileSystemService.IsPathAllowed(filePath))
-            {
-                await this._connection.FileTransfers.RejectDownloadRequestAsync(requesterClientId, transferId, "Access denied");
-                return;
-            }
-
-            var transfer = await this._connection.FileTransfers.AcceptDownloadRequestAsync(
-                requesterClientId, transferId, filePath);
-
-            if (transfer is null)
-                return;
-
-            this.Toasts.AddTransfer(transfer, isUpload: true);
-            this._logger.LogInformation("Started serving download: {FilePath} -> {ClientId}", filePath, requesterClientId);
-        }
-        catch (Exception ex)
-        {
-            this._logger.LogError(ex, "Failed to accept download request for {FilePath}", filePath);
-            await this._connection.FileTransfers.RejectDownloadRequestAsync(requesterClientId, transferId, ex.Message);
-        }
-    }
-
-    public async Task RejectFileDownloadAsync(string requesterClientId, string transferId)
-    {
-        await this._connection.FileTransfers.RejectDownloadRequestAsync(requesterClientId, transferId);
-        this._logger.LogInformation("Rejected file download: {TransferId}", transferId);
-    }
-
     [RelayCommand]
     private async Task CancelTransfer(IFileTransfer transfer)
     {
         await transfer.CancelAsync();
     }
-    #endregion
 
     public async ValueTask DisposeAsync()
     {
@@ -350,10 +271,6 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 
         // Stop monitoring local input
         this._localInputMonitor.StopMonitoring();
-
-        // Unsubscribe from file transfer service events
-        this._connection.FileTransfers.IncomingFileRequested -= this.OnIncomingFileRequested;
-        this._connection.FileTransfers.DownloadRequested -= this.OnDownloadRequested;
 
         await this._connection.FileTransfers.CancelAllAsync();
 
