@@ -2,11 +2,9 @@
 
 public interface IScreenshotService
 {
-    bool IsSupported { get; }
+    Task<GrabResult> CaptureDisplay(Display display, CancellationToken ct);
 
-    GrabResult CaptureDisplay(Display display);
-
-    void ForceKeyframe(string displayName);
+    Task ForceKeyframe(string displayName, CancellationToken ct);
 }
 
 public record Display(string Name, bool IsPrimary, DisplayRect Bounds);

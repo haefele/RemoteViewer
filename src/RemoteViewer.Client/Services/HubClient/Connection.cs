@@ -328,32 +328,43 @@ public sealed class Connection
         }
     }
 
-    internal void OnConnectionChanged(ConnectionInfo connectionInfo)
+    internal async void OnConnectionChanged(ConnectionInfo connectionInfo)
     {
-        // Get primary display ID for new viewers (presenter-side only)
-        var primaryDisplayId = this._displayService?.GetDisplays()
-            .FirstOrDefault(d => d.IsPrimary)?.Name;
-
-        using (this._participantsLock.EnterScope())
+        try
         {
-            // Store presenter info
-            this._presenter = connectionInfo.Presenter;
+            // Get primary display ID for new viewers (presenter-side only)
+            string? primaryDisplayId = null;
+            if (this._displayService is not null)
+            {
+                var displays = await this._displayService.GetDisplays(CancellationToken.None);
+                primaryDisplayId = displays.FirstOrDefault(d => d.IsPrimary)?.Name;
+            }
 
-            // Preserve existing display selections for viewers that are still connected,
-            // assign primary display to new viewers
-            var existingSelections = this._viewers.ToDictionary(v => v.ClientId, v => v.SelectedDisplayId);
+            using (this._participantsLock.EnterScope())
+            {
+                // Store presenter info
+                this._presenter = connectionInfo.Presenter;
 
-            this._viewers = connectionInfo.Viewers
-                .Select(v => new ViewerInfo(
-                    v.ClientId,
-                    existingSelections.GetValueOrDefault(v.ClientId, primaryDisplayId),
-                    v.DisplayName))
-                .ToList();
+                // Preserve existing display selections for viewers that are still connected,
+                // assign primary display to new viewers
+                var existingSelections = this._viewers.ToDictionary(v => v.ClientId, v => v.SelectedDisplayId);
+
+                this._viewers = connectionInfo.Viewers
+                    .Select(v => new ViewerInfo(
+                        v.ClientId,
+                        existingSelections.GetValueOrDefault(v.ClientId, primaryDisplayId),
+                        v.DisplayName))
+                    .ToList();
+            }
+
+            this._logger.LogDebug("Participants changed: presenter={PresenterName}, {ViewerCount} viewer(s)", connectionInfo.Presenter.DisplayName, connectionInfo.Viewers.Count);
+            this._viewersChanged?.Invoke(this, EventArgs.Empty);
+            this._participantsChanged?.Invoke(this, EventArgs.Empty);
         }
-
-        this._logger.LogDebug("Participants changed: presenter={PresenterName}, {ViewerCount} viewer(s)", connectionInfo.Presenter.DisplayName, connectionInfo.Viewers.Count);
-        this._viewersChanged?.Invoke(this, EventArgs.Empty);
-        this._participantsChanged?.Invoke(this, EventArgs.Empty);
+        catch (Exception ex)
+        {
+            this._logger.LogError(ex, "Error handling connection changed event");
+        }
     }
     internal void OnMessageReceived(string senderClientId, string messageType, byte[] data)
     {
@@ -439,42 +450,52 @@ public sealed class Connection
         this.Closed?.Invoke(this, EventArgs.Empty);
     }
 
-    private void HandleSwitchDisplay(string senderClientId)
+    private async void HandleSwitchDisplay(string senderClientId)
     {
-        if (this._displayService is null)
-            return;
-
-        var displays = this._displayService.GetDisplays();
-        if (displays.Count == 0)
-            return;
-
-        string? newDisplayId;
-        using (this._participantsLock.EnterScope())
+        try
         {
-            var viewerIndex = this._viewers.FindIndex(v => v.ClientId == senderClientId);
-            if (viewerIndex < 0)
+            if (this._displayService is null)
                 return;
 
-            var viewer = this._viewers[viewerIndex];
+            var displays = await this._displayService.GetDisplays(CancellationToken.None);
+            if (displays.Count == 0)
+                return;
 
-            // Find current display index
-            var currentDisplayIndex = displays
-                .Select((d, i) => (Display: d, Index: i))
-                .FirstOrDefault(x => x.Display.Name == viewer.SelectedDisplayId)
-                .Index;
+            string? newDisplayId;
+            using (this._participantsLock.EnterScope())
+            {
+                var viewerIndex = this._viewers.FindIndex(v => v.ClientId == senderClientId);
+                if (viewerIndex < 0)
+                    return;
 
-            // Cycle to next display
-            var nextDisplayIndex = (currentDisplayIndex + 1) % displays.Count;
-            newDisplayId = displays[nextDisplayIndex].Name;
+                var viewer = this._viewers[viewerIndex];
 
-            this._viewers[viewerIndex] = viewer with { SelectedDisplayId = newDisplayId };
+                // Find current display index
+                var currentDisplayIndex = displays
+                    .Select((d, i) => (Display: d, Index: i))
+                    .FirstOrDefault(x => x.Display.Name == viewer.SelectedDisplayId)
+                    .Index;
+
+                // Cycle to next display
+                var nextDisplayIndex = (currentDisplayIndex + 1) % displays.Count;
+                newDisplayId = displays[nextDisplayIndex].Name;
+
+                this._viewers[viewerIndex] = viewer with { SelectedDisplayId = newDisplayId };
+            }
+
+            this._logger.LogDebug("Viewer {ViewerId} switched to display {DisplayId}", senderClientId, newDisplayId);
+            this._viewersChanged?.Invoke(this, EventArgs.Empty);
+
+            // Force immediate keyframe so viewer doesn't see black screen
+            if (this._screenshotService is not null)
+            {
+                await this._screenshotService.ForceKeyframe(newDisplayId, CancellationToken.None);
+            }
         }
-
-        this._logger.LogDebug("Viewer {ViewerId} switched to display {DisplayId}", senderClientId, newDisplayId);
-        this._viewersChanged?.Invoke(this, EventArgs.Empty);
-
-        // Force immediate keyframe so viewer doesn't see black screen
-        this._screenshotService?.ForceKeyframe(newDisplayId);
+        catch (Exception ex)
+        {
+            this._logger.LogError(ex, "Error handling switch display for {SenderClientId}", senderClientId);
+        }
     }
     private void HandleMouseMove(string senderClientId, byte[] data)
     {

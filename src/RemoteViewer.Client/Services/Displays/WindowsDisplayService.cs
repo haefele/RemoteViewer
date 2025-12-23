@@ -6,12 +6,31 @@ using Windows.Win32;
 using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.Foundation;
 using RemoteViewer.Client.Services.Screenshot;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace RemoteViewer.Client.Services.Displays;
 
-public class WindowsDisplayService(ILogger<WindowsDisplayService> logger) : IDisplayService
+public class WindowsDisplayService(
+    IFusionCache cache,
+    ILogger<WindowsDisplayService> logger) : IDisplayService
 {
-    public unsafe ImmutableList<Display> GetDisplays()
+    private const string CacheKey = "displays";
+
+    private static readonly FusionCacheEntryOptions s_cacheOptions = new(TimeSpan.FromSeconds(10))
+    {
+        EagerRefreshThreshold = 0.8f, // Refresh in background when 80% of duration has passed
+    };
+
+    public Task<ImmutableList<Display>> GetDisplays(CancellationToken ct)
+    {
+        return cache.GetOrSetAsync<ImmutableList<Display>>(
+            CacheKey,
+            (_, ct2) => this.EnumerateDisplaysAsync(ct2),
+            s_cacheOptions,
+            ct).AsTask();
+    }
+
+    private unsafe Task<ImmutableList<Display>> EnumerateDisplaysAsync(CancellationToken ct)
     {
         try
         {
@@ -22,7 +41,7 @@ public class WindowsDisplayService(ILogger<WindowsDisplayService> logger) : IDis
             {
                 var errorCode = Marshal.GetLastWin32Error();
                 logger.LogError("Failed to enumerate display monitors: {ErrorCode}", errorCode);
-                return [];
+                return Task.FromResult<ImmutableList<Display>>([]);
             }
 
             if (displays.Count == 0)
@@ -30,7 +49,7 @@ public class WindowsDisplayService(ILogger<WindowsDisplayService> logger) : IDis
                 logger.LogWarning("No displays found during enumeration");
             }
 
-            return displays.ToImmutableList();
+            return Task.FromResult(displays.ToImmutableList());
 
             BOOL MonitorEnumCallback(HMONITOR hMonitor, HDC hdc, RECT* lprcMonitor, LPARAM dwData)
             {
@@ -44,7 +63,7 @@ public class WindowsDisplayService(ILogger<WindowsDisplayService> logger) : IDis
         catch (Exception exception)
         {
             logger.LogError(exception, "Exception occurred while getting displays");
-            return [];
+            return Task.FromResult<ImmutableList<Display>>([]);
         }
     }
 

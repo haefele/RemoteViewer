@@ -12,6 +12,8 @@ using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.VideoCodec;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.LocalInputMonitor;
+using RemoteViewer.Client.Services.WindowsIpc;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace RemoteViewer.Client;
 
@@ -63,23 +65,41 @@ public partial class App : Application
         // Logging
         services.AddLogging(builder => builder.AddSerilog());
 
+        // Caching
+        services.AddFusionCache();
+
         // Services
         services.AddSingleton<ConnectionHubClient>();
         services.AddSingleton<IViewModelFactory, ViewModelFactory>();
         services.AddSingleton<ScreenEncoder>();
 
+        // IPC infrastructure (always registered, auto-connects in background)
+        services.AddSingleton<SessionRecorderRpcClient>();
+
 #if WINDOWS
-        services.AddSingleton<IDisplayService, WindowsDisplayService>();
+        // Local implementations (used by hybrid services)
+        services.AddSingleton<WindowsDisplayService>();
         services.AddSingleton<IScreenGrabber, DxgiScreenGrabber>();
         services.AddSingleton<IScreenGrabber, BitBltScreenGrabber>();
-        services.AddSingleton<IInputInjectionService, WindowsInputInjectionService>();
+        services.AddSingleton<ScreenshotService>();
+        services.AddSingleton<WindowsInputInjectionService>();
         services.AddSingleton<ILocalInputMonitorService, WindowsLocalInputMonitorService>();
+
+        // IPC implementations (used by hybrid services)
+        services.AddSingleton<WindowsIpcDisplayService>();
+        services.AddSingleton<WindowsIpcScreenshotService>();
+        services.AddSingleton<WindowsIpcInputInjectionService>();
+
+        // Hybrid implementations (exposed via interface, auto-switch between local and IPC)
+        services.AddSingleton<IDisplayService, WindowsHybridDisplayService>();
+        services.AddSingleton<IScreenshotService, WindowsHybridScreenshotService>();
+        services.AddSingleton<IInputInjectionService, WindowsHybridInputInjectionService>();
 #else
         services.AddSingleton<IDisplayService, NullDisplayService>();
         services.AddSingleton<IInputInjectionService, NullInputInjectionService>();
         services.AddSingleton<ILocalInputMonitorService, NullLocalInputMonitorService>();
-#endif
         services.AddSingleton<IScreenshotService, ScreenshotService>();
+#endif
 
         return services.BuildServiceProvider();
     }

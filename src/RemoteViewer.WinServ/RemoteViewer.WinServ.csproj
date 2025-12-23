@@ -23,5 +23,9 @@
     <PackageReference Include="Serilog.Sinks.Async" Version="2.1.0" />
     <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
+    <PackageReference Include="Nerdbank.MessagePack" Version="0.12.14-rc" />
+    <PackageReference Include="Nerdbank.Streams" Version="2.13.16" />
+    <PackageReference Include="StreamJsonRpc" Version="2.23.32-alpha" />
+    <PackageReference Include="ZiggyCreatures.FusionCache" Version="2.2.0" />
   </ItemGroup>
 </Project>

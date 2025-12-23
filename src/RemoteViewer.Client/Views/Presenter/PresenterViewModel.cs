@@ -140,88 +140,103 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    private void OnInputReceived(object? sender, InputReceivedEventArgs e)
+    private async void OnInputReceived(object? sender, InputReceivedEventArgs e)
     {
-        // Check for local presenter activity - suppress viewer input temporarily
-        if (this._localInputMonitor.ShouldSuppressViewerInput())
-            return;
-
-        // Check if this specific viewer's input is blocked
-        var viewer = this.Viewers.FirstOrDefault(v => v.ClientId == e.SenderClientId);
-        if (viewer?.IsInputBlocked == true)
-            return;
-
-        // Get the display for this viewer's selection
-        if (e.DisplayId is null)
-            return;
-
-        var display = this.GetDisplayById(e.DisplayId);
-        if (display is null)
-            return;
-
-        switch (e.Type)
+        try
         {
-            case InputType.MouseMove:
-                if (e.X.HasValue && e.Y.HasValue)
-                {
-                    this._inputInjectionService.InjectMouseMove(display, e.X.Value, e.Y.Value);
-                }
-                break;
+            // Check for local presenter activity - suppress viewer input temporarily
+            if (this._localInputMonitor.ShouldSuppressViewerInput())
+                return;
 
-            case InputType.MouseDown:
-                if (e.X.HasValue && e.Y.HasValue && e.Button.HasValue)
-                {
-                    this._inputInjectionService.InjectMouseButton(display, e.Button.Value, isDown: true, e.X.Value, e.Y.Value);
-                }
-                break;
+            // Check if this specific viewer's input is blocked
+            var viewer = this.Viewers.FirstOrDefault(v => v.ClientId == e.SenderClientId);
+            if (viewer?.IsInputBlocked == true)
+                return;
 
-            case InputType.MouseUp:
-                if (e.X.HasValue && e.Y.HasValue && e.Button.HasValue)
-                {
-                    this._inputInjectionService.InjectMouseButton(display, e.Button.Value, isDown: false, e.X.Value, e.Y.Value);
-                }
-                break;
+            // Get the display for this viewer's selection
+            if (e.DisplayId is null)
+                return;
 
-            case InputType.MouseWheel:
-                if (e.X.HasValue && e.Y.HasValue && e.DeltaX.HasValue && e.DeltaY.HasValue)
-                {
-                    this._inputInjectionService.InjectMouseWheel(display, e.DeltaX.Value, e.DeltaY.Value, e.X.Value, e.Y.Value);
-                }
-                break;
+            var display = await this.GetDisplayByIdAsync(e.DisplayId);
+            if (display is null)
+                return;
 
-            case InputType.KeyDown:
-                if (e.KeyCode.HasValue)
-                {
-                    this._inputInjectionService.InjectKey(e.KeyCode.Value, isDown: true);
-                }
-                break;
+            switch (e.Type)
+            {
+                case InputType.MouseMove:
+                    if (e.X.HasValue && e.Y.HasValue)
+                    {
+                        await this._inputInjectionService.InjectMouseMove(display, e.X.Value, e.Y.Value, CancellationToken.None);
+                    }
+                    break;
 
-            case InputType.KeyUp:
-                if (e.KeyCode.HasValue)
-                {
-                    this._inputInjectionService.InjectKey(e.KeyCode.Value, isDown: false);
-                }
-                break;
+                case InputType.MouseDown:
+                    if (e.X.HasValue && e.Y.HasValue && e.Button.HasValue)
+                    {
+                        await this._inputInjectionService.InjectMouseButton(display, e.Button.Value, isDown: true, e.X.Value, e.Y.Value, CancellationToken.None);
+                    }
+                    break;
+
+                case InputType.MouseUp:
+                    if (e.X.HasValue && e.Y.HasValue && e.Button.HasValue)
+                    {
+                        await this._inputInjectionService.InjectMouseButton(display, e.Button.Value, isDown: false, e.X.Value, e.Y.Value, CancellationToken.None);
+                    }
+                    break;
+
+                case InputType.MouseWheel:
+                    if (e.X.HasValue && e.Y.HasValue && e.DeltaX.HasValue && e.DeltaY.HasValue)
+                    {
+                        await this._inputInjectionService.InjectMouseWheel(display, e.DeltaX.Value, e.DeltaY.Value, e.X.Value, e.Y.Value, CancellationToken.None);
+                    }
+                    break;
+
+                case InputType.KeyDown:
+                    if (e.KeyCode.HasValue)
+                    {
+                        await this._inputInjectionService.InjectKey(e.KeyCode.Value, isDown: true, CancellationToken.None);
+                    }
+                    break;
+
+                case InputType.KeyUp:
+                    if (e.KeyCode.HasValue)
+                    {
+                        await this._inputInjectionService.InjectKey(e.KeyCode.Value, isDown: false, CancellationToken.None);
+                    }
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            this._logger.LogError(ex, "Error handling input from {SenderClientId}", e.SenderClientId);
         }
     }
 
-    private void OnConnectionClosed(object? sender, EventArgs e)
+    private async void OnConnectionClosed(object? sender, EventArgs e)
     {
-        this._captureManager?.Dispose();
-        this._captureManager = null;
-
-        // Release any stuck modifier keys when connection closes
-        this._inputInjectionService.ReleaseAllModifiers();
-
-        Dispatcher.UIThread.Post(() =>
+        try
         {
-            CloseRequested?.Invoke(this, EventArgs.Empty);
-        });
+            this._captureManager?.Dispose();
+            this._captureManager = null;
+
+            // Release any stuck modifier keys when connection closes
+            await this._inputInjectionService.ReleaseAllModifiers(CancellationToken.None);
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                CloseRequested?.Invoke(this, EventArgs.Empty);
+            });
+        }
+        catch (Exception ex)
+        {
+            this._logger.LogError(ex, "Error handling connection closed event");
+        }
     }
 
-    private Display? GetDisplayById(string displayId)
+    private async Task<Display?> GetDisplayByIdAsync(string displayId)
     {
-        return this._displayService.GetDisplays().FirstOrDefault(d => d.Name == displayId);
+        var displays = await this._displayService.GetDisplays(CancellationToken.None);
+        return displays.FirstOrDefault(d => d.Name == displayId);
     }
 
     [RelayCommand]

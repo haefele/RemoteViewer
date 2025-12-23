@@ -5,5 +5,6 @@ namespace RemoteViewer.Client.Services.Displays;
 
 public class NullDisplayService : IDisplayService
 {
-    public ImmutableList<Display> GetDisplays() => [];
+    public Task<ImmutableList<Display>> GetDisplays(CancellationToken ct)
+        => Task.FromResult<ImmutableList<Display>>([]);
 }

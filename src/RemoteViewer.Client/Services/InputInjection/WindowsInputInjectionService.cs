@@ -10,10 +10,6 @@ using ProtocolMouseButton = RemoteViewer.Server.SharedAPI.Protocol.MouseButton;
 
 namespace RemoteViewer.Client.Services.InputInjection;
 
-/// <summary>
-/// Service for injecting mouse and keyboard input on the presenter machine.
-/// Uses H.InputSimulator for input simulation.
-/// </summary>
 public class WindowsInputInjectionService : IInputInjectionService
 {
     private static readonly TimeSpan s_modifierTimeout = TimeSpan.FromSeconds(10);
@@ -34,21 +30,17 @@ public class WindowsInputInjectionService : IInputInjectionService
         this._logger = logger;
     }
 
-    /// <summary>
-    /// Injects a mouse move event at the specified normalized coordinates on the given display.
-    /// </summary>
-    public void InjectMouseMove(Display display, float normalizedX, float normalizedY)
+    public Task InjectMouseMove(Display display, float normalizedX, float normalizedY, CancellationToken ct)
     {
         this.CheckAndReleaseStuckModifiers();
 
         var (absX, absY) = NormalizedToAbsolute(display, normalizedX, normalizedY);
         this._simulator.Mouse.MoveMouseToPositionOnVirtualDesktop(absX, absY);
+
+        return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// Injects a mouse button down or up event.
-    /// </summary>
-    public void InjectMouseButton(Display display, ProtocolMouseButton button, bool isDown, float normalizedX, float normalizedY)
+    public Task InjectMouseButton(Display display, ProtocolMouseButton button, bool isDown, float normalizedX, float normalizedY, CancellationToken ct)
     {
         this.CheckAndReleaseStuckModifiers();
         this._lastInputTime = DateTime.UtcNow;
@@ -80,12 +72,11 @@ public class WindowsInputInjectionService : IInputInjectionService
                 this._logger.LogWarning("Unknown mouse button: {Button}", button);
                 break;
         }
+
+        return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// Injects a mouse wheel scroll event.
-    /// </summary>
-    public void InjectMouseWheel(Display display, float deltaX, float deltaY, float normalizedX, float normalizedY)
+    public Task InjectMouseWheel(Display display, float deltaX, float deltaY, float normalizedX, float normalizedY, CancellationToken ct)
     {
         this.CheckAndReleaseStuckModifiers();
         this._lastInputTime = DateTime.UtcNow;
@@ -110,12 +101,11 @@ public class WindowsInputInjectionService : IInputInjectionService
             this._simulator.Mouse.HorizontalScroll(horizontalClicks);
             this._horizontalScrollAccumulator -= horizontalClicks;
         }
+
+        return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// Injects a key down or up event using the Windows virtual key code.
-    /// </summary>
-    public void InjectKey(ushort keyCode, bool isDown)
+    public Task InjectKey(ushort keyCode, bool isDown, CancellationToken ct)
     {
         this.CheckAndReleaseStuckModifiers();
         this._lastInputTime = DateTime.UtcNow;
@@ -143,13 +133,11 @@ public class WindowsInputInjectionService : IInputInjectionService
         {
             this._simulator.Keyboard.KeyUp(vk);
         }
+
+        return Task.CompletedTask;
     }
 
-    /// <summary>
-    /// Releases all currently tracked modifier keys.
-    /// Call this when a viewer disconnects to prevent stuck modifiers.
-    /// </summary>
-    public void ReleaseAllModifiers()
+    public Task ReleaseAllModifiers(CancellationToken ct)
     {
         foreach (var vk in this._pressedModifiers.Keys)
         {
@@ -157,6 +145,8 @@ public class WindowsInputInjectionService : IInputInjectionService
             this._simulator.Keyboard.KeyUp(vk);
         }
         this._pressedModifiers.Clear();
+
+        return Task.CompletedTask;
     }
 
     private static bool IsModifierKey(VirtualKeyCode vk) => vk is

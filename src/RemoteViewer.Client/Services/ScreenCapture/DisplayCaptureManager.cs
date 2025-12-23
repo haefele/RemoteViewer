@@ -64,7 +64,7 @@ public sealed class DisplayCaptureManager(
 
             // Get display info outside the lock to avoid holding it during external calls
             var displayIdsWithViewers = this.GetDisplaysWithViewers();
-            var availableDisplays = displayService.GetDisplays();
+            var availableDisplays = await displayService.GetDisplays(ct);
 
             using (this._pipelinesLock.EnterScope())
             {

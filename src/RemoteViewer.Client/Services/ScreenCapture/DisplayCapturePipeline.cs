@@ -84,7 +84,7 @@ public sealed class DisplayCapturePipeline : IDisposable
             {
                 var frameNumber = this._frameNumber++;
 
-                var grabResult = this._screenshotService.CaptureDisplay(this._display);
+                var grabResult = await this._screenshotService.CaptureDisplay(this._display, ct);
                 if (grabResult.Status == GrabStatus.Success)
                 {
                     var frame = new CapturedFrame(frameNumber, grabResult);
