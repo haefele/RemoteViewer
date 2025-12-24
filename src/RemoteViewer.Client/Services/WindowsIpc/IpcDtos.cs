@@ -1,10 +1,10 @@
-using PolyType;
+﻿using MessagePack;
 using RemoteViewer.Client.Services.Screenshot;
 
 namespace RemoteViewer.Client.Services.WindowsIpc;
 
-[GenerateShape]
-public sealed partial record DisplayDto(
+[MessagePackObject(keyAsPropertyName: true)]
+public sealed record DisplayDto(
     string Name,
     bool IsPrimary,
     int Left,
@@ -12,23 +12,23 @@ public sealed partial record DisplayDto(
     int Right,
     int Bottom);
 
-[GenerateShape]
-public sealed partial record GrabResultDto(
+[MessagePackObject(keyAsPropertyName: true)]
+public sealed record GrabResultDto(
     GrabStatus Status,
     ReadOnlyMemory<byte>? FullFramePixels,
     DirtyRegionDto[]? DirtyRegions,
     MoveRegionDto[]? MoveRegions);
 
-[GenerateShape]
-public sealed partial record DirtyRegionDto(
+[MessagePackObject(keyAsPropertyName: true)]
+public sealed record DirtyRegionDto(
     int X,
     int Y,
     int Width,
     int Height,
     ReadOnlyMemory<byte> Pixels);
 
-[GenerateShape]
-public sealed partial record MoveRegionDto(
+[MessagePackObject(keyAsPropertyName: true)]
+public sealed record MoveRegionDto(
     int SourceX,
     int SourceY,
     int DestinationX,
