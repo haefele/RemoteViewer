@@ -9,6 +9,8 @@ sealed class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        const string OutputTemplate = "{Timestamp:yyyy-MM-dd HH:mm:ss.fff zzz} [{Level:u3}] {SourceContext}: {Message:lj}{NewLine}{Exception}";
+
         Log.Logger = new LoggerConfiguration()
             .Enrich.FromLogContext()
             .MinimumLevel.Debug()
@@ -19,8 +21,9 @@ sealed class Program
                     "Logs",
                     "log-.txt"),
                 rollingInterval: RollingInterval.Day,
-                retainedFileCountLimit: 7))
-            .WriteTo.Async(a => a.Debug())
+                retainedFileCountLimit: 7,
+                outputTemplate: OutputTemplate))
+            .WriteTo.Async(a => a.Debug(outputTemplate: OutputTemplate))
             .CreateLogger();
 
         try
