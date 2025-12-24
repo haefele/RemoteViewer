@@ -25,7 +25,7 @@ public static class DtoExtensions
             for (var i = 0; i < result.DirtyRegions.Length; i++)
             {
                 var r = result.DirtyRegions[i];
-                dirtyRegions[i] = new DirtyRegionDto(r.X, r.Y, r.Width, r.Height, r.Pixels.Memory);
+                dirtyRegions[i] = new DirtyRegionDto(r.X, r.Y, r.Width, r.Height, r.Pixels.Span.ToArray());
             }
         }
 
@@ -40,7 +40,7 @@ public static class DtoExtensions
             }
         }
 
-        return new GrabResultDto(result.Status, result.FullFramePixels?.Memory, dirtyRegions, moveRegions);
+        return new GrabResultDto(result.Status, result.FullFramePixels?.Span.ToArray(), dirtyRegions, moveRegions);
     }
 
     // GrabResultDto -> GrabResult (client side, after receiving over IPC)
@@ -50,7 +50,7 @@ public static class DtoExtensions
         if (dto.FullFramePixels is { } fullFramePixels)
         {
             fullFrame = RefCountedMemoryOwner<byte>.Create(fullFramePixels.Length);
-            fullFramePixels.Span.CopyTo(fullFrame.Span);
+            fullFramePixels.AsSpan().CopyTo(fullFrame.Span);
         }
 
         DirtyRegion[]? dirtyRegions = null;
@@ -61,7 +61,7 @@ public static class DtoExtensions
             {
                 var r = dto.DirtyRegions[i];
                 var pixels = RefCountedMemoryOwner<byte>.Create(r.Pixels.Length);
-                r.Pixels.Span.CopyTo(pixels.Span);
+                r.Pixels.AsSpan().CopyTo(pixels.Span);
                 dirtyRegions[i] = new DirtyRegion(r.X, r.Y, r.Width, r.Height, pixels);
             }
         }
