@@ -1,5 +1,7 @@
 using System.Diagnostics;
 using System.IO.Pipes;
+using System.Security.AccessControl;
+using System.Security.Principal;
 using Microsoft.Extensions.Options;
 using Nerdbank.Streams;
 using RemoteViewer.WinServ.Options;
@@ -27,12 +29,15 @@ public class SessionRecorderRpcHostService(
         {
             try
             {
-                var pipeServer = new NamedPipeServerStream(
+                var pipeServer = NamedPipeServerStreamAcl.Create(
                     pipeName,
                     PipeDirection.InOut,
                     NamedPipeServerStream.MaxAllowedServerInstances,
                     PipeTransmissionMode.Byte,
-                    PipeOptions.Asynchronous);
+                    PipeOptions.Asynchronous,
+                    inBufferSize: 0,
+                    outBufferSize: 0,
+                    pipeSecurity: CreatePipeSecurity());
 
                 logger.LogDebug("Waiting for client connection on pipe: {PipeName}", pipeName);
 
@@ -94,5 +99,18 @@ public class SessionRecorderRpcHostService(
     private static uint GetCurrentSessionId()
     {
         return (uint)Process.GetCurrentProcess().SessionId;
+    }
+
+    private static PipeSecurity CreatePipeSecurity()
+    {
+        var security = new PipeSecurity();
+
+        // Allow authenticated users (desktop app) to connect
+        security.AddAccessRule(new PipeAccessRule(
+            new SecurityIdentifier(WellKnownSidType.AuthenticatedUserSid, null),
+            PipeAccessRights.ReadWrite,
+            AccessControlType.Allow));
+
+        return security;
     }
 }
