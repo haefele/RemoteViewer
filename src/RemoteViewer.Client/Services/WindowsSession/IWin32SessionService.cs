@@ -65,11 +65,14 @@ public class Win32SessionService(ILogger<Win32SessionService> logger) : IWin32Se
         var sessions = ImmutableList.CreateBuilder<DesktopSession>();
 
         var consoleSessionId = PInvoke.WTSGetActiveConsoleSessionId();
-        sessions.Add(new DesktopSession(
-            consoleSessionId,
-            "Console",
-            DesktopSessionType.Console,
-            this.GetUsernameFromSessionId(consoleSessionId)));
+        if (consoleSessionId != 0xFFFFFFFF)
+        {
+            sessions.Add(new DesktopSession(
+                consoleSessionId,
+                "Console",
+                DesktopSessionType.Console,
+                this.GetUsernameFromSessionId(consoleSessionId)));
+        }
 
         var sessionResult = (bool)PInvoke.WTSEnumerateSessions(
             HANDLE.WTS_CURRENT_SERVER_HANDLE,
@@ -185,7 +188,7 @@ public class Win32SessionService(ILogger<Win32SessionService> logger) : IWin32Se
                         wShowWindow = 0,
                     };
 
-                    var desktopPtr = Marshal.StringToHGlobalAuto($"winsta0\\Default\0");
+                    var desktopPtr = Marshal.StringToHGlobalAuto("winsta0\\Default");
                     try
                     {
                         startupInfo.lpDesktop = new PWSTR((char*)desktopPtr.ToPointer());
@@ -223,6 +226,9 @@ public class Win32SessionService(ILogger<Win32SessionService> logger) : IWin32Se
                             logger.LogError("Failed to create process as user: {ErrorCode}", Marshal.GetLastWin32Error());
                             return null;
                         }
+
+                        PInvoke.CloseHandle(processInfo.hProcess);
+                        PInvoke.CloseHandle(processInfo.hThread);
 
                         return Process.GetProcessById((int)processInfo.dwProcessId);
                     }
