@@ -24,18 +24,18 @@ public sealed class ScreenshotService : IScreenshotService
             .ToArray();
     }
 
-    public Task<GrabResult> CaptureDisplay(Display display, CancellationToken ct)
+    public async Task<GrabResult> CaptureDisplay(Display display, CancellationToken ct)
     {
         var state = this.GetOrCreateDisplayState(display.Name);
         var keyframeDue = state.KeyframeTimer.ElapsedMilliseconds >= KeyframeIntervalMs || state.ForceNextKeyframe;
 
         foreach (var grabber in this._sortedGrabbers)
         {
-            var result = grabber.CaptureDisplay(display, keyframeDue);
+            var result = await grabber.CaptureDisplay(display, keyframeDue, ct);
 
             if (result.Status == GrabStatus.NoChanges)
             {
-                return Task.FromResult(result);
+                return result;
             }
             else if (result.Status == GrabStatus.Failure)
             {
@@ -51,12 +51,12 @@ public sealed class ScreenshotService : IScreenshotService
                     state.ForceNextKeyframe = false;
                 }
 
-                return Task.FromResult(result);
+                return result;
             }
         }
 
         // All grabbers failed
-        return Task.FromResult(new GrabResult(GrabStatus.Failure, null, null, null));
+        return new GrabResult(GrabStatus.Failure, null, null, null);
     }
 
     private DisplayState GetOrCreateDisplayState(string displayName)

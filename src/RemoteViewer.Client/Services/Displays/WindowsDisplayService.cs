@@ -12,7 +12,7 @@ namespace RemoteViewer.Client.Services.Displays;
 
 public class WindowsDisplayService(
     IFusionCache cache,
-    ILogger<WindowsDisplayService> logger) : IDisplayService
+    ILogger<WindowsDisplayService> logger)
 {
     private const string CacheKey = "displays";
 

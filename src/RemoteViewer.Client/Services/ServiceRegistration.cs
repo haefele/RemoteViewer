@@ -34,6 +34,8 @@ static class ServiceRegistration
 
     public static IServiceCollection AddDesktopServices(this IServiceCollection services, App app)
     {
+        services.AddCaptureServices();
+
         services.AddSingleton(app);
         services.AddSingleton<ConnectionHubClient>();
         services.AddSingleton<IViewModelFactory, ViewModelFactory>();
@@ -41,14 +43,12 @@ static class ServiceRegistration
         services.AddSingleton<SessionRecorderRpcClient>();
         services.AddSingleton<ILocalInputMonitorService, WindowsLocalInputMonitorService>();
 
-        // IPC implementations
-        services.AddSingleton<WindowsIpcDisplayService>();
-        services.AddSingleton<WindowsIpcScreenshotService>();
-        services.AddSingleton<WindowsIpcInputInjectionService>();
+        // IPC grabber (highest priority, used when SessionRecorder is connected)
+        services.AddSingleton<IScreenGrabber, IpcScreenGrabber>();
 
-        // Hybrid interfaces (auto-switch local/IPC)
+        // Interface bindings
         services.AddSingleton<IDisplayService, WindowsHybridDisplayService>();
-        services.AddSingleton<IScreenshotService, WindowsHybridScreenshotService>();
+        services.AddSingleton<IScreenshotService, ScreenshotService>();
         services.AddSingleton<IInputInjectionService, WindowsHybridInputInjectionService>();
         return services;
     }
@@ -58,15 +58,11 @@ static class ServiceRegistration
         services.AddSingleton<IWin32SessionService, Win32SessionService>();
         services.AddSingleton<SessionRecorderRpcServer>();
 
-        // Direct interface bindings (no hybrid)
-        services.AddSingleton<IDisplayService, WindowsDisplayService>();
-        services.AddSingleton<IScreenshotService, ScreenshotService>();
-        services.AddSingleton<IInputInjectionService, WindowsInputInjectionService>();
-
         // Mode-specific hosted service
         if (mode is ApplicationMode.SessionRecorder)
         {
             services.AddCaptureServices();
+            services.AddSingleton<IScreenshotService, ScreenshotService>();
             services.AddHostedService<SessionRecorderRpcHostService>();
         }
         else

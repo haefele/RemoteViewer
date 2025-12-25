@@ -10,7 +10,7 @@ using ProtocolMouseButton = RemoteViewer.Server.SharedAPI.Protocol.MouseButton;
 
 namespace RemoteViewer.Client.Services.InputInjection;
 
-public class WindowsInputInjectionService : IInputInjectionService
+public class WindowsInputInjectionService
 {
     private static readonly TimeSpan s_modifierTimeout = TimeSpan.FromSeconds(10);
 

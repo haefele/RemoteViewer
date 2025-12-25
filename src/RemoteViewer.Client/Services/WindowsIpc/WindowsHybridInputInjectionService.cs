@@ -7,37 +7,36 @@ namespace RemoteViewer.Client.Services.WindowsIpc;
 
 public class WindowsHybridInputInjectionService(
     WindowsInputInjectionService localService,
-    WindowsIpcInputInjectionService ipcService,
     SessionRecorderRpcClient rpcClient,
     ILogger<WindowsHybridInputInjectionService> logger) : IInputInjectionService
 {
     public Task InjectMouseMove(Display display, float normalizedX, float normalizedY, CancellationToken ct)
         => this.ExecuteWithFallbackAsync(
-            () => ipcService.InjectMouseMove(display, normalizedX, normalizedY, ct),
+            () => rpcClient.Proxy!.InjectMouseMove(display.Name, normalizedX, normalizedY, ct),
             () => localService.InjectMouseMove(display, normalizedX, normalizedY, ct),
             "inject mouse move");
 
     public Task InjectMouseButton(Display display, MouseButton button, bool isDown, float normalizedX, float normalizedY, CancellationToken ct)
         => this.ExecuteWithFallbackAsync(
-            () => ipcService.InjectMouseButton(display, button, isDown, normalizedX, normalizedY, ct),
+            () => rpcClient.Proxy!.InjectMouseButton(display.Name, (int)button, isDown, normalizedX, normalizedY, ct),
             () => localService.InjectMouseButton(display, button, isDown, normalizedX, normalizedY, ct),
             "inject mouse button");
 
     public Task InjectMouseWheel(Display display, float deltaX, float deltaY, float normalizedX, float normalizedY, CancellationToken ct)
         => this.ExecuteWithFallbackAsync(
-            () => ipcService.InjectMouseWheel(display, deltaX, deltaY, normalizedX, normalizedY, ct),
+            () => rpcClient.Proxy!.InjectMouseWheel(display.Name, deltaX, deltaY, normalizedX, normalizedY, ct),
             () => localService.InjectMouseWheel(display, deltaX, deltaY, normalizedX, normalizedY, ct),
             "inject mouse wheel");
 
     public Task InjectKey(ushort keyCode, bool isDown, CancellationToken ct)
         => this.ExecuteWithFallbackAsync(
-            () => ipcService.InjectKey(keyCode, isDown, ct),
+            () => rpcClient.Proxy!.InjectKey(keyCode, isDown, ct),
             () => localService.InjectKey(keyCode, isDown, ct),
             "inject key");
 
     public Task ReleaseAllModifiers(CancellationToken ct)
         => this.ExecuteWithFallbackAsync(
-            () => ipcService.ReleaseAllModifiers(ct),
+            () => rpcClient.Proxy!.ReleaseAllModifiers(ct),
             () => localService.ReleaseAllModifiers(ct),
             "release modifiers");
 

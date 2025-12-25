@@ -6,8 +6,7 @@ public interface ISessionRecorderRpc
     Task<DisplayDto[]> GetDisplays(CancellationToken ct);
 
     // Screenshot operations
-    Task<GrabResultDto> CaptureDisplay(string displayName, CancellationToken ct);
-    Task ForceKeyframe(string displayName, CancellationToken ct);
+    Task<GrabResultDto> CaptureDisplay(string displayName, bool forceKeyframe, CancellationToken ct);
 
     // Input injection operations
     Task InjectMouseMove(string displayName, float normalizedX, float normalizedY, CancellationToken ct);

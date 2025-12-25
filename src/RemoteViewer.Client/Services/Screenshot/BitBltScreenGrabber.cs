@@ -19,7 +19,7 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : I
     public bool IsAvailable => OperatingSystem.IsWindows();
     public int Priority => 50;
 
-    public unsafe GrabResult CaptureDisplay(Display display, bool forceKeyframe)
+    public unsafe Task<GrabResult> CaptureDisplay(Display display, bool forceKeyframe, CancellationToken ct)
     {
         var width = display.Bounds.Width;
         var height = display.Bounds.Height;
@@ -35,7 +35,7 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : I
             if (width <= 0 || height <= 0)
             {
                 logger.LogWarning("Invalid display dimensions: {Width}x{Height}", width, height);
-                return new GrabResult(GrabStatus.Failure, null, null, null);
+                return Task.FromResult(new GrabResult(GrabStatus.Failure, null, null, null));
             }
 
             sourceDC = PInvoke.GetDC(HWND.Null);
@@ -43,7 +43,7 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : I
             {
                 var errorCode = Marshal.GetLastWin32Error();
                 logger.LogError("Failed to get source DC: {ErrorCode}", errorCode);
-                return new GrabResult(GrabStatus.Failure, null, null, null);
+                return Task.FromResult(new GrabResult(GrabStatus.Failure, null, null, null));
             }
 
             memoryDC = PInvoke.CreateCompatibleDC(sourceDC);
@@ -51,7 +51,7 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : I
             {
                 var errorCode = Marshal.GetLastWin32Error();
                 logger.LogError("Failed to create compatible DC: {ErrorCode}", errorCode);
-                return new GrabResult(GrabStatus.Failure, null, null, null);
+                return Task.FromResult(new GrabResult(GrabStatus.Failure, null, null, null));
             }
 
             var bitmapInfo = new BITMAPINFO
@@ -79,7 +79,7 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : I
             {
                 var errorCode = Marshal.GetLastWin32Error();
                 logger.LogError("Failed to create DIB section: {ErrorCode}", errorCode);
-                return new GrabResult(GrabStatus.Failure, null, null, null);
+                return Task.FromResult(new GrabResult(GrabStatus.Failure, null, null, null));
             }
 
             hOldBitmap = PInvoke.SelectObject(memoryDC, new HGDIOBJ(hBitmapHandle.DangerousGetHandle()));
@@ -97,7 +97,7 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : I
             {
                 var errorCode = Marshal.GetLastWin32Error();
                 logger.LogError("BitBlt failed: {ErrorCode}", errorCode);
-                return new GrabResult(GrabStatus.Failure, null, null, null);
+                return Task.FromResult(new GrabResult(GrabStatus.Failure, null, null, null));
             }
 
             // Allocate RefCountedMemoryOwner and copy pixels
@@ -109,12 +109,12 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : I
             }
 
             // Apply software diff detection
-            return this.ApplyDiffDetection(display.Name, frameMemory, width, height, forceKeyframe);
+            return Task.FromResult(this.ApplyDiffDetection(display.Name, frameMemory, width, height, forceKeyframe));
         }
         catch (Exception exception)
         {
             logger.LogError(exception, "Exception occurred while capturing display {DisplayName}", display.Name);
-            return new GrabResult(GrabStatus.Failure, null, null, null);
+            return Task.FromResult(new GrabResult(GrabStatus.Failure, null, null, null));
         }
         finally
         {
@@ -211,13 +211,6 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : I
         return this._displayStates.GetOrAdd(displayName, _ => new BitBltDisplayState());
     }
 
-    public void ResetDisplay(string displayName)
-    {
-        if (this._displayStates.TryRemove(displayName, out var state))
-        {
-            state.Dispose();
-        }
-    }
 
     public void Dispose()
     {

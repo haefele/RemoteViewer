@@ -1,16 +1,16 @@
 using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.InputInjection;
-using RemoteViewer.Client.Services.WindowsIpc;
 using RemoteViewer.Client.Services.Screenshot;
+using RemoteViewer.Client.Services.WindowsSession;
 using RemoteViewer.Server.SharedAPI.Protocol;
 
-namespace RemoteViewer.Client.Services.WindowsSession;
+namespace RemoteViewer.Client.Services.WindowsIpc;
 
 public class SessionRecorderRpcServer(
     IWin32SessionService win32SessionService,
-    IDisplayService displayService,
+    WindowsDisplayService displayService,
     IScreenshotService screenshotService,
-    IInputInjectionService inputInjectionService) : ISessionRecorderRpc
+    WindowsInputInjectionService inputInjectionService) : ISessionRecorderRpc
 {
     public async Task<DisplayDto[]> GetDisplays(CancellationToken ct)
     {
@@ -18,7 +18,7 @@ public class SessionRecorderRpcServer(
         return displays.Select(d => d.ToDto()).ToArray();
     }
 
-    public async Task<GrabResultDto> CaptureDisplay(string displayName, CancellationToken ct)
+    public async Task<GrabResultDto> CaptureDisplay(string displayName, bool forceKeyframe, CancellationToken ct)
     {
         win32SessionService.SwitchToInputDesktop();
 
@@ -26,6 +26,11 @@ public class SessionRecorderRpcServer(
         if (display is null)
         {
             return new GrabResultDto(GrabStatus.Failure, null, null, null);
+        }
+
+        if (forceKeyframe)
+        {
+            await screenshotService.ForceKeyframe(displayName, ct);
         }
 
         var result = await screenshotService.CaptureDisplay(display, ct);
@@ -37,11 +42,6 @@ public class SessionRecorderRpcServer(
         {
             result.Dispose();
         }
-    }
-
-    public Task ForceKeyframe(string displayName, CancellationToken ct)
-    {
-        return screenshotService.ForceKeyframe(displayName, ct);
     }
 
     public async Task InjectMouseMove(string displayName, float normalizedX, float normalizedY, CancellationToken ct)

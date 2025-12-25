@@ -27,10 +27,10 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
 
     private readonly ConcurrentDictionary<string, DxOutput> _outputs = new();
 
-    public GrabResult CaptureDisplay(Display display, bool forceKeyframe)
+    public Task<GrabResult> CaptureDisplay(Display display, bool forceKeyframe, CancellationToken ct)
     {
         if (!OperatingSystem.IsOSPlatformVersionAtLeast("windows", 8))
-            return new GrabResult(GrabStatus.Failure, null, null, null);
+            return Task.FromResult(new GrabResult(GrabStatus.Failure, null, null, null));
 
         var width = display.Bounds.Width;
         var height = display.Bounds.Height;
@@ -41,7 +41,7 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
             if (dxOutput is null)
             {
                 logger.LogDebug("Failed to get DXGI output for display {DisplayName}, falling back to BitBlt", display.Name);
-                return new GrabResult(GrabStatus.Failure, null, null, null);
+                return Task.FromResult(new GrabResult(GrabStatus.Failure, null, null, null));
             }
 
             using (dxOutput.CaptureLock.EnterScope())
@@ -71,10 +71,10 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
                     if (forceKeyframe)
                     {
                         logger.LogDebug("Keyframe requested but no accumulated frames available");
-                        return new GrabResult(GrabStatus.Failure, null, null, null);
+                        return Task.FromResult(new GrabResult(GrabStatus.Failure, null, null, null));
                     }
 
-                    return new GrabResult(GrabStatus.NoChanges, null, null, null);
+                    return Task.FromResult(new GrabResult(GrabStatus.NoChanges, null, null, null));
                 }
 
                 try
@@ -83,11 +83,11 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
 
                     if (forceKeyframe)
                     {
-                        return this.CaptureKeyframe(dxOutput, sourceTexture, width, height);
+                        return Task.FromResult(this.CaptureKeyframe(dxOutput, sourceTexture, width, height));
                     }
                     else
                     {
-                        return this.CaptureDeltaFrame(dxOutput, sourceTexture, outputDuplication, width, height);
+                        return Task.FromResult(this.CaptureDeltaFrame(dxOutput, sourceTexture, outputDuplication, width, height));
                     }
                 }
                 finally
@@ -101,21 +101,21 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
         }
         catch (COMException ex) when ((uint)ex.HResult == 0x887A0027)
         {
-            return new GrabResult(GrabStatus.NoChanges, null, null, null);
+            return Task.FromResult(new GrabResult(GrabStatus.NoChanges, null, null, null));
         }
         catch (COMException ex) when ((uint)ex.HResult == 0x887A0026)
         {
             logger.LogWarning("DXGI_ERROR_ACCESS_LOST - recreating output duplication");
-            this.ResetDisplay(display.Name);
+            this.ResetDisplayInternal(display.Name);
 
-            return new GrabResult(GrabStatus.Failure, null, null, null);
+            return Task.FromResult(new GrabResult(GrabStatus.Failure, null, null, null));
         }
         catch (Exception exception)
         {
             logger.LogError(exception, "Exception occurred while capturing display {DisplayName} with DXGI", display.Name);
-            this.ResetDisplay(display.Name);
+            this.ResetDisplayInternal(display.Name);
 
-            return new GrabResult(GrabStatus.Failure, null, null, null);
+            return Task.FromResult(new GrabResult(GrabStatus.Failure, null, null, null));
         }
     }
 
@@ -435,7 +435,7 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
         }
     }
 
-    public void ResetDisplay(string displayName)
+    private void ResetDisplayInternal(string displayName)
     {
         if (this._outputs.TryRemove(displayName, out var output))
         {

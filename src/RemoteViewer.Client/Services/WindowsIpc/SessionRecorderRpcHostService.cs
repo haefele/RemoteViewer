@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO.Pipes;
 using System.Security.AccessControl;
 using System.Security.Principal;
@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 using Nerdbank.Streams;
 using StreamJsonRpc;
 
-namespace RemoteViewer.Client.Services.WindowsSession;
+namespace RemoteViewer.Client.Services.WindowsIpc;
 
 public class SessionRecorderRpcHostService(
     ILogger<SessionRecorderRpcHostService> logger,

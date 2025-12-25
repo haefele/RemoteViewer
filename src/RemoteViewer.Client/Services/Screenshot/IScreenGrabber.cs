@@ -7,8 +7,7 @@ public interface IScreenGrabber
     bool IsAvailable { get; }
     int Priority { get; }
 
-    GrabResult CaptureDisplay(Display display, bool forceKeyframe);
-    void ResetDisplay(string displayName);
+    Task<GrabResult> CaptureDisplay(Display display, bool forceKeyframe, CancellationToken ct);
 }
 
 public readonly record struct GrabResult(
