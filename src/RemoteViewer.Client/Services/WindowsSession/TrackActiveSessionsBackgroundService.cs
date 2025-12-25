@@ -1,18 +1,17 @@
-﻿using Microsoft.Extensions.Options;
-using RemoteViewer.WinServ.Common;
-using RemoteViewer.WinServ.Options;
 using System.ComponentModel;
 using System.Diagnostics;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using RemoteViewer.Client.Common;
 
-namespace RemoteViewer.WinServ.Services;
+namespace RemoteViewer.Client.Services.WindowsSession;
 
-public class TrackActiveSessionsBackgroundService(ILogger<TrackActiveSessionsBackgroundService> logger, IOptions<RemoteViewerOptions> remoteViewerOptions, IWin32Service win32Service) : BackgroundService
+public class TrackActiveSessionsBackgroundService(
+    ILogger<TrackActiveSessionsBackgroundService> logger,
+    IWin32SessionService win32SessionService) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        if (remoteViewerOptions.Value.Mode is not RemoteViewerMode.WindowsService)
-            return;
-
         using var timer = new PeriodicTimer(TimeSpan.FromSeconds(5));
         var sessionProcesses = new Dictionary<uint, Process>();
 
@@ -22,7 +21,7 @@ public class TrackActiveSessionsBackgroundService(ILogger<TrackActiveSessionsBac
             {
                 try
                 {
-                    var sessions = win32Service.GetActiveSessions();
+                    var sessions = win32SessionService.GetActiveSessions();
                     logger.LogInformation("Found {SessionCount} active sessions", sessions.Count);
 
                     // Remove processes for sessions that are no longer active
@@ -41,7 +40,7 @@ public class TrackActiveSessionsBackgroundService(ILogger<TrackActiveSessionsBac
 
                         logger.LogInformation("Starting process for session {SessionId}", session.SessionId);
 
-                        process = win32Service.CreateInteractiveSystemProcess($"\"{Environment.ProcessPath}\" --RemoteViewer:Mode=SessionRecorder", session.SessionId);
+                        process = win32SessionService.CreateInteractiveSystemProcess($"\"{Environment.ProcessPath}\" --session-recorder", session.SessionId);
                         if (process is null)
                         {
                             logger.LogError("Failed to start process for session {SessionId}", session.SessionId);

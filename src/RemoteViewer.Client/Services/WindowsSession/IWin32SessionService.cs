@@ -1,6 +1,7 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.Security;
@@ -8,9 +9,9 @@ using Windows.Win32.System.RemoteDesktop;
 using Windows.Win32.System.StationsAndDesktops;
 using Windows.Win32.System.Threading;
 
-namespace RemoteViewer.WinServ.Services;
+namespace RemoteViewer.Client.Services.WindowsSession;
 
-public interface IWin32Service
+public interface IWin32SessionService
 {
     bool SwitchToInputDesktop();
 
@@ -27,7 +28,7 @@ public enum DesktopSessionType
     Rdp,
 }
 
-public class Win32Service(ILogger<Win32Service> logger) : IWin32Service
+public class Win32SessionService(ILogger<Win32SessionService> logger) : IWin32SessionService
 {
     public bool SwitchToInputDesktop()
     {

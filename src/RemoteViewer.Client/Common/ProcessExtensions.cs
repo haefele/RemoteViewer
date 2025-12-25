@@ -1,6 +1,7 @@
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 
-namespace RemoteViewer.WinServ.Common;
+namespace RemoteViewer.Client.Common;
 
 public static class ProcessExtensions
 {

@@ -2,24 +2,20 @@ using System.Diagnostics;
 using System.IO.Pipes;
 using System.Security.AccessControl;
 using System.Security.Principal;
-using Microsoft.Extensions.Options;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Nerdbank.Streams;
-using RemoteViewer.WinServ.Options;
 using StreamJsonRpc;
 
-namespace RemoteViewer.WinServ.Services;
+namespace RemoteViewer.Client.Services.WindowsSession;
 
 public class SessionRecorderRpcHostService(
     ILogger<SessionRecorderRpcHostService> logger,
-    IOptions<RemoteViewerOptions> options,
     IServiceProvider serviceProvider) : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Only run in SessionRecorder mode
-        if (options.Value.Mode is not RemoteViewerMode.SessionRecorder)
-            return;
-
         var sessionId = GetCurrentSessionId();
         var pipeName = $"RemoteViewer.Session.{sessionId}";
 

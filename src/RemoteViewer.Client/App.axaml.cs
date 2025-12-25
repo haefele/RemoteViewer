@@ -3,17 +3,10 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
-using RemoteViewer.Client.Views.Main;
-using Serilog;
-using RemoteViewer.Client.Services.ViewModels;
+using RemoteViewer.Client.Services;
 using RemoteViewer.Client.Services.HubClient;
-using RemoteViewer.Client.Services.InputInjection;
-using RemoteViewer.Client.Services.Displays;
-using RemoteViewer.Client.Services.VideoCodec;
-using RemoteViewer.Client.Services.Screenshot;
-using RemoteViewer.Client.Services.LocalInputMonitor;
-using RemoteViewer.Client.Services.WindowsIpc;
-using ZiggyCreatures.Caching.Fusion;
+using RemoteViewer.Client.Services.ViewModels;
+using RemoteViewer.Client.Views.Main;
 
 namespace RemoteViewer.Client;
 
@@ -59,47 +52,10 @@ public partial class App : Application
     {
         var services = new ServiceCollection();
 
-        // App
-        services.AddSingleton(app);
-
-        // Logging
-        services.AddLogging(builder => builder.AddSerilog());
-
-        // Caching
-        services.AddFusionCache();
-
-        // Services
-        services.AddSingleton<ConnectionHubClient>();
-        services.AddSingleton<IViewModelFactory, ViewModelFactory>();
-        services.AddSingleton<ScreenEncoder>();
-
-        // IPC infrastructure (always registered, auto-connects in background)
-        services.AddSingleton<SessionRecorderRpcClient>();
-
-#if WINDOWS
-        // Local implementations (used by hybrid services)
-        services.AddSingleton<WindowsDisplayService>();
-        services.AddSingleton<IScreenGrabber, DxgiScreenGrabber>();
-        services.AddSingleton<IScreenGrabber, BitBltScreenGrabber>();
-        services.AddSingleton<ScreenshotService>();
-        services.AddSingleton<WindowsInputInjectionService>();
-        services.AddSingleton<ILocalInputMonitorService, WindowsLocalInputMonitorService>();
-
-        // IPC implementations (used by hybrid services)
-        services.AddSingleton<WindowsIpcDisplayService>();
-        services.AddSingleton<WindowsIpcScreenshotService>();
-        services.AddSingleton<WindowsIpcInputInjectionService>();
-
-        // Hybrid implementations (exposed via interface, auto-switch between local and IPC)
-        services.AddSingleton<IDisplayService, WindowsHybridDisplayService>();
-        services.AddSingleton<IScreenshotService, WindowsHybridScreenshotService>();
-        services.AddSingleton<IInputInjectionService, WindowsHybridInputInjectionService>();
-#else
-        services.AddSingleton<IDisplayService, NullDisplayService>();
-        services.AddSingleton<IInputInjectionService, NullInputInjectionService>();
-        services.AddSingleton<ILocalInputMonitorService, NullLocalInputMonitorService>();
-        services.AddSingleton<IScreenshotService, ScreenshotService>();
-#endif
+        services
+            .AddCoreServices()
+            .AddCaptureServices()
+            .AddDesktopServices(app);
 
         return services.BuildServiceProvider();
     }
