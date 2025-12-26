@@ -15,25 +15,9 @@ namespace RemoteViewer.Client.Services;
 
 static class ServiceRegistration
 {
-    public static IServiceCollection AddCoreServices(this IServiceCollection services)
-    {
-        services.AddFusionCache();
-        services.AddLogging(builder => builder.AddSerilog());
-        return services;
-    }
-
-    public static IServiceCollection AddCaptureServices(this IServiceCollection services)
-    {
-        services.AddSingleton<WindowsDisplayService>();
-        services.AddSingleton<IScreenGrabber, DxgiScreenGrabber>();
-        services.AddSingleton<IScreenGrabber, BitBltScreenGrabber>();
-        services.AddSingleton<ScreenshotService>();
-        services.AddSingleton<WindowsInputInjectionService>();
-        return services;
-    }
-
     public static IServiceCollection AddDesktopServices(this IServiceCollection services, App app)
     {
+        services.AddCoreServices();
         services.AddCaptureServices();
 
         services.AddSingleton(app);
@@ -42,27 +26,22 @@ static class ServiceRegistration
         services.AddSingleton<ScreenEncoder>();
         services.AddSingleton<SessionRecorderRpcClient>();
         services.AddSingleton<ILocalInputMonitorService, WindowsLocalInputMonitorService>();
-
-        // IPC grabber (highest priority, used when SessionRecorder is connected)
         services.AddSingleton<IScreenGrabber, IpcScreenGrabber>();
-
-        // Interface bindings
         services.AddSingleton<IDisplayService, WindowsHybridDisplayService>();
-        services.AddSingleton<IScreenshotService, ScreenshotService>();
         services.AddSingleton<IInputInjectionService, WindowsHybridInputInjectionService>();
         return services;
     }
 
     public static IServiceCollection AddHostedModeServices(this IServiceCollection services, ApplicationMode mode)
     {
-        services.AddSingleton<IWin32SessionService, Win32SessionService>();
-        services.AddSingleton<SessionRecorderRpcServer>();
+        services.AddCoreServices();
 
-        // Mode-specific hosted service
+        services.AddSingleton<IWin32SessionService, Win32SessionService>();
+
         if (mode is ApplicationMode.SessionRecorder)
         {
             services.AddCaptureServices();
-            services.AddSingleton<IScreenshotService, ScreenshotService>();
+            services.AddSingleton<SessionRecorderRpcServer>();
             services.AddHostedService<SessionRecorderRpcHostService>();
         }
         else
@@ -71,7 +50,27 @@ static class ServiceRegistration
             services.AddWindowsService();
         }
 
+        return services;
+    }
+
+    private static IServiceCollection AddCoreServices(this IServiceCollection services)
+    {
+        services.AddFusionCache();
+        services.AddLogging(builder => builder.AddSerilog());
         services.AddSerilog();
+
+        return services;
+    }
+
+    private static IServiceCollection AddCaptureServices(this IServiceCollection services)
+    {
+        services.AddSingleton<IScreenGrabber, DxgiScreenGrabber>();
+        services.AddSingleton<IScreenGrabber, BitBltScreenGrabber>();
+        services.AddSingleton<IScreenshotService, ScreenshotService>();
+
+        services.AddSingleton<WindowsDisplayService>();
+        services.AddSingleton<WindowsInputInjectionService>();
+
         return services;
     }
 }

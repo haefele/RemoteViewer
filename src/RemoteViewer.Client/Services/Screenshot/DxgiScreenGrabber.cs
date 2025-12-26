@@ -170,8 +170,6 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
         int width,
         int height)
     {
-        var deviceContext = dxOutput.DeviceContext;
-
         // Get dirty and move rects FIRST, before any GPU copy
         var dirtyRectangles = this.GetDirtyRects(outputDuplication);
         var moveRects = this.GetMoveRects(outputDuplication);
@@ -181,6 +179,7 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
             return new GrabResult(GrabStatus.NoChanges, null, null, null);
         }
 
+        var deviceContext = dxOutput.DeviceContext;
         var stagingTexture = dxOutput.GetOrCreateStagingTexture(width, height);
 
         deviceContext.CopyResource(stagingTexture, sourceTexture);

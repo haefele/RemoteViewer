@@ -52,10 +52,7 @@ public partial class App : Application
     {
         var services = new ServiceCollection();
 
-        services
-            .AddCoreServices()
-            .AddCaptureServices()
-            .AddDesktopServices(app);
+        services.AddDesktopServices(app);
 
         return services.BuildServiceProvider();
     }

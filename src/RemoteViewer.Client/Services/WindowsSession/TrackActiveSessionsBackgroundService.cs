@@ -1,4 +1,4 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Diagnostics;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -6,9 +6,8 @@ using RemoteViewer.Client.Common;
 
 namespace RemoteViewer.Client.Services.WindowsSession;
 
-public class TrackActiveSessionsBackgroundService(
-    ILogger<TrackActiveSessionsBackgroundService> logger,
-    IWin32SessionService win32SessionService) : BackgroundService
+public class TrackActiveSessionsBackgroundService(ILogger<TrackActiveSessionsBackgroundService> logger, IWin32SessionService win32SessionService)
+    : BackgroundService
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
