@@ -1,7 +1,8 @@
-﻿#if WINDOWS
+#if WINDOWS
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.Screenshot;
+using RemoteViewer.Client.Services.WindowsIpc;
 using RemoteViewer.Server.SharedAPI.Protocol;
 using Windows.Win32;
 using WindowsInput;
@@ -10,27 +11,59 @@ using ProtocolMouseButton = RemoteViewer.Server.SharedAPI.Protocol.MouseButton;
 
 namespace RemoteViewer.Client.Services.InputInjection;
 
-public class WindowsInputInjectionService
+public class WindowsInputInjectionService : IInputInjectionService
 {
     private static readonly TimeSpan s_modifierTimeout = TimeSpan.FromSeconds(10);
 
+    private readonly SessionRecorderRpcClient? _rpcClient;
     private readonly ILogger<WindowsInputInjectionService> _logger;
     private readonly InputSimulator _simulator = new();
 
-    // Track which modifier keys are currently pressed and when they were pressed
     private readonly ConcurrentDictionary<VirtualKeyCode, DateTime> _pressedModifiers = new();
     private DateTime _lastInputTime = DateTime.UtcNow;
 
-    // Accumulators for fractional scroll values (high-precision/smooth scrolling)
     private float _verticalScrollAccumulator;
     private float _horizontalScrollAccumulator;
 
-    public WindowsInputInjectionService(ILogger<WindowsInputInjectionService> logger)
+    public WindowsInputInjectionService(
+        SessionRecorderRpcClient? rpcClient,
+        ILogger<WindowsInputInjectionService> logger)
     {
+        this._rpcClient = rpcClient;
         this._logger = logger;
     }
 
     public Task InjectMouseMove(Display display, float normalizedX, float normalizedY, CancellationToken ct)
+        => this.ExecuteWithFallbackAsync(
+            () => this._rpcClient!.Proxy!.InjectMouseMove(display.Name, normalizedX, normalizedY, ct),
+            () => this.ActualInjectMouseMove(display, normalizedX, normalizedY, ct),
+            "inject mouse move");
+
+    public Task InjectMouseButton(Display display, ProtocolMouseButton button, bool isDown, float normalizedX, float normalizedY, CancellationToken ct)
+        => this.ExecuteWithFallbackAsync(
+            () => this._rpcClient!.Proxy!.InjectMouseButton(display.Name, (int)button, isDown, normalizedX, normalizedY, ct),
+            () => this.ActualInjectMouseButton(display, button, isDown, normalizedX, normalizedY, ct),
+            "inject mouse button");
+
+    public Task InjectMouseWheel(Display display, float deltaX, float deltaY, float normalizedX, float normalizedY, CancellationToken ct)
+        => this.ExecuteWithFallbackAsync(
+            () => this._rpcClient!.Proxy!.InjectMouseWheel(display.Name, deltaX, deltaY, normalizedX, normalizedY, ct),
+            () => this.ActualInjectMouseWheel(display, deltaX, deltaY, normalizedX, normalizedY, ct),
+            "inject mouse wheel");
+
+    public Task InjectKey(ushort keyCode, bool isDown, CancellationToken ct)
+        => this.ExecuteWithFallbackAsync(
+            () => this._rpcClient!.Proxy!.InjectKey(keyCode, isDown, ct),
+            () => this.ActualInjectKey(keyCode, isDown, ct),
+            "inject key");
+
+    public Task ReleaseAllModifiers(CancellationToken ct)
+        => this.ExecuteWithFallbackAsync(
+            () => this._rpcClient!.Proxy!.ReleaseAllModifiers(ct),
+            () => this.ActualReleaseAllModifiers(ct),
+            "release modifiers");
+
+    private Task ActualInjectMouseMove(Display display, float normalizedX, float normalizedY, CancellationToken ct)
     {
         this.CheckAndReleaseStuckModifiers();
 
@@ -40,7 +73,7 @@ public class WindowsInputInjectionService
         return Task.CompletedTask;
     }
 
-    public Task InjectMouseButton(Display display, ProtocolMouseButton button, bool isDown, float normalizedX, float normalizedY, CancellationToken ct)
+    private Task ActualInjectMouseButton(Display display, ProtocolMouseButton button, bool isDown, float normalizedX, float normalizedY, CancellationToken ct)
     {
         this.CheckAndReleaseStuckModifiers();
         this._lastInputTime = DateTime.UtcNow;
@@ -76,7 +109,7 @@ public class WindowsInputInjectionService
         return Task.CompletedTask;
     }
 
-    public Task InjectMouseWheel(Display display, float deltaX, float deltaY, float normalizedX, float normalizedY, CancellationToken ct)
+    private Task ActualInjectMouseWheel(Display display, float deltaX, float deltaY, float normalizedX, float normalizedY, CancellationToken ct)
     {
         this.CheckAndReleaseStuckModifiers();
         this._lastInputTime = DateTime.UtcNow;
@@ -84,7 +117,6 @@ public class WindowsInputInjectionService
         var (absX, absY) = NormalizedToAbsolute(display, normalizedX, normalizedY);
         this._simulator.Mouse.MoveMouseToPositionOnVirtualDesktop(absX, absY);
 
-        // Accumulate vertical scroll and dispatch whole clicks
         this._verticalScrollAccumulator += deltaY;
         var verticalClicks = (int)this._verticalScrollAccumulator;
         if (verticalClicks != 0)
@@ -93,7 +125,6 @@ public class WindowsInputInjectionService
             this._verticalScrollAccumulator -= verticalClicks;
         }
 
-        // Accumulate horizontal scroll and dispatch whole clicks
         this._horizontalScrollAccumulator += deltaX;
         var horizontalClicks = (int)this._horizontalScrollAccumulator;
         if (horizontalClicks != 0)
@@ -105,14 +136,13 @@ public class WindowsInputInjectionService
         return Task.CompletedTask;
     }
 
-    public Task InjectKey(ushort keyCode, bool isDown, CancellationToken ct)
+    private Task ActualInjectKey(ushort keyCode, bool isDown, CancellationToken ct)
     {
         this.CheckAndReleaseStuckModifiers();
         this._lastInputTime = DateTime.UtcNow;
 
         var vk = (VirtualKeyCode)keyCode;
 
-        // Track modifier key state
         if (IsModifierKey(vk))
         {
             if (isDown)
@@ -137,7 +167,7 @@ public class WindowsInputInjectionService
         return Task.CompletedTask;
     }
 
-    public Task ReleaseAllModifiers(CancellationToken ct)
+    private Task ActualReleaseAllModifiers(CancellationToken ct)
     {
         foreach (var vk in this._pressedModifiers.Keys)
         {
@@ -147,6 +177,24 @@ public class WindowsInputInjectionService
         this._pressedModifiers.Clear();
 
         return Task.CompletedTask;
+    }
+
+    private async Task ExecuteWithFallbackAsync(Func<Task> ipcAction, Func<Task> localAction, string operationName)
+    {
+        if (this._rpcClient?.IsConnected == true)
+        {
+            try
+            {
+                await ipcAction();
+                return;
+            }
+            catch (Exception ex)
+            {
+                this._logger.LogWarning(ex, "Failed to {OperationName} via IPC, falling back to local service", operationName);
+            }
+        }
+
+        await localAction();
     }
 
     private static bool IsModifierKey(VirtualKeyCode vk) => vk is
@@ -160,14 +208,12 @@ public class WindowsInputInjectionService
         var now = DateTime.UtcNow;
         var timeSinceLastInput = now - this._lastInputTime;
 
-        // Only check if there's been no meaningful input for the timeout period
         if (timeSinceLastInput < s_modifierTimeout)
             return;
 
         if (this._pressedModifiers.IsEmpty)
             return;
 
-        // Release any modifiers that have been held too long
         foreach (var (vk, pressedTime) in this._pressedModifiers)
         {
             if (now - pressedTime >= s_modifierTimeout)
@@ -179,23 +225,16 @@ public class WindowsInputInjectionService
         }
     }
 
-    /// <summary>
-    /// Converts normalized coordinates (0-1) to absolute coordinates for SendInput.
-    /// SendInput uses 0-65535 range for the entire virtual desktop.
-    /// </summary>
     private static (int absX, int absY) NormalizedToAbsolute(Display display, float normalizedX, float normalizedY)
     {
-        // Get virtual desktop dimensions
         var virtualLeft = PInvoke.GetSystemMetrics(global::Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_XVIRTUALSCREEN);
         var virtualTop = PInvoke.GetSystemMetrics(global::Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_YVIRTUALSCREEN);
         var virtualWidth = PInvoke.GetSystemMetrics(global::Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_CXVIRTUALSCREEN);
         var virtualHeight = PInvoke.GetSystemMetrics(global::Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_CYVIRTUALSCREEN);
 
-        // Calculate actual screen position
         var screenX = display.Bounds.Left + (int)(normalizedX * display.Bounds.Width);
         var screenY = display.Bounds.Top + (int)(normalizedY * display.Bounds.Height);
 
-        // Convert to virtual desktop 0-65535 range
         var absX = ((screenX - virtualLeft) * 65535) / virtualWidth;
         var absY = ((screenY - virtualTop) * 65535) / virtualHeight;
 

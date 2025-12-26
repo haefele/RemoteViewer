@@ -8,9 +8,9 @@ namespace RemoteViewer.Client.Services.WindowsIpc;
 
 public class SessionRecorderRpcServer(
     IWin32SessionService win32SessionService,
-    WindowsDisplayService displayService,
+    IDisplayService displayService,
     IScreenshotService screenshotService,
-    WindowsInputInjectionService inputInjectionService) : ISessionRecorderRpc
+    IInputInjectionService inputInjectionService) : ISessionRecorderRpc
 {
     public async Task<DisplayDto[]> GetDisplays(CancellationToken ct)
     {

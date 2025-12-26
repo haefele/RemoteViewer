@@ -1,4 +1,4 @@
-﻿#if WINDOWS
+#if WINDOWS
 using System.Collections.Immutable;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
@@ -6,25 +6,55 @@ using Windows.Win32;
 using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.Foundation;
 using RemoteViewer.Client.Services.Screenshot;
+using RemoteViewer.Client.Services.WindowsIpc;
 using ZiggyCreatures.Caching.Fusion;
 
 namespace RemoteViewer.Client.Services.Displays;
 
 public class WindowsDisplayService(
+    SessionRecorderRpcClient? rpcClient,
     IFusionCache cache,
-    ILogger<WindowsDisplayService> logger)
+    ILogger<WindowsDisplayService> logger) : IDisplayService
 {
-    private const string CacheKey = "displays";
+    private const string CacheKeyIpc = "displays-ipc";
+    private const string CacheKeyLocal = "displays-local";
 
     private static readonly FusionCacheEntryOptions s_cacheOptions = new(TimeSpan.FromSeconds(10))
     {
-        EagerRefreshThreshold = 0.8f, // Refresh in background when 80% of duration has passed
+        EagerRefreshThreshold = 0.8f,
     };
 
-    public Task<ImmutableList<Display>> GetDisplays(CancellationToken ct)
+    public async Task<ImmutableList<Display>> GetDisplays(CancellationToken ct)
+    {
+        if (rpcClient?.IsConnected == true)
+        {
+            try
+            {
+                return await cache.GetOrSetAsync<ImmutableList<Display>>(
+                    CacheKeyIpc,
+                    async (_, ct2) =>
+                    {
+                        var proxy = rpcClient.Proxy!;
+                        var dtos = await proxy.GetDisplays(ct2);
+                        logger.LogDebug("Retrieved {Count} displays from SessionRecorder service", dtos.Length);
+                        return dtos.Select(d => d.FromDto()).ToImmutableList();
+                    },
+                    s_cacheOptions,
+                    ct);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Failed to get displays via IPC, falling back to local service");
+            }
+        }
+
+        return await this.ActualGetDisplays(ct);
+    }
+
+    private Task<ImmutableList<Display>> ActualGetDisplays(CancellationToken ct)
     {
         return cache.GetOrSetAsync<ImmutableList<Display>>(
-            CacheKey,
+            CacheKeyLocal,
             (_, ct2) => this.EnumerateDisplaysAsync(ct2),
             s_cacheOptions,
             ct).AsTask();
