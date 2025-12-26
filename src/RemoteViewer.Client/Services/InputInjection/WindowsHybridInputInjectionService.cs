@@ -1,9 +1,9 @@
-using Microsoft.Extensions.Logging;
-using RemoteViewer.Client.Services.InputInjection;
+﻿using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.Screenshot;
+using RemoteViewer.Client.Services.WindowsIpc;
 using RemoteViewer.Server.SharedAPI.Protocol;
 
-namespace RemoteViewer.Client.Services.WindowsIpc;
+namespace RemoteViewer.Client.Services.InputInjection;
 
 public class WindowsHybridInputInjectionService(
     WindowsInputInjectionService localService,
