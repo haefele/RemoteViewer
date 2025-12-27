@@ -15,9 +15,6 @@
     <Compile Include="..\RemoteViewer.Server\SharedAPI\**\*" LinkBase="\SharedApi\" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Compile Remove="..\RemoteViewer.Server\SharedAPI\Protocol\FrameCodec.cs" />
-  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.3.6" />

@@ -24,7 +24,10 @@
       "Bash(git add:*)",
       "Bash(git commit:*)",
       "Bash(cat:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(del \"C:\\\\Users\\\\haefe\\\\source\\\\repos\\\\RemoteViewer\\\\src\\\\RemoteViewer.Server\\\\SharedAPI\\\\Protocol\\\\MouseMoveMessage.cs\")",
+      "Bash(del \"C:\\\\Users\\\\haefe\\\\source\\\\repos\\\\RemoteViewer\\\\src\\\\RemoteViewer.Server\\\\SharedAPI\\\\Protocol\\\\MouseButtonMessage.cs\")",
+      "Bash(del \"C:\\\\Users\\\\haefe\\\\source\\\\repos\\\\RemoteViewer\\\\src\\\\RemoteViewer.Server\\\\SharedAPI\\\\Protocol\\\\MouseWheelMessage.cs\")"
     ],
     "deny": [],
     "ask": []

@@ -2,7 +2,6 @@
 
 namespace RemoteViewer.Server.SharedAPI.Protocol;
 
-// File send messages (Viewer → Presenter → Viewer)
 [GenerateShape]
 public sealed partial record FileSendRequestMessage(
     string TransferId,
@@ -17,7 +16,6 @@ public sealed partial record FileSendResponseMessage(
     string? ErrorMessage
 );
 
-// File transfer data messages (Bidirectional)
 [GenerateShape]
 public sealed partial record FileChunkMessage(
     string TransferId,

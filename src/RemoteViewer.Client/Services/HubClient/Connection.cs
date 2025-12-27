@@ -138,9 +138,7 @@ public sealed class Connection
         if (this.IsClosed)
             return;
 
-        var message = new SwitchDisplayMessage();
-        var data = ProtocolSerializer.Serialize(message);
-        await this._sendMessageAsync(MessageTypes.Display.Switch, data, MessageDestination.PresenterOnly, null);
+        await this._sendMessageAsync(MessageTypes.Display.Switch, ReadOnlyMemory<byte>.Empty, MessageDestination.PresenterOnly, null);
 
         this._logger.LogDebug("Requested display switch");
     }
