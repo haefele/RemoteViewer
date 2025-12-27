@@ -52,7 +52,7 @@ public partial class App : Application
     {
         var services = new ServiceCollection();
 
-        services.AddDesktopServices(app);
+        services.AddRemoteViewerServices(ApplicationMode.Desktop, app);
 
         return services.BuildServiceProvider();
     }

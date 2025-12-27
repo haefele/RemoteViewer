@@ -97,7 +97,7 @@ sealed class Program
     {
         var builder = Host.CreateApplicationBuilder(args);
 
-        builder.Services.AddHostedModeServices(mode);
+        builder.Services.AddRemoteViewerServices(mode);
 
         var host = builder.Build();
         await host.RunAsync();
