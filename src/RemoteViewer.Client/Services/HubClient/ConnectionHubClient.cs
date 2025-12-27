@@ -251,40 +251,6 @@ public sealed class ConnectionHubClient : IAsyncDisposable
         }
     }
 
-    public async Task SendMessage(string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null)
-    {
-        if (!this.IsConnected)
-            return;
-
-        try
-        {
-            this._logger.LogDebug("Sending message - ConnectionId: {ConnectionId}, MessageType: {MessageType}, DataLength: {DataLength}, Destination: {Destination}", connectionId, messageType, data.Length, destination);
-            await this._connection.SendAsync("SendMessage", connectionId, messageType, data, destination, targetClientIds);
-            this._logger.LogDebug("Message sent successfully");
-        }
-        catch (Exception ex) when (!this.IsConnected)
-        {
-            this._logger.LogWarning(ex, "Failed to send message - hub disconnected");
-        }
-    }
-
-    public async Task Disconnect(string connectionId)
-    {
-        if (!this.IsConnected)
-            return;
-
-        try
-        {
-            this._logger.LogInformation("Disconnecting from connection: {ConnectionId}", connectionId);
-            await this._connection.InvokeAsync("Disconnect", connectionId);
-            this._logger.LogInformation("Disconnected from connection: {ConnectionId}", connectionId);
-        }
-        catch (Exception ex) when (!this.IsConnected)
-        {
-            this._logger.LogWarning(ex, "Failed to disconnect - hub disconnected");
-        }
-    }
-
     public async Task GenerateNewPassword()
     {
         if (!this.IsConnected)
@@ -325,6 +291,40 @@ public sealed class ConnectionHubClient : IAsyncDisposable
     {
         this._logger.LogDebug("Disposing HubClient");
         await this._connection.DisposeAsync();
+    }
+
+    private async Task SendMessage(string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null)
+    {
+        if (!this.IsConnected)
+            return;
+
+        try
+        {
+            this._logger.LogDebug("Sending message - ConnectionId: {ConnectionId}, MessageType: {MessageType}, DataLength: {DataLength}, Destination: {Destination}", connectionId, messageType, data.Length, destination);
+            await this._connection.SendAsync("SendMessage", connectionId, messageType, data, destination, targetClientIds);
+            this._logger.LogDebug("Message sent successfully");
+        }
+        catch (Exception ex) when (!this.IsConnected)
+        {
+            this._logger.LogWarning(ex, "Failed to send message - hub disconnected");
+        }
+    }
+
+    private async Task Disconnect(string connectionId)
+    {
+        if (!this.IsConnected)
+            return;
+
+        try
+        {
+            this._logger.LogInformation("Disconnecting from connection: {ConnectionId}", connectionId);
+            await this._connection.InvokeAsync("Disconnect", connectionId);
+            this._logger.LogInformation("Disconnected from connection: {ConnectionId}", connectionId);
+        }
+        catch (Exception ex) when (!this.IsConnected)
+        {
+            this._logger.LogWarning(ex, "Failed to disconnect - hub disconnected");
+        }
     }
 }
 
