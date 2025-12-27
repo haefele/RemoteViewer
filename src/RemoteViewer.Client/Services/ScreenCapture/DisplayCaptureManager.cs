@@ -10,7 +10,7 @@ public sealed class DisplayCaptureManager(
     Connection connection,
     IDisplayService displayService,
     IScreenshotService screenshotService,
-    ScreenEncoder screenEncoder,
+    IFrameEncoder frameEncoder,
     ILoggerFactory loggerFactory,
     ILogger<DisplayCaptureManager> logger) : IDisposable
 {
@@ -132,7 +132,7 @@ public sealed class DisplayCaptureManager(
             display,
             connection,
             screenshotService,
-            screenEncoder,
+            frameEncoder,
             () => this.TargetFps,
             loggerFactory.CreateLogger<DisplayCapturePipeline>());
 

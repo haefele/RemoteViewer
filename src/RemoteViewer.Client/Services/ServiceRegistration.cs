@@ -38,7 +38,7 @@ static class ServiceRegistration
         services.AddSingleton<ConnectionHubClient>();
 
         // Screen Encoding
-        services.AddSingleton<ScreenEncoder>();
+        services.AddSingleton<IFrameEncoder, TurboJpegFrameEncoder>();
 
         // IPC Client (to communicate with SessionRecorder)
         services.AddSingleton<SessionRecorderRpcClient>();

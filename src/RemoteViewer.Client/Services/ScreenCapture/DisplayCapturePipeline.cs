@@ -14,7 +14,7 @@ public sealed class DisplayCapturePipeline : IDisposable
     private readonly Display _display;
     private readonly Connection _connection;
     private readonly IScreenshotService _screenshotService;
-    private readonly ScreenEncoder _screenEncoder;
+    private readonly IFrameEncoder _frameEncoder;
     private readonly ILogger<DisplayCapturePipeline> _logger;
     private readonly Func<int> _getTargetFps;
 
@@ -35,14 +35,14 @@ public sealed class DisplayCapturePipeline : IDisposable
         Display display,
         Connection connection,
         IScreenshotService screenshotService,
-        ScreenEncoder screenEncoder,
+        IFrameEncoder frameEncoder,
         Func<int> getTargetFps,
         ILogger<DisplayCapturePipeline> logger)
     {
         this._display = display;
         this._connection = connection;
         this._screenshotService = screenshotService;
-        this._screenEncoder = screenEncoder;
+        this._frameEncoder = frameEncoder;
         this._getTargetFps = getTargetFps;
         this._logger = logger;
 
@@ -141,7 +141,7 @@ public sealed class DisplayCapturePipeline : IDisposable
             {
                 using (capturedFrame)
                 {
-                    var (codec, encodedRegions) = this._screenEncoder.ProcessFrame(
+                    var (codec, encodedRegions) = this._frameEncoder.ProcessFrame(
                         capturedFrame.GrabResult,
                         this._display.Bounds.Width,
                         this._display.Bounds.Height);

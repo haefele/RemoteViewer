@@ -52,7 +52,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         ConnectionHubClient hubClient,
         IDisplayService displayService,
         IScreenshotService screenshotService,
-        ScreenEncoder screenEncoder,
+        IFrameEncoder frameEncoder,
         IInputInjectionService inputInjectionService,
         ILocalInputMonitorService localInputMonitor,
         IViewModelFactory viewModelFactory,
@@ -84,7 +84,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
             connection,
             displayService,
             screenshotService,
-            screenEncoder,
+            frameEncoder,
             loggerFactory,
             loggerFactory.CreateLogger<DisplayCaptureManager>());
         this._captureManager.Start();

@@ -7,7 +7,7 @@ using TurboJpegWrapper;
 
 namespace RemoteViewer.Client.Services.VideoCodec;
 
-public sealed class ScreenEncoder : IDisposable
+public sealed class TurboJpegFrameEncoder : IFrameEncoder
 {
     private const int JpegQuality = 90;
 
@@ -102,20 +102,5 @@ public sealed class ScreenEncoder : IDisposable
         {
             compressor.Dispose();
         }
-    }
-}
-
-public readonly record struct EncodedRegion(
-    bool IsKeyframe,
-    int X,
-    int Y,
-    int Width,
-    int Height,
-    RefCountedMemoryOwner<byte> JpegData
-) : IDisposable
-{
-    public void Dispose()
-    {
-        this.JpegData.Dispose();
     }
 }
