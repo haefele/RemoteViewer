@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Material.Icons;
 
@@ -15,7 +15,7 @@ public partial class FileTransferConfirmationDialog : Window
 
     public Task<bool> ResultTask => this._resultTcs.Task;
 
-    public static FileTransferConfirmationDialog CreateForUpload(string displayName, string fileName, string fileSizeFormatted)
+    public static FileTransferConfirmationDialog AskForConfirmation(string displayName, string fileName, string fileSizeFormatted)
     {
         var dialog = new FileTransferConfirmationDialog();
         dialog.HeaderIcon.Kind = MaterialIconKind.FileUpload;
@@ -23,18 +23,6 @@ public partial class FileTransferConfirmationDialog : Window
         dialog.SenderText.Text = $"\"{displayName}\" wants to send you:";
         dialog.FileNameText.Text = fileName;
         dialog.FileSizeText.Text = fileSizeFormatted;
-        return dialog;
-    }
-
-    public static FileTransferConfirmationDialog CreateForDownload(string displayName, string filePath)
-    {
-        var dialog = new FileTransferConfirmationDialog();
-        dialog.HeaderIcon.Kind = MaterialIconKind.FileDownload;
-        dialog.HeaderIcon.Foreground = new Avalonia.Media.SolidColorBrush(Avalonia.Media.Color.Parse("#2196F3"));
-        dialog.HeaderText.Text = "File Download Request";
-        dialog.SenderText.Text = $"\"{displayName}\" wants to download:";
-        dialog.FileNameText.Text = filePath;
-        dialog.FileSizeText.IsVisible = false;
         return dialog;
     }
 

@@ -6,7 +6,6 @@ namespace RemoteViewer.Client.Services.FileTransfer;
 public partial class FileReceiveOperation : ObservableObject, IFileTransfer
 {
     private readonly Connection _connection;
-    private readonly Func<Task>? _sendAcceptResponse;
     private readonly Func<string, string, Task> _sendCancel;
     private FileStream? _fileStream;
     private bool _disposed;
@@ -16,11 +15,9 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
         string fileName,
         long fileSize,
         Connection connection,
-        Func<string, string, Task> sendCancel,
-        Func<Task>? sendAcceptResponse = null)
+        Func<string, string, Task> sendCancel)
     {
         this._connection = connection;
-        this._sendAcceptResponse = sendAcceptResponse;
         this._sendCancel = sendCancel;
 
         this.TransferId = transferId;
@@ -72,11 +69,6 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
         this.SubscribeToChunkEvents();
         this.OpenTempFile();
         this.State = FileTransferState.Transferring;
-
-        if (this._sendAcceptResponse is not null)
-        {
-            await this._sendAcceptResponse();
-        }
     }
 
     public async Task CancelAsync()

@@ -149,21 +149,20 @@ public sealed class FileTransferService : IDisposable
                 ? this._connection.Viewers.FirstOrDefault(v => v.ClientId == e.SenderClientId)?.DisplayName ?? "Unknown Viewer"
                 : this._connection.Presenter?.DisplayName ?? "Presenter";
             var fileSizeFormatted = FileTransferHelpers.FormatFileSize(e.FileSize);
-            var dialog = FileTransferConfirmationDialog.CreateForUpload(displayName, e.FileName, fileSizeFormatted);
+            var dialog = FileTransferConfirmationDialog.AskForConfirmation(displayName, e.FileName, fileSizeFormatted);
 
             dialog.Show();
 
+            var targetClientId = this._connection.IsPresenter ? e.SenderClientId : null;
+
             if (await dialog.ResultTask)
             {
-                var targetClientId = this._connection.IsPresenter ? e.SenderClientId : null;
-
                 var transfer = new FileReceiveOperation(
                     e.TransferId,
                     e.FileName,
                     e.FileSize,
                     this._connection,
-                    sendCancel: (tid, reason) => this._connection.SendFileCancelAsync(tid, reason, targetClientId),
-                    sendAcceptResponse: () => this._connection.SendFileSendResponseAsync(e.TransferId, true, null, targetClientId));
+                    sendCancel: (tid, reason) => this._connection.SendFileCancelAsync(tid, reason, targetClientId));
 
                 if (this._cancelledTransfers.TryRemove(e.TransferId, out _))
                 {
@@ -174,13 +173,13 @@ public sealed class FileTransferService : IDisposable
                 this.TrackReceive(transfer);
                 await transfer.AcceptAsync();
                 this.Toasts?.AddTransfer(transfer, isUpload: false);
+                await this._connection.SendFileSendResponseAsync(e.TransferId, true, null, targetClientId);
                 this._logger.LogInformation("Accepted file upload: {TransferId} -> {DestinationPath}", e.TransferId, transfer.DestinationPath);
             }
             else
             {
                 this._cancelledTransfers.TryRemove(e.TransferId, out _);
-                var rejectTargetClientId = this._connection.IsPresenter ? e.SenderClientId : null;
-                await this._connection.SendFileSendResponseAsync(e.TransferId, false, "The recipient declined the file transfer.", rejectTargetClientId);
+                await this._connection.SendFileSendResponseAsync(e.TransferId, false, "The recipient declined the file transfer.", targetClientId);
                 this._logger.LogInformation("Rejected file upload: {TransferId}", e.TransferId);
             }
         });
