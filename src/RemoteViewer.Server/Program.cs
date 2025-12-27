@@ -1,7 +1,7 @@
 ﻿using Nerdbank.MessagePack.SignalR;
-using PolyType.ReflectionProvider;
 using RemoteViewer.Server.Hubs;
 using RemoteViewer.Server.Services;
+using RemoteViewer.Server.SharedAPI;
 using Serilog;
 
 try
@@ -19,7 +19,7 @@ try
         {
             f.MaximumReceiveMessageSize = null;
         })
-        .AddMessagePackProtocol(ReflectionTypeShapeProvider.Default);
+        .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider);
     builder.Services.AddSerilog();
 
     var app = builder.Build();

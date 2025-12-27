@@ -1,9 +1,6 @@
-﻿using PolyType;
-
 namespace RemoteViewer.Server.SharedAPI.Protocol;
 
-[GenerateShape]
-public sealed partial record FrameMessage(
+public sealed record FrameMessage(
     string DisplayId,
     ulong FrameNumber,
     FrameCodec Codec,
@@ -15,8 +12,7 @@ public enum FrameCodec : byte
     Jpeg90 = 0,
 }
 
-[GenerateShape]
-public sealed partial record FrameRegion(
+public sealed record FrameRegion(
     bool IsKeyframe,
     int X,
     int Y,

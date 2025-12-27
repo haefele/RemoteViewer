@@ -2,7 +2,6 @@
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
 using Nerdbank.MessagePack.SignalR;
-using PolyType.ReflectionProvider;
 using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Server.SharedAPI;
@@ -38,7 +37,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
                 options.Headers.Add("X-Display-Name", this.DisplayName);
             })
             .WithAutomaticReconnect()
-            .AddMessagePackProtocol(ReflectionTypeShapeProvider.Default)
+            .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
             .Build();
 
         this._connection.On<string, string, string>("CredentialsAssigned", (clientId, username, password) =>
@@ -293,7 +292,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
         await this._connection.DisposeAsync();
     }
 
-    private async Task SendMessage(string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null)
+    private async Task SendMessage(string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination, List<string>? targetClientIds = null)
     {
         if (!this.IsConnected)
             return;

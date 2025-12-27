@@ -27,7 +27,10 @@
       "Bash(git mv:*)",
       "Bash(del \"C:\\\\Users\\\\haefe\\\\source\\\\repos\\\\RemoteViewer\\\\src\\\\RemoteViewer.Server\\\\SharedAPI\\\\Protocol\\\\MouseMoveMessage.cs\")",
       "Bash(del \"C:\\\\Users\\\\haefe\\\\source\\\\repos\\\\RemoteViewer\\\\src\\\\RemoteViewer.Server\\\\SharedAPI\\\\Protocol\\\\MouseButtonMessage.cs\")",
-      "Bash(del \"C:\\\\Users\\\\haefe\\\\source\\\\repos\\\\RemoteViewer\\\\src\\\\RemoteViewer.Server\\\\SharedAPI\\\\Protocol\\\\MouseWheelMessage.cs\")"
+      "Bash(del \"C:\\\\Users\\\\haefe\\\\source\\\\repos\\\\RemoteViewer\\\\src\\\\RemoteViewer.Server\\\\SharedAPI\\\\Protocol\\\\MouseWheelMessage.cs\")",
+      "WebFetch(domain:eiriktsarpalis.github.io)",
+      "WebFetch(domain:blog.nerdbank.net)",
+      "Bash(dotnet package search:*)"
     ],
     "deny": [],
     "ask": []

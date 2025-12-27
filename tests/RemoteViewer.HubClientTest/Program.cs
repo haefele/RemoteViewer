@@ -1,7 +1,6 @@
 ﻿using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
 using Nerdbank.MessagePack.SignalR;
-using PolyType.ReflectionProvider;
 using RemoteViewer.Server.SharedAPI;
 using System.Collections.Concurrent;
 
@@ -330,7 +329,7 @@ sealed class ConnectionHubClient : IAsyncDisposable
         this._connection = new HubConnectionBuilder()
             .WithUrl($"{serverUrl}/connection")
             .WithAutomaticReconnect()
-            .AddMessagePackProtocol(ReflectionTypeShapeProvider.Default)
+            .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
             .Build();
 
         this._connection.On<string, string, string>("CredentialsAssigned", (clientId, username, password) =>

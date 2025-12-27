@@ -62,7 +62,7 @@ public class ConnectionHub(IConnectionsService clientsService, ILogger<Connectio
         return await clientsService.TryConnectTo(this.Context.ConnectionId, username, password);
     }
 
-    public async Task SendMessage(string connectionId, string messageType, byte[] data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null)
+    public async Task SendMessage(string connectionId, string messageType, byte[] data, MessageDestination destination, List<string>? targetClientIds = null)
     {
         await clientsService.SendMessage(this.Context.ConnectionId, connectionId, messageType, data, destination, targetClientIds);
     }

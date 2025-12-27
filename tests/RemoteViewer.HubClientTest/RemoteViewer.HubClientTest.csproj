@@ -8,13 +8,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="..\..\src\RemoteViewer.Server\SharedAPI\*" LinkBase="\SharedApi\" />
+    <Compile Include="..\..\src\RemoteViewer.Server\SharedAPI\**\*" LinkBase="\SharedApi\" />
   </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
-    <PackageReference Include="Nerdbank.MessagePack.SignalR" Version="0.12.14-rc" />
+    <PackageReference Include="Nerdbank.MessagePack.SignalR" Version="1.0.11" />
+    <PackageReference Include="PolyType" Version="1.0.0" />
   </ItemGroup>
 
 </Project>

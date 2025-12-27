@@ -12,7 +12,7 @@ namespace RemoteViewer.Client.Services.HubClient;
 public sealed class Connection
 {
     private readonly ILogger<Connection> _logger;
-    private readonly Func<string, ReadOnlyMemory<byte>, MessageDestination, IReadOnlyList<string>?, Task> _sendMessageAsync;
+    private readonly Func<string, ReadOnlyMemory<byte>, MessageDestination, List<string>?, Task> _sendMessageAsync;
     private readonly Func<Task> _disconnectAsync;
     private readonly IDisplayService? _displayService;
     private readonly IScreenshotService? _screenshotService;
@@ -25,7 +25,7 @@ public sealed class Connection
     internal Connection(
         string connectionId,
         bool isPresenter,
-        Func<string, ReadOnlyMemory<byte>, MessageDestination, IReadOnlyList<string>?, Task> sendMessageAsync,
+        Func<string, ReadOnlyMemory<byte>, MessageDestination, List<string>?, Task> sendMessageAsync,
         Func<Task> disconnectAsync,
         ILogger<Connection> logger,
         ILoggerFactory loggerFactory,
@@ -169,7 +169,7 @@ public sealed class Connection
             return;
 
         // Get all viewers watching this display
-        IReadOnlyList<string> targetViewerIds;
+        List<string> targetViewerIds;
         using (this._participantsLock.EnterScope())
         {
             targetViewerIds = this._viewers
