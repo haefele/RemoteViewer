@@ -114,6 +114,8 @@ public sealed class Connection
 
     public event EventHandler<FrameReceivedEventArgs>? FrameReceived;
 
+    public event EventHandler<SecureAttentionSequenceRequestedEventArgs>? SecureAttentionSequenceRequested;
+
     // File transfer events (Viewer → Presenter)
     public event EventHandler<FileSendRequestReceivedEventArgs>? FileSendRequestReceived;
     public event EventHandler<FileSendResponseReceivedEventArgs>? FileSendResponseReceived;
@@ -407,6 +409,10 @@ public sealed class Connection
                     this.HandleKey(senderClientId, data, isDown: false);
                     break;
 
+                case MessageTypes.Input.SecureAttentionSequence:
+                    this.HandleSecureAttentionSequence(senderClientId);
+                    break;
+
                 // Viewer-side messages (from presenter)
                 case MessageTypes.Screen.Frame:
                     this.HandleFrame(data);
@@ -561,6 +567,11 @@ public sealed class Connection
             modifiers: message.Modifiers);
 
         this.InputReceived?.Invoke(this, args);
+    }
+    private void HandleSecureAttentionSequence(string senderClientId)
+    {
+        this._logger.LogInformation("Received Ctrl+Alt+Del request from {SenderClientId}", senderClientId);
+        this.SecureAttentionSequenceRequested?.Invoke(this, new SecureAttentionSequenceRequestedEventArgs(senderClientId));
     }
     private void HandleFrame(byte[] data)
     {
@@ -805,5 +816,15 @@ public sealed class FileErrorReceivedEventArgs : EventArgs
     public string SenderClientId { get; }
     public string TransferId { get; }
     public string ErrorMessage { get; }
+}
+
+public sealed class SecureAttentionSequenceRequestedEventArgs : EventArgs
+{
+    public SecureAttentionSequenceRequestedEventArgs(string senderClientId)
+    {
+        this.SenderClientId = senderClientId;
+    }
+
+    public string SenderClientId { get; }
 }
 

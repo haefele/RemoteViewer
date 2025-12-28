@@ -36,6 +36,9 @@ public static class MessageTypes
 
         /// <summary>Mouse wheel scroll (Viewer → Presenter)</summary>
         public const string MouseWheel = "input.mouse.wheel";
+
+        /// <summary>Secure Attention Sequence / Ctrl+Alt+Del (Viewer → Presenter)</summary>
+        public const string SecureAttentionSequence = "input.sas";
     }
 
     public static class FileTransfer

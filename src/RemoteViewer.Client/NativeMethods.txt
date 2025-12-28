@@ -73,3 +73,5 @@ OpenProcess
 OpenProcessToken
 DuplicateTokenEx
 CreateProcessAsUser
+
+SendSAS

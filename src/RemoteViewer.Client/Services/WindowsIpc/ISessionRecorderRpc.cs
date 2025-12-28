@@ -14,4 +14,7 @@ public interface ISessionRecorderRpc
     Task InjectMouseWheel(string displayName, float deltaX, float deltaY, float normalizedX, float normalizedY, CancellationToken ct);
     Task InjectKey(ushort keyCode, bool isDown, CancellationToken ct);
     Task ReleaseAllModifiers(CancellationToken ct);
+
+    // Secure Attention Sequence (Ctrl+Alt+Del)
+    Task<bool> SendSecureAttentionSequence(CancellationToken ct);
 }

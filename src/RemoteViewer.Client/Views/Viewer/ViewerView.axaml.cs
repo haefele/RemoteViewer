@@ -3,6 +3,8 @@ using Avalonia.Input;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.Win32.Input;
+using Microsoft.Extensions.DependencyInjection;
+using RemoteViewer.Client.Services.Viewer;
 using System.ComponentModel;
 using ProtocolMouseButton = RemoteViewer.Server.SharedAPI.Protocol.MouseButton;
 using ProtocolKeyModifiers = RemoteViewer.Server.SharedAPI.Protocol.KeyModifiers;
@@ -11,12 +13,17 @@ namespace RemoteViewer.Client.Views.Viewer;
 
 public partial class ViewerView : Window
 {
-    #region Constructor
-    private ViewerViewModel? _viewModel;
+    private readonly IWindowsKeyBlockerService _windowsKeyBlocker;
 
+    private ViewerViewModel? _viewModel;
+    private IDisposable? _windowsKeyBlockerHandle;
+
+    #region Constructor
     public ViewerView()
     {
         this.InitializeComponent();
+
+        this._windowsKeyBlocker = App.Current.Services.GetRequiredService<IWindowsKeyBlockerService>();
     }
     #endregion
 
@@ -42,6 +49,9 @@ public partial class ViewerView : Window
     private void Window_Opened(object? sender, EventArgs e)
     {
         this.DisplayPanel.Focus();
+        this._windowsKeyBlockerHandle = this._windowsKeyBlocker.StartBlocking(() => this.IsActive && (this._viewModel?.IsInputEnabled ?? false));
+        this._windowsKeyBlocker.WindowsKeyDown += this.OnWindowsKeyDown;
+        this._windowsKeyBlocker.WindowsKeyUp += this.OnWindowsKeyUp;
     }
     private async void Window_Deactivated(object? sender, EventArgs e)
     {
@@ -50,6 +60,10 @@ public partial class ViewerView : Window
     }
     private async void Window_Closed(object? sender, EventArgs e)
     {
+        this._windowsKeyBlocker.WindowsKeyDown -= this.OnWindowsKeyDown;
+        this._windowsKeyBlocker.WindowsKeyUp -= this.OnWindowsKeyUp;
+        this._windowsKeyBlockerHandle?.Dispose();
+
         if (this._viewModel is not null)
             await this._viewModel.DisposeAsync();
     }
@@ -190,6 +204,16 @@ public partial class ViewerView : Window
         var keyCode = (ushort)KeyInterop.VirtualKeyFromKey(e.Key);
         var modifiers = this.GetKeyModifiers(e.KeyModifiers);
         await this._viewModel.SendKeyUpAsync(keyCode, modifiers);
+    }
+    private async void OnWindowsKeyDown(ushort vkCode)
+    {
+        if (this._viewModel is { IsInputEnabled: true })
+            await this._viewModel.SendKeyDownAsync(vkCode, ProtocolKeyModifiers.None);
+    }
+    private async void OnWindowsKeyUp(ushort vkCode)
+    {
+        if (this._viewModel is { IsInputEnabled: true })
+            await this._viewModel.SendKeyUpAsync(vkCode, ProtocolKeyModifiers.None);
     }
     #endregion
 

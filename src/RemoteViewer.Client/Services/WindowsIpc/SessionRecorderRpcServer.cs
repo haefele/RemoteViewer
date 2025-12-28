@@ -1,8 +1,10 @@
+using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.WindowsSession;
 using RemoteViewer.Server.SharedAPI.Protocol;
+using Windows.Win32;
 
 namespace RemoteViewer.Client.Services.WindowsIpc;
 
@@ -10,7 +12,8 @@ public class SessionRecorderRpcServer(
     IWin32SessionService win32SessionService,
     IDisplayService displayService,
     IScreenshotService screenshotService,
-    IInputInjectionService inputInjectionService) : ISessionRecorderRpc
+    IInputInjectionService inputInjectionService,
+    ILogger<SessionRecorderRpcServer> logger) : ISessionRecorderRpc
 {
     public async Task<DisplayDto[]> GetDisplays(CancellationToken ct)
     {
@@ -84,6 +87,20 @@ public class SessionRecorderRpcServer(
     {
         win32SessionService.SwitchToInputDesktop();
         return inputInjectionService.ReleaseAllModifiers(ct);
+    }
+
+    public Task<bool> SendSecureAttentionSequence(CancellationToken ct)
+    {
+        try
+        {
+            PInvoke.SendSAS(AsUser: true);
+            return Task.FromResult(true);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "SendSAS failed with exception");
+            return Task.FromResult(false);
+        }
     }
 
     private async Task<Display?> ResolveDisplayAsync(string displayName, CancellationToken ct)

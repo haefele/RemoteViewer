@@ -13,7 +13,7 @@ using RemoteViewer.Client.Services.ScreenCapture;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.VideoCodec;
 using RemoteViewer.Client.Services.ViewModels;
-using RemoteViewer.Server.SharedAPI.Protocol;
+using RemoteViewer.Client.Services.WindowsIpc;
 
 namespace RemoteViewer.Client.Views.Presenter;
 
@@ -24,6 +24,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
     private readonly IDisplayService _displayService;
     private readonly IInputInjectionService _inputInjectionService;
     private readonly ILocalInputMonitorService _localInputMonitor;
+    private readonly SessionRecorderRpcClient _rpcClient;
     private readonly ILogger<PresenterViewModel> _logger;
 
     public ToastsViewModel Toasts { get; }
@@ -55,6 +56,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         IFrameEncoder frameEncoder,
         IInputInjectionService inputInjectionService,
         ILocalInputMonitorService localInputMonitor,
+        SessionRecorderRpcClient rpcClient,
         IViewModelFactory viewModelFactory,
         ILogger<PresenterViewModel> logger,
         ILoggerFactory loggerFactory)
@@ -64,6 +66,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         this._displayService = displayService;
         this._inputInjectionService = inputInjectionService;
         this._localInputMonitor = localInputMonitor;
+        this._rpcClient = rpcClient;
         this._logger = logger;
         this.Toasts = viewModelFactory.CreateToastsViewModel();
         this._connection.FileTransfers.Toasts = this.Toasts;
@@ -71,6 +74,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         // Subscribe to Connection events
         this._connection.ViewersChanged += this.OnViewersChanged;
         this._connection.InputReceived += this.OnInputReceived;
+        this._connection.SecureAttentionSequenceRequested += this.OnSecureAttentionSequenceRequested;
         this._connection.Closed += this.OnConnectionClosed;
 
         // Subscribe to credentials changes
@@ -209,6 +213,41 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         catch (Exception ex)
         {
             this._logger.LogError(ex, "Error handling input from {SenderClientId}", e.SenderClientId);
+        }
+    }
+
+    private async void OnSecureAttentionSequenceRequested(object? sender, SecureAttentionSequenceRequestedEventArgs e)
+    {
+        try
+        {
+            // Check if this viewer's input is blocked
+            var viewer = this.Viewers.FirstOrDefault(v => v.ClientId == e.SenderClientId);
+            if (viewer?.IsInputBlocked == true)
+            {
+                this._logger.LogInformation("Ignoring Ctrl+Alt+Del from blocked viewer: {ViewerId}", e.SenderClientId);
+                return;
+            }
+
+            // Check if we have the RPC client connected to the Windows Service
+            if (!this._rpcClient.IsConnected || this._rpcClient.Proxy is null)
+            {
+                this._logger.LogWarning("Cannot send Ctrl+Alt+Del - not connected to Windows Service");
+                return;
+            }
+
+            var result = await this._rpcClient.Proxy.SendSecureAttentionSequence(CancellationToken.None);
+            if (result)
+            {
+                this._logger.LogInformation("Sent Ctrl+Alt+Del on behalf of viewer: {ViewerId}", e.SenderClientId);
+            }
+            else
+            {
+                this._logger.LogWarning("SendSAS failed for viewer: {ViewerId}", e.SenderClientId);
+            }
+        }
+        catch (Exception ex)
+        {
+            this._logger.LogError(ex, "Error handling Ctrl+Alt+Del request from {SenderClientId}", e.SenderClientId);
         }
     }
 
@@ -365,6 +404,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         // Unsubscribe from Connection events
         this._connection.ViewersChanged -= this.OnViewersChanged;
         this._connection.InputReceived -= this.OnInputReceived;
+        this._connection.SecureAttentionSequenceRequested -= this.OnSecureAttentionSequenceRequested;
         this._connection.Closed -= this.OnConnectionClosed;
         this._hubClient.CredentialsAssigned -= this.OnCredentialsAssigned;
 

@@ -89,6 +89,16 @@
                                      Width="20" Height="20"/>
                 </Button>
 
+                <!-- Send Ctrl+Alt+Del button -->
+                <Button Command="{Binding SendCtrlAltDelCommand}"
+                        ToolTip.Tip="Send Ctrl+Alt+Del"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Width="32" Height="32"
+                        Padding="0">
+                    <mi:MaterialIcon Kind="AccountKey" Width="20" Height="20"/>
+                </Button>
+
                 <!-- Send File button -->
                 <Button Command="{Binding SendFileCommand}"
                         ToolTip.Tip="Send file to presenter"

@@ -7,6 +7,7 @@ using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.Client.Services.LocalInputMonitor;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.VideoCodec;
+using RemoteViewer.Client.Services.Viewer;
 using RemoteViewer.Client.Services.ViewModels;
 using RemoteViewer.Client.Services.WindowsIpc;
 using RemoteViewer.Client.Services.WindowsSession;
@@ -53,6 +54,13 @@ static class ServiceRegistration
 
         // Local Input Monitoring
         services.AddSingleton<ILocalInputMonitorService, WindowsLocalInputMonitorService>();
+
+        // Windows Key Blocker (viewer-side)
+#if WINDOWS
+        services.AddSingleton<IWindowsKeyBlockerService, WindowsKeyBlockerService>();
+#else
+        services.AddSingleton<IWindowsKeyBlockerService, NullWindowsKeyBlockerService>();
+#endif
 
         return services;
     }

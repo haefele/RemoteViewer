@@ -274,6 +274,20 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
             }
         }
     }
+
+    [RelayCommand]
+    private async Task SendCtrlAltDelAsync()
+    {
+        try
+        {
+            await this._connection.SendInputAsync(MessageTypes.Input.SecureAttentionSequence, ReadOnlyMemory<byte>.Empty);
+            this._logger.LogInformation("Sent Ctrl+Alt+Del request");
+        }
+        catch (Exception ex)
+        {
+            this._logger.LogError(ex, "Failed to send Ctrl+Alt+Del");
+        }
+    }
     #endregion
 
     #region Fullscreen & Toolbar

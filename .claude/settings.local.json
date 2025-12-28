@@ -30,7 +30,8 @@
       "Bash(del \"C:\\\\Users\\\\haefe\\\\source\\\\repos\\\\RemoteViewer\\\\src\\\\RemoteViewer.Server\\\\SharedAPI\\\\Protocol\\\\MouseWheelMessage.cs\")",
       "WebFetch(domain:eiriktsarpalis.github.io)",
       "WebFetch(domain:blog.nerdbank.net)",
-      "Bash(dotnet package search:*)"
+      "Bash(dotnet package search:*)",
+      "Bash(del \"C:\\\\Users\\\\haefe\\\\source\\\\repos\\\\RemoteViewer\\\\src\\\\RemoteViewer.Client\\\\NativeMethods\\\\SasDll.cs\")"
     ],
     "deny": [],
     "ask": []
