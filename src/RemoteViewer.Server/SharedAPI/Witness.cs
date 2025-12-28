@@ -7,6 +7,7 @@ namespace RemoteViewer.Server.SharedAPI;
 [GenerateShapeFor<string>]
 [GenerateShapeFor<bool>]
 [GenerateShapeFor<byte[]>]
+[GenerateShapeFor<object>]
 // Hub types
 [GenerateShapeFor<ConnectionInfo>]
 [GenerateShapeFor<TryConnectError>]
