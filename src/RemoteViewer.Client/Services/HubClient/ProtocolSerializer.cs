@@ -1,4 +1,5 @@
-﻿using Nerdbank.MessagePack;
+﻿using System.Buffers;
+using Nerdbank.MessagePack;
 using PolyType;
 using RemoteViewer.Server.SharedAPI;
 
@@ -13,10 +14,10 @@ public static class ProtocolSerializer
     private static readonly MessagePackSerializer s_serializer = new();
     private static readonly ITypeShapeProvider s_provider = Witness.GeneratedTypeShapeProvider;
 
-    public static byte[] Serialize<T>(T message)
+    public static void Serialize<T>(IBufferWriter<byte> writer, T message)
     {
         var shape = s_provider.GetTypeShapeOrThrow<T>();
-        return s_serializer.Serialize(message, shape);
+        s_serializer.Serialize(writer, message, shape);
     }
 
     public static T Deserialize<T>(byte[] data)

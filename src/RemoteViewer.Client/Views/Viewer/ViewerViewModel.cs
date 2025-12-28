@@ -3,6 +3,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using RemoteViewer.Client.Common;
 using RemoteViewer.Client.Controls.Toasts;
 using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.HubClient;
@@ -162,8 +163,9 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         try
         {
             var message = new MouseMoveMessage(x, y);
-            var data = ProtocolSerializer.Serialize(message);
-            await this._connection.SendInputAsync(MessageTypes.Input.MouseMove, data);
+            using var buffer = PooledBufferWriter.Rent();
+            ProtocolSerializer.Serialize(buffer, message);
+            await this._connection.SendInputAsync(MessageTypes.Input.MouseMove, buffer.WrittenMemory);
         }
         catch (Exception ex)
         {
@@ -176,8 +178,9 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         try
         {
             var message = new MouseButtonMessage(button, x, y);
-            var data = ProtocolSerializer.Serialize(message);
-            await this._connection.SendInputAsync(MessageTypes.Input.MouseDown, data);
+            using var buffer = PooledBufferWriter.Rent();
+            ProtocolSerializer.Serialize(buffer, message);
+            await this._connection.SendInputAsync(MessageTypes.Input.MouseDown, buffer.WrittenMemory);
         }
         catch (Exception ex)
         {
@@ -190,8 +193,9 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         try
         {
             var message = new MouseButtonMessage(button, x, y);
-            var data = ProtocolSerializer.Serialize(message);
-            await this._connection.SendInputAsync(MessageTypes.Input.MouseUp, data);
+            using var buffer = PooledBufferWriter.Rent();
+            ProtocolSerializer.Serialize(buffer, message);
+            await this._connection.SendInputAsync(MessageTypes.Input.MouseUp, buffer.WrittenMemory);
         }
         catch (Exception ex)
         {
@@ -204,8 +208,9 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         try
         {
             var message = new MouseWheelMessage(deltaX, deltaY, x, y);
-            var data = ProtocolSerializer.Serialize(message);
-            await this._connection.SendInputAsync(MessageTypes.Input.MouseWheel, data);
+            using var buffer = PooledBufferWriter.Rent();
+            ProtocolSerializer.Serialize(buffer, message);
+            await this._connection.SendInputAsync(MessageTypes.Input.MouseWheel, buffer.WrittenMemory);
         }
         catch (Exception ex)
         {
@@ -220,8 +225,9 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
             this._pressedKeys.TryAdd(keyCode, null);
 
             var message = new KeyMessage(keyCode, modifiers);
-            var data = ProtocolSerializer.Serialize(message);
-            await this._connection.SendInputAsync(MessageTypes.Input.KeyDown, data);
+            using var buffer = PooledBufferWriter.Rent();
+            ProtocolSerializer.Serialize(buffer, message);
+            await this._connection.SendInputAsync(MessageTypes.Input.KeyDown, buffer.WrittenMemory);
         }
         catch (Exception ex)
         {
@@ -236,8 +242,9 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
             this._pressedKeys.TryRemove(keyCode, out _);
 
             var message = new KeyMessage(keyCode, modifiers);
-            var data = ProtocolSerializer.Serialize(message);
-            await this._connection.SendInputAsync(MessageTypes.Input.KeyUp, data);
+            using var buffer = PooledBufferWriter.Rent();
+            ProtocolSerializer.Serialize(buffer, message);
+            await this._connection.SendInputAsync(MessageTypes.Input.KeyUp, buffer.WrittenMemory);
         }
         catch (Exception ex)
         {
@@ -257,8 +264,9 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
                 this._pressedKeys.TryRemove(keyCode, out _);
 
                 var message = new KeyMessage(keyCode, KeyModifiers.None);
-                var data = ProtocolSerializer.Serialize(message);
-                await this._connection.SendInputAsync(MessageTypes.Input.KeyUp, data);
+                using var buffer = PooledBufferWriter.Rent();
+                ProtocolSerializer.Serialize(buffer, message);
+                await this._connection.SendInputAsync(MessageTypes.Input.KeyUp, buffer.WrittenMemory);
             }
             catch (Exception ex)
             {

@@ -1,5 +1,6 @@
 ﻿using System.Threading;
 using Microsoft.Extensions.Logging;
+using RemoteViewer.Client.Common;
 using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.Screenshot;
@@ -144,7 +145,7 @@ public sealed class Connection
     }
 
     /// <summary>Viewer-only: Send input to the presenter.</summary>
-    public async Task SendInputAsync(string messageType, byte[] data)
+    public async Task SendInputAsync(string messageType, ReadOnlyMemory<byte> data)
     {
         if (this.IsPresenter)
             throw new InvalidOperationException("SendInputAsync is only valid for viewers");
@@ -188,8 +189,9 @@ public sealed class Connection
             regions
         );
 
-        var serializedData = ProtocolSerializer.Serialize(message);
-        await this._sendMessageAsync(MessageTypes.Screen.Frame, serializedData, MessageDestination.SpecificClients, targetViewerIds);
+        using var buffer = PooledBufferWriter.Rent();
+        ProtocolSerializer.Serialize(buffer, message);
+        await this._sendMessageAsync(MessageTypes.Screen.Frame, buffer.WrittenMemory, MessageDestination.SpecificClients, targetViewerIds);
     }
 
     // File transfer: Send request - Bidirectional with optional targetClientId
@@ -199,19 +201,20 @@ public sealed class Connection
             return;
 
         var message = new FileSendRequestMessage(transferId, fileName, fileSize);
-        var data = ProtocolSerializer.Serialize(message);
+        using var buffer = PooledBufferWriter.Rent();
+        ProtocolSerializer.Serialize(buffer, message);
 
         if (targetClientId is not null)
         {
             if (!this.IsPresenter)
                 throw new InvalidOperationException("SendFileSendRequestAsync with targetClientId is only valid for presenters");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.SendRequest, data, MessageDestination.SpecificClients, [targetClientId]);
+            await this._sendMessageAsync(MessageTypes.FileTransfer.SendRequest, buffer.WrittenMemory, MessageDestination.SpecificClients, [targetClientId]);
         }
         else
         {
             if (this.IsPresenter)
                 throw new InvalidOperationException("SendFileSendRequestAsync without targetClientId is only valid for viewers");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.SendRequest, data, MessageDestination.PresenterOnly, null);
+            await this._sendMessageAsync(MessageTypes.FileTransfer.SendRequest, buffer.WrittenMemory, MessageDestination.PresenterOnly, null);
         }
     }
 
@@ -222,19 +225,20 @@ public sealed class Connection
             return;
 
         var message = new FileSendResponseMessage(transferId, accepted, error);
-        var data = ProtocolSerializer.Serialize(message);
+        using var buffer = PooledBufferWriter.Rent();
+        ProtocolSerializer.Serialize(buffer, message);
 
         if (targetClientId is not null)
         {
             if (!this.IsPresenter)
                 throw new InvalidOperationException("SendFileSendResponseAsync with targetClientId is only valid for presenters");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.SendResponse, data, MessageDestination.SpecificClients, [targetClientId]);
+            await this._sendMessageAsync(MessageTypes.FileTransfer.SendResponse, buffer.WrittenMemory, MessageDestination.SpecificClients, [targetClientId]);
         }
         else
         {
             if (this.IsPresenter)
                 throw new InvalidOperationException("SendFileSendResponseAsync without targetClientId is only valid for viewers");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.SendResponse, data, MessageDestination.PresenterOnly, null);
+            await this._sendMessageAsync(MessageTypes.FileTransfer.SendResponse, buffer.WrittenMemory, MessageDestination.PresenterOnly, null);
         }
     }
 
@@ -244,19 +248,20 @@ public sealed class Connection
         if (this.IsClosed)
             return;
 
-        var data = ProtocolSerializer.Serialize(chunk);
+        using var buffer = PooledBufferWriter.Rent();
+        ProtocolSerializer.Serialize(buffer, chunk);
 
         if (targetClientId is not null)
         {
             if (!this.IsPresenter)
                 throw new InvalidOperationException("SendFileChunkAsync with targetClientId is only valid for presenters");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.Chunk, data, MessageDestination.SpecificClients, [targetClientId]);
+            await this._sendMessageAsync(MessageTypes.FileTransfer.Chunk, buffer.WrittenMemory, MessageDestination.SpecificClients, [targetClientId]);
         }
         else
         {
             if (this.IsPresenter)
                 throw new InvalidOperationException("SendFileChunkAsync without targetClientId is only valid for viewers");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.Chunk, data, MessageDestination.PresenterOnly, null);
+            await this._sendMessageAsync(MessageTypes.FileTransfer.Chunk, buffer.WrittenMemory, MessageDestination.PresenterOnly, null);
         }
     }
 
@@ -266,19 +271,20 @@ public sealed class Connection
             return;
 
         var message = new FileCompleteMessage(transferId);
-        var data = ProtocolSerializer.Serialize(message);
+        using var buffer = PooledBufferWriter.Rent();
+        ProtocolSerializer.Serialize(buffer, message);
 
         if (targetClientId is not null)
         {
             if (!this.IsPresenter)
                 throw new InvalidOperationException("SendFileCompleteAsync with targetClientId is only valid for presenters");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.Complete, data, MessageDestination.SpecificClients, [targetClientId]);
+            await this._sendMessageAsync(MessageTypes.FileTransfer.Complete, buffer.WrittenMemory, MessageDestination.SpecificClients, [targetClientId]);
         }
         else
         {
             if (this.IsPresenter)
                 throw new InvalidOperationException("SendFileCompleteAsync without targetClientId is only valid for viewers");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.Complete, data, MessageDestination.PresenterOnly, null);
+            await this._sendMessageAsync(MessageTypes.FileTransfer.Complete, buffer.WrittenMemory, MessageDestination.PresenterOnly, null);
         }
     }
 
@@ -288,19 +294,20 @@ public sealed class Connection
             return;
 
         var message = new FileCancelMessage(transferId, reason);
-        var data = ProtocolSerializer.Serialize(message);
+        using var buffer = PooledBufferWriter.Rent();
+        ProtocolSerializer.Serialize(buffer, message);
 
         if (targetClientId is not null)
         {
             if (!this.IsPresenter)
                 throw new InvalidOperationException("SendFileCancelAsync with targetClientId is only valid for presenters");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.Cancel, data, MessageDestination.SpecificClients, [targetClientId]);
+            await this._sendMessageAsync(MessageTypes.FileTransfer.Cancel, buffer.WrittenMemory, MessageDestination.SpecificClients, [targetClientId]);
         }
         else
         {
             if (this.IsPresenter)
                 throw new InvalidOperationException("SendFileCancelAsync without targetClientId is only valid for viewers");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.Cancel, data, MessageDestination.PresenterOnly, null);
+            await this._sendMessageAsync(MessageTypes.FileTransfer.Cancel, buffer.WrittenMemory, MessageDestination.PresenterOnly, null);
         }
     }
 
@@ -310,19 +317,20 @@ public sealed class Connection
             return;
 
         var message = new FileErrorMessage(transferId, error);
-        var data = ProtocolSerializer.Serialize(message);
+        using var buffer = PooledBufferWriter.Rent();
+        ProtocolSerializer.Serialize(buffer, message);
 
         if (targetClientId is not null)
         {
             if (!this.IsPresenter)
                 throw new InvalidOperationException("SendFileErrorAsync with targetClientId is only valid for presenters");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.Error, data, MessageDestination.SpecificClients, [targetClientId]);
+            await this._sendMessageAsync(MessageTypes.FileTransfer.Error, buffer.WrittenMemory, MessageDestination.SpecificClients, [targetClientId]);
         }
         else
         {
             if (this.IsPresenter)
                 throw new InvalidOperationException("SendFileErrorAsync without targetClientId is only valid for viewers");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.Error, data, MessageDestination.PresenterOnly, null);
+            await this._sendMessageAsync(MessageTypes.FileTransfer.Error, buffer.WrittenMemory, MessageDestination.PresenterOnly, null);
         }
     }
 
