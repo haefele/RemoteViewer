@@ -101,7 +101,7 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : I
             }
 
             // Allocate RefCountedMemoryOwner and copy pixels
-            var frameMemory = RefCountedMemoryOwner<byte>.Create(bufferSize);
+            var frameMemory = RefCountedMemoryOwner.Create(bufferSize);
 
             fixed (byte* destPtr = frameMemory.Span)
             {
@@ -143,7 +143,7 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : I
 
     private GrabResult ApplyDiffDetection(
         string displayName,
-        RefCountedMemoryOwner<byte> frameMemory,
+        RefCountedMemoryOwner frameMemory,
         int width,
         int height,
         bool forceKeyframe)
@@ -346,7 +346,7 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : I
         {
             var rect = dirtyRects[i];
             var regionBufferSize = rect.Width * rect.Height * 4;
-            var regionMemory = RefCountedMemoryOwner<byte>.Create(regionBufferSize);
+            var regionMemory = RefCountedMemoryOwner.Create(regionBufferSize);
 
             var regionSpan = regionMemory.Span;
             var srcStride = frameWidth * 4;
@@ -368,7 +368,7 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : I
     private sealed class BitBltDisplayState : IDisposable
     {
         public Lock CaptureLock { get; } = new();
-        public RefCountedMemoryOwner<byte>? PreviousFrame { get; set; }
+        public RefCountedMemoryOwner? PreviousFrame { get; set; }
         public int Width { get; set; }
         public int Height { get; set; }
 

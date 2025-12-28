@@ -1,17 +1,18 @@
-﻿using System.Buffers;
+using System.Buffers;
 
 namespace RemoteViewer.Client.Common;
 
-public sealed class RefCountedMemoryOwner<T> : IMemoryOwner<T>, IDisposable
+public sealed class RefCountedMemoryOwner : IMemoryOwner<byte>, IDisposable
 {
-    private readonly ArrayPool<T> _pool;
-    private readonly T[] _array;
+    private readonly ArrayPool<byte> _pool;
+    private readonly byte[] _array;
 
     private int _refCount = 1;
     private int _disposed;
 
-    public static RefCountedMemoryOwner<T> Create(int length) => new RefCountedMemoryOwner<T>(ArrayPool<T>.Shared, length);
-    private RefCountedMemoryOwner(ArrayPool<T> pool, int length)
+    public static RefCountedMemoryOwner Create(int length) => new(SmartArrayPool.Bytes, length);
+
+    private RefCountedMemoryOwner(ArrayPool<byte> pool, int length)
     {
         this._pool = pool;
         this._array = this._pool.Rent(length);
@@ -20,27 +21,27 @@ public sealed class RefCountedMemoryOwner<T> : IMemoryOwner<T>, IDisposable
 
     public int Length { get; private set; }
 
-    public Memory<T> Memory
+    public Memory<byte> Memory
     {
         get
         {
-            ObjectDisposedException.ThrowIf(this._disposed != 0, nameof(RefCountedMemoryOwner<T>));
-            return new Memory<T>(this._array, 0, this.Length);
+            ObjectDisposedException.ThrowIf(this._disposed != 0, nameof(RefCountedMemoryOwner));
+            return new Memory<byte>(this._array, 0, this.Length);
         }
     }
 
-    public Span<T> Span
+    public Span<byte> Span
     {
         get
         {
-            ObjectDisposedException.ThrowIf(this._disposed != 0, nameof(RefCountedMemoryOwner<T>));
-            return new Span<T>(this._array, 0, this.Length);
+            ObjectDisposedException.ThrowIf(this._disposed != 0, nameof(RefCountedMemoryOwner));
+            return new Span<byte>(this._array, 0, this.Length);
         }
     }
 
-    public RefCountedMemoryOwner<T> AddRef()
+    public RefCountedMemoryOwner AddRef()
     {
-        ObjectDisposedException.ThrowIf(this._disposed != 0, nameof(RefCountedMemoryOwner<T>));
+        ObjectDisposedException.ThrowIf(this._disposed != 0, nameof(RefCountedMemoryOwner));
 
         Interlocked.Increment(ref this._refCount);
         return this;
@@ -48,7 +49,7 @@ public sealed class RefCountedMemoryOwner<T> : IMemoryOwner<T>, IDisposable
 
     public void SetLength(int newLength)
     {
-        ObjectDisposedException.ThrowIf(this._disposed != 0, nameof(RefCountedMemoryOwner<T>));
+        ObjectDisposedException.ThrowIf(this._disposed != 0, nameof(RefCountedMemoryOwner));
 
         if (newLength < 0 || newLength > this._array.Length)
             throw new ArgumentOutOfRangeException(nameof(newLength));

@@ -1,20 +1,23 @@
-using System.Buffers;
+﻿using System.Buffers;
 
 namespace RemoteViewer.Client.Common;
 
 public sealed class PooledBufferWriter : IBufferWriter<byte>, IDisposable
 {
+    private readonly ArrayPool<byte> _pool;
+
     private byte[] _buffer;
     private int _written;
     private bool _disposed;
 
-    private PooledBufferWriter(int initialCapacity)
+    private PooledBufferWriter(ArrayPool<byte> pool, int initialCapacity)
     {
-        this._buffer = ArrayPool<byte>.Shared.Rent(initialCapacity);
+        this._pool = pool;
+        this._buffer = this._pool.Rent(initialCapacity);
         this._written = 0;
     }
 
-    public static PooledBufferWriter Rent(int initialCapacity = 256) => new(initialCapacity);
+    public static PooledBufferWriter Rent(int initialCapacity = 256) => new(SmartArrayPool.Bytes, initialCapacity);
 
     public ReadOnlyMemory<byte> WrittenMemory
     {
@@ -64,7 +67,7 @@ public sealed class PooledBufferWriter : IBufferWriter<byte>, IDisposable
             return;
 
         this._disposed = true;
-        ArrayPool<byte>.Shared.Return(this._buffer);
+        this._pool.Return(this._buffer);
         this._buffer = null!;
     }
 
@@ -78,9 +81,9 @@ public sealed class PooledBufferWriter : IBufferWriter<byte>, IDisposable
             return;
 
         var newSize = Math.Max(this._buffer.Length * 2, this._written + sizeHint);
-        var newBuffer = ArrayPool<byte>.Shared.Rent(newSize);
+        var newBuffer = this._pool.Rent(newSize);
         this._buffer.AsSpan(0, this._written).CopyTo(newBuffer);
-        ArrayPool<byte>.Shared.Return(this._buffer);
+        this._pool.Return(this._buffer);
         this._buffer = newBuffer;
     }
 }

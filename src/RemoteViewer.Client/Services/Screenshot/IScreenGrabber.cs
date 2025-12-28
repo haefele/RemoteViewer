@@ -12,7 +12,7 @@ public interface IScreenGrabber
 
 public readonly record struct GrabResult(
     GrabStatus Status,
-    RefCountedMemoryOwner<byte>? FullFramePixels,
+    RefCountedMemoryOwner? FullFramePixels,
     DirtyRegion[]? DirtyRegions,
     MoveRegion[]? MoveRects
 ) : IDisposable
@@ -43,7 +43,7 @@ public readonly record struct DirtyRegion(
     int Y,
     int Width,
     int Height,
-    RefCountedMemoryOwner<byte> Pixels
+    RefCountedMemoryOwner Pixels
 ) : IDisposable
 {
     public void Dispose() => this.Pixels.Dispose();

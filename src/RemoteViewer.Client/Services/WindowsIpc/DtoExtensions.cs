@@ -46,10 +46,10 @@ public static class DtoExtensions
     // GrabResultDto -> GrabResult (client side, after receiving over IPC)
     public static GrabResult FromDto(this GrabResultDto dto)
     {
-        RefCountedMemoryOwner<byte>? fullFrame = null;
+        RefCountedMemoryOwner? fullFrame = null;
         if (dto.FullFramePixels is { } fullFramePixels)
         {
-            fullFrame = RefCountedMemoryOwner<byte>.Create(fullFramePixels.Length);
+            fullFrame = RefCountedMemoryOwner.Create(fullFramePixels.Length);
             fullFramePixels.AsSpan().CopyTo(fullFrame.Span);
         }
 
@@ -60,7 +60,7 @@ public static class DtoExtensions
             for (var i = 0; i < dto.DirtyRegions.Length; i++)
             {
                 var r = dto.DirtyRegions[i];
-                var pixels = RefCountedMemoryOwner<byte>.Create(r.Pixels.Length);
+                var pixels = RefCountedMemoryOwner.Create(r.Pixels.Length);
                 r.Pixels.AsSpan().CopyTo(pixels.Span);
                 dirtyRegions[i] = new DirtyRegion(r.X, r.Y, r.Width, r.Height, pixels);
             }

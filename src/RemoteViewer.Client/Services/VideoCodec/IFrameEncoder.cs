@@ -18,7 +18,7 @@ public readonly record struct EncodedRegion(
     int Y,
     int Width,
     int Height,
-    RefCountedMemoryOwner<byte> JpegData
+    RefCountedMemoryOwner JpegData
 ) : IDisposable
 {
     public void Dispose()

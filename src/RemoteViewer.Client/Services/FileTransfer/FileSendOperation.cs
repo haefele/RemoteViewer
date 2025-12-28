@@ -157,7 +157,7 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
         try
         {
             this._fileStream = new FileStream(this.FilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
-            using var buffer = RefCountedMemoryOwner<byte>.Create(ChunkSize);
+            using var buffer = RefCountedMemoryOwner.Create(ChunkSize);
 
             var delayPerChunk = TimeSpan.FromSeconds((double)ChunkSize / MaxBytesPerSecond);
 

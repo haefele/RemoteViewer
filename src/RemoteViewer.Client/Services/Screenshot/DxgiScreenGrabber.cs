@@ -133,7 +133,7 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
         try
         {
             var bufferSize = width * height * 4;
-            var frameMemory = RefCountedMemoryOwner<byte>.Create(bufferSize);
+            var frameMemory = RefCountedMemoryOwner.Create(bufferSize);
 
             fixed (byte* destPtr = frameMemory.Span)
             {
@@ -196,7 +196,7 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
             {
                 var rect = dirtyRectangles[i];
                 var regionBufferSize = rect.Width * rect.Height * 4;
-                var regionMemory = RefCountedMemoryOwner<byte>.Create(regionBufferSize);
+                var regionMemory = RefCountedMemoryOwner.Create(regionBufferSize);
 
                 fixed (byte* destPtr = regionMemory.Span)
                 {

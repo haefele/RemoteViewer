@@ -122,7 +122,7 @@ public class FrameCompositor : IDisposable
         {
             // Calculate buffer size (4 bytes per pixel for BGRA)
             var bufferSize = region.Width * region.Height * 4;
-            using var pixelBuffer = RefCountedMemoryOwner<byte>.Create(bufferSize);
+            using var pixelBuffer = RefCountedMemoryOwner.Create(bufferSize);
 
             fixed (byte* jpegPtr = region.Data.Span)
             fixed (byte* outPtr = pixelBuffer.Span)

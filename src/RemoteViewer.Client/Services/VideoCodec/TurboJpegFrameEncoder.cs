@@ -69,13 +69,13 @@ public sealed class TurboJpegFrameEncoder : IFrameEncoder
         this._compressorPool.Add(compressor);
     }
 
-    private static RefCountedMemoryOwner<byte> EncodeJpeg(TJCompressor compressor, Span<byte> pixels, int width, int height)
+    private static RefCountedMemoryOwner EncodeJpeg(TJCompressor compressor, Span<byte> pixels, int width, int height)
     {
         // Get max possible JPEG size for this resolution
         var maxSize = compressor.GetBufferSize(width, height, TJSubsamplingOption.Chrominance420);
 
         // Allocate buffer with max size (ArrayPool will likely give us a larger array anyway)
-        var memoryOwner = RefCountedMemoryOwner<byte>.Create(maxSize);
+        var memoryOwner = RefCountedMemoryOwner.Create(maxSize);
 
         // Encode directly into our buffer - returns slice with actual compressed size
         var result = compressor.Compress(
