@@ -1,6 +1,7 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Common;
+using RemoteViewer.Client.Services.Viewer;
 using RemoteViewer.Server.SharedAPI.Protocol;
 
 namespace RemoteViewer.Client.Services.HubClient;
@@ -9,15 +10,22 @@ public sealed class ViewerConnectionService : IDisposable
 {
     private readonly Connection _connection;
     private readonly ILogger<ViewerConnectionService> _logger;
+    private readonly IWindowsKeyBlockerService _windowsKeyBlockerService;
     private readonly ConcurrentDictionary<ushort, object?> _pressedKeys = new();
     private bool _disposed;
 
-    public ViewerConnectionService(Connection connection, ILogger<ViewerConnectionService> logger)
+    public ViewerConnectionService(
+        Connection connection,
+        IWindowsKeyBlockerService windowsKeyBlockerService,
+        ILogger<ViewerConnectionService> logger)
     {
         this._connection = connection;
+        this._windowsKeyBlockerService = windowsKeyBlockerService;
         this._logger = logger;
 
         this._connection.FrameReceived += this.Connection_FrameReceived;
+        this._windowsKeyBlockerService.WindowsKeyDown += this.WindowsKeyBlocker_WindowsKeyDown;
+        this._windowsKeyBlockerService.WindowsKeyUp += this.WindowsKeyBlocker_WindowsKeyUp;
     }
 
     public bool IsInputEnabled { get; set; } = true;
@@ -176,6 +184,22 @@ public sealed class ViewerConnectionService : IDisposable
         this.FrameReady?.Invoke(this, e);
     }
 
+    private async void WindowsKeyBlocker_WindowsKeyDown(ushort vkCode)
+    {
+        if (!this.IsInputEnabled)
+            return;
+
+        await this.SendWindowsKeyDownAsync();
+    }
+
+    private async void WindowsKeyBlocker_WindowsKeyUp(ushort vkCode)
+    {
+        if (!this.IsInputEnabled)
+            return;
+
+        await this.SendWindowsKeyUpAsync();
+    }
+
     public void Dispose()
     {
         if (this._disposed)
@@ -184,5 +208,7 @@ public sealed class ViewerConnectionService : IDisposable
         this._disposed = true;
 
         this._connection.FrameReceived -= this.Connection_FrameReceived;
+        this._windowsKeyBlockerService.WindowsKeyDown -= this.WindowsKeyBlocker_WindowsKeyDown;
+        this._windowsKeyBlockerService.WindowsKeyUp -= this.WindowsKeyBlocker_WindowsKeyUp;
     }
 }

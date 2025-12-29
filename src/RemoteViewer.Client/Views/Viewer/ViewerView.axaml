@@ -178,7 +178,12 @@
                 Background="Black"
                 ClipToBounds="True"
                 Focusable="True"
+                PointerMoved="DisplayPanel_PointerMoved"
+                PointerPressed="DisplayPanel_PointerPressed"
+                PointerReleased="DisplayPanel_PointerReleased"
+                PointerWheelChanged="DisplayPanel_PointerWheelChanged"
                 KeyDown="DisplayPanel_KeyDown"
+                KeyUp="DisplayPanel_KeyUp"
                 >
             <Panel>
                 <Image x:Name="FrameImage"

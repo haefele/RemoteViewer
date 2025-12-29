@@ -1,4 +1,4 @@
-﻿using Avalonia;
+using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using RemoteViewer.Client.Common;
@@ -52,8 +52,6 @@ public class FrameCompositor : IDisposable
     /// Applies a keyframe, replacing the entire canvas.
     /// </summary>
     /// <param name="regions">Frame regions (should be single full-frame region for keyframe)</param>
-    /// <param name="width">Full frame width</param>
-    /// <param name="height">Full frame height</param>
     /// <param name="frameNumber">Frame number</param>
     public void ApplyKeyframe(FrameRegion[] regions, ulong frameNumber)
     {

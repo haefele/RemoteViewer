@@ -2,10 +2,14 @@
 using Avalonia.Input;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Avalonia.Win32.Input;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.Viewer;
 using System.ComponentModel;
+using ProtocolMouseButton = RemoteViewer.Server.SharedAPI.Protocol.MouseButton;
+using ProtocolKeyModifiers = RemoteViewer.Server.SharedAPI.Protocol.KeyModifiers;
 
 namespace RemoteViewer.Client.Views.Viewer;
 
@@ -14,7 +18,7 @@ public partial class ViewerView : Window, IDisposable
     private readonly IWindowsKeyBlockerService _windowsKeyBlocker;
 
     private ViewerViewModel? _viewModel;
-    private ViewerAvaloniaConnectionAdapter? _connectionAdapter;
+    private FrameCompositor? _frameCompositor;
     private IDisposable? _windowsKeyBlockerHandle;
 
     #region Constructor
@@ -31,10 +35,10 @@ public partial class ViewerView : Window, IDisposable
     {
         if (this._viewModel is not null)
         {
-            this.UnbindConnectionAdapter();
             this._viewModel.PropertyChanged -= this.ViewModel_PropertyChanged;
             this._viewModel.CloseRequested -= this.ViewModel_CloseRequested;
             this._viewModel.OpenFilePickerRequested -= this.ViewModel_OpenFilePickerRequested;
+            this.UnbindConnection(this._viewModel);
         }
 
         this._viewModel = this.DataContext as ViewerViewModel;
@@ -44,15 +48,13 @@ public partial class ViewerView : Window, IDisposable
             this._viewModel.CloseRequested += this.ViewModel_CloseRequested;
             this._viewModel.PropertyChanged += this.ViewModel_PropertyChanged;
             this._viewModel.OpenFilePickerRequested += this.ViewModel_OpenFilePickerRequested;
-            this.BindConnectionAdapter(this._viewModel);
+            this.BindConnection(this._viewModel);
         }
     }
     private void Window_Opened(object? sender, EventArgs e)
     {
         this.DisplayPanel.Focus();
         this._windowsKeyBlockerHandle = this._windowsKeyBlocker.StartBlocking(() => this.IsActive && (this._viewModel?.IsInputEnabled ?? false));
-        this._windowsKeyBlocker.WindowsKeyDown += this.OnWindowsKeyDown;
-        this._windowsKeyBlocker.WindowsKeyUp += this.OnWindowsKeyUp;
     }
     private async void Window_Deactivated(object? sender, EventArgs e)
     {
@@ -61,12 +63,10 @@ public partial class ViewerView : Window, IDisposable
     }
     private async void Window_Closed(object? sender, EventArgs e)
     {
-        this._windowsKeyBlocker.WindowsKeyDown -= this.OnWindowsKeyDown;
-        this._windowsKeyBlocker.WindowsKeyUp -= this.OnWindowsKeyUp;
         this._windowsKeyBlockerHandle?.Dispose();
 
         if (this._viewModel is not null)
-            this.UnbindConnectionAdapter();
+            this.UnbindConnection(this._viewModel);
 
         if (this._viewModel is not null)
             await this._viewModel.DisposeAsync();
@@ -101,18 +101,8 @@ public partial class ViewerView : Window, IDisposable
     }
     #endregion
 
-    private async void OnWindowsKeyDown(ushort vkCode)
-    {
-        if (this._viewModel is { IsInputEnabled: true })
-            await this._viewModel.Connection.RequiredViewerService.SendWindowsKeyDownAsync();
-    }
-    private async void OnWindowsKeyUp(ushort vkCode)
-    {
-        if (this._viewModel is { IsInputEnabled: true })
-            await this._viewModel.Connection.RequiredViewerService.SendWindowsKeyUpAsync();
-    }
 
-    private void DisplayPanel_KeyDown(object? sender, KeyEventArgs e)
+    private async void DisplayPanel_KeyDown(object? sender, KeyEventArgs e)
     {
         if (this._viewModel is null)
             return;
@@ -128,6 +118,88 @@ public partial class ViewerView : Window, IDisposable
         {
             e.Handled = true;
             this._viewModel.ToggleFullscreenCommand.Execute(null);
+            return;
+        }
+
+        if (!this._viewModel.IsInputEnabled)
+            return;
+
+        e.Handled = true;
+
+        var keyCode = (ushort)KeyInterop.VirtualKeyFromKey(e.Key);
+        var modifiers = this.GetKeyModifiers(e.KeyModifiers);
+        await this._viewModel.Connection.RequiredViewerService.SendKeyDownAsync(keyCode, modifiers);
+    }
+
+    private async void DisplayPanel_KeyUp(object? sender, KeyEventArgs e)
+    {
+        if (this._viewModel is not { IsInputEnabled: true })
+            return;
+
+        e.Handled = true;
+
+        var keyCode = (ushort)KeyInterop.VirtualKeyFromKey(e.Key);
+        var modifiers = this.GetKeyModifiers(e.KeyModifiers);
+        await this._viewModel.Connection.RequiredViewerService.SendKeyUpAsync(keyCode, modifiers);
+    }
+
+    private async void DisplayPanel_PointerMoved(object? sender, PointerEventArgs e)
+    {
+        if (this._viewModel is not { IsInputEnabled: true })
+            return;
+
+        if (this.TryGetNormalizedPosition(e, out var x, out var y))
+        {
+            await this._viewModel.Connection.RequiredViewerService.SendMouseMoveAsync(x, y);
+        }
+    }
+
+    private async void DisplayPanel_PointerPressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (this._viewModel is not { IsInputEnabled: true })
+            return;
+
+        if (this.TryGetNormalizedPosition(e, out var x, out var y))
+        {
+            var point = e.GetCurrentPoint(this.FrameImage);
+            var button = this.GetMouseButton(point.Properties);
+            if (button is not null)
+            {
+                await this._viewModel.Connection.RequiredViewerService.SendMouseDownAsync(button.Value, x, y);
+            }
+        }
+    }
+
+    private async void DisplayPanel_PointerReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        if (this._viewModel is not { IsInputEnabled: true })
+            return;
+
+        if (this.TryGetNormalizedPosition(e, out var x, out var y))
+        {
+            var button = e.InitialPressMouseButton switch
+            {
+                MouseButton.Left => ProtocolMouseButton.Left,
+                MouseButton.Right => ProtocolMouseButton.Right,
+                MouseButton.Middle => ProtocolMouseButton.Middle,
+                _ => (ProtocolMouseButton?)null
+            };
+
+            if (button is not null)
+            {
+                await this._viewModel.Connection.RequiredViewerService.SendMouseUpAsync(button.Value, x, y);
+            }
+        }
+    }
+
+    private async void DisplayPanel_PointerWheelChanged(object? sender, PointerWheelEventArgs e)
+    {
+        if (this._viewModel is not { IsInputEnabled: true })
+            return;
+
+        if (this.TryGetNormalizedPosition(e, out var x, out var y))
+        {
+            await this._viewModel.Connection.RequiredViewerService.SendMouseWheelAsync((float)e.Delta.X, (float)e.Delta.Y, x, y);
         }
     }
 
@@ -191,23 +263,115 @@ public partial class ViewerView : Window, IDisposable
     #endregion
 
     #region Helper Methods
-    private void BindConnectionAdapter(ViewerViewModel viewModel)
+    private void BindConnection(ViewerViewModel viewModel)
     {
-        var logger = App.Current.Services.GetRequiredService<ILogger<ViewerAvaloniaConnectionAdapter>>();
-        this._connectionAdapter = new ViewerAvaloniaConnectionAdapter(viewModel.Connection, logger);
-        this._connectionAdapter.Attach(this.DisplayPanel, this.FrameImage, this.DebugOverlayImage);
+        viewModel.Connection.RequiredViewerService.FrameReady += this.ViewerService_FrameReady;
+        this._frameCompositor = new FrameCompositor();
     }
 
-    private void UnbindConnectionAdapter()
+    private void UnbindConnection(ViewerViewModel viewModel)
     {
-        this._connectionAdapter?.Dispose();
-        this._connectionAdapter = null;
+        viewModel.Connection.ViewerService?.FrameReady -= this.ViewerService_FrameReady;
+        this._frameCompositor?.Dispose();
+        this._frameCompositor = null;
     }
     #endregion
 
+    private void ViewerService_FrameReady(object? sender, FrameReceivedEventArgs e)
+    {
+        var compositor = this._frameCompositor;
+        if (compositor is null)
+            return;
+
+        try
+        {
+            if (e.Regions is [{ IsKeyframe: true }])
+            {
+                compositor.ApplyKeyframe(e.Regions, e.FrameNumber);
+            }
+            else
+            {
+                compositor.ApplyDeltaRegions(e.Regions, e.FrameNumber);
+            }
+
+            var frame = compositor.Canvas;
+            var overlay = compositor.DebugOverlay;
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (this.FrameImage is { } frameImage)
+                {
+                    frameImage.Source = frame;
+                    frameImage.InvalidateVisual();
+                }
+
+                if (this.DebugOverlayImage is { } overlayImage)
+                {
+                    overlayImage.Source = overlay;
+                    overlayImage.IsVisible = overlay is not null;
+                    overlayImage.InvalidateVisual();
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            var logger = App.Current.Services.GetRequiredService<ILogger<ViewerView>>();
+            logger.LogError(ex, "Error processing frame");
+        }
+    }
+
+    private bool TryGetNormalizedPosition(PointerEventArgs e, out float x, out float y)
+    {
+        x = -1;
+        y = -1;
+
+        var frame = this.FrameImage;
+        if (frame is null)
+            return false;
+
+        var point = e.GetPosition(frame);
+        var bounds = frame.Bounds;
+
+        if (bounds.Width <= 0 || bounds.Height <= 0)
+            return false;
+
+        x = (float)(point.X / bounds.Width);
+        y = (float)(point.Y / bounds.Height);
+
+        return x is >= 0 and <= 1 && y is >= 0 and <= 1;
+    }
+
+    private ProtocolMouseButton? GetMouseButton(PointerPointProperties properties) => properties switch
+    {
+        { IsLeftButtonPressed: true } => ProtocolMouseButton.Left,
+        { IsRightButtonPressed: true } => ProtocolMouseButton.Right,
+        { IsMiddleButtonPressed: true } => ProtocolMouseButton.Middle,
+        _ => null,
+    };
+
+    private ProtocolKeyModifiers GetKeyModifiers(KeyModifiers modifiers)
+    {
+        var result = ProtocolKeyModifiers.None;
+
+        if (modifiers.HasFlag(KeyModifiers.Shift))
+            result |= ProtocolKeyModifiers.Shift;
+
+        if (modifiers.HasFlag(KeyModifiers.Control))
+            result |= ProtocolKeyModifiers.Control;
+
+        if (modifiers.HasFlag(KeyModifiers.Alt))
+            result |= ProtocolKeyModifiers.Alt;
+
+        if (modifiers.HasFlag(KeyModifiers.Meta))
+            result |= ProtocolKeyModifiers.Win;
+
+        return result;
+    }
+
     public void Dispose()
     {
-        this.UnbindConnectionAdapter();
+        if (this._viewModel is not null)
+            this.UnbindConnection(this._viewModel);
         this._windowsKeyBlockerHandle?.Dispose();
         GC.SuppressFinalize(this);
     }
