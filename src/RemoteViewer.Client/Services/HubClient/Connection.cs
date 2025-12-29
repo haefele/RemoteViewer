@@ -1,4 +1,4 @@
-﻿using System.Threading;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Common;
 using RemoteViewer.Client.Services.Displays;
@@ -12,9 +12,9 @@ namespace RemoteViewer.Client.Services.HubClient;
 #pragma warning disable CA1001 // Disposal is handled via OnClosed() which is called externally
 public sealed class Connection
 {
+    private readonly IServiceProvider _serviceProvider;
+
     private readonly ILogger<Connection> _logger;
-    private readonly Func<string, ReadOnlyMemory<byte>, MessageDestination, List<string>?, Task> _sendMessageAsync;
-    private readonly Func<Task> _disconnectAsync;
     private readonly IDisplayService? _displayService;
     private readonly IScreenshotService? _screenshotService;
 
@@ -22,27 +22,29 @@ public sealed class Connection
     private ClientInfo? _presenter;
     private List<ViewerInfo> _viewers = [];
 
-
     internal Connection(
+        IServiceProvider serviceProvider,
+        ConnectionHubClient owner,
         string connectionId,
         bool isPresenter,
-        Func<string, ReadOnlyMemory<byte>, MessageDestination, List<string>?, Task> sendMessageAsync,
-        Func<Task> disconnectAsync,
         ILogger<Connection> logger,
-        ILoggerFactory loggerFactory,
-        IDisplayService? displayService = null,
-        IScreenshotService? screenshotService = null)
+        IDisplayService displayService,
+        IScreenshotService screenshotService)
     {
+        this._serviceProvider = serviceProvider;
+
         this.ConnectionId = connectionId;
         this.IsPresenter = isPresenter;
+        this.Owner = owner;
+
         this._displayService = displayService;
         this._screenshotService = screenshotService;
-        this._sendMessageAsync = sendMessageAsync;
-        this._disconnectAsync = disconnectAsync;
         this._logger = logger;
 
-        this.FileTransfers = new FileTransferService(this, loggerFactory.CreateLogger<FileTransferService>());
+        this.FileTransfers = ActivatorUtilities.CreateInstance<FileTransferService>(this._serviceProvider, this);
     }
+
+    public ConnectionHubClient Owner { get; }
 
     public string ConnectionId { get; }
     public bool IsPresenter { get; }
@@ -129,7 +131,7 @@ public sealed class Connection
         if (this.IsClosed)
             return Task.CompletedTask;
 
-        return this._disconnectAsync();
+        return this.Owner.DisconnectAsync(this.ConnectionId);
     }
 
     /// <summary>Viewer-only: Request to switch to the next display.</summary>
@@ -141,7 +143,7 @@ public sealed class Connection
         if (this.IsClosed)
             return;
 
-        await this._sendMessageAsync(MessageTypes.Display.Switch, ReadOnlyMemory<byte>.Empty, MessageDestination.PresenterOnly, null);
+        await this.Owner.SendMessageAsync(this.ConnectionId, MessageTypes.Display.Switch, ReadOnlyMemory<byte>.Empty, MessageDestination.PresenterOnly, null);
 
         this._logger.LogDebug("Requested display switch");
     }
@@ -155,7 +157,7 @@ public sealed class Connection
         if (this.IsClosed)
             return;
 
-        await this._sendMessageAsync(messageType, data, MessageDestination.PresenterOnly, null);
+        await this.Owner.SendMessageAsync(this.ConnectionId, messageType, data, MessageDestination.PresenterOnly, null);
     }
 
     /// <summary>Presenter-only: Send a frame to all viewers watching a specific display.</summary>
@@ -193,7 +195,7 @@ public sealed class Connection
 
         using var buffer = PooledBufferWriter.Rent();
         ProtocolSerializer.Serialize(buffer, message);
-        await this._sendMessageAsync(MessageTypes.Screen.Frame, buffer.WrittenMemory, MessageDestination.SpecificClients, targetViewerIds);
+        await this.Owner.SendMessageAsync(this.ConnectionId, MessageTypes.Screen.Frame, buffer.WrittenMemory, MessageDestination.SpecificClients, targetViewerIds);
     }
 
     // File transfer: Send request - Bidirectional with optional targetClientId
@@ -210,13 +212,13 @@ public sealed class Connection
         {
             if (!this.IsPresenter)
                 throw new InvalidOperationException("SendFileSendRequestAsync with targetClientId is only valid for presenters");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.SendRequest, buffer.WrittenMemory, MessageDestination.SpecificClients, [targetClientId]);
+            await this.Owner.SendMessageAsync(this.ConnectionId, MessageTypes.FileTransfer.SendRequest, buffer.WrittenMemory, MessageDestination.SpecificClients, [targetClientId]);
         }
         else
         {
             if (this.IsPresenter)
                 throw new InvalidOperationException("SendFileSendRequestAsync without targetClientId is only valid for viewers");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.SendRequest, buffer.WrittenMemory, MessageDestination.PresenterOnly, null);
+            await this.Owner.SendMessageAsync(this.ConnectionId, MessageTypes.FileTransfer.SendRequest, buffer.WrittenMemory, MessageDestination.PresenterOnly, null);
         }
     }
 
@@ -234,13 +236,13 @@ public sealed class Connection
         {
             if (!this.IsPresenter)
                 throw new InvalidOperationException("SendFileSendResponseAsync with targetClientId is only valid for presenters");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.SendResponse, buffer.WrittenMemory, MessageDestination.SpecificClients, [targetClientId]);
+            await this.Owner.SendMessageAsync(this.ConnectionId, MessageTypes.FileTransfer.SendResponse, buffer.WrittenMemory, MessageDestination.SpecificClients, [targetClientId]);
         }
         else
         {
             if (this.IsPresenter)
                 throw new InvalidOperationException("SendFileSendResponseAsync without targetClientId is only valid for viewers");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.SendResponse, buffer.WrittenMemory, MessageDestination.PresenterOnly, null);
+            await this.Owner.SendMessageAsync(this.ConnectionId, MessageTypes.FileTransfer.SendResponse, buffer.WrittenMemory, MessageDestination.PresenterOnly, null);
         }
     }
 
@@ -257,13 +259,13 @@ public sealed class Connection
         {
             if (!this.IsPresenter)
                 throw new InvalidOperationException("SendFileChunkAsync with targetClientId is only valid for presenters");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.Chunk, buffer.WrittenMemory, MessageDestination.SpecificClients, [targetClientId]);
+            await this.Owner.SendMessageAsync(this.ConnectionId, MessageTypes.FileTransfer.Chunk, buffer.WrittenMemory, MessageDestination.SpecificClients, [targetClientId]);
         }
         else
         {
             if (this.IsPresenter)
                 throw new InvalidOperationException("SendFileChunkAsync without targetClientId is only valid for viewers");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.Chunk, buffer.WrittenMemory, MessageDestination.PresenterOnly, null);
+            await this.Owner.SendMessageAsync(this.ConnectionId, MessageTypes.FileTransfer.Chunk, buffer.WrittenMemory, MessageDestination.PresenterOnly, null);
         }
     }
 
@@ -280,13 +282,13 @@ public sealed class Connection
         {
             if (!this.IsPresenter)
                 throw new InvalidOperationException("SendFileCompleteAsync with targetClientId is only valid for presenters");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.Complete, buffer.WrittenMemory, MessageDestination.SpecificClients, [targetClientId]);
+            await this.Owner.SendMessageAsync(this.ConnectionId, MessageTypes.FileTransfer.Complete, buffer.WrittenMemory, MessageDestination.SpecificClients, [targetClientId]);
         }
         else
         {
             if (this.IsPresenter)
                 throw new InvalidOperationException("SendFileCompleteAsync without targetClientId is only valid for viewers");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.Complete, buffer.WrittenMemory, MessageDestination.PresenterOnly, null);
+            await this.Owner.SendMessageAsync(this.ConnectionId, MessageTypes.FileTransfer.Complete, buffer.WrittenMemory, MessageDestination.PresenterOnly, null);
         }
     }
 
@@ -303,13 +305,13 @@ public sealed class Connection
         {
             if (!this.IsPresenter)
                 throw new InvalidOperationException("SendFileCancelAsync with targetClientId is only valid for presenters");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.Cancel, buffer.WrittenMemory, MessageDestination.SpecificClients, [targetClientId]);
+            await this.Owner.SendMessageAsync(this.ConnectionId, MessageTypes.FileTransfer.Cancel, buffer.WrittenMemory, MessageDestination.SpecificClients, [targetClientId]);
         }
         else
         {
             if (this.IsPresenter)
                 throw new InvalidOperationException("SendFileCancelAsync without targetClientId is only valid for viewers");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.Cancel, buffer.WrittenMemory, MessageDestination.PresenterOnly, null);
+            await this.Owner.SendMessageAsync(this.ConnectionId, MessageTypes.FileTransfer.Cancel, buffer.WrittenMemory, MessageDestination.PresenterOnly, null);
         }
     }
 
@@ -326,13 +328,13 @@ public sealed class Connection
         {
             if (!this.IsPresenter)
                 throw new InvalidOperationException("SendFileErrorAsync with targetClientId is only valid for presenters");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.Error, buffer.WrittenMemory, MessageDestination.SpecificClients, [targetClientId]);
+            await this.Owner.SendMessageAsync(this.ConnectionId, MessageTypes.FileTransfer.Error, buffer.WrittenMemory, MessageDestination.SpecificClients, [targetClientId]);
         }
         else
         {
             if (this.IsPresenter)
                 throw new InvalidOperationException("SendFileErrorAsync without targetClientId is only valid for viewers");
-            await this._sendMessageAsync(MessageTypes.FileTransfer.Error, buffer.WrittenMemory, MessageDestination.PresenterOnly, null);
+            await this.Owner.SendMessageAsync(this.ConnectionId, MessageTypes.FileTransfer.Error, buffer.WrittenMemory, MessageDestination.PresenterOnly, null);
         }
     }
 

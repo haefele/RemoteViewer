@@ -1,9 +1,8 @@
 ﻿using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Nerdbank.MessagePack.SignalR;
-using RemoteViewer.Client.Services.Displays;
-using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Server.SharedAPI;
 
 namespace RemoteViewer.Client.Services.HubClient;
@@ -11,9 +10,7 @@ namespace RemoteViewer.Client.Services.HubClient;
 public sealed class ConnectionHubClient : IAsyncDisposable
 {
     private readonly ILogger<ConnectionHubClient> _logger;
-    private readonly ILoggerFactory _loggerFactory;
-    private readonly IDisplayService _displayService;
-    private readonly IScreenshotService _screenshotService;
+    private readonly IServiceProvider _serviceProvider;
     private readonly HubConnection _connection;
     private readonly ConcurrentDictionary<string, Connection> _connections = new();
 
@@ -23,12 +20,10 @@ public sealed class ConnectionHubClient : IAsyncDisposable
     private static readonly string s_baseUrl = "https://rdp.xemio.net";
 #endif
 
-    public ConnectionHubClient(ILogger<ConnectionHubClient> logger, ILoggerFactory loggerFactory, IDisplayService displayService, IScreenshotService screenshotService)
+    public ConnectionHubClient(ILogger<ConnectionHubClient> logger, IServiceProvider serviceProvider)
     {
         this._logger = logger;
-        this._loggerFactory = loggerFactory;
-        this._displayService = displayService;
-        this._screenshotService = screenshotService;
+        this._serviceProvider = serviceProvider;
 
         this._connection = new HubConnectionBuilder()
             .WithUrl($"{s_baseUrl}/connection", options =>
@@ -52,15 +47,11 @@ public sealed class ConnectionHubClient : IAsyncDisposable
 
         this._connection.On<string, bool>("ConnectionStarted", (connectionId, isPresenter) =>
         {
-            var connection = new Connection(
+            var connection = ActivatorUtilities.CreateInstance<Connection>(
+                this._serviceProvider,
                 connectionId,
                 isPresenter,
-                sendMessageAsync: (messageType, data, destination, targetClientIds) => this.SendMessage(connectionId, messageType, data, destination, targetClientIds),
-                disconnectAsync: () => this.Disconnect(connectionId),
-                this._loggerFactory.CreateLogger<Connection>(),
-                this._loggerFactory,
-                displayService: isPresenter ? this._displayService : null,
-                screenshotService: isPresenter ? this._screenshotService : null);
+                this);
 
             this._connections[connectionId] = connection;
 
@@ -292,7 +283,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
         await this._connection.DisposeAsync();
     }
 
-    private async Task SendMessage(string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination, List<string>? targetClientIds = null)
+    internal async Task SendMessageAsync(string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination, List<string>? targetClientIds = null)
     {
         if (!this.IsConnected)
             return;
@@ -309,7 +300,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
         }
     }
 
-    private async Task Disconnect(string connectionId)
+    internal async Task DisconnectAsync(string connectionId)
     {
         if (!this.IsConnected)
             return;
