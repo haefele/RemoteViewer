@@ -1,15 +1,11 @@
-using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
-using RemoteViewer.Client.Common;
 using RemoteViewer.Client.Controls.Toasts;
 using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.ViewModels;
-using RemoteViewer.Server.SharedAPI.Protocol;
-using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 
 namespace RemoteViewer.Client.Views.Viewer;
@@ -17,7 +13,7 @@ namespace RemoteViewer.Client.Views.Viewer;
 public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 {
     #region Core State & Constructor
-    private readonly Connection _connection;
+    public Connection Connection { get; }
     private readonly ILogger<ViewerViewModel> _logger;
 
     public ToastsViewModel Toasts { get; }
@@ -33,74 +29,13 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         IViewModelFactory viewModelFactory,
         ILogger<ViewerViewModel> logger)
     {
-        this._connection = connection;
+        this.Connection = connection;
         this._logger = logger;
         this.Toasts = viewModelFactory.CreateToastsViewModel();
-        this._connection.FileTransfers.Toasts = this.Toasts;
+        this.Connection.FileTransfers.Toasts = this.Toasts;
 
-        this._connection.ParticipantsChanged += this.Connection_ParticipantsChanged;
-        this._connection.FrameReceived += this.Connection_FrameReceived;
-        this._connection.Closed += this.Connection_Closed;
-    }
-    #endregion
-
-    #region Frame Display
-    private readonly FrameCompositor _compositor = new();
-    private ulong _lastReceivedFrameNumber;
-
-    [ObservableProperty]
-    private WriteableBitmap? _frameBitmap;
-
-    [ObservableProperty]
-    private WriteableBitmap? _debugOverlayBitmap;
-
-    private void Connection_FrameReceived(object? sender, FrameReceivedEventArgs e)
-    {
-        // Drop out-of-order delta frames (but always accept keyframes)
-        if (e.Regions is not [{ IsKeyframe: true }] && e.FrameNumber <= this._lastReceivedFrameNumber)
-            return;
-
-        try
-        {
-            if (e.Regions is [{ IsKeyframe: true }])
-            {
-                this._compositor.ApplyKeyframe(e.Regions, e.FrameNumber);
-            }
-            else
-            {
-                this._compositor.ApplyDeltaRegions(e.Regions, e.FrameNumber);
-            }
-
-            this._lastReceivedFrameNumber = e.FrameNumber;
-
-            Dispatcher.UIThread.Post(() =>
-            {
-                if (this._disposed)
-                    return;
-
-                if (this._compositor.Canvas is { } canvas && this.FrameBitmap != canvas)
-                {
-                    this.FrameBitmap = canvas;
-                }
-                else
-                {
-                    this.OnPropertyChanged(nameof(this.FrameBitmap));
-                }
-
-                if (this._compositor.DebugOverlay is { } overlay && this.DebugOverlayBitmap != overlay)
-                {
-                    this.DebugOverlayBitmap = overlay;
-                }
-                else if (this._compositor.DebugOverlay is not null)
-                {
-                    this.OnPropertyChanged(nameof(this.DebugOverlayBitmap));
-                }
-            });
-        }
-        catch (Exception ex)
-        {
-            this._logger.LogError(ex, "Error processing frame");
-        }
+        this.Connection.ParticipantsChanged += this.Connection_ParticipantsChanged;
+        this.Connection.Closed += this.Connection_Closed;
     }
     #endregion
 
@@ -115,8 +50,8 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     private void UpdateParticipants()
     {
-        var presenter = this._connection.Presenter;
-        var viewers = this._connection.Viewers;
+        var presenter = this.Connection.Presenter;
+        var viewers = this.Connection.Viewers;
 
         this.Participants.Clear();
 
@@ -139,155 +74,37 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     [RelayCommand]
     private async Task Disconnect()
     {
-        this._logger.LogInformation("User requested to disconnect from connection {ConnectionId}", this._connection.ConnectionId);
-        await this._connection.DisconnectAsync();
+        this._logger.LogInformation("User requested to disconnect from connection {ConnectionId}", this.Connection.ConnectionId);
+        await this.Connection.DisconnectAsync();
     }
     #endregion
 
     #region Input Handling
-    private readonly ConcurrentDictionary<ushort, object?> _pressedKeys = new();
+    public bool IsInputEnabled
+    {
+        get => this.Connection.RequiredViewerService.IsInputEnabled;
+        set
+        {
+            var service = this.Connection.RequiredViewerService;
+            if (service.IsInputEnabled == value)
+                return;
 
-    [ObservableProperty]
-    private bool _isInputEnabled = true;
+            service.IsInputEnabled = value;
+            this.OnPropertyChanged();
+        }
+    }
 
     [RelayCommand]
     private async Task ToggleInputAsync()
     {
         this.IsInputEnabled = !this.IsInputEnabled;
         if (!this.IsInputEnabled)
-            await this.ReleaseAllKeysAsync();
-    }
-
-    public async Task SendMouseMoveAsync(float x, float y)
-    {
-        try
-        {
-            var message = new MouseMoveMessage(x, y);
-            using var buffer = PooledBufferWriter.Rent();
-            ProtocolSerializer.Serialize(buffer, message);
-            await this._connection.SendInputAsync(MessageTypes.Input.MouseMove, buffer.WrittenMemory);
-        }
-        catch (Exception ex)
-        {
-            this._logger.LogError(ex, "Failed to send mouse move");
-        }
-    }
-
-    public async Task SendMouseDownAsync(MouseButton button, float x, float y)
-    {
-        try
-        {
-            var message = new MouseButtonMessage(button, x, y);
-            using var buffer = PooledBufferWriter.Rent();
-            ProtocolSerializer.Serialize(buffer, message);
-            await this._connection.SendInputAsync(MessageTypes.Input.MouseDown, buffer.WrittenMemory);
-        }
-        catch (Exception ex)
-        {
-            this._logger.LogError(ex, "Failed to send mouse down");
-        }
-    }
-
-    public async Task SendMouseUpAsync(MouseButton button, float x, float y)
-    {
-        try
-        {
-            var message = new MouseButtonMessage(button, x, y);
-            using var buffer = PooledBufferWriter.Rent();
-            ProtocolSerializer.Serialize(buffer, message);
-            await this._connection.SendInputAsync(MessageTypes.Input.MouseUp, buffer.WrittenMemory);
-        }
-        catch (Exception ex)
-        {
-            this._logger.LogError(ex, "Failed to send mouse up");
-        }
-    }
-
-    public async Task SendMouseWheelAsync(float deltaX, float deltaY, float x, float y)
-    {
-        try
-        {
-            var message = new MouseWheelMessage(deltaX, deltaY, x, y);
-            using var buffer = PooledBufferWriter.Rent();
-            ProtocolSerializer.Serialize(buffer, message);
-            await this._connection.SendInputAsync(MessageTypes.Input.MouseWheel, buffer.WrittenMemory);
-        }
-        catch (Exception ex)
-        {
-            this._logger.LogError(ex, "Failed to send mouse wheel");
-        }
-    }
-
-    public async Task SendKeyDownAsync(ushort keyCode, KeyModifiers modifiers)
-    {
-        try
-        {
-            this._pressedKeys.TryAdd(keyCode, null);
-
-            var message = new KeyMessage(keyCode, modifiers);
-            using var buffer = PooledBufferWriter.Rent();
-            ProtocolSerializer.Serialize(buffer, message);
-            await this._connection.SendInputAsync(MessageTypes.Input.KeyDown, buffer.WrittenMemory);
-        }
-        catch (Exception ex)
-        {
-            this._logger.LogError(ex, "Failed to send key down");
-        }
-    }
-
-    public async Task SendKeyUpAsync(ushort keyCode, KeyModifiers modifiers)
-    {
-        try
-        {
-            this._pressedKeys.TryRemove(keyCode, out _);
-
-            var message = new KeyMessage(keyCode, modifiers);
-            using var buffer = PooledBufferWriter.Rent();
-            ProtocolSerializer.Serialize(buffer, message);
-            await this._connection.SendInputAsync(MessageTypes.Input.KeyUp, buffer.WrittenMemory);
-        }
-        catch (Exception ex)
-        {
-            this._logger.LogError(ex, "Failed to send key up");
-        }
-    }
-
-    public async Task ReleaseAllKeysAsync()
-    {
-        if (this._pressedKeys.IsEmpty)
-            return;
-
-        foreach (var keyCode in this._pressedKeys.Keys)
-        {
-            try
-            {
-                this._pressedKeys.TryRemove(keyCode, out _);
-
-                var message = new KeyMessage(keyCode, KeyModifiers.None);
-                using var buffer = PooledBufferWriter.Rent();
-                ProtocolSerializer.Serialize(buffer, message);
-                await this._connection.SendInputAsync(MessageTypes.Input.KeyUp, buffer.WrittenMemory);
-            }
-            catch (Exception ex)
-            {
-                this._logger.LogError(ex, "Failed to release key");
-            }
-        }
+            await this.Connection.RequiredViewerService.ReleaseAllKeysAsync();
     }
 
     [RelayCommand]
-    private async Task SendCtrlAltDelAsync()
-    {
-        try
-        {
-            await this._connection.SendInputAsync(MessageTypes.Input.SecureAttentionSequence, ReadOnlyMemory<byte>.Empty);
-            this._logger.LogInformation("Sent Ctrl+Alt+Del request");
-        }
-        catch (Exception ex)
-        {
-            this._logger.LogError(ex, "Failed to send Ctrl+Alt+Del");
-        }
-    }
+    private Task SendCtrlAltDelAsync() =>
+        this.Connection.RequiredViewerService.SendCtrlAltDelAsync();
     #endregion
 
     #region Fullscreen & Toolbar
@@ -309,13 +126,11 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     private async Task NextDisplay()
     {
         this.Toasts.Info("Switching display...");
-        await this._connection.SwitchDisplayAsync();
+        await this.Connection.RequiredViewerService.SwitchDisplayAsync();
     }
     #endregion
 
     #region File Transfer
-    public FileTransferService FileTransfers => this._connection.FileTransfers;
-
     [RelayCommand]
     private void SendFile()
     {
@@ -332,7 +147,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
                 return;
             }
 
-            var transfer = await this._connection.FileTransfers.SendFileAsync(filePath);
+            var transfer = await this.Connection.FileTransfers.SendFileAsync(filePath);
             this.Toasts.AddTransfer(transfer, isUpload: true);
             this._logger.LogInformation("Started file upload: {FileName} ({FileSize} bytes)", transfer.FileName, transfer.FileSize);
         }
@@ -360,14 +175,12 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
         this._disposed = true;
 
-        await this._connection.FileTransfers.CancelAllAsync();
-        await this._connection.DisconnectAsync();
+        await this.Connection.FileTransfers.CancelAllAsync();
+        await this.Connection.DisconnectAsync();
 
-        this._connection.ParticipantsChanged -= this.Connection_ParticipantsChanged;
-        this._connection.FrameReceived -= this.Connection_FrameReceived;
-        this._connection.Closed -= this.Connection_Closed;
-
-        this._compositor.Dispose();
+        this.Connection.ParticipantsChanged -= this.Connection_ParticipantsChanged;
+        this.Connection.Closed -= this.Connection_Closed;
+        this.Connection.ViewerService?.Dispose();
 
         GC.SuppressFinalize(this);
     }

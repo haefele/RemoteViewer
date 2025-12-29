@@ -49,9 +49,9 @@ public sealed class ConnectionHubClient : IAsyncDisposable
         {
             var connection = ActivatorUtilities.CreateInstance<Connection>(
                 this._serviceProvider,
+                this,
                 connectionId,
-                isPresenter,
-                this);
+                isPresenter);
 
             this._connections[connectionId] = connection;
 

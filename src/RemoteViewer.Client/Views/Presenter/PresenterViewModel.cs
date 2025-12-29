@@ -1,19 +1,13 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Controls.Toasts;
-using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.HubClient;
-using RemoteViewer.Client.Services.InputInjection;
-using RemoteViewer.Client.Services.LocalInputMonitor;
-using RemoteViewer.Client.Services.ScreenCapture;
-using RemoteViewer.Client.Services.Screenshot;
-using RemoteViewer.Client.Services.VideoCodec;
 using RemoteViewer.Client.Services.ViewModels;
-using RemoteViewer.Client.Services.WindowsIpc;
 
 namespace RemoteViewer.Client.Views.Presenter;
 
@@ -21,15 +15,10 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 {
     private readonly Connection _connection;
     private readonly ConnectionHubClient _hubClient;
-    private readonly IDisplayService _displayService;
-    private readonly IInputInjectionService _inputInjectionService;
-    private readonly ILocalInputMonitorService _localInputMonitor;
-    private readonly SessionRecorderRpcClient _rpcClient;
     private readonly ILogger<PresenterViewModel> _logger;
 
     public ToastsViewModel Toasts { get; }
 
-    private DisplayCaptureManager? _captureManager;
     private bool _disposed;
 
     [ObservableProperty]
@@ -42,7 +31,6 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
     private string? _yourPassword;
 
     public ObservableCollection<PresenterViewerDisplay> Viewers { get; } = [];
-    public FileTransferService FileTransfers => this._connection.FileTransfers;
 
     public event EventHandler? CloseRequested;
     public event EventHandler<string>? CopyToClipboardRequested;
@@ -51,47 +39,22 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
     public PresenterViewModel(
         Connection connection,
         ConnectionHubClient hubClient,
-        IDisplayService displayService,
-        IScreenshotService screenshotService,
-        IFrameEncoder frameEncoder,
-        IInputInjectionService inputInjectionService,
-        ILocalInputMonitorService localInputMonitor,
-        SessionRecorderRpcClient rpcClient,
         IViewModelFactory viewModelFactory,
-        ILogger<PresenterViewModel> logger,
-        ILoggerFactory loggerFactory)
+        ILogger<PresenterViewModel> logger)
     {
         this._connection = connection;
         this._hubClient = hubClient;
-        this._displayService = displayService;
-        this._inputInjectionService = inputInjectionService;
-        this._localInputMonitor = localInputMonitor;
-        this._rpcClient = rpcClient;
         this._logger = logger;
         this.Toasts = viewModelFactory.CreateToastsViewModel();
         this._connection.FileTransfers.Toasts = this.Toasts;
 
         // Subscribe to Connection events
         this._connection.ViewersChanged += this.OnViewersChanged;
-        this._connection.InputReceived += this.OnInputReceived;
-        this._connection.SecureAttentionSequenceRequested += this.OnSecureAttentionSequenceRequested;
         this._connection.Closed += this.OnConnectionClosed;
 
         // Subscribe to credentials changes
         this._hubClient.CredentialsAssigned += this.OnCredentialsAssigned;
 
-        // Start monitoring for local input to auto-suppress viewer input
-        this._localInputMonitor.StartMonitoring();
-
-        // Create and start capture manager
-        this._captureManager = new DisplayCaptureManager(
-            connection,
-            displayService,
-            screenshotService,
-            frameEncoder,
-            loggerFactory,
-            loggerFactory.CreateLogger<DisplayCaptureManager>());
-        this._captureManager.Start();
     }
 
     private void OnCredentialsAssigned(object? sender, CredentialsAssignedEventArgs e)
@@ -127,6 +90,8 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         {
             if (!currentViewerIds.Contains(this.Viewers[i].ClientId))
             {
+                this._connection.RequiredPresenterService.SetViewerInputBlocked(this.Viewers[i].ClientId, false);
+                this.Viewers[i].PropertyChanged -= this.Viewer_PropertyChanged;
                 this.Viewers.RemoveAt(i);
             }
         }
@@ -137,147 +102,33 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         {
             if (!existingIds.Contains(viewer.ClientId))
             {
-                this.Viewers.Add(new PresenterViewerDisplay(
+                var display = new PresenterViewerDisplay(
                     viewer.ClientId,
-                    viewer.DisplayName));
+                    viewer.DisplayName);
+                display.PropertyChanged += this.Viewer_PropertyChanged;
+                this.Viewers.Add(display);
             }
         }
     }
 
-    private async void OnInputReceived(object? sender, InputReceivedEventArgs e)
+    private void Viewer_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        try
+        if (e.PropertyName != nameof(PresenterViewerDisplay.IsInputBlocked))
+            return;
+
+        if (sender is PresenterViewerDisplay viewer)
         {
-            // Check for local presenter activity - suppress viewer input temporarily
-            if (this._localInputMonitor.ShouldSuppressViewerInput())
-                return;
-
-            // Check if this specific viewer's input is blocked
-            var viewer = this.Viewers.FirstOrDefault(v => v.ClientId == e.SenderClientId);
-            if (viewer?.IsInputBlocked == true)
-                return;
-
-            // Get the display for this viewer's selection
-            if (e.DisplayId is null)
-                return;
-
-            var display = await this.GetDisplayByIdAsync(e.DisplayId);
-            if (display is null)
-                return;
-
-            switch (e.Type)
-            {
-                case InputType.MouseMove:
-                    if (e.X.HasValue && e.Y.HasValue)
-                    {
-                        await this._inputInjectionService.InjectMouseMove(display, e.X.Value, e.Y.Value, CancellationToken.None);
-                    }
-                    break;
-
-                case InputType.MouseDown:
-                    if (e.X.HasValue && e.Y.HasValue && e.Button.HasValue)
-                    {
-                        await this._inputInjectionService.InjectMouseButton(display, e.Button.Value, isDown: true, e.X.Value, e.Y.Value, CancellationToken.None);
-                    }
-                    break;
-
-                case InputType.MouseUp:
-                    if (e.X.HasValue && e.Y.HasValue && e.Button.HasValue)
-                    {
-                        await this._inputInjectionService.InjectMouseButton(display, e.Button.Value, isDown: false, e.X.Value, e.Y.Value, CancellationToken.None);
-                    }
-                    break;
-
-                case InputType.MouseWheel:
-                    if (e.X.HasValue && e.Y.HasValue && e.DeltaX.HasValue && e.DeltaY.HasValue)
-                    {
-                        await this._inputInjectionService.InjectMouseWheel(display, e.DeltaX.Value, e.DeltaY.Value, e.X.Value, e.Y.Value, CancellationToken.None);
-                    }
-                    break;
-
-                case InputType.KeyDown:
-                    if (e.KeyCode.HasValue)
-                    {
-                        await this._inputInjectionService.InjectKey(e.KeyCode.Value, isDown: true, CancellationToken.None);
-                    }
-                    break;
-
-                case InputType.KeyUp:
-                    if (e.KeyCode.HasValue)
-                    {
-                        await this._inputInjectionService.InjectKey(e.KeyCode.Value, isDown: false, CancellationToken.None);
-                    }
-                    break;
-            }
-        }
-        catch (Exception ex)
-        {
-            this._logger.LogError(ex, "Error handling input from {SenderClientId}", e.SenderClientId);
+            this._connection.RequiredPresenterService.SetViewerInputBlocked(viewer.ClientId, viewer.IsInputBlocked);
         }
     }
 
-    private async void OnSecureAttentionSequenceRequested(object? sender, SecureAttentionSequenceRequestedEventArgs e)
+    private void OnConnectionClosed(object? sender, EventArgs e)
     {
-        try
+        Dispatcher.UIThread.Post(() =>
         {
-            // Check if this viewer's input is blocked
-            var viewer = this.Viewers.FirstOrDefault(v => v.ClientId == e.SenderClientId);
-            if (viewer?.IsInputBlocked == true)
-            {
-                this._logger.LogInformation("Ignoring Ctrl+Alt+Del from blocked viewer: {ViewerId}", e.SenderClientId);
-                return;
-            }
-
-            // Check if we have the RPC client connected to the Windows Service
-            if (!this._rpcClient.IsConnected || this._rpcClient.Proxy is null)
-            {
-                this._logger.LogWarning("Cannot send Ctrl+Alt+Del - not connected to Windows Service");
-                return;
-            }
-
-            var result = await this._rpcClient.Proxy.SendSecureAttentionSequence(CancellationToken.None);
-            if (result)
-            {
-                this._logger.LogInformation("Sent Ctrl+Alt+Del on behalf of viewer: {ViewerId}", e.SenderClientId);
-            }
-            else
-            {
-                this._logger.LogWarning("SendSAS failed for viewer: {ViewerId}", e.SenderClientId);
-            }
-        }
-        catch (Exception ex)
-        {
-            this._logger.LogError(ex, "Error handling Ctrl+Alt+Del request from {SenderClientId}", e.SenderClientId);
-        }
+            CloseRequested?.Invoke(this, EventArgs.Empty);
+        });
     }
-
-    private async void OnConnectionClosed(object? sender, EventArgs e)
-    {
-        try
-        {
-            this._captureManager?.Dispose();
-            this._captureManager = null;
-
-            // Release any stuck modifier keys when connection closes
-            await this._inputInjectionService.ReleaseAllModifiers(CancellationToken.None);
-
-            Dispatcher.UIThread.Post(() =>
-            {
-                CloseRequested?.Invoke(this, EventArgs.Empty);
-            });
-        }
-        catch (Exception ex)
-        {
-            this._logger.LogError(ex, "Error handling connection closed event");
-        }
-    }
-
-    private async Task<Display?> GetDisplayByIdAsync(string displayId)
-    {
-        var displays = await this._displayService.GetDisplays(CancellationToken.None);
-        return displays.FirstOrDefault(d => d.Name == displayId);
-    }
-
     [RelayCommand]
     private async Task StopPresentingAsync()
     {
@@ -393,21 +244,19 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 
         this._disposed = true;
 
-        // Stop monitoring local input
-        this._localInputMonitor.StopMonitoring();
-
         await this._connection.FileTransfers.CancelAllAsync();
-
-        this._captureManager?.Dispose();
         await this._connection.DisconnectAsync();
 
         // Unsubscribe from Connection events
         this._connection.ViewersChanged -= this.OnViewersChanged;
-        this._connection.InputReceived -= this.OnInputReceived;
-        this._connection.SecureAttentionSequenceRequested -= this.OnSecureAttentionSequenceRequested;
         this._connection.Closed -= this.OnConnectionClosed;
         this._hubClient.CredentialsAssigned -= this.OnCredentialsAssigned;
+        foreach (var viewer in this.Viewers)
+        {
+            viewer.PropertyChanged -= this.Viewer_PropertyChanged;
+        }
 
         GC.SuppressFinalize(this);
     }
 }
+

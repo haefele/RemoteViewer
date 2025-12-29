@@ -2,20 +2,19 @@
 using Avalonia.Input;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
-using Avalonia.Win32.Input;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.Viewer;
 using System.ComponentModel;
-using ProtocolMouseButton = RemoteViewer.Server.SharedAPI.Protocol.MouseButton;
-using ProtocolKeyModifiers = RemoteViewer.Server.SharedAPI.Protocol.KeyModifiers;
 
 namespace RemoteViewer.Client.Views.Viewer;
 
-public partial class ViewerView : Window
+public partial class ViewerView : Window, IDisposable
 {
     private readonly IWindowsKeyBlockerService _windowsKeyBlocker;
 
     private ViewerViewModel? _viewModel;
+    private ViewerAvaloniaConnectionAdapter? _connectionAdapter;
     private IDisposable? _windowsKeyBlockerHandle;
 
     #region Constructor
@@ -32,6 +31,7 @@ public partial class ViewerView : Window
     {
         if (this._viewModel is not null)
         {
+            this.UnbindConnectionAdapter();
             this._viewModel.PropertyChanged -= this.ViewModel_PropertyChanged;
             this._viewModel.CloseRequested -= this.ViewModel_CloseRequested;
             this._viewModel.OpenFilePickerRequested -= this.ViewModel_OpenFilePickerRequested;
@@ -44,6 +44,7 @@ public partial class ViewerView : Window
             this._viewModel.CloseRequested += this.ViewModel_CloseRequested;
             this._viewModel.PropertyChanged += this.ViewModel_PropertyChanged;
             this._viewModel.OpenFilePickerRequested += this.ViewModel_OpenFilePickerRequested;
+            this.BindConnectionAdapter(this._viewModel);
         }
     }
     private void Window_Opened(object? sender, EventArgs e)
@@ -56,13 +57,16 @@ public partial class ViewerView : Window
     private async void Window_Deactivated(object? sender, EventArgs e)
     {
         if (this._viewModel is not null)
-            await this._viewModel.ReleaseAllKeysAsync();
+            await this._viewModel.Connection.RequiredViewerService.ReleaseAllKeysAsync();
     }
     private async void Window_Closed(object? sender, EventArgs e)
     {
         this._windowsKeyBlocker.WindowsKeyDown -= this.OnWindowsKeyDown;
         this._windowsKeyBlocker.WindowsKeyUp -= this.OnWindowsKeyUp;
         this._windowsKeyBlockerHandle?.Dispose();
+
+        if (this._viewModel is not null)
+            this.UnbindConnectionAdapter();
 
         if (this._viewModel is not null)
             await this._viewModel.DisposeAsync();
@@ -72,12 +76,6 @@ public partial class ViewerView : Window
     #region ViewModel Event Handlers
     private void ViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName == nameof(ViewerViewModel.FrameBitmap))
-            this.FrameImage.InvalidateVisual();
-
-        if (e.PropertyName == nameof(ViewerViewModel.DebugOverlayBitmap))
-            this.DebugOverlayImage.InvalidateVisual();
-
         if (e.PropertyName == nameof(ViewerViewModel.IsFullscreen))
             this.UpdateFullscreenState();
     }
@@ -103,73 +101,22 @@ public partial class ViewerView : Window
     }
     #endregion
 
-    #region Display Panel Input Handling
-    private async void DisplayPanel_PointerMoved(object? sender, PointerEventArgs e)
+    private async void OnWindowsKeyDown(ushort vkCode)
     {
-        if (this._viewModel is not { IsInputEnabled: true })
-            return;
-
-        var (x, y) = this.GetNormalizedPosition(e);
-        if (x >= 0 && x <= 1 && y >= 0 && y <= 1)
-        {
-            await this._viewModel.SendMouseMoveAsync(x, y);
-        }
+        if (this._viewModel is { IsInputEnabled: true })
+            await this._viewModel.Connection.RequiredViewerService.SendWindowsKeyDownAsync();
     }
-    private async void DisplayPanel_PointerPressed(object? sender, PointerPressedEventArgs e)
+    private async void OnWindowsKeyUp(ushort vkCode)
     {
-        if (this._viewModel is not { IsInputEnabled: true })
-            return;
-
-        var (x, y) = this.GetNormalizedPosition(e);
-        if (x >= 0 && x <= 1 && y >= 0 && y <= 1)
-        {
-            var point = e.GetCurrentPoint(this.FrameImage);
-            var button = this.GetMouseButton(point.Properties);
-            if (button is not null)
-            {
-                await this._viewModel.SendMouseDownAsync(button.Value, x, y);
-            }
-        }
+        if (this._viewModel is { IsInputEnabled: true })
+            await this._viewModel.Connection.RequiredViewerService.SendWindowsKeyUpAsync();
     }
-    private async void DisplayPanel_PointerReleased(object? sender, PointerReleasedEventArgs e)
-    {
-        if (this._viewModel is not { IsInputEnabled: true })
-            return;
 
-        var (x, y) = this.GetNormalizedPosition(e);
-        if (x >= 0 && x <= 1 && y >= 0 && y <= 1)
-        {
-            var button = e.InitialPressMouseButton switch
-            {
-                MouseButton.Left => ProtocolMouseButton.Left,
-                MouseButton.Right => ProtocolMouseButton.Right,
-                MouseButton.Middle => ProtocolMouseButton.Middle,
-                _ => (ProtocolMouseButton?)null
-            };
-
-            if (button is not null)
-            {
-                await this._viewModel.SendMouseUpAsync(button.Value, x, y);
-            }
-        }
-    }
-    private async void DisplayPanel_PointerWheelChanged(object? sender, PointerWheelEventArgs e)
-    {
-        if (this._viewModel is not { IsInputEnabled: true })
-            return;
-
-        var (x, y) = this.GetNormalizedPosition(e);
-        if (x >= 0 && x <= 1 && y >= 0 && y <= 1)
-        {
-            await this._viewModel.SendMouseWheelAsync((float)e.Delta.X, (float)e.Delta.Y, x, y);
-        }
-    }
-    private async void DisplayPanel_KeyDown(object? sender, KeyEventArgs e)
+    private void DisplayPanel_KeyDown(object? sender, KeyEventArgs e)
     {
         if (this._viewModel is null)
             return;
 
-        // Handle fullscreen toggle with F11 (always works, even with input disabled)
         if (e.Key == Key.F11)
         {
             e.Handled = true;
@@ -177,45 +124,12 @@ public partial class ViewerView : Window
             return;
         }
 
-        // Handle exit fullscreen with ESC (always works, even with input disabled)
         if (e.Key == Key.Escape && this._viewModel.IsFullscreen)
         {
             e.Handled = true;
             this._viewModel.ToggleFullscreenCommand.Execute(null);
-            return;
         }
-
-        if (!this._viewModel.IsInputEnabled)
-            return;
-
-        e.Handled = true;
-
-        var keyCode = (ushort)KeyInterop.VirtualKeyFromKey(e.Key);
-        var modifiers = this.GetKeyModifiers(e.KeyModifiers);
-        await this._viewModel.SendKeyDownAsync(keyCode, modifiers);
     }
-    private async void DisplayPanel_KeyUp(object? sender, KeyEventArgs e)
-    {
-        if (this._viewModel is not { IsInputEnabled: true })
-            return;
-
-        e.Handled = true;
-
-        var keyCode = (ushort)KeyInterop.VirtualKeyFromKey(e.Key);
-        var modifiers = this.GetKeyModifiers(e.KeyModifiers);
-        await this._viewModel.SendKeyUpAsync(keyCode, modifiers);
-    }
-    private async void OnWindowsKeyDown(ushort vkCode)
-    {
-        if (this._viewModel is { IsInputEnabled: true })
-            await this._viewModel.SendKeyDownAsync(vkCode, ProtocolKeyModifiers.None);
-    }
-    private async void OnWindowsKeyUp(ushort vkCode)
-    {
-        if (this._viewModel is { IsInputEnabled: true })
-            await this._viewModel.SendKeyUpAsync(vkCode, ProtocolKeyModifiers.None);
-    }
-    #endregion
 
     #region Fullscreen & Toolbar Management
     private DispatcherTimer? _toolbarHideTimer;
@@ -277,43 +191,24 @@ public partial class ViewerView : Window
     #endregion
 
     #region Helper Methods
-    private (float X, float Y) GetNormalizedPosition(PointerEventArgs e)
+    private void BindConnectionAdapter(ViewerViewModel viewModel)
     {
-        var point = e.GetPosition(this.FrameImage);
-        var bounds = this.FrameImage.Bounds;
-
-        if (bounds.Width <= 0 || bounds.Height <= 0)
-            return (-1, -1);
-
-        var x = (float)(point.X / bounds.Width);
-        var y = (float)(point.Y / bounds.Height);
-
-        return (x, y);
+        var logger = App.Current.Services.GetRequiredService<ILogger<ViewerAvaloniaConnectionAdapter>>();
+        this._connectionAdapter = new ViewerAvaloniaConnectionAdapter(viewModel.Connection, logger);
+        this._connectionAdapter.Attach(this.DisplayPanel, this.FrameImage, this.DebugOverlayImage);
     }
-    private ProtocolMouseButton? GetMouseButton(PointerPointProperties properties) => properties switch
+
+    private void UnbindConnectionAdapter()
     {
-        { IsLeftButtonPressed: true } => ProtocolMouseButton.Left,
-        { IsRightButtonPressed: true } => ProtocolMouseButton.Right,
-        { IsMiddleButtonPressed: true } => ProtocolMouseButton.Middle,
-        _ => null,
-    };
-    private ProtocolKeyModifiers GetKeyModifiers(KeyModifiers modifiers)
-    {
-        var result = ProtocolKeyModifiers.None;
-
-        if (modifiers.HasFlag(KeyModifiers.Shift))
-            result |= ProtocolKeyModifiers.Shift;
-
-        if (modifiers.HasFlag(KeyModifiers.Control))
-            result |= ProtocolKeyModifiers.Control;
-
-        if (modifiers.HasFlag(KeyModifiers.Alt))
-            result |= ProtocolKeyModifiers.Alt;
-
-        if (modifiers.HasFlag(KeyModifiers.Meta))
-            result |= ProtocolKeyModifiers.Win;
-
-        return result;
+        this._connectionAdapter?.Dispose();
+        this._connectionAdapter = null;
     }
     #endregion
+
+    public void Dispose()
+    {
+        this.UnbindConnectionAdapter();
+        this._windowsKeyBlockerHandle?.Dispose();
+        GC.SuppressFinalize(this);
+    }
 }

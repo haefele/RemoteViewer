@@ -178,25 +178,19 @@
                 Background="Black"
                 ClipToBounds="True"
                 Focusable="True"
-                PointerMoved="DisplayPanel_PointerMoved"
-                PointerPressed="DisplayPanel_PointerPressed"
-                PointerReleased="DisplayPanel_PointerReleased"
-                PointerWheelChanged="DisplayPanel_PointerWheelChanged"
                 KeyDown="DisplayPanel_KeyDown"
-                KeyUp="DisplayPanel_KeyUp">
+                >
             <Panel>
                 <Image x:Name="FrameImage"
-                       Source="{Binding FrameBitmap}"
                        Stretch="Uniform"
                        HorizontalAlignment="Center"
                        VerticalAlignment="Center"/>
                 <Image x:Name="DebugOverlayImage"
-                       Source="{Binding DebugOverlayBitmap}"
                        Stretch="Uniform"
                        HorizontalAlignment="Center"
                        VerticalAlignment="Center"
                        IsHitTestVisible="False"
-                       IsVisible="{Binding DebugOverlayBitmap, Converter={x:Static ObjectConverters.IsNotNull}}"/>
+                       IsVisible="False"/>
             </Panel>
         </Border>
 

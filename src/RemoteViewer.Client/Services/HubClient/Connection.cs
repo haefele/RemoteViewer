@@ -23,25 +23,33 @@ public sealed class Connection
     private List<ViewerInfo> _viewers = [];
 
     public Connection(
-        IServiceProvider serviceProvider,
         ConnectionHubClient owner,
         string connectionId,
         bool isPresenter,
+        IServiceProvider serviceProvider,
         ILogger<Connection> logger,
         IDisplayService displayService,
         IScreenshotService screenshotService)
     {
-        this._serviceProvider = serviceProvider;
-
         this.ConnectionId = connectionId;
         this.IsPresenter = isPresenter;
         this.Owner = owner;
 
+        this._serviceProvider = serviceProvider;
         this._displayService = displayService;
         this._screenshotService = screenshotService;
         this._logger = logger;
 
         this.FileTransfers = ActivatorUtilities.CreateInstance<FileTransferService>(this._serviceProvider, this);
+        if (this.IsPresenter)
+        {
+            this.PresenterCapture = ActivatorUtilities.CreateInstance<PresenterCaptureService>(this._serviceProvider, this);
+            this.PresenterService = ActivatorUtilities.CreateInstance<PresenterConnectionService>(this._serviceProvider, this);
+        }
+        else
+        {
+            this.ViewerService = ActivatorUtilities.CreateInstance<ViewerConnectionService>(this._serviceProvider, this);
+        }
     }
 
     public ConnectionHubClient Owner { get; }
@@ -71,6 +79,13 @@ public sealed class Connection
     }
 
     public FileTransferService FileTransfers { get; }
+    public PresenterConnectionService? PresenterService { get; }
+    public ViewerConnectionService? ViewerService { get; }
+    public PresenterCaptureService? PresenterCapture { get; }
+    public PresenterConnectionService RequiredPresenterService =>
+        this.PresenterService ?? throw new InvalidOperationException("Presenter connection service is not available.");
+    public ViewerConnectionService RequiredViewerService =>
+        this.ViewerService ?? throw new InvalidOperationException("Viewer connection service is not available.");
 
     public event EventHandler? Closed;
 
@@ -460,6 +475,9 @@ public sealed class Connection
     {
         this.IsClosed = true;
         this.FileTransfers.Dispose();
+        this.PresenterService?.Dispose();
+        this.PresenterCapture?.Dispose();
+        this.ViewerService?.Dispose();
         this._logger.LogDebug("Connection closed: {ConnectionId}", this.ConnectionId);
         this.Closed?.Invoke(this, EventArgs.Empty);
     }
@@ -829,4 +847,5 @@ public sealed class SecureAttentionSequenceRequestedEventArgs : EventArgs
 
     public string SenderClientId { get; }
 }
+
 

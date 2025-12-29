@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using Avalonia.Threading;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.Displays;
@@ -33,6 +34,7 @@ static class ServiceRegistration
 
         // UI & View Models
         services.AddSingleton(app);
+        services.AddSingleton(Dispatcher.UIThread);
         services.AddSingleton<IViewModelFactory, ViewModelFactory>();
 
         // Hub Connection

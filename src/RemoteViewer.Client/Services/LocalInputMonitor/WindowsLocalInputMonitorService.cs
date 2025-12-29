@@ -1,5 +1,6 @@
-#if WINDOWS
+﻿#if WINDOWS
 using System.Runtime.InteropServices;
+using Avalonia.Threading;
 using Microsoft.Extensions.Logging;
 using Windows.Win32;
 using Windows.Win32.Foundation;
@@ -14,6 +15,7 @@ public sealed class WindowsLocalInputMonitorService : ILocalInputMonitorService,
 
     private static readonly long s_suppressionTicks = TimeSpan.FromMilliseconds(500).Ticks;
 
+    private readonly Dispatcher _dispatcher;
     private readonly ILogger<WindowsLocalInputMonitorService> _logger;
 
     private HHOOK _keyboardHook;
@@ -24,8 +26,9 @@ public sealed class WindowsLocalInputMonitorService : ILocalInputMonitorService,
     private int _referenceCount;
     private bool _disposed;
 
-    public WindowsLocalInputMonitorService(ILogger<WindowsLocalInputMonitorService> logger)
+    public WindowsLocalInputMonitorService(Dispatcher dispatcher, ILogger<WindowsLocalInputMonitorService> logger)
     {
+        this._dispatcher = dispatcher;
         this._logger = logger;
     }
 
@@ -42,35 +45,40 @@ public sealed class WindowsLocalInputMonitorService : ILocalInputMonitorService,
         if (Interlocked.Increment(ref this._referenceCount) > 1)
             return;
 
-        // Keep references to delegates to prevent GC collection
-        this._keyboardProc = this.KeyboardHookCallback;
-        this._mouseProc = this.MouseHookCallback;
+        this._dispatcher.Post(StartCore);
 
-        // Install keyboard hook (WH_KEYBOARD_LL = 13)
-        this._keyboardHook = PInvoke.SetWindowsHookEx(
-            WINDOWS_HOOK_ID.WH_KEYBOARD_LL,
-            this._keyboardProc,
-            HINSTANCE.Null,  // For global low-level hooks, module must be null
-            0);              // 0 = hook all threads
-
-        if (this._keyboardHook.IsNull)
+        void StartCore()
         {
-            this._logger.KeyboardHookFailed(Marshal.GetLastWin32Error());
+            // Keep references to delegates to prevent GC collection
+            this._keyboardProc = this.KeyboardHookCallback;
+            this._mouseProc = this.MouseHookCallback;
+
+            // Install keyboard hook (WH_KEYBOARD_LL = 13)
+            this._keyboardHook = PInvoke.SetWindowsHookEx(
+                WINDOWS_HOOK_ID.WH_KEYBOARD_LL,
+                this._keyboardProc,
+                HINSTANCE.Null,  // For global low-level hooks, module must be null
+                0);              // 0 = hook all threads
+
+            if (this._keyboardHook.IsNull)
+            {
+                this._logger.KeyboardHookFailed(Marshal.GetLastWin32Error());
+            }
+
+            // Install mouse hook (WH_MOUSE_LL = 14)
+            this._mouseHook = PInvoke.SetWindowsHookEx(
+                WINDOWS_HOOK_ID.WH_MOUSE_LL,
+                this._mouseProc,
+                HINSTANCE.Null,
+                0);
+
+            if (this._mouseHook.IsNull)
+            {
+                this._logger.MouseHookFailed(Marshal.GetLastWin32Error());
+            }
+
+            this._logger.MonitoringStarted();
         }
-
-        // Install mouse hook (WH_MOUSE_LL = 14)
-        this._mouseHook = PInvoke.SetWindowsHookEx(
-            WINDOWS_HOOK_ID.WH_MOUSE_LL,
-            this._mouseProc,
-            HINSTANCE.Null,
-            0);
-
-        if (this._mouseHook.IsNull)
-        {
-            this._logger.MouseHookFailed(Marshal.GetLastWin32Error());
-        }
-
-        this._logger.MonitoringStarted();
     }
 
     public void StopMonitoring()
@@ -79,22 +87,27 @@ public sealed class WindowsLocalInputMonitorService : ILocalInputMonitorService,
         if (Interlocked.Decrement(ref this._referenceCount) > 0)
             return;
 
-        if (!this._keyboardHook.IsNull)
+        this._dispatcher.Post(StopCore);
+
+        void StopCore()
         {
-            PInvoke.UnhookWindowsHookEx(this._keyboardHook);
-            this._keyboardHook = default;
+            if (!this._keyboardHook.IsNull)
+            {
+                PInvoke.UnhookWindowsHookEx(this._keyboardHook);
+                this._keyboardHook = default;
+            }
+
+            if (!this._mouseHook.IsNull)
+            {
+                PInvoke.UnhookWindowsHookEx(this._mouseHook);
+                this._mouseHook = default;
+            }
+
+            this._keyboardProc = null;
+            this._mouseProc = null;
+
+            this._logger.MonitoringStopped();
         }
-
-        if (!this._mouseHook.IsNull)
-        {
-            PInvoke.UnhookWindowsHookEx(this._mouseHook);
-            this._mouseHook = default;
-        }
-
-        this._keyboardProc = null;
-        this._mouseProc = null;
-
-        this._logger.MonitoringStopped();
     }
 
     private LRESULT KeyboardHookCallback(int nCode, WPARAM wParam, LPARAM lParam)
