@@ -22,7 +22,7 @@ public sealed class Connection
     private ClientInfo? _presenter;
     private List<ViewerInfo> _viewers = [];
 
-    internal Connection(
+    public Connection(
         IServiceProvider serviceProvider,
         ConnectionHubClient owner,
         string connectionId,
