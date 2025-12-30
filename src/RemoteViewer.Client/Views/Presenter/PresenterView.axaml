@@ -9,7 +9,7 @@
         x:DataType="vm:PresenterViewModel"
 
         Icon="/Assets/avalonia-logo.ico"
-        Title="{Binding Title}"
+        Title="Presenting"
         Width="300" 
         CanResize="False"
         SizeToContent="Height"

@@ -11,7 +11,7 @@
         x:DataType="vm:ViewerViewModel"
 
         Icon="/Assets/avalonia-logo.ico"
-        Title="{Binding Title}"
+        Title="Remote Viewer"
         Width="1280"
         Height="720"
         WindowStartupLocation="CenterScreen"

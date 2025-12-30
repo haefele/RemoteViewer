@@ -3,7 +3,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Controls.Toasts;
-using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.ViewModels;
 using System.Collections.ObjectModel;
@@ -17,9 +16,6 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     private readonly ILogger<ViewerViewModel> _logger;
 
     public ToastsViewModel Toasts { get; }
-
-    [ObservableProperty]
-    private string _title = "Remote Viewer";
 
     public event EventHandler? CloseRequested;
     public event EventHandler? OpenFilePickerRequested;
@@ -187,11 +183,6 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    [RelayCommand]
-    private async Task CancelTransfer(IFileTransfer transfer)
-    {
-        await transfer.CancelAsync();
-    }
     #endregion
 
     #region Cleanup

@@ -6,7 +6,6 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Controls.Toasts;
-using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.ViewModels;
 using RemoteViewer.Server.SharedAPI;
@@ -22,9 +21,6 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
     public ToastsViewModel Toasts { get; }
 
     private bool _disposed;
-
-    [ObservableProperty]
-    private string _title = "Presenting";
 
     [ObservableProperty]
     private string? _yourId;
@@ -191,12 +187,6 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
     private async Task GenerateNewPasswordAsync()
     {
         await this._hubClient.GenerateNewPassword();
-    }
-
-    [RelayCommand]
-    private async Task CancelTransfer(IFileTransfer transfer)
-    {
-        await transfer.CancelAsync();
     }
 
     #region File Transfer - Send to Viewers
