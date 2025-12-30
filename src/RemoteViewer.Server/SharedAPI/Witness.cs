@@ -10,6 +10,7 @@ namespace RemoteViewer.Server.SharedAPI;
 [GenerateShapeFor<object>]
 // Hub types
 [GenerateShapeFor<ConnectionInfo>]
+[GenerateShapeFor<ConnectionProperties>]
 [GenerateShapeFor<TryConnectError>]
 [GenerateShapeFor<TryConnectError?>]
 [GenerateShapeFor<MessageDestination>]

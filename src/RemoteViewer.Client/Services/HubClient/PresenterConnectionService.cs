@@ -4,6 +4,7 @@ using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.Client.Services.LocalInputMonitor;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.WindowsIpc;
+using RemoteViewer.Server.SharedAPI;
 
 namespace RemoteViewer.Client.Services.HubClient;
 
@@ -15,9 +16,6 @@ public sealed class PresenterConnectionService : IDisposable
     private readonly ILocalInputMonitorService _localInputMonitor;
     private readonly SessionRecorderRpcClient _rpcClient;
     private readonly ILogger<PresenterConnectionService> _logger;
-
-    private readonly HashSet<string> _blockedViewerIds = new(StringComparer.Ordinal);
-    private readonly object _blockedLock = new();
 
     private bool _disposed;
 
@@ -39,31 +37,42 @@ public sealed class PresenterConnectionService : IDisposable
         this._connection.InputReceived += this.OnInputReceived;
         this._connection.SecureAttentionSequenceRequested += this.OnSecureAttentionSequenceRequested;
         this._connection.Closed += this.OnConnectionClosed;
+        this._rpcClient.ConnectionStatusChanged += this.RpcClient_ConnectionStatusChanged;
 
         this._localInputMonitor.StartMonitoring();
     }
 
-    public void SetViewerInputBlocked(string viewerClientId, bool isBlocked)
+    public async Task SetViewerInputBlockedAsync(string viewerClientId, bool isBlocked)
     {
-        lock (this._blockedLock)
+        await this._connection.UpdateConnectionPropertiesAndSend(current =>
         {
+            var blockedIds = current.InputBlockedViewerIds.ToHashSet(StringComparer.Ordinal);
+
             if (isBlocked)
             {
-                this._blockedViewerIds.Add(viewerClientId);
+                blockedIds.Add(viewerClientId);
             }
             else
             {
-                this._blockedViewerIds.Remove(viewerClientId);
+                blockedIds.Remove(viewerClientId);
             }
-        }
+
+            var updated = current with { InputBlockedViewerIds = blockedIds.ToList() };
+            return updated with { CanSendSecureAttentionSequence = this._rpcClient.IsConnected };
+        });
     }
 
     private bool IsViewerBlocked(string viewerClientId)
     {
-        lock (this._blockedLock)
+        return this._connection.ConnectionProperties.InputBlockedViewerIds.Contains(viewerClientId);
+    }
+
+    private async void RpcClient_ConnectionStatusChanged(object? sender, EventArgs e)
+    {
+        await this._connection.UpdateConnectionPropertiesAndSend(current =>
         {
-            return this._blockedViewerIds.Contains(viewerClientId);
-        }
+            return current with { CanSendSecureAttentionSequence = this._rpcClient.IsConnected };
+        });
     }
 
     private async void OnInputReceived(object? sender, InputReceivedEventArgs e)
@@ -195,6 +204,7 @@ public sealed class PresenterConnectionService : IDisposable
         this._connection.InputReceived -= this.OnInputReceived;
         this._connection.SecureAttentionSequenceRequested -= this.OnSecureAttentionSequenceRequested;
         this._connection.Closed -= this.OnConnectionClosed;
+        this._rpcClient.ConnectionStatusChanged -= this.RpcClient_ConnectionStatusChanged;
 
         this._localInputMonitor.StopMonitoring();
 

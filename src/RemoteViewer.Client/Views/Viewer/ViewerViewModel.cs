@@ -1,4 +1,4 @@
-using Avalonia.Threading;
+﻿using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -35,6 +35,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         this.Connection.FileTransfers.Toasts = this.Toasts;
 
         this.Connection.ParticipantsChanged += this.Connection_ParticipantsChanged;
+        this.Connection.ConnectionPropertiesChanged += this.Connection_ConnectionPropertiesChanged;
         this.Connection.Closed += this.Connection_Closed;
     }
     #endregion
@@ -66,6 +67,20 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
+    private void Connection_ConnectionPropertiesChanged(object? sender, EventArgs e)
+    {
+        Dispatcher.UIThread.Post(this.UpdateConnectionProperties);
+    }
+
+    private void UpdateConnectionProperties()
+    {
+        var clientId = this.Connection.Owner.ClientId;
+        var blockedIds = this.Connection.ConnectionProperties.InputBlockedViewerIds;
+        var isBlocked = clientId is not null && blockedIds.Contains(clientId);
+        this.IsInputBlockedByPresenter = isBlocked;
+        this.CanSendSecureAttentionSequence = this.Connection.ConnectionProperties.CanSendSecureAttentionSequence;
+    }
+
     private void Connection_Closed(object? sender, EventArgs e)
     {
         Dispatcher.UIThread.Post(() => this.CloseRequested?.Invoke(this, EventArgs.Empty));
@@ -80,6 +95,15 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     #endregion
 
     #region Input Handling
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ToggleInputCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SendCtrlAltDelCommand))]
+    private bool _isInputBlockedByPresenter;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SendCtrlAltDelCommand))]
+    private bool _canSendSecureAttentionSequence;
+
     public bool IsInputEnabled
     {
         get => this.Connection.RequiredViewerService.IsInputEnabled;
@@ -94,17 +118,22 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         }
     }
 
-    [RelayCommand]
+    private bool CanToggleInput() => !this.IsInputBlockedByPresenter;
+    [RelayCommand(CanExecute = nameof(CanToggleInput))]
     private async Task ToggleInputAsync()
     {
         this.IsInputEnabled = !this.IsInputEnabled;
+
         if (!this.IsInputEnabled)
             await this.Connection.RequiredViewerService.ReleaseAllKeysAsync();
     }
 
-    [RelayCommand]
-    private Task SendCtrlAltDelAsync() =>
-        this.Connection.RequiredViewerService.SendCtrlAltDelAsync();
+    private bool CanSendCtrlAltDel() => this.IsInputBlockedByPresenter is false && this.CanSendSecureAttentionSequence;
+    [RelayCommand(CanExecute = nameof(CanSendCtrlAltDel))]
+    private Task SendCtrlAltDelAsync()
+    {
+        return this.Connection.RequiredViewerService.SendCtrlAltDelAsync();
+    }
     #endregion
 
     #region Fullscreen & Toolbar
@@ -179,8 +208,8 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         await this.Connection.DisconnectAsync();
 
         this.Connection.ParticipantsChanged -= this.Connection_ParticipantsChanged;
+        this.Connection.ConnectionPropertiesChanged -= this.Connection_ConnectionPropertiesChanged;
         this.Connection.Closed -= this.Connection_Closed;
-        this.Connection.ViewerService?.Dispose();
 
         GC.SuppressFinalize(this);
     }

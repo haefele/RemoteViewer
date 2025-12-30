@@ -316,6 +316,22 @@ public sealed class ConnectionHubClient : IAsyncDisposable
             this._logger.LogWarning(ex, "Failed to disconnect - hub disconnected");
         }
     }
+
+    internal async Task SetConnectionPropertiesAsync(string connectionId, ConnectionProperties properties)
+    {
+        if (!this.IsConnected)
+            return;
+
+        try
+        {
+            this._logger.LogDebug("Setting connection properties - ConnectionId: {ConnectionId}", connectionId);
+            await this._connection.InvokeAsync("SetConnectionProperties", connectionId, properties);
+        }
+        catch (Exception ex) when (!this.IsConnected)
+        {
+            this._logger.LogWarning(ex, "Failed to set connection properties - hub disconnected");
+        }
+    }
 }
 
 #region EventArgs Classes

@@ -80,22 +80,34 @@
 
                 <!-- Toggle input button -->
                 <Button Command="{Binding ToggleInputCommand}"
-                        ToolTip.Tip="{Binding IsInputEnabled, Converter={conv:BoolToObject TrueValue='Disable input', FalseValue='Enable input'}}"
                         Background="Transparent"
                         BorderThickness="0"
                         Width="32" Height="32"
-                        Padding="0">
+                        Padding="0"
+                        ToolTip.ShowOnDisabled="True">
+                    <ToolTip.Tip>
+                        <MultiBinding Converter="{x:Static conv:InputButtonTooltipConverter.Instance}">
+                            <Binding Path="IsInputBlockedByPresenter"/>
+                            <Binding Path="IsInputEnabled"/>
+                        </MultiBinding>
+                    </ToolTip.Tip>
                     <mi:MaterialIcon Kind="{Binding IsInputEnabled, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.Mouse}, FalseValue={x:Static mik:MaterialIconKind.MouseOff}}}"
                                      Width="20" Height="20"/>
                 </Button>
 
                 <!-- Send Ctrl+Alt+Del button -->
                 <Button Command="{Binding SendCtrlAltDelCommand}"
-                        ToolTip.Tip="Send Ctrl+Alt+Del"
+                        ToolTip.ShowOnDisabled="True"
                         Background="Transparent"
                         BorderThickness="0"
                         Width="32" Height="32"
                         Padding="0">
+                    <ToolTip.Tip>
+                        <MultiBinding Converter="{x:Static conv:CtrlAltDelTooltipConverter.Instance}">
+                            <Binding Path="IsInputBlockedByPresenter"/>
+                            <Binding Path="CanSendSecureAttentionSequence"/>
+                        </MultiBinding>
+                    </ToolTip.Tip>
                     <mi:MaterialIcon Kind="AccountKey" Width="20" Height="20"/>
                 </Button>
 

@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO.Pipes;
 using Microsoft.Extensions.Logging;
 using Nerdbank.Streams;
@@ -20,7 +20,18 @@ public sealed class SessionRecorderRpcClient : IAsyncDisposable
     private ISessionRecorderRpc? _proxy;
     private bool _disposed;
 
-    public bool IsConnected => this._jsonRpc is { IsDisposed: false };
+    public bool IsConnected
+    {
+        get;
+        private set
+        {
+            if (field == value)
+                return;
+
+            field = value;
+            this._connectionStatusChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
 
     public SessionRecorderRpcClient(ILogger<SessionRecorderRpcClient> logger)
     {
@@ -33,6 +44,17 @@ public sealed class SessionRecorderRpcClient : IAsyncDisposable
     }
 
     public ISessionRecorderRpc? Proxy => this._proxy;
+
+    private EventHandler? _connectionStatusChanged;
+    public event EventHandler? ConnectionStatusChanged
+    {
+        add
+        {
+            this._connectionStatusChanged += value;
+            value?.Invoke(this, EventArgs.Empty);
+        }
+        remove => this._connectionStatusChanged -= value;
+    }
 
     private async void TryReconnect(object? state)
     {
@@ -88,6 +110,7 @@ public sealed class SessionRecorderRpcClient : IAsyncDisposable
 
         this._proxy = this._jsonRpc.Attach<ISessionRecorderRpc>();
         this._jsonRpc.StartListening();
+        this.IsConnected = true;
 
         this._logger.LogInformation("Connected to SessionRecorder service on pipe {PipeName}", this._pipeName);
     }
@@ -104,6 +127,8 @@ public sealed class SessionRecorderRpcClient : IAsyncDisposable
             await this._pipeClient.DisposeAsync();
             this._pipeClient = null;
         }
+
+        this.IsConnected = false;
     }
 
     public async ValueTask DisposeAsync()

@@ -1,4 +1,4 @@
-using System.Collections.ObjectModel;
+﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -90,7 +90,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         {
             if (!currentViewerIds.Contains(this.Viewers[i].ClientId))
             {
-                this._connection.RequiredPresenterService.SetViewerInputBlocked(this.Viewers[i].ClientId, false);
+                _ = this._connection.RequiredPresenterService.SetViewerInputBlockedAsync(this.Viewers[i].ClientId, false);
                 this.Viewers[i].PropertyChanged -= this.Viewer_PropertyChanged;
                 this.Viewers.RemoveAt(i);
             }
@@ -118,7 +118,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 
         if (sender is PresenterViewerDisplay viewer)
         {
-            this._connection.RequiredPresenterService.SetViewerInputBlocked(viewer.ClientId, viewer.IsInputBlocked);
+            _ = this._connection.RequiredPresenterService.SetViewerInputBlockedAsync(viewer.ClientId, viewer.IsInputBlocked);
         }
     }
 

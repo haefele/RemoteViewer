@@ -22,6 +22,9 @@ public sealed class Connection
     private ClientInfo? _presenter;
     private List<ViewerInfo> _viewers = [];
 
+    private readonly object _connectionPropertiesLock = new();
+    private ConnectionProperties _lastSentProperties = new(CanSendSecureAttentionSequence: false, InputBlockedViewerIds: []);
+
     public Connection(
         ConnectionHubClient owner,
         string connectionId,
@@ -77,15 +80,14 @@ public sealed class Connection
             }
         }
     }
+    public ConnectionProperties ConnectionProperties { get; private set; } = new(CanSendSecureAttentionSequence: false, InputBlockedViewerIds: []);
 
     public FileTransferService FileTransfers { get; }
     public PresenterConnectionService? PresenterService { get; }
+    public PresenterConnectionService RequiredPresenterService => this.PresenterService ?? throw new InvalidOperationException("Presenter connection service is not available.");
     public ViewerConnectionService? ViewerService { get; }
+    public ViewerConnectionService RequiredViewerService => this.ViewerService ?? throw new InvalidOperationException("Viewer connection service is not available.");
     public PresenterCaptureService? PresenterCapture { get; }
-    public PresenterConnectionService RequiredPresenterService =>
-        this.PresenterService ?? throw new InvalidOperationException("Presenter connection service is not available.");
-    public ViewerConnectionService RequiredViewerService =>
-        this.ViewerService ?? throw new InvalidOperationException("Viewer connection service is not available.");
 
     public event EventHandler? Closed;
 
@@ -140,6 +142,17 @@ public sealed class Connection
     public event EventHandler<FileCompleteReceivedEventArgs>? FileCompleteReceived;
     public event EventHandler<FileCancelReceivedEventArgs>? FileCancelReceived;
     public event EventHandler<FileErrorReceivedEventArgs>? FileErrorReceived;
+
+    private EventHandler? _connectionPropertiesChanged;
+    public event EventHandler? ConnectionPropertiesChanged
+    {
+        add
+        {
+            this._connectionPropertiesChanged += value;
+            value?.Invoke(this, EventArgs.Empty);
+        }
+        remove => this._connectionPropertiesChanged -= value;
+    }
 
     public Task DisconnectAsync()
     {
@@ -357,47 +370,118 @@ public sealed class Connection
     {
         try
         {
-            // Get primary display ID for new viewers (presenter-side only)
-            string? primaryDisplayId = null;
-            if (this._displayService is not null)
+            // Participants changed
             {
-                var displays = await this._displayService.GetDisplays(CancellationToken.None);
-                primaryDisplayId = displays.FirstOrDefault(d => d.IsPrimary)?.Name;
+                // Get primary display ID for new viewers (presenter-side only)
+                string? primaryDisplayId = null;
+                if (this._displayService is not null)
+                {
+                    var displays = await this._displayService.GetDisplays(CancellationToken.None);
+                    primaryDisplayId = displays.FirstOrDefault(d => d.IsPrimary)?.Name;
+                }
+
+                using (this._participantsLock.EnterScope())
+                {
+                    // Store presenter info
+                    this._presenter = connectionInfo.Presenter;
+
+                    // Preserve existing display selections for viewers that are still connected,
+                    // assign primary display to new viewers
+                    var existingSelections = this._viewers.ToDictionary(v => v.ClientId, v => v.SelectedDisplayId);
+
+                    this._viewers = connectionInfo.Viewers
+                        .Select(v => new ViewerInfo(
+                            v.ClientId,
+                            existingSelections.GetValueOrDefault(v.ClientId, primaryDisplayId),
+                            v.DisplayName))
+                        .ToList();
+                }
+
+                this._logger.LogDebug("Participants changed: presenter={PresenterName}, {ViewerCount} viewer(s)", connectionInfo.Presenter.DisplayName, connectionInfo.Viewers.Count);
+                this._viewersChanged?.Invoke(this, EventArgs.Empty);
+                this._participantsChanged?.Invoke(this, EventArgs.Empty);
             }
 
-            using (this._participantsLock.EnterScope())
+            // Connection properties changed
             {
-                // Store presenter info
-                this._presenter = connectionInfo.Presenter;
+                bool propertiesChanged;
+                lock (this._connectionPropertiesLock)
+                {
+                    propertiesChanged = !AreConnectionPropertiesEqual(this.ConnectionProperties, connectionInfo.Properties);
+                    this.ConnectionProperties = connectionInfo.Properties;
+                    this._lastSentProperties = connectionInfo.Properties;
+                }
 
-                // Preserve existing display selections for viewers that are still connected,
-                // assign primary display to new viewers
-                var existingSelections = this._viewers.ToDictionary(v => v.ClientId, v => v.SelectedDisplayId);
-
-                this._viewers = connectionInfo.Viewers
-                    .Select(v => new ViewerInfo(
-                        v.ClientId,
-                        existingSelections.GetValueOrDefault(v.ClientId, primaryDisplayId),
-                        v.DisplayName))
-                    .ToList();
+                if (propertiesChanged)
+                {
+                    this._connectionPropertiesChanged?.Invoke(this, EventArgs.Empty);
+                    this._logger.LogDebug("Connection properties changed");
+                }
             }
-
-            this._logger.LogDebug("Participants changed: presenter={PresenterName}, {ViewerCount} viewer(s)", connectionInfo.Presenter.DisplayName, connectionInfo.Viewers.Count);
-            this._viewersChanged?.Invoke(this, EventArgs.Empty);
-            this._participantsChanged?.Invoke(this, EventArgs.Empty);
         }
         catch (Exception ex)
         {
             this._logger.LogError(ex, "Error handling connection changed event");
         }
     }
+
+    internal async Task UpdateConnectionPropertiesAndSend(Func<ConnectionProperties, ConnectionProperties> update)
+    {
+        ConnectionProperties properties;
+        var changed = false;
+        var shouldSend = false;
+
+        lock (this._connectionPropertiesLock)
+        {
+            properties = update(this.ConnectionProperties);
+
+            if (!AreConnectionPropertiesEqual(this.ConnectionProperties, properties))
+            {
+                this.ConnectionProperties = properties;
+                changed = true;
+            }
+
+            if (!AreConnectionPropertiesEqual(this._lastSentProperties, properties))
+            {
+                this._lastSentProperties = properties;
+                shouldSend = true;
+            }
+        }
+
+        if (changed)
+        {
+            this._connectionPropertiesChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        if (shouldSend)
+        {
+            await this.Owner.SetConnectionPropertiesAsync(this.ConnectionId, properties);
+        }
+    }
+
+    private static bool AreConnectionPropertiesEqual(ConnectionProperties left, ConnectionProperties right)
+    {
+        if (left.CanSendSecureAttentionSequence != right.CanSendSecureAttentionSequence)
+            return false;
+
+        var leftIds = left.InputBlockedViewerIds;
+        var rightIds = right.InputBlockedViewerIds;
+        if (ReferenceEquals(leftIds, rightIds))
+            return true;
+
+        if (leftIds.Count != rightIds.Count)
+            return false;
+
+        var leftSet = new HashSet<string>(leftIds, StringComparer.Ordinal);
+        return leftSet.SetEquals(rightIds);
+    }
+
     internal void OnMessageReceived(string senderClientId, string messageType, byte[] data)
     {
         try
         {
             switch (messageType)
             {
-                // Presenter-side messages (from viewers)
                 case MessageTypes.Display.Switch:
                     this.HandleSwitchDisplay(senderClientId);
                     break;
@@ -430,12 +514,10 @@ public sealed class Connection
                     this.HandleSecureAttentionSequence(senderClientId);
                     break;
 
-                // Viewer-side messages (from presenter)
                 case MessageTypes.Screen.Frame:
                     this.HandleFrame(data);
                     break;
 
-                // File transfer: Send (upload)
                 case MessageTypes.FileTransfer.SendRequest:
                     this.HandleFileSendRequest(senderClientId, data);
                     break;
@@ -444,7 +526,6 @@ public sealed class Connection
                     this.HandleFileSendResponse(data);
                     break;
 
-                // File transfer: Chunk/Complete/Cancel/Error (bidirectional)
                 case MessageTypes.FileTransfer.Chunk:
                     this.HandleFileChunk(senderClientId, data);
                     break;
@@ -482,6 +563,7 @@ public sealed class Connection
         this.Closed?.Invoke(this, EventArgs.Empty);
     }
 
+    // Display handlers
     private async void HandleSwitchDisplay(string senderClientId)
     {
         try
@@ -529,6 +611,22 @@ public sealed class Connection
             this._logger.LogError(ex, "Error handling switch display for {SenderClientId}", senderClientId);
         }
     }
+
+    // Screen handlers
+    private void HandleFrame(byte[] data)
+    {
+        var message = ProtocolSerializer.Deserialize<FrameMessage>(data);
+
+        var args = new FrameReceivedEventArgs(
+            message.DisplayId,
+            message.FrameNumber,
+            message.Codec,
+            message.Regions);
+
+        this.FrameReceived?.Invoke(this, args);
+    }
+
+    // Input handlers
     private void HandleMouseMove(string senderClientId, byte[] data)
     {
         var message = ProtocolSerializer.Deserialize<MouseMoveMessage>(data);
@@ -593,18 +691,6 @@ public sealed class Connection
         this._logger.LogInformation("Received Ctrl+Alt+Del request from {SenderClientId}", senderClientId);
         this.SecureAttentionSequenceRequested?.Invoke(this, new SecureAttentionSequenceRequestedEventArgs(senderClientId));
     }
-    private void HandleFrame(byte[] data)
-    {
-        var message = ProtocolSerializer.Deserialize<FrameMessage>(data);
-
-        var args = new FrameReceivedEventArgs(
-            message.DisplayId,
-            message.FrameNumber,
-            message.Codec,
-            message.Regions);
-
-        this.FrameReceived?.Invoke(this, args);
-    }
     private string? GetViewerDisplayId(string viewerClientId)
     {
         using (this._participantsLock.EnterScope())
@@ -623,7 +709,6 @@ public sealed class Connection
             message.FileName,
             message.FileSize));
     }
-
     private void HandleFileSendResponse(byte[] data)
     {
         var message = ProtocolSerializer.Deserialize<FileSendResponseMessage>(data);
@@ -632,7 +717,6 @@ public sealed class Connection
             message.Accepted,
             message.ErrorMessage));
     }
-
     private void HandleFileChunk(string senderClientId, byte[] data)
     {
         var message = ProtocolSerializer.Deserialize<FileChunkMessage>(data);
@@ -640,7 +724,6 @@ public sealed class Connection
             senderClientId,
             message));
     }
-
     private void HandleFileComplete(string senderClientId, byte[] data)
     {
         var message = ProtocolSerializer.Deserialize<FileCompleteMessage>(data);
@@ -648,7 +731,6 @@ public sealed class Connection
             senderClientId,
             message.TransferId));
     }
-
     private void HandleFileCancel(string senderClientId, byte[] data)
     {
         var message = ProtocolSerializer.Deserialize<FileCancelMessage>(data);
@@ -657,7 +739,6 @@ public sealed class Connection
             message.TransferId,
             message.Reason));
     }
-
     private void HandleFileError(string senderClientId, byte[] data)
     {
         var message = ProtocolSerializer.Deserialize<FileErrorMessage>(data);
@@ -666,7 +747,6 @@ public sealed class Connection
             message.TransferId,
             message.ErrorMessage));
     }
-
 }
 
 /// <summary>

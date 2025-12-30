@@ -19,6 +19,7 @@ public interface IConnectionsService
 
     Task<TryConnectError?> TryConnectTo(string signalrConnectionId, string username, string password);
     Task DisconnectFromConnection(string signalrConnectionId, string connectionId);
+    Task SetConnectionProperties(string signalrConnectionId, string connectionId, ConnectionProperties properties);
     Task SendMessage(string signalrConnectionId, string connectionId, string messageType, byte[] data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null);
 }
 
@@ -254,6 +255,38 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
         await actions.ExecuteAll();
     }
 
+    public async Task SetConnectionProperties(string signalrConnectionId, string connectionId, ConnectionProperties properties)
+    {
+        var actions = connectionHub.BatchedActions(this._logger);
+
+        using (this._lock.WriteLock())
+        {
+            var sender = this._clients.FirstOrDefault(c => c.SignalrConnectionId == signalrConnectionId);
+            if (sender is null)
+            {
+                this._logger.MessageSenderNotFound(signalrConnectionId);
+                return;
+            }
+
+            var connection = this._connections.FirstOrDefault(c => c.Id == connectionId);
+            if (connection is null)
+            {
+                this._logger.MessageConnectionNotFound(connectionId);
+                return;
+            }
+
+            if (connection.Presenter != sender)
+            {
+                this._logger.MessageSenderNotInConnection(sender.Id, connectionId);
+                return;
+            }
+
+            connection.UpdateProperties(properties, actions);
+        }
+
+        await actions.ExecuteAll();
+    }
+
     public async Task SendMessage(string signalrConnectionId, string connectionId, string messageType, byte[] data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null)
     {
         var actions = connectionHub.BatchedActions(this._logger);
@@ -345,6 +378,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
             this.Id = id;
             this.Presenter = presenter;
             this._logger = logger;
+            this.Properties = new ConnectionProperties(CanSendSecureAttentionSequence: false, InputBlockedViewerIds: []);
 
             this._logger.ConnectionCreated(id, presenter.Id);
         }
@@ -353,6 +387,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
 
         public string Id { get; }
         public Client Presenter { get; }
+        public ConnectionProperties Properties { get; private set; }
 
         private readonly HashSet<Client> _viewers = new();
         public ReadOnlySet<Client> Viewers => this._viewers.AsReadOnly();
@@ -392,6 +427,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
                 if (removedCount > 0)
                 {
                     this._logger.ViewerDisconnected(this.Id, removedCount, this._viewers.Count);
+                    this.Properties = this.NormalizeProperties(this.Properties);
                     this.ConnectionChanged(actions);
 
                     actions.Add(f => f.Client(signalrConnectionId).ConnectionStopped(this.Id));
@@ -399,6 +435,12 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
 
                 return false;
             }
+        }
+
+        public void UpdateProperties(ConnectionProperties properties, ConnectionHubBatchedActions actions)
+        {
+            this.Properties = this.NormalizeProperties(properties);
+            this.ConnectionChanged(actions);
         }
 
         public bool SendMessage(Client sender, string messageType, byte[] data, MessageDestination destination, IReadOnlyList<string>? targetClientIds, ConnectionHubBatchedActions actions)
@@ -467,12 +509,24 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
             return true;
         }
 
+        private ConnectionProperties NormalizeProperties(ConnectionProperties properties)
+        {
+            var viewerIds = this._viewers.Select(v => v.Id).ToHashSet(StringComparer.Ordinal);
+            var blockedIds = properties.InputBlockedViewerIds
+                .Where(id => viewerIds.Contains(id))
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+
+            return properties with { InputBlockedViewerIds = blockedIds };
+        }
+
         public void ConnectionChanged(ConnectionHubBatchedActions actions)
         {
             var connectionInfo = new ConnectionInfo(
                 this.Id,
                 new ClientInfo(this.Presenter.Id, this.Presenter.DisplayName),
-                this._viewers.Select(v => new ClientInfo(v.Id, v.DisplayName)).ToList()
+                this._viewers.Select(v => new ClientInfo(v.Id, v.DisplayName)).ToList(),
+                this.Properties
             );
 
             this._logger.ConnectionStateChange(this.Id, this._viewers.Count);
