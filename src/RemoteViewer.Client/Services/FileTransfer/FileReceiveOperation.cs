@@ -1,11 +1,13 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
 using RemoteViewer.Client.Services.HubClient;
+using RemoteViewer.Server.SharedAPI.Protocol;
 
 namespace RemoteViewer.Client.Services.FileTransfer;
 
 public partial class FileReceiveOperation : ObservableObject, IFileTransfer
 {
     private readonly Connection _connection;
+    private readonly FileTransferService _fileTransferService;
     private readonly Func<string, string, Task> _sendCancel;
     private FileStream? _fileStream;
     private bool _disposed;
@@ -15,9 +17,11 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
         string fileName,
         long fileSize,
         Connection connection,
+        FileTransferService fileTransferService,
         Func<string, string, Task> sendCancel)
     {
         this._connection = connection;
+        this._fileTransferService = fileTransferService;
         this._sendCancel = sendCancel;
 
         this.TransferId = transferId;
@@ -25,7 +29,7 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
         this.FileSize = fileSize;
         this.SetupDestinationPath(fileName);
 
-        this._connection.FileCancelReceived += this.OnFileCancelReceived;
+        this._fileTransferService.FileCancelReceived += this.OnFileCancelReceived;
     }
 
     public string TransferId { get; }
@@ -86,9 +90,9 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
 
     private void SubscribeToChunkEvents()
     {
-        this._connection.FileChunkReceived += this.OnFileChunkReceived;
-        this._connection.FileCompleteReceived += this.OnFileCompleteReceived;
-        this._connection.FileErrorReceived += this.OnFileErrorReceived;
+        this._fileTransferService.FileChunkReceived += this.OnFileChunkReceived;
+        this._fileTransferService.FileCompleteReceived += this.OnFileCompleteReceived;
+        this._fileTransferService.FileErrorReceived += this.OnFileErrorReceived;
     }
 
     private void SetupDestinationPath(string fileName)
@@ -103,9 +107,9 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
         this._fileStream = new FileStream(this.TempPath, FileMode.Create, FileAccess.Write, FileShare.None);
     }
 
-    private void OnFileChunkReceived(object? sender, FileChunkReceivedEventArgs e)
+    private void OnFileChunkReceived(string senderClientId, FileChunkMessage chunk)
     {
-        if (e.Chunk.TransferId != this.TransferId)
+        if (chunk.TransferId != this.TransferId)
             return;
 
         if (this._fileStream is null || this.State != FileTransferState.Transferring)
@@ -113,9 +117,9 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
 
         try
         {
-            this._fileStream.Write(e.Chunk.Data.Span);
+            this._fileStream.Write(chunk.Data.Span);
             this.ChunksReceived++;
-            this.Progress = (double)this.ChunksReceived / e.Chunk.TotalChunks;
+            this.Progress = (double)this.ChunksReceived / chunk.TotalChunks;
         }
         catch (Exception ex)
         {
@@ -127,9 +131,9 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
         }
     }
 
-    private void OnFileCompleteReceived(object? sender, FileCompleteReceivedEventArgs e)
+    private void OnFileCompleteReceived(string senderClientId, string transferId)
     {
-        if (e.TransferId != this.TransferId)
+        if (transferId != this.TransferId)
             return;
 
         try
@@ -157,25 +161,25 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
         }
     }
 
-    private void OnFileCancelReceived(object? sender, FileCancelReceivedEventArgs e)
+    private void OnFileCancelReceived(string senderClientId, string transferId, string reason)
     {
-        if (e.TransferId != this.TransferId)
+        if (transferId != this.TransferId)
             return;
 
         this.State = FileTransferState.Cancelled;
-        this.ErrorMessage = e.Reason;
+        this.ErrorMessage = reason;
         this.DeleteTempFile();
         this.Cleanup();
         this.Failed?.Invoke(this, EventArgs.Empty);
     }
 
-    private void OnFileErrorReceived(object? sender, FileErrorReceivedEventArgs e)
+    private void OnFileErrorReceived(string senderClientId, string transferId, string errorMessage)
     {
-        if (e.TransferId != this.TransferId)
+        if (transferId != this.TransferId)
             return;
 
         this.State = FileTransferState.Failed;
-        this.ErrorMessage = e.ErrorMessage;
+        this.ErrorMessage = errorMessage;
         this.DeleteTempFile();
         this.Cleanup();
         this.Failed?.Invoke(this, EventArgs.Empty);
@@ -202,10 +206,10 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
         this._fileStream?.Dispose();
         this._fileStream = null;
 
-        this._connection.FileChunkReceived -= this.OnFileChunkReceived;
-        this._connection.FileCompleteReceived -= this.OnFileCompleteReceived;
-        this._connection.FileCancelReceived -= this.OnFileCancelReceived;
-        this._connection.FileErrorReceived -= this.OnFileErrorReceived;
+        this._fileTransferService.FileChunkReceived -= this.OnFileChunkReceived;
+        this._fileTransferService.FileCompleteReceived -= this.OnFileCompleteReceived;
+        this._fileTransferService.FileCancelReceived -= this.OnFileCancelReceived;
+        this._fileTransferService.FileErrorReceived -= this.OnFileErrorReceived;
     }
 
     public void Dispose()

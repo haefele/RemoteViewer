@@ -8,7 +8,7 @@ using RemoteViewer.Server.SharedAPI.Protocol;
 namespace RemoteViewer.Client.Services.HubClient;
 
 #pragma warning disable CA1001 // Disposal is handled via OnClosed() which is called externally
-public sealed class Connection
+public sealed class Connection : IConnectionImpl
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<Connection> _logger;
@@ -120,20 +120,6 @@ public sealed class Connection
         remove => this._participantsChanged -= value;
     }
 
-    public event EventHandler<InputReceivedEventArgs>? InputReceived;
-
-    public event EventHandler<FrameReceivedEventArgs>? FrameReceived;
-
-    public event EventHandler<SecureAttentionSequenceRequestedEventArgs>? SecureAttentionSequenceRequested;
-
-    // File transfer events (Viewer → Presenter)
-    public event EventHandler<FileSendRequestReceivedEventArgs>? FileSendRequestReceived;
-    public event EventHandler<FileSendResponseReceivedEventArgs>? FileSendResponseReceived;
-    public event EventHandler<FileChunkReceivedEventArgs>? FileChunkReceived;
-    public event EventHandler<FileCompleteReceivedEventArgs>? FileCompleteReceived;
-    public event EventHandler<FileCancelReceivedEventArgs>? FileCancelReceived;
-    public event EventHandler<FileErrorReceivedEventArgs>? FileErrorReceived;
-
     private EventHandler? _connectionPropertiesChanged;
     public event EventHandler? ConnectionPropertiesChanged
     {
@@ -193,8 +179,8 @@ public sealed class Connection
             return;
 
         // Get all viewers watching this display
-        var targetViewerIds = this.PresenterService is not null
-            ? await this.PresenterService.GetViewerIdsWatchingDisplayAsync(displayId)
+        var targetViewerIds = this.PresenterService is IPresenterServiceImpl presenterService
+            ? await presenterService.GetViewerIdsWatchingDisplayAsync(displayId)
             : [];
 
         if (targetViewerIds.Count == 0)
@@ -352,7 +338,7 @@ public sealed class Connection
         }
     }
 
-    internal async void OnConnectionChanged(ConnectionInfo connectionInfo)
+    async void IConnectionImpl.OnConnectionChanged(ConnectionInfo connectionInfo)
     {
         try
         {
@@ -443,71 +429,119 @@ public sealed class Connection
         return leftSet.SetEquals(rightIds);
     }
 
-    internal void OnMessageReceived(string senderClientId, string messageType, byte[] data)
+    async void IConnectionImpl.OnMessageReceived(string senderClientId, string messageType, byte[] data)
     {
         try
         {
             switch (messageType)
             {
                 case MessageTypes.Display.Switch:
-                    this.HandleSwitchDisplay(senderClientId);
+                    if (this.PresenterService is IPresenterServiceImpl presenterService)
+                    {
+                        var newDisplayId = await presenterService.CycleViewerDisplayAsync(senderClientId);
+                        if (newDisplayId is not null)
+                        {
+                            this._viewersChanged?.Invoke(this, EventArgs.Empty);
+                        }
+                    }
+
                     break;
 
                 case MessageTypes.Input.MouseMove:
-                    this.HandleMouseMove(senderClientId, data);
-                    break;
+                    {
+                        var message = ProtocolSerializer.Deserialize<MouseMoveMessage>(data);
+                        ((IPresenterServiceImpl)this.PresenterService!).HandleMouseMove(senderClientId, message.X, message.Y);
+                        break;
+                    }
 
                 case MessageTypes.Input.MouseDown:
-                    this.HandleMouseButton(senderClientId, data, isDown: true);
-                    break;
+                    {
+                        var message = ProtocolSerializer.Deserialize<MouseButtonMessage>(data);
+                        ((IPresenterServiceImpl)this.PresenterService!).HandleMouseButton(senderClientId, message.X, message.Y, message.Button, isDown: true);
+                        break;
+                    }
 
                 case MessageTypes.Input.MouseUp:
-                    this.HandleMouseButton(senderClientId, data, isDown: false);
-                    break;
+                    {
+                        var message = ProtocolSerializer.Deserialize<MouseButtonMessage>(data);
+                        ((IPresenterServiceImpl)this.PresenterService!).HandleMouseButton(senderClientId, message.X, message.Y, message.Button, isDown: false);
+                        break;
+                    }
 
                 case MessageTypes.Input.MouseWheel:
-                    this.HandleMouseWheel(senderClientId, data);
-                    break;
+                    {
+                        var message = ProtocolSerializer.Deserialize<MouseWheelMessage>(data);
+                        ((IPresenterServiceImpl)this.PresenterService!).HandleMouseWheel(senderClientId, message.X, message.Y, message.DeltaX, message.DeltaY);
+                        break;
+                    }
 
                 case MessageTypes.Input.KeyDown:
-                    this.HandleKey(senderClientId, data, isDown: true);
-                    break;
+                    {
+                        var message = ProtocolSerializer.Deserialize<KeyMessage>(data);
+                        ((IPresenterServiceImpl)this.PresenterService!).HandleKey(senderClientId, message.KeyCode, message.Modifiers, isDown: true);
+                        break;
+                    }
 
                 case MessageTypes.Input.KeyUp:
-                    this.HandleKey(senderClientId, data, isDown: false);
-                    break;
+                    {
+                        var message = ProtocolSerializer.Deserialize<KeyMessage>(data);
+                        ((IPresenterServiceImpl)this.PresenterService!).HandleKey(senderClientId, message.KeyCode, message.Modifiers, isDown: false);
+                        break;
+                    }
 
                 case MessageTypes.Input.SecureAttentionSequence:
-                    this.HandleSecureAttentionSequence(senderClientId);
+                    this._logger.LogInformation("Received Ctrl+Alt+Del request from {SenderClientId}", senderClientId);
+                    ((IPresenterServiceImpl)this.PresenterService!).HandleSecureAttentionSequence(senderClientId);
                     break;
 
                 case MessageTypes.Screen.Frame:
-                    this.HandleFrame(data);
-                    break;
+                    {
+                        var message = ProtocolSerializer.Deserialize<FrameMessage>(data);
+                        ((IViewerServiceImpl)this.ViewerService!).HandleFrame(message.DisplayId, message.FrameNumber, message.Codec, message.Regions);
+                        break;
+                    }
 
                 case MessageTypes.FileTransfer.SendRequest:
-                    this.HandleFileSendRequest(senderClientId, data);
-                    break;
+                    {
+                        var message = ProtocolSerializer.Deserialize<FileSendRequestMessage>(data);
+                        ((IFileTransferServiceImpl)this.FileTransfers).HandleFileSendRequest(senderClientId, message.TransferId, message.FileName, message.FileSize);
+                        break;
+                    }
 
                 case MessageTypes.FileTransfer.SendResponse:
-                    this.HandleFileSendResponse(data);
-                    break;
+                    {
+                        var message = ProtocolSerializer.Deserialize<FileSendResponseMessage>(data);
+                        ((IFileTransferServiceImpl)this.FileTransfers).HandleFileSendResponse(message.TransferId, message.Accepted, message.ErrorMessage);
+                        break;
+                    }
 
                 case MessageTypes.FileTransfer.Chunk:
-                    this.HandleFileChunk(senderClientId, data);
-                    break;
+                    {
+                        var message = ProtocolSerializer.Deserialize<FileChunkMessage>(data);
+                        ((IFileTransferServiceImpl)this.FileTransfers).HandleFileChunk(senderClientId, message);
+                        break;
+                    }
 
                 case MessageTypes.FileTransfer.Complete:
-                    this.HandleFileComplete(senderClientId, data);
-                    break;
+                    {
+                        var message = ProtocolSerializer.Deserialize<FileCompleteMessage>(data);
+                        ((IFileTransferServiceImpl)this.FileTransfers).HandleFileComplete(senderClientId, message.TransferId);
+                        break;
+                    }
 
                 case MessageTypes.FileTransfer.Cancel:
-                    this.HandleFileCancel(senderClientId, data);
-                    break;
+                    {
+                        var message = ProtocolSerializer.Deserialize<FileCancelMessage>(data);
+                        ((IFileTransferServiceImpl)this.FileTransfers).HandleFileCancel(senderClientId, message.TransferId, message.Reason);
+                        break;
+                    }
 
                 case MessageTypes.FileTransfer.Error:
-                    this.HandleFileError(senderClientId, data);
-                    break;
+                    {
+                        var message = ProtocolSerializer.Deserialize<FileErrorMessage>(data);
+                        ((IFileTransferServiceImpl)this.FileTransfers).HandleFileError(senderClientId, message.TransferId, message.ErrorMessage);
+                        break;
+                    }
 
                 default:
                     this._logger.LogWarning("Unknown message type: {MessageType}", messageType);
@@ -519,7 +553,7 @@ public sealed class Connection
             this._logger.LogError(ex, "Error handling message {MessageType} from {SenderClientId}", messageType, senderClientId);
         }
     }
-    internal void OnClosed()
+    void IConnectionImpl.OnClosed()
     {
         this.IsClosed = true;
         this.FileTransfers.Dispose();
@@ -529,213 +563,6 @@ public sealed class Connection
         this._logger.LogDebug("Connection closed: {ConnectionId}", this.ConnectionId);
         this.Closed?.Invoke(this, EventArgs.Empty);
     }
-
-    // Display handlers
-    private async void HandleSwitchDisplay(string senderClientId)
-    {
-        try
-        {
-            if (this.PresenterService is null)
-                return;
-
-            var newDisplayId = await this.PresenterService.CycleViewerDisplayAsync(senderClientId);
-            if (newDisplayId is not null)
-            {
-                this._viewersChanged?.Invoke(this, EventArgs.Empty);
-            }
-        }
-        catch (Exception ex)
-        {
-            this._logger.LogError(ex, "Error handling switch display for {SenderClientId}", senderClientId);
-        }
-    }
-
-    // Screen handlers
-    private void HandleFrame(byte[] data)
-    {
-        var message = ProtocolSerializer.Deserialize<FrameMessage>(data);
-
-        var args = new FrameReceivedEventArgs(
-            message.DisplayId,
-            message.FrameNumber,
-            message.Codec,
-            message.Regions);
-
-        this.FrameReceived?.Invoke(this, args);
-    }
-
-    // Input handlers
-    private void HandleMouseMove(string senderClientId, byte[] data)
-    {
-        var message = ProtocolSerializer.Deserialize<MouseMoveMessage>(data);
-        var displayId = this.PresenterService?.GetViewerDisplayId(senderClientId);
-
-        var args = new InputReceivedEventArgs(
-            senderClientId,
-            displayId,
-            InputType.MouseMove,
-            x: message.X,
-            y: message.Y);
-
-        this.InputReceived?.Invoke(this, args);
-    }
-    private void HandleMouseButton(string senderClientId, byte[] data, bool isDown)
-    {
-        var message = ProtocolSerializer.Deserialize<MouseButtonMessage>(data);
-        var displayId = this.PresenterService?.GetViewerDisplayId(senderClientId);
-
-        var args = new InputReceivedEventArgs(
-            senderClientId,
-            displayId,
-            isDown ? InputType.MouseDown : InputType.MouseUp,
-            x: message.X,
-            y: message.Y,
-            button: message.Button);
-
-        this.InputReceived?.Invoke(this, args);
-    }
-    private void HandleMouseWheel(string senderClientId, byte[] data)
-    {
-        var message = ProtocolSerializer.Deserialize<MouseWheelMessage>(data);
-        var displayId = this.PresenterService?.GetViewerDisplayId(senderClientId);
-
-        var args = new InputReceivedEventArgs(
-            senderClientId,
-            displayId,
-            InputType.MouseWheel,
-            x: message.X,
-            y: message.Y,
-            deltaX: message.DeltaX,
-            deltaY: message.DeltaY);
-
-        this.InputReceived?.Invoke(this, args);
-    }
-    private void HandleKey(string senderClientId, byte[] data, bool isDown)
-    {
-        var message = ProtocolSerializer.Deserialize<KeyMessage>(data);
-        var displayId = this.PresenterService?.GetViewerDisplayId(senderClientId);
-
-        var args = new InputReceivedEventArgs(
-            senderClientId,
-            displayId,
-            isDown ? InputType.KeyDown : InputType.KeyUp,
-            keyCode: message.KeyCode,
-            modifiers: message.Modifiers);
-
-        this.InputReceived?.Invoke(this, args);
-    }
-    private void HandleSecureAttentionSequence(string senderClientId)
-    {
-        this._logger.LogInformation("Received Ctrl+Alt+Del request from {SenderClientId}", senderClientId);
-        this.SecureAttentionSequenceRequested?.Invoke(this, new SecureAttentionSequenceRequestedEventArgs(senderClientId));
-    }
-
-    // File transfer handlers
-    private void HandleFileSendRequest(string senderClientId, byte[] data)
-    {
-        var message = ProtocolSerializer.Deserialize<FileSendRequestMessage>(data);
-        this.FileSendRequestReceived?.Invoke(this, new FileSendRequestReceivedEventArgs(
-            senderClientId,
-            message.TransferId,
-            message.FileName,
-            message.FileSize));
-    }
-    private void HandleFileSendResponse(byte[] data)
-    {
-        var message = ProtocolSerializer.Deserialize<FileSendResponseMessage>(data);
-        this.FileSendResponseReceived?.Invoke(this, new FileSendResponseReceivedEventArgs(
-            message.TransferId,
-            message.Accepted,
-            message.ErrorMessage));
-    }
-    private void HandleFileChunk(string senderClientId, byte[] data)
-    {
-        var message = ProtocolSerializer.Deserialize<FileChunkMessage>(data);
-        this.FileChunkReceived?.Invoke(this, new FileChunkReceivedEventArgs(
-            senderClientId,
-            message));
-    }
-    private void HandleFileComplete(string senderClientId, byte[] data)
-    {
-        var message = ProtocolSerializer.Deserialize<FileCompleteMessage>(data);
-        this.FileCompleteReceived?.Invoke(this, new FileCompleteReceivedEventArgs(
-            senderClientId,
-            message.TransferId));
-    }
-    private void HandleFileCancel(string senderClientId, byte[] data)
-    {
-        var message = ProtocolSerializer.Deserialize<FileCancelMessage>(data);
-        this.FileCancelReceived?.Invoke(this, new FileCancelReceivedEventArgs(
-            senderClientId,
-            message.TransferId,
-            message.Reason));
-    }
-    private void HandleFileError(string senderClientId, byte[] data)
-    {
-        var message = ProtocolSerializer.Deserialize<FileErrorMessage>(data);
-        this.FileErrorReceived?.Invoke(this, new FileErrorReceivedEventArgs(
-            senderClientId,
-            message.TransferId,
-            message.ErrorMessage));
-    }
-}
-
-/// <summary>
-/// Type of input event received from a viewer.
-/// </summary>
-public enum InputType
-{
-    MouseMove,
-    MouseDown,
-    MouseUp,
-    MouseWheel,
-    KeyDown,
-    KeyUp
-}
-
-/// <summary>
-/// Event args for input events received from viewers (presenter-side).
-/// </summary>
-public sealed class InputReceivedEventArgs : EventArgs
-{
-    public InputReceivedEventArgs(
-        string senderClientId,
-        string? displayId,
-        InputType type,
-        float? x = null,
-        float? y = null,
-        MouseButton? button = null,
-        float? deltaX = null,
-        float? deltaY = null,
-        ushort? keyCode = null,
-        KeyModifiers? modifiers = null)
-    {
-        this.SenderClientId = senderClientId;
-        this.DisplayId = displayId;
-        this.Type = type;
-        this.X = x;
-        this.Y = y;
-        this.Button = button;
-        this.DeltaX = deltaX;
-        this.DeltaY = deltaY;
-        this.KeyCode = keyCode;
-        this.Modifiers = modifiers;
-    }
-
-    public string SenderClientId { get; }
-    public string? DisplayId { get; }
-    public InputType Type { get; }
-
-    // Mouse data (when applicable)
-    public float? X { get; }
-    public float? Y { get; }
-    public MouseButton? Button { get; }
-    public float? DeltaX { get; }
-    public float? DeltaY { get; }
-
-    // Key data (when applicable)
-    public ushort? KeyCode { get; }
-    public KeyModifiers? Modifiers { get; }
 }
 
 /// <summary>
@@ -759,97 +586,4 @@ public sealed class FrameReceivedEventArgs : EventArgs
     public ulong FrameNumber { get; }
     public FrameCodec Codec { get; }
     public FrameRegion[] Regions { get; }
-}
-
-// File transfer event args
-public sealed class FileSendRequestReceivedEventArgs : EventArgs
-{
-    public FileSendRequestReceivedEventArgs(string senderClientId, string transferId, string fileName, long fileSize)
-    {
-        this.SenderClientId = senderClientId;
-        this.TransferId = transferId;
-        this.FileName = fileName;
-        this.FileSize = fileSize;
-    }
-
-    public string SenderClientId { get; }
-    public string TransferId { get; }
-    public string FileName { get; }
-    public long FileSize { get; }
-}
-
-public sealed class FileSendResponseReceivedEventArgs : EventArgs
-{
-    public FileSendResponseReceivedEventArgs(string transferId, bool accepted, string? errorMessage)
-    {
-        this.TransferId = transferId;
-        this.Accepted = accepted;
-        this.ErrorMessage = errorMessage;
-    }
-
-    public string TransferId { get; }
-    public bool Accepted { get; }
-    public string? ErrorMessage { get; }
-}
-
-public sealed class FileChunkReceivedEventArgs : EventArgs
-{
-    public FileChunkReceivedEventArgs(string senderClientId, FileChunkMessage chunk)
-    {
-        this.SenderClientId = senderClientId;
-        this.Chunk = chunk;
-    }
-
-    public string SenderClientId { get; }
-    public FileChunkMessage Chunk { get; }
-}
-
-public sealed class FileCompleteReceivedEventArgs : EventArgs
-{
-    public FileCompleteReceivedEventArgs(string senderClientId, string transferId)
-    {
-        this.SenderClientId = senderClientId;
-        this.TransferId = transferId;
-    }
-
-    public string SenderClientId { get; }
-    public string TransferId { get; }
-}
-
-public sealed class FileCancelReceivedEventArgs : EventArgs
-{
-    public FileCancelReceivedEventArgs(string senderClientId, string transferId, string reason)
-    {
-        this.SenderClientId = senderClientId;
-        this.TransferId = transferId;
-        this.Reason = reason;
-    }
-
-    public string SenderClientId { get; }
-    public string TransferId { get; }
-    public string Reason { get; }
-}
-
-public sealed class FileErrorReceivedEventArgs : EventArgs
-{
-    public FileErrorReceivedEventArgs(string senderClientId, string transferId, string errorMessage)
-    {
-        this.SenderClientId = senderClientId;
-        this.TransferId = transferId;
-        this.ErrorMessage = errorMessage;
-    }
-
-    public string SenderClientId { get; }
-    public string TransferId { get; }
-    public string ErrorMessage { get; }
-}
-
-public sealed class SecureAttentionSequenceRequestedEventArgs : EventArgs
-{
-    public SecureAttentionSequenceRequestedEventArgs(string senderClientId)
-    {
-        this.SenderClientId = senderClientId;
-    }
-
-    public string SenderClientId { get; }
 }

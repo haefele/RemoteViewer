@@ -9,7 +9,7 @@ using RemoteViewer.Server.SharedAPI.Protocol;
 
 namespace RemoteViewer.Client.Services.FileTransfer;
 
-public sealed class FileTransferService : IDisposable
+public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
 {
     private readonly Connection _connection;
     private readonly ILogger<FileTransferService> _logger;
@@ -22,12 +22,6 @@ public sealed class FileTransferService : IDisposable
     {
         this._connection = connection;
         this._logger = logger;
-
-        // Subscribe to incoming requests
-        this._connection.FileSendRequestReceived += this.OnFileSendRequestReceived;
-
-        // Track cancelled transfers that arrive before the operation is created
-        this._connection.FileCancelReceived += this.OnFileCancelReceivedForPending;
     }
 
     public ObservableCollection<IFileTransfer> ActiveSends { get; } = [];
@@ -49,6 +43,7 @@ public sealed class FileTransferService : IDisposable
             transferId,
             filePath,
             this._connection,
+            this,
             sendChunk: chunk => this._connection.SendFileChunkAsync(chunk),
             sendComplete: tid => this._connection.SendFileCompleteAsync(tid),
             sendCancel: (tid, reason) => this._connection.SendFileCancelAsync(tid, reason),
@@ -70,6 +65,7 @@ public sealed class FileTransferService : IDisposable
             transferId,
             filePath,
             this._connection,
+            this,
             sendChunk: chunk => this._connection.SendFileChunkAsync(chunk, targetClientId),
             sendComplete: tid => this._connection.SendFileCompleteAsync(tid, targetClientId),
             sendCancel: (tid, reason) => this._connection.SendFileCancelAsync(tid, reason, targetClientId),
@@ -134,37 +130,33 @@ public sealed class FileTransferService : IDisposable
 
     #endregion
 
-    #region Incoming Request Handlers
+    #region IFileTransferServiceImpl Implementation
 
-    private void OnFileCancelReceivedForPending(object? sender, FileCancelReceivedEventArgs e)
-    {
-        this._cancelledTransfers.TryAdd(e.TransferId, 0);
-    }
-
-    private void OnFileSendRequestReceived(object? sender, FileSendRequestReceivedEventArgs e)
+    void IFileTransferServiceImpl.HandleFileSendRequest(string senderClientId, string transferId, string fileName, long fileSize)
     {
         Dispatcher.UIThread.Post(async () =>
         {
             var displayName = this._connection.IsPresenter
-                ? this._connection.Viewers.FirstOrDefault(v => v.ClientId == e.SenderClientId)?.DisplayName ?? "Unknown Viewer"
+                ? this._connection.Viewers.FirstOrDefault(v => v.ClientId == senderClientId)?.DisplayName ?? "Unknown Viewer"
                 : this._connection.Presenter?.DisplayName ?? "Presenter";
-            var fileSizeFormatted = FileTransferHelpers.FormatFileSize(e.FileSize);
-            var dialog = FileTransferConfirmationDialog.AskForConfirmation(displayName, e.FileName, fileSizeFormatted);
+            var fileSizeFormatted = FileTransferHelpers.FormatFileSize(fileSize);
+            var dialog = FileTransferConfirmationDialog.AskForConfirmation(displayName, fileName, fileSizeFormatted);
 
             dialog.Show();
 
-            var targetClientId = this._connection.IsPresenter ? e.SenderClientId : null;
+            var targetClientId = this._connection.IsPresenter ? senderClientId : null;
 
             if (await dialog.ResultTask)
             {
                 var transfer = new FileReceiveOperation(
-                    e.TransferId,
-                    e.FileName,
-                    e.FileSize,
+                    transferId,
+                    fileName,
+                    fileSize,
                     this._connection,
+                    this,
                     sendCancel: (tid, reason) => this._connection.SendFileCancelAsync(tid, reason, targetClientId));
 
-                if (this._cancelledTransfers.TryRemove(e.TransferId, out _))
+                if (this._cancelledTransfers.TryRemove(transferId, out _))
                 {
                     transfer.Dispose();
                     return;
@@ -173,17 +165,50 @@ public sealed class FileTransferService : IDisposable
                 this.TrackReceive(transfer);
                 await transfer.AcceptAsync();
                 this.Toasts?.AddTransfer(transfer, isUpload: false);
-                await this._connection.SendFileSendResponseAsync(e.TransferId, true, null, targetClientId);
-                this._logger.LogInformation("Accepted file upload: {TransferId} -> {DestinationPath}", e.TransferId, transfer.DestinationPath);
+                await this._connection.SendFileSendResponseAsync(transferId, true, null, targetClientId);
+                this._logger.LogInformation("Accepted file upload: {TransferId} -> {DestinationPath}", transferId, transfer.DestinationPath);
             }
             else
             {
-                this._cancelledTransfers.TryRemove(e.TransferId, out _);
-                await this._connection.SendFileSendResponseAsync(e.TransferId, false, "The recipient declined the file transfer.", targetClientId);
-                this._logger.LogInformation("Rejected file upload: {TransferId}", e.TransferId);
+                this._cancelledTransfers.TryRemove(transferId, out _);
+                await this._connection.SendFileSendResponseAsync(transferId, false, "The recipient declined the file transfer.", targetClientId);
+                this._logger.LogInformation("Rejected file upload: {TransferId}", transferId);
             }
         });
     }
+
+    void IFileTransferServiceImpl.HandleFileSendResponse(string transferId, bool accepted, string? errorMessage)
+    {
+        this.FileSendResponseReceived?.Invoke(transferId, accepted, errorMessage);
+    }
+
+    void IFileTransferServiceImpl.HandleFileChunk(string senderClientId, FileChunkMessage chunk)
+    {
+        this.FileChunkReceived?.Invoke(senderClientId, chunk);
+    }
+
+    void IFileTransferServiceImpl.HandleFileComplete(string senderClientId, string transferId)
+    {
+        this.FileCompleteReceived?.Invoke(senderClientId, transferId);
+    }
+
+    void IFileTransferServiceImpl.HandleFileCancel(string senderClientId, string transferId, string reason)
+    {
+        this._cancelledTransfers.TryAdd(transferId, 0);
+        this.FileCancelReceived?.Invoke(senderClientId, transferId, reason);
+    }
+
+    void IFileTransferServiceImpl.HandleFileError(string senderClientId, string transferId, string errorMessage)
+    {
+        this.FileErrorReceived?.Invoke(senderClientId, transferId, errorMessage);
+    }
+
+    // Internal events for routing to operations (temporary - operations will be updated later)
+    internal event Action<string, bool, string?>? FileSendResponseReceived;
+    internal event Action<string, FileChunkMessage>? FileChunkReceived;
+    internal event Action<string, string>? FileCompleteReceived;
+    internal event Action<string, string, string>? FileCancelReceived;
+    internal event Action<string, string, string>? FileErrorReceived;
 
     #endregion
 
@@ -212,9 +237,6 @@ public sealed class FileTransferService : IDisposable
             return;
 
         this._disposed = true;
-
-        this._connection.FileSendRequestReceived -= this.OnFileSendRequestReceived;
-        this._connection.FileCancelReceived -= this.OnFileCancelReceivedForPending;
 
         foreach (var transfer in this.ActiveSends)
             transfer.Dispose();

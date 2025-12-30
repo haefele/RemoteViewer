@@ -64,7 +64,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
             this._logger.LogInformation("Connection changed - ConnectionId: {ConnectionId}, PresenterClientId: {PresenterClientId}, ViewerCount: {ViewerCount}", connectionInfo.ConnectionId, connectionInfo.Presenter.ClientId, connectionInfo.Viewers.Count);
 
             var connection = await this.WaitForConnection(connectionInfo.ConnectionId);
-            connection.OnConnectionChanged(connectionInfo);
+            ((IConnectionImpl)connection).OnConnectionChanged(connectionInfo);
         });
 
         this._connection.On<string>("ConnectionStopped", async (connectionId) =>
@@ -72,7 +72,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
             this._logger.LogInformation("Connection stopped - ConnectionId: {ConnectionId}", connectionId);
 
             var connection = await this.WaitForConnection(connectionId);
-            connection.OnClosed();
+            ((IConnectionImpl)connection).OnClosed();
         });
 
         this._connection.On<string, string, string, byte[]>("MessageReceived", async (connectionId, senderClientId, messageType, data) =>
@@ -80,7 +80,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
             this._logger.LogDebug("Message received - ConnectionId: {ConnectionId}, SenderClientId: {SenderClientId}, MessageType: {MessageType}, DataLength: {DataLength}", connectionId, senderClientId, messageType, data.Length);
 
             var connection = await this.WaitForConnection(connectionId);
-            connection.OnMessageReceived(senderClientId, messageType, data);
+            ((IConnectionImpl)connection).OnMessageReceived(senderClientId, messageType, data);
         });
 
         this._connection.On<string, string>("VersionMismatch", (serverVersion, clientVersion) =>
@@ -146,7 +146,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
     {
         foreach (var connection in this._connections.Values)
         {
-            connection.OnClosed();
+            ((IConnectionImpl)connection).OnClosed();
         }
         this._connections.Clear();
     }

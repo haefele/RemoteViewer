@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Common;
 using RemoteViewer.Client.Services.Viewer;
@@ -6,7 +6,7 @@ using RemoteViewer.Server.SharedAPI.Protocol;
 
 namespace RemoteViewer.Client.Services.HubClient;
 
-public sealed class ViewerConnectionService : IDisposable
+public sealed class ViewerConnectionService : IViewerServiceImpl, IDisposable
 {
     private readonly Connection _connection;
     private readonly ILogger<ViewerConnectionService> _logger;
@@ -23,7 +23,6 @@ public sealed class ViewerConnectionService : IDisposable
         this._windowsKeyBlockerService = windowsKeyBlockerService;
         this._logger = logger;
 
-        this._connection.FrameReceived += this.Connection_FrameReceived;
         this._windowsKeyBlockerService.WindowsKeyDown += this.WindowsKeyBlocker_WindowsKeyDown;
         this._windowsKeyBlockerService.WindowsKeyUp += this.WindowsKeyBlocker_WindowsKeyUp;
     }
@@ -179,9 +178,10 @@ public sealed class ViewerConnectionService : IDisposable
         return this.SendKeyUpAsync(WindowsKeyCode, KeyModifiers.None);
     }
 
-    private void Connection_FrameReceived(object? sender, FrameReceivedEventArgs e)
+    void IViewerServiceImpl.HandleFrame(string displayId, ulong frameNumber, FrameCodec codec, FrameRegion[] regions)
     {
-        this.FrameReady?.Invoke(this, e);
+        var args = new FrameReceivedEventArgs(displayId, frameNumber, codec, regions);
+        this.FrameReady?.Invoke(this, args);
     }
 
     private async void WindowsKeyBlocker_WindowsKeyDown(ushort vkCode)
@@ -207,7 +207,6 @@ public sealed class ViewerConnectionService : IDisposable
 
         this._disposed = true;
 
-        this._connection.FrameReceived -= this.Connection_FrameReceived;
         this._windowsKeyBlockerService.WindowsKeyDown -= this.WindowsKeyBlocker_WindowsKeyDown;
         this._windowsKeyBlockerService.WindowsKeyUp -= this.WindowsKeyBlocker_WindowsKeyUp;
     }

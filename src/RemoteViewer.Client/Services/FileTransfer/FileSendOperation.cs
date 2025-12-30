@@ -12,6 +12,7 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
     private const long MaxBytesPerSecond = 2 * 1024 * 1024; // 2 MB/s bandwidth cap
 
     private readonly Connection _connection;
+    private readonly FileTransferService _fileTransferService;
     private readonly Func<FileChunkMessage, Task> _sendChunk;
     private readonly Func<string, Task> _sendComplete;
     private readonly Func<string, string, Task> _sendCancel;
@@ -19,12 +20,14 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
     private readonly bool _requiresAcceptance;
     private readonly string? _targetClientId;
     private FileStream? _fileStream;
+    private CancellationTokenSource? _cts;
     private bool _disposed;
 
     public FileSendOperation(
         string transferId,
         string filePath,
         Connection connection,
+        FileTransferService fileTransferService,
         Func<FileChunkMessage, Task> sendChunk,
         Func<string, Task> sendComplete,
         Func<string, string, Task> sendCancel,
@@ -33,6 +36,7 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
         string? targetClientId = null)
     {
         this._connection = connection;
+        this._fileTransferService = fileTransferService;
         this._sendChunk = sendChunk;
         this._sendComplete = sendComplete;
         this._sendCancel = sendCancel;
@@ -48,12 +52,12 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
         this.FileSize = fileInfo.Length;
         this.TotalChunks = (int)Math.Ceiling((double)fileInfo.Length / ChunkSize);
 
-        this._connection.FileCancelReceived += this.OnFileCancelReceived;
-        this._connection.FileErrorReceived += this.OnFileErrorReceived;
+        this._fileTransferService.FileCancelReceived += this.OnFileCancelReceived;
+        this._fileTransferService.FileErrorReceived += this.OnFileErrorReceived;
 
         if (requiresAcceptance)
         {
-            this._connection.FileSendResponseReceived += this.OnFileSendResponseReceived;
+            this._fileTransferService.FileSendResponseReceived += this.OnFileSendResponseReceived;
         }
     }
 
@@ -106,17 +110,18 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
 
         this.State = FileTransferState.Cancelled;
         this.ErrorMessage = "The file transfer was cancelled.";
+        this._cts?.Cancel();
         await this._sendCancel(this.TransferId, this.ErrorMessage);
         this.Cleanup();
         this.Failed?.Invoke(this, EventArgs.Empty);
     }
 
-    private void OnFileSendResponseReceived(object? sender, FileSendResponseReceivedEventArgs e)
+    private void OnFileSendResponseReceived(string transferId, bool accepted, string? errorMessage)
     {
-        if (e.TransferId != this.TransferId)
+        if (transferId != this.TransferId)
             return;
 
-        if (e.Accepted)
+        if (accepted)
         {
             this.State = FileTransferState.Transferring;
             _ = this.SendChunksAsync();
@@ -124,36 +129,39 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
         else
         {
             this.State = FileTransferState.Rejected;
-            this.ErrorMessage = e.ErrorMessage ?? "The recipient declined the file transfer.";
+            this.ErrorMessage = errorMessage ?? "The recipient declined the file transfer.";
             this.Cleanup();
             this.Failed?.Invoke(this, EventArgs.Empty);
         }
     }
 
-    private void OnFileCancelReceived(object? sender, FileCancelReceivedEventArgs e)
+    private void OnFileCancelReceived(string senderClientId, string transferId, string reason)
     {
-        if (e.TransferId != this.TransferId)
+        if (transferId != this.TransferId)
             return;
 
         this.State = FileTransferState.Cancelled;
-        this.ErrorMessage = e.Reason;
+        this.ErrorMessage = reason;
         this.Cleanup();
         this.Failed?.Invoke(this, EventArgs.Empty);
     }
 
-    private void OnFileErrorReceived(object? sender, FileErrorReceivedEventArgs e)
+    private void OnFileErrorReceived(string senderClientId, string transferId, string errorMessage)
     {
-        if (e.TransferId != this.TransferId)
+        if (transferId != this.TransferId)
             return;
 
         this.State = FileTransferState.Failed;
-        this.ErrorMessage = e.ErrorMessage;
+        this.ErrorMessage = errorMessage;
         this.Cleanup();
         this.Failed?.Invoke(this, EventArgs.Empty);
     }
 
     private async Task SendChunksAsync()
     {
+        this._cts = new CancellationTokenSource();
+        var ct = this._cts.Token;
+
         try
         {
             this._fileStream = new FileStream(this.FilePath, FileMode.Open, FileAccess.Read, FileShare.Read);
@@ -163,9 +171,11 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
 
             while (this.State == FileTransferState.Transferring)
             {
+                ct.ThrowIfCancellationRequested();
+
                 var chunkStart = Stopwatch.GetTimestamp();
 
-                var bytesRead = await this._fileStream.ReadAtLeastAsync(buffer.Memory, buffer.Length, throwOnEndOfStream: false);
+                var bytesRead = await this._fileStream.ReadAtLeastAsync(buffer.Memory, buffer.Length, throwOnEndOfStream: false, ct);
                 if (bytesRead == 0)
                     break;
 
@@ -185,7 +195,7 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
                 var sleepTime = delayPerChunk - elapsed;
 
                 if (sleepTime > TimeSpan.Zero && this.State == FileTransferState.Transferring)
-                    await Task.Delay(sleepTime);
+                    await Task.Delay(sleepTime, ct);
             }
 
             if (this.State == FileTransferState.Transferring)
@@ -196,6 +206,10 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
                 this.Cleanup();
                 this.Completed?.Invoke(this, EventArgs.Empty);
             }
+        }
+        catch (OperationCanceledException)
+        {
+            // Cancellation is handled by CancelAsync, no need to do anything here
         }
         catch (Exception ex)
         {
@@ -209,15 +223,18 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
 
     private void Cleanup()
     {
+        this._cts?.Dispose();
+        this._cts = null;
+
         this._fileStream?.Dispose();
         this._fileStream = null;
 
-        this._connection.FileCancelReceived -= this.OnFileCancelReceived;
-        this._connection.FileErrorReceived -= this.OnFileErrorReceived;
+        this._fileTransferService.FileCancelReceived -= this.OnFileCancelReceived;
+        this._fileTransferService.FileErrorReceived -= this.OnFileErrorReceived;
 
         if (this._requiresAcceptance)
         {
-            this._connection.FileSendResponseReceived -= this.OnFileSendResponseReceived;
+            this._fileTransferService.FileSendResponseReceived -= this.OnFileSendResponseReceived;
         }
     }
 

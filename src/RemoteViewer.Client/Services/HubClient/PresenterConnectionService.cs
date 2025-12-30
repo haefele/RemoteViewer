@@ -5,10 +5,11 @@ using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.Client.Services.LocalInputMonitor;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.WindowsIpc;
+using RemoteViewer.Server.SharedAPI.Protocol;
 
 namespace RemoteViewer.Client.Services.HubClient;
 
-public sealed class PresenterConnectionService : IDisposable
+public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposable
 {
     private readonly Connection _connection;
     private readonly IDisplayService _displayService;
@@ -40,15 +41,13 @@ public sealed class PresenterConnectionService : IDisposable
         this._rpcClient = rpcClient;
         this._logger = logger;
 
-        this._connection.InputReceived += this.OnInputReceived;
-        this._connection.SecureAttentionSequenceRequested += this.OnSecureAttentionSequenceRequested;
         this._connection.Closed += this.OnConnectionClosed;
         this._rpcClient.ConnectionStatusChanged += this.RpcClient_ConnectionStatusChanged;
 
         this._localInputMonitor.StartMonitoring();
     }
 
-    internal string? GetViewerDisplayId(string viewerClientId)
+    string? IPresenterServiceImpl.GetViewerDisplayId(string viewerClientId)
     {
         using (this._selectionsLock.EnterScope())
         {
@@ -58,7 +57,7 @@ public sealed class PresenterConnectionService : IDisposable
         }
     }
 
-    internal async Task<string?> CycleViewerDisplayAsync(string viewerClientId, CancellationToken ct = default)
+    async Task<string?> IPresenterServiceImpl.CycleViewerDisplayAsync(string viewerClientId, CancellationToken ct)
     {
         var displays = await this._displayService.GetDisplays(ct);
         if (displays.Count == 0)
@@ -100,7 +99,7 @@ public sealed class PresenterConnectionService : IDisposable
         return newDisplayId;
     }
 
-    internal async Task<List<string>> GetViewerIdsWatchingDisplayAsync(string displayId, CancellationToken ct = default)
+    async Task<List<string>> IPresenterServiceImpl.GetViewerIdsWatchingDisplayAsync(string displayId, CancellationToken ct)
     {
         var result = new List<string>();
 
@@ -125,7 +124,7 @@ public sealed class PresenterConnectionService : IDisposable
         return result;
     }
 
-    internal async Task<HashSet<string>> GetDisplaysWithViewers(CancellationToken ct = default)
+    async Task<HashSet<string>> IPresenterServiceImpl.GetDisplaysWithViewers(CancellationToken ct)
     {
         var result = new HashSet<string>(StringComparer.Ordinal);
 
@@ -150,88 +149,106 @@ public sealed class PresenterConnectionService : IDisposable
         return result;
     }
 
-    private async void RpcClient_ConnectionStatusChanged(object? sender, EventArgs e)
-    {
-        await this._connection.UpdateConnectionPropertiesAndSend(current =>
-        {
-            return current with { CanSendSecureAttentionSequence = this._rpcClient.IsConnected };
-        });
-    }
-
-    private async void OnInputReceived(object? sender, InputReceivedEventArgs e)
+    async void IPresenterServiceImpl.HandleMouseMove(string senderClientId, float x, float y)
     {
         try
         {
             if (this._localInputMonitor.ShouldSuppressViewerInput())
                 return;
 
-            if (this._connection.ConnectionProperties.InputBlockedViewerIds.Contains(e.SenderClientId))
+            if (this._connection.ConnectionProperties.InputBlockedViewerIds.Contains(senderClientId))
                 return;
 
+            var displayId = ((IPresenterServiceImpl)this).GetViewerDisplayId(senderClientId);
             var displays = await this._displayService.GetDisplays(CancellationToken.None);
-            var display = displays.FirstOrDefault(d => d.Name == e.DisplayId) ?? displays.FirstOrDefault(d => d.IsPrimary);
+            var display = displays.FirstOrDefault(d => d.Name == displayId) ?? displays.FirstOrDefault(d => d.IsPrimary);
 
             if (display is null)
                 return;
 
-            switch (e.Type)
-            {
-                case InputType.MouseMove:
-                    if (e.X.HasValue && e.Y.HasValue)
-                    {
-                        await this._inputInjectionService.InjectMouseMove(display, e.X.Value, e.Y.Value, CancellationToken.None);
-                    }
-                    break;
-
-                case InputType.MouseDown:
-                    if (e.X.HasValue && e.Y.HasValue && e.Button.HasValue)
-                    {
-                        await this._inputInjectionService.InjectMouseButton(display, e.Button.Value, isDown: true, e.X.Value, e.Y.Value, CancellationToken.None);
-                    }
-                    break;
-
-                case InputType.MouseUp:
-                    if (e.X.HasValue && e.Y.HasValue && e.Button.HasValue)
-                    {
-                        await this._inputInjectionService.InjectMouseButton(display, e.Button.Value, isDown: false, e.X.Value, e.Y.Value, CancellationToken.None);
-                    }
-                    break;
-
-                case InputType.MouseWheel:
-                    if (e.X.HasValue && e.Y.HasValue && e.DeltaX.HasValue && e.DeltaY.HasValue)
-                    {
-                        await this._inputInjectionService.InjectMouseWheel(display, e.DeltaX.Value, e.DeltaY.Value, e.X.Value, e.Y.Value, CancellationToken.None);
-                    }
-                    break;
-
-                case InputType.KeyDown:
-                    if (e.KeyCode.HasValue)
-                    {
-                        await this._inputInjectionService.InjectKey(e.KeyCode.Value, isDown: true, CancellationToken.None);
-                    }
-                    break;
-
-                case InputType.KeyUp:
-                    if (e.KeyCode.HasValue)
-                    {
-                        await this._inputInjectionService.InjectKey(e.KeyCode.Value, isDown: false, CancellationToken.None);
-                    }
-                    break;
-            }
+            await this._inputInjectionService.InjectMouseMove(display, x, y, CancellationToken.None);
         }
         catch (Exception ex)
         {
-            this._logger.LogError(ex, "Error handling input from {SenderClientId}", e.SenderClientId);
+            this._logger.LogError(ex, "Error handling mouse move from {SenderClientId}", senderClientId);
         }
     }
 
-    private async void OnSecureAttentionSequenceRequested(object? sender, SecureAttentionSequenceRequestedEventArgs e)
+    async void IPresenterServiceImpl.HandleMouseButton(string senderClientId, float x, float y, MouseButton button, bool isDown)
     {
         try
         {
-            if (this._connection.ConnectionProperties.InputBlockedViewerIds.Contains(e.SenderClientId))
+            if (this._localInputMonitor.ShouldSuppressViewerInput())
+                return;
+
+            if (this._connection.ConnectionProperties.InputBlockedViewerIds.Contains(senderClientId))
+                return;
+
+            var displayId = ((IPresenterServiceImpl)this).GetViewerDisplayId(senderClientId);
+            var displays = await this._displayService.GetDisplays(CancellationToken.None);
+            var display = displays.FirstOrDefault(d => d.Name == displayId) ?? displays.FirstOrDefault(d => d.IsPrimary);
+
+            if (display is null)
+                return;
+
+            await this._inputInjectionService.InjectMouseButton(display, button, isDown, x, y, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            this._logger.LogError(ex, "Error handling mouse button from {SenderClientId}", senderClientId);
+        }
+    }
+
+    async void IPresenterServiceImpl.HandleMouseWheel(string senderClientId, float x, float y, float deltaX, float deltaY)
+    {
+        try
+        {
+            if (this._localInputMonitor.ShouldSuppressViewerInput())
+                return;
+
+            if (this._connection.ConnectionProperties.InputBlockedViewerIds.Contains(senderClientId))
+                return;
+
+            var displayId = ((IPresenterServiceImpl)this).GetViewerDisplayId(senderClientId);
+            var displays = await this._displayService.GetDisplays(CancellationToken.None);
+            var display = displays.FirstOrDefault(d => d.Name == displayId) ?? displays.FirstOrDefault(d => d.IsPrimary);
+
+            if (display is null)
+                return;
+
+            await this._inputInjectionService.InjectMouseWheel(display, deltaX, deltaY, x, y, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            this._logger.LogError(ex, "Error handling mouse wheel from {SenderClientId}", senderClientId);
+        }
+    }
+
+    async void IPresenterServiceImpl.HandleKey(string senderClientId, ushort keyCode, KeyModifiers modifiers, bool isDown)
+    {
+        try
+        {
+            if (this._localInputMonitor.ShouldSuppressViewerInput())
+                return;
+
+            if (this._connection.ConnectionProperties.InputBlockedViewerIds.Contains(senderClientId))
+                return;
+
+            await this._inputInjectionService.InjectKey(keyCode, isDown, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            this._logger.LogError(ex, "Error handling key from {SenderClientId}", senderClientId);
+        }
+    }
+
+    async void IPresenterServiceImpl.HandleSecureAttentionSequence(string senderClientId)
+    {
+        try
+        {
+            if (this._connection.ConnectionProperties.InputBlockedViewerIds.Contains(senderClientId))
             {
-                this._logger.LogInformation("Ignoring Ctrl+Alt+Del from blocked viewer: {ViewerId}", e.SenderClientId);
+                this._logger.LogInformation("Ignoring Ctrl+Alt+Del from blocked viewer: {ViewerId}", senderClientId);
                 return;
             }
 
@@ -244,16 +261,31 @@ public sealed class PresenterConnectionService : IDisposable
             var result = await this._rpcClient.Proxy.SendSecureAttentionSequence(CancellationToken.None);
             if (result)
             {
-                this._logger.LogInformation("Sent Ctrl+Alt+Del on behalf of viewer: {ViewerId}", e.SenderClientId);
+                this._logger.LogInformation("Sent Ctrl+Alt+Del on behalf of viewer: {ViewerId}", senderClientId);
             }
             else
             {
-                this._logger.LogWarning("SendSAS failed for viewer: {ViewerId}", e.SenderClientId);
+                this._logger.LogWarning("SendSAS failed for viewer: {ViewerId}", senderClientId);
             }
         }
         catch (Exception ex)
         {
-            this._logger.LogError(ex, "Error handling Ctrl+Alt+Del request from {SenderClientId}", e.SenderClientId);
+            this._logger.LogError(ex, "Error handling Ctrl+Alt+Del request from {SenderClientId}", senderClientId);
+        }
+    }
+
+    private async void RpcClient_ConnectionStatusChanged(object? sender, EventArgs e)
+    {
+        try
+        {
+            await this._connection.UpdateConnectionPropertiesAndSend(current =>
+            {
+                return current with { CanSendSecureAttentionSequence = this._rpcClient.IsConnected };
+            });
+        }
+        catch (Exception ex)
+        {
+            this._logger.LogError(ex, "Error updating connection properties after RPC status change");
         }
     }
 
@@ -277,8 +309,6 @@ public sealed class PresenterConnectionService : IDisposable
 
         this._disposed = true;
 
-        this._connection.InputReceived -= this.OnInputReceived;
-        this._connection.SecureAttentionSequenceRequested -= this.OnSecureAttentionSequenceRequested;
         this._connection.Closed -= this.OnConnectionClosed;
         this._rpcClient.ConnectionStatusChanged -= this.RpcClient_ConnectionStatusChanged;
 
