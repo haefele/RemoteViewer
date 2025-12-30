@@ -1,6 +1,7 @@
 ﻿using System.Collections.ObjectModel;
-using System.ComponentModel;
 using Avalonia.Threading;
+using System.ComponentModel;
+using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -8,6 +9,7 @@ using RemoteViewer.Client.Controls.Toasts;
 using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.ViewModels;
+using RemoteViewer.Server.SharedAPI;
 
 namespace RemoteViewer.Client.Views.Presenter;
 
@@ -50,6 +52,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 
         // Subscribe to Connection events
         this._connection.ViewersChanged += this.OnViewersChanged;
+        this._connection.ConnectionPropertiesChanged += this.OnConnectionPropertiesChanged;
         this._connection.Closed += this.OnConnectionClosed;
 
         // Subscribe to credentials changes
@@ -80,7 +83,12 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         });
     }
 
-    private void UpdateViewers(IReadOnlyList<ViewerInfo> viewers)
+    private void OnConnectionPropertiesChanged(object? sender, EventArgs e)
+    {
+        Dispatcher.UIThread.Post(this.UpdateBlockedViewerStates);
+    }
+
+    private void UpdateViewers(IReadOnlyList<ClientInfo> viewers)
     {
         // Build set of current viewer IDs
         var currentViewerIds = viewers.Select(v => v.ClientId).ToHashSet();
@@ -90,7 +98,6 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         {
             if (!currentViewerIds.Contains(this.Viewers[i].ClientId))
             {
-                _ = this._connection.RequiredPresenterService.SetViewerInputBlockedAsync(this.Viewers[i].ClientId, false);
                 this.Viewers[i].PropertyChanged -= this.Viewer_PropertyChanged;
                 this.Viewers.RemoveAt(i);
             }
@@ -104,9 +111,25 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
             {
                 var display = new PresenterViewerDisplay(
                     viewer.ClientId,
-                    viewer.DisplayName);
+                    viewer.DisplayName)
+                {
+                    IsInputBlocked = this._connection.ConnectionProperties.InputBlockedViewerIds.Contains(viewer.ClientId)
+                };
                 display.PropertyChanged += this.Viewer_PropertyChanged;
                 this.Viewers.Add(display);
+            }
+        }
+    }
+
+    private void UpdateBlockedViewerStates()
+    {
+        var blockedIds = this._connection.ConnectionProperties.InputBlockedViewerIds.ToHashSet(StringComparer.Ordinal);
+        foreach (var viewer in this.Viewers)
+        {
+            var isBlocked = blockedIds.Contains(viewer.ClientId);
+            if (viewer.IsInputBlocked != isBlocked)
+            {
+                viewer.IsInputBlocked = isBlocked;
             }
         }
     }
@@ -118,7 +141,21 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 
         if (sender is PresenterViewerDisplay viewer)
         {
-            _ = this._connection.RequiredPresenterService.SetViewerInputBlockedAsync(viewer.ClientId, viewer.IsInputBlocked);
+            _ = this._connection.UpdateConnectionPropertiesAndSend(current =>
+            {
+                var blockedIds = current.InputBlockedViewerIds.ToHashSet(StringComparer.Ordinal);
+
+                if (viewer.IsInputBlocked)
+                {
+                    blockedIds.Add(viewer.ClientId);
+                }
+                else
+                {
+                    blockedIds.Remove(viewer.ClientId);
+                }
+
+                return current with { InputBlockedViewerIds = blockedIds.ToList() };
+            });
         }
     }
 
@@ -249,13 +286,13 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 
         // Unsubscribe from Connection events
         this._connection.ViewersChanged -= this.OnViewersChanged;
+        this._connection.ConnectionPropertiesChanged -= this.OnConnectionPropertiesChanged;
         this._connection.Closed -= this.OnConnectionClosed;
         this._hubClient.CredentialsAssigned -= this.OnCredentialsAssigned;
         foreach (var viewer in this.Viewers)
         {
             viewer.PropertyChanged -= this.Viewer_PropertyChanged;
         }
-
         GC.SuppressFinalize(this);
     }
 }

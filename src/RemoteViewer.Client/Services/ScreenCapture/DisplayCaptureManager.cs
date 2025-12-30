@@ -63,7 +63,7 @@ public sealed class DisplayCaptureManager(
                 break;
 
             // Get display info outside the lock to avoid holding it during external calls
-            var displayIdsWithViewers = this.GetDisplaysWithViewers();
+            var displayIdsWithViewers = await connection.RequiredPresenterService.GetDisplaysWithViewers(ct);
             var availableDisplays = await displayService.GetDisplays(ct);
 
             using (this._pipelinesLock.EnterScope())
@@ -115,15 +115,6 @@ public sealed class DisplayCaptureManager(
         }
 
         logger.MonitorLoopStopped();
-    }
-
-    private HashSet<string> GetDisplaysWithViewers()
-    {
-        return connection.Viewers
-            .Select(v => v.SelectedDisplayId)
-            .Where(id => id is not null)
-            .Cast<string>()
-            .ToHashSet();
     }
 
     private void StartPipelineForDisplay(Display display)

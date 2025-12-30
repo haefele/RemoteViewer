@@ -11,6 +11,7 @@
         Icon="/Assets/avalonia-logo.ico"
         Title="{Binding Title}"
         Width="300" 
+        CanResize="False"
         SizeToContent="Height"
         WindowStartupLocation="CenterScreen"
 

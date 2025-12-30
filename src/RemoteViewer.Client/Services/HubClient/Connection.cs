@@ -1,9 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Common;
-using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.FileTransfer;
-using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Server.SharedAPI;
 using RemoteViewer.Server.SharedAPI.Protocol;
 
@@ -13,16 +11,13 @@ namespace RemoteViewer.Client.Services.HubClient;
 public sealed class Connection
 {
     private readonly IServiceProvider _serviceProvider;
-
     private readonly ILogger<Connection> _logger;
-    private readonly IDisplayService? _displayService;
-    private readonly IScreenshotService? _screenshotService;
 
     private readonly Lock _participantsLock = new();
     private ClientInfo? _presenter;
-    private List<ViewerInfo> _viewers = [];
+    private List<ClientInfo> _viewers = [];
 
-    private readonly object _connectionPropertiesLock = new();
+    private readonly Lock _connectionPropertiesLock = new();
     private ConnectionProperties _lastSentProperties = new(CanSendSecureAttentionSequence: false, InputBlockedViewerIds: []);
 
     public Connection(
@@ -30,17 +25,13 @@ public sealed class Connection
         string connectionId,
         bool isPresenter,
         IServiceProvider serviceProvider,
-        ILogger<Connection> logger,
-        IDisplayService displayService,
-        IScreenshotService screenshotService)
+        ILogger<Connection> logger)
     {
         this.ConnectionId = connectionId;
         this.IsPresenter = isPresenter;
         this.Owner = owner;
 
         this._serviceProvider = serviceProvider;
-        this._displayService = displayService;
-        this._screenshotService = screenshotService;
         this._logger = logger;
 
         this.FileTransfers = ActivatorUtilities.CreateInstance<FileTransferService>(this._serviceProvider, this);
@@ -70,7 +61,7 @@ public sealed class Connection
             }
         }
     }
-    public IReadOnlyList<ViewerInfo> Viewers
+    public IReadOnlyList<ClientInfo> Viewers
     {
         get
         {
@@ -202,14 +193,9 @@ public sealed class Connection
             return;
 
         // Get all viewers watching this display
-        List<string> targetViewerIds;
-        using (this._participantsLock.EnterScope())
-        {
-            targetViewerIds = this._viewers
-                .Where(v => v.SelectedDisplayId == displayId)
-                .Select(v => v.ClientId)
-                .ToList();
-        }
+        var targetViewerIds = this.PresenterService is not null
+            ? await this.PresenterService.GetViewerIdsWatchingDisplayAsync(displayId)
+            : [];
 
         if (targetViewerIds.Count == 0)
             return;
@@ -372,29 +358,10 @@ public sealed class Connection
         {
             // Participants changed
             {
-                // Get primary display ID for new viewers (presenter-side only)
-                string? primaryDisplayId = null;
-                if (this._displayService is not null)
-                {
-                    var displays = await this._displayService.GetDisplays(CancellationToken.None);
-                    primaryDisplayId = displays.FirstOrDefault(d => d.IsPrimary)?.Name;
-                }
-
                 using (this._participantsLock.EnterScope())
                 {
-                    // Store presenter info
                     this._presenter = connectionInfo.Presenter;
-
-                    // Preserve existing display selections for viewers that are still connected,
-                    // assign primary display to new viewers
-                    var existingSelections = this._viewers.ToDictionary(v => v.ClientId, v => v.SelectedDisplayId);
-
-                    this._viewers = connectionInfo.Viewers
-                        .Select(v => new ViewerInfo(
-                            v.ClientId,
-                            existingSelections.GetValueOrDefault(v.ClientId, primaryDisplayId),
-                            v.DisplayName))
-                        .ToList();
+                    this._viewers = connectionInfo.Viewers.ToList();
                 }
 
                 this._logger.LogDebug("Participants changed: presenter={PresenterName}, {ViewerCount} viewer(s)", connectionInfo.Presenter.DisplayName, connectionInfo.Viewers.Count);
@@ -405,7 +372,7 @@ public sealed class Connection
             // Connection properties changed
             {
                 bool propertiesChanged;
-                lock (this._connectionPropertiesLock)
+                using (this._connectionPropertiesLock.EnterScope())
                 {
                     propertiesChanged = !AreConnectionPropertiesEqual(this.ConnectionProperties, connectionInfo.Properties);
                     this.ConnectionProperties = connectionInfo.Properties;
@@ -431,7 +398,7 @@ public sealed class Connection
         var changed = false;
         var shouldSend = false;
 
-        lock (this._connectionPropertiesLock)
+        using (this._connectionPropertiesLock.EnterScope())
         {
             properties = update(this.ConnectionProperties);
 
@@ -568,42 +535,13 @@ public sealed class Connection
     {
         try
         {
-            if (this._displayService is null)
+            if (this.PresenterService is null)
                 return;
 
-            var displays = await this._displayService.GetDisplays(CancellationToken.None);
-            if (displays.Count == 0)
-                return;
-
-            string? newDisplayId;
-            using (this._participantsLock.EnterScope())
+            var newDisplayId = await this.PresenterService.CycleViewerDisplayAsync(senderClientId);
+            if (newDisplayId is not null)
             {
-                var viewerIndex = this._viewers.FindIndex(v => v.ClientId == senderClientId);
-                if (viewerIndex < 0)
-                    return;
-
-                var viewer = this._viewers[viewerIndex];
-
-                // Find current display index
-                var currentDisplayIndex = displays
-                    .Select((d, i) => (Display: d, Index: i))
-                    .FirstOrDefault(x => x.Display.Name == viewer.SelectedDisplayId)
-                    .Index;
-
-                // Cycle to next display
-                var nextDisplayIndex = (currentDisplayIndex + 1) % displays.Count;
-                newDisplayId = displays[nextDisplayIndex].Name;
-
-                this._viewers[viewerIndex] = viewer with { SelectedDisplayId = newDisplayId };
-            }
-
-            this._logger.LogDebug("Viewer {ViewerId} switched to display {DisplayId}", senderClientId, newDisplayId);
-            this._viewersChanged?.Invoke(this, EventArgs.Empty);
-
-            // Force immediate keyframe so viewer doesn't see black screen
-            if (this._screenshotService is not null)
-            {
-                await this._screenshotService.ForceKeyframe(newDisplayId, CancellationToken.None);
+                this._viewersChanged?.Invoke(this, EventArgs.Empty);
             }
         }
         catch (Exception ex)
@@ -630,7 +568,7 @@ public sealed class Connection
     private void HandleMouseMove(string senderClientId, byte[] data)
     {
         var message = ProtocolSerializer.Deserialize<MouseMoveMessage>(data);
-        var displayId = this.GetViewerDisplayId(senderClientId);
+        var displayId = this.PresenterService?.GetViewerDisplayId(senderClientId);
 
         var args = new InputReceivedEventArgs(
             senderClientId,
@@ -644,7 +582,7 @@ public sealed class Connection
     private void HandleMouseButton(string senderClientId, byte[] data, bool isDown)
     {
         var message = ProtocolSerializer.Deserialize<MouseButtonMessage>(data);
-        var displayId = this.GetViewerDisplayId(senderClientId);
+        var displayId = this.PresenterService?.GetViewerDisplayId(senderClientId);
 
         var args = new InputReceivedEventArgs(
             senderClientId,
@@ -659,7 +597,7 @@ public sealed class Connection
     private void HandleMouseWheel(string senderClientId, byte[] data)
     {
         var message = ProtocolSerializer.Deserialize<MouseWheelMessage>(data);
-        var displayId = this.GetViewerDisplayId(senderClientId);
+        var displayId = this.PresenterService?.GetViewerDisplayId(senderClientId);
 
         var args = new InputReceivedEventArgs(
             senderClientId,
@@ -675,7 +613,7 @@ public sealed class Connection
     private void HandleKey(string senderClientId, byte[] data, bool isDown)
     {
         var message = ProtocolSerializer.Deserialize<KeyMessage>(data);
-        var displayId = this.GetViewerDisplayId(senderClientId);
+        var displayId = this.PresenterService?.GetViewerDisplayId(senderClientId);
 
         var args = new InputReceivedEventArgs(
             senderClientId,
@@ -690,13 +628,6 @@ public sealed class Connection
     {
         this._logger.LogInformation("Received Ctrl+Alt+Del request from {SenderClientId}", senderClientId);
         this.SecureAttentionSequenceRequested?.Invoke(this, new SecureAttentionSequenceRequestedEventArgs(senderClientId));
-    }
-    private string? GetViewerDisplayId(string viewerClientId)
-    {
-        using (this._participantsLock.EnterScope())
-        {
-            return this._viewers.FirstOrDefault(v => v.ClientId == viewerClientId)?.SelectedDisplayId;
-        }
     }
 
     // File transfer handlers
@@ -748,11 +679,6 @@ public sealed class Connection
             message.ErrorMessage));
     }
 }
-
-/// <summary>
-/// Information about a connected viewer, including their selected display.
-/// </summary>
-public sealed record ViewerInfo(string ClientId, string? SelectedDisplayId, string DisplayName);
 
 /// <summary>
 /// Type of input event received from a viewer.
@@ -927,5 +853,3 @@ public sealed class SecureAttentionSequenceRequestedEventArgs : EventArgs
 
     public string SenderClientId { get; }
 }
-
-

@@ -1,10 +1,10 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using System.Linq;
+using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.Client.Services.LocalInputMonitor;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.WindowsIpc;
-using RemoteViewer.Server.SharedAPI;
 
 namespace RemoteViewer.Client.Services.HubClient;
 
@@ -12,16 +12,21 @@ public sealed class PresenterConnectionService : IDisposable
 {
     private readonly Connection _connection;
     private readonly IDisplayService _displayService;
+    private readonly IScreenshotService _screenshotService;
     private readonly IInputInjectionService _inputInjectionService;
     private readonly ILocalInputMonitorService _localInputMonitor;
     private readonly SessionRecorderRpcClient _rpcClient;
     private readonly ILogger<PresenterConnectionService> _logger;
+
+    private readonly Lock _selectionsLock = new();
+    private readonly Dictionary<string, string?> _viewerDisplaySelections = new(StringComparer.Ordinal);
 
     private bool _disposed;
 
     public PresenterConnectionService(
         Connection connection,
         IDisplayService displayService,
+        IScreenshotService screenshotService,
         IInputInjectionService inputInjectionService,
         ILocalInputMonitorService localInputMonitor,
         SessionRecorderRpcClient rpcClient,
@@ -29,6 +34,7 @@ public sealed class PresenterConnectionService : IDisposable
     {
         this._connection = connection;
         this._displayService = displayService;
+        this._screenshotService = screenshotService;
         this._inputInjectionService = inputInjectionService;
         this._localInputMonitor = localInputMonitor;
         this._rpcClient = rpcClient;
@@ -42,29 +48,106 @@ public sealed class PresenterConnectionService : IDisposable
         this._localInputMonitor.StartMonitoring();
     }
 
-    public async Task SetViewerInputBlockedAsync(string viewerClientId, bool isBlocked)
+    internal string? GetViewerDisplayId(string viewerClientId)
     {
-        await this._connection.UpdateConnectionPropertiesAndSend(current =>
+        using (this._selectionsLock.EnterScope())
         {
-            var blockedIds = current.InputBlockedViewerIds.ToHashSet(StringComparer.Ordinal);
-
-            if (isBlocked)
-            {
-                blockedIds.Add(viewerClientId);
-            }
-            else
-            {
-                blockedIds.Remove(viewerClientId);
-            }
-
-            var updated = current with { InputBlockedViewerIds = blockedIds.ToList() };
-            return updated with { CanSendSecureAttentionSequence = this._rpcClient.IsConnected };
-        });
+            return this._viewerDisplaySelections.TryGetValue(viewerClientId, out var displayId)
+                ? displayId
+                : null;
+        }
     }
 
-    private bool IsViewerBlocked(string viewerClientId)
+    internal async Task<string?> CycleViewerDisplayAsync(string viewerClientId, CancellationToken ct = default)
     {
-        return this._connection.ConnectionProperties.InputBlockedViewerIds.Contains(viewerClientId);
+        var displays = await this._displayService.GetDisplays(ct);
+        if (displays.Count == 0)
+            return null;
+
+        string newDisplayId;
+        using (this._selectionsLock.EnterScope())
+        {
+            this._viewerDisplaySelections.TryGetValue(viewerClientId, out var currentDisplayId);
+
+            var currentIndex = -1;
+            for (var i = 0; i < displays.Count; i++)
+            {
+                if (string.Equals(displays[i].Name, currentDisplayId, StringComparison.Ordinal))
+                {
+                    currentIndex = i;
+                    break;
+                }
+            }
+
+            if (currentIndex < 0)
+            {
+                var primaryIndex = displays
+                    .Select((d, i) => (Display: d, Index: i))
+                    .FirstOrDefault(x => x.Display.IsPrimary)
+                    .Index;
+                currentIndex = primaryIndex;
+            }
+
+            var nextIndex = currentIndex < 0 ? 0 : (currentIndex + 1) % displays.Count;
+            newDisplayId = displays[nextIndex].Name;
+            this._viewerDisplaySelections[viewerClientId] = newDisplayId;
+        }
+
+        // Force immediate keyframe so viewer doesn't see black screen
+        await this._screenshotService.ForceKeyframe(newDisplayId, ct);
+
+        this._logger.LogDebug("Viewer {ViewerId} switched to display {DisplayId}", viewerClientId, newDisplayId);
+        return newDisplayId;
+    }
+
+    internal async Task<List<string>> GetViewerIdsWatchingDisplayAsync(string displayId, CancellationToken ct = default)
+    {
+        var result = new List<string>();
+
+        var displays = await this._displayService.GetDisplays(ct);
+        var primaryDisplayId = displays.FirstOrDefault(d => d.IsPrimary)?.Name;
+        var viewers = this._connection.Viewers;
+
+        using (this._selectionsLock.EnterScope())
+        {
+            foreach (var viewer in viewers)
+            {
+                this._viewerDisplaySelections.TryGetValue(viewer.ClientId, out var selectedDisplayId);
+                var effectiveDisplayId = selectedDisplayId ?? primaryDisplayId;
+
+                if (string.Equals(effectiveDisplayId, displayId, StringComparison.Ordinal))
+                {
+                    result.Add(viewer.ClientId);
+                }
+            }
+        }
+
+        return result;
+    }
+
+    internal async Task<HashSet<string>> GetDisplaysWithViewers(CancellationToken ct = default)
+    {
+        var result = new HashSet<string>(StringComparer.Ordinal);
+
+        var displays = await this._displayService.GetDisplays(ct);
+        var primaryDisplayId = displays.FirstOrDefault(d => d.IsPrimary)?.Name;
+        var viewers = this._connection.Viewers;
+
+        using (this._selectionsLock.EnterScope())
+        {
+            foreach (var viewer in viewers)
+            {
+                this._viewerDisplaySelections.TryGetValue(viewer.ClientId, out var selectedDisplayId);
+                var effectiveDisplayId = selectedDisplayId ?? primaryDisplayId;
+
+                if (effectiveDisplayId is not null)
+                {
+                    result.Add(effectiveDisplayId);
+                }
+            }
+        }
+
+        return result;
     }
 
     private async void RpcClient_ConnectionStatusChanged(object? sender, EventArgs e)
@@ -82,13 +165,12 @@ public sealed class PresenterConnectionService : IDisposable
             if (this._localInputMonitor.ShouldSuppressViewerInput())
                 return;
 
-            if (this.IsViewerBlocked(e.SenderClientId))
+            if (this._connection.ConnectionProperties.InputBlockedViewerIds.Contains(e.SenderClientId))
                 return;
 
-            if (e.DisplayId is null)
-                return;
+            var displays = await this._displayService.GetDisplays(CancellationToken.None);
+            var display = displays.FirstOrDefault(d => d.Name == e.DisplayId) ?? displays.FirstOrDefault(d => d.IsPrimary);
 
-            var display = await this.GetDisplayByIdAsync(e.DisplayId);
             if (display is null)
                 return;
 
@@ -147,7 +229,7 @@ public sealed class PresenterConnectionService : IDisposable
     {
         try
         {
-            if (this.IsViewerBlocked(e.SenderClientId))
+            if (this._connection.ConnectionProperties.InputBlockedViewerIds.Contains(e.SenderClientId))
             {
                 this._logger.LogInformation("Ignoring Ctrl+Alt+Del from blocked viewer: {ViewerId}", e.SenderClientId);
                 return;
@@ -186,12 +268,6 @@ public sealed class PresenterConnectionService : IDisposable
         {
             this._logger.LogError(ex, "Error handling connection closed event");
         }
-    }
-
-    private async Task<Display?> GetDisplayByIdAsync(string displayId)
-    {
-        var displays = await this._displayService.GetDisplays(CancellationToken.None);
-        return displays.FirstOrDefault(d => d.Name == displayId);
     }
 
     public void Dispose()
