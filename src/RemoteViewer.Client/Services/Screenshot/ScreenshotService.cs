@@ -1,6 +1,7 @@
 ﻿using System.Collections.Concurrent;
 using System.Diagnostics;
 using Microsoft.Extensions.Logging;
+using RemoteViewer.Server.SharedAPI;
 
 namespace RemoteViewer.Client.Services.Screenshot;
 
@@ -24,9 +25,9 @@ public sealed class ScreenshotService : IScreenshotService
             .ToArray();
     }
 
-    public async Task<GrabResult> CaptureDisplay(Display display, CancellationToken ct)
+    public async Task<GrabResult> CaptureDisplay(DisplayInfo display, CancellationToken ct)
     {
-        var state = this.GetOrCreateDisplayState(display.Name);
+        var state = this.GetOrCreateDisplayState(display.Id);
         var keyframeDue = state.KeyframeTimer.ElapsedMilliseconds >= KeyframeIntervalMs || state.ForceNextKeyframe;
 
         foreach (var grabber in this._sortedGrabbers)
@@ -39,7 +40,7 @@ public sealed class ScreenshotService : IScreenshotService
             }
             else if (result.Status == GrabStatus.Failure)
             {
-                this._logger.LogDebug("ScreenGrabber {GrabberType} failed for display {Display}, trying next", grabber.GetType().Name, display.Name);
+                this._logger.LogDebug("ScreenGrabber {GrabberType} failed for display {Display}, trying next", grabber.GetType().Name, display.Id);
                 continue;
             }
             else // Success
@@ -59,14 +60,14 @@ public sealed class ScreenshotService : IScreenshotService
         return new GrabResult(GrabStatus.Failure, null, null, null);
     }
 
-    private DisplayState GetOrCreateDisplayState(string displayName)
+    private DisplayState GetOrCreateDisplayState(string displayId)
     {
-        return this._displayStates.GetOrAdd(displayName, _ => new DisplayState());
+        return this._displayStates.GetOrAdd(displayId, _ => new DisplayState());
     }
 
-    public Task ForceKeyframe(string displayName, CancellationToken ct)
+    public Task ForceKeyframe(string displayId, CancellationToken ct)
     {
-        if (this._displayStates.TryGetValue(displayName, out var state))
+        if (this._displayStates.TryGetValue(displayId, out var state))
         {
             state.ForceNextKeyframe = true;
         }

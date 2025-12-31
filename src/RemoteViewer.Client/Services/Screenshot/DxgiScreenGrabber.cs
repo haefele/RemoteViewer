@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Common;
+using RemoteViewer.Server.SharedAPI;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.Graphics.Direct3D;
@@ -27,20 +28,20 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
 
     private readonly ConcurrentDictionary<string, DxOutput> _outputs = new();
 
-    public Task<GrabResult> CaptureDisplay(Display display, bool forceKeyframe, CancellationToken ct)
+    public Task<GrabResult> CaptureDisplay(DisplayInfo display, bool forceKeyframe, CancellationToken ct)
     {
         if (!OperatingSystem.IsOSPlatformVersionAtLeast("windows", 8))
             return Task.FromResult(new GrabResult(GrabStatus.Failure, null, null, null));
 
-        var width = display.Bounds.Width;
-        var height = display.Bounds.Height;
+        var width = display.Width;
+        var height = display.Height;
 
         try
         {
-            var dxOutput = this.GetOrCreateOutput(display.Name);
+            var dxOutput = this.GetOrCreateOutput(display.Id);
             if (dxOutput is null)
             {
-                logger.LogDebug("Failed to get DXGI output for display {DisplayName}, falling back to BitBlt", display.Name);
+                logger.LogDebug("Failed to get DXGI output for display {DisplayId}, falling back to BitBlt", display.Id);
                 return Task.FromResult(new GrabResult(GrabStatus.Failure, null, null, null));
             }
 
@@ -106,14 +107,14 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
         catch (COMException ex) when ((uint)ex.HResult == 0x887A0026)
         {
             logger.LogWarning("DXGI_ERROR_ACCESS_LOST - recreating output duplication");
-            this.ResetDisplayInternal(display.Name);
+            this.ResetDisplayInternal(display.Id);
 
             return Task.FromResult(new GrabResult(GrabStatus.Failure, null, null, null));
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Exception occurred while capturing display {DisplayName} with DXGI", display.Name);
-            this.ResetDisplayInternal(display.Name);
+            logger.LogError(exception, "Exception occurred while capturing display {DisplayId} with DXGI", display.Id);
+            this.ResetDisplayInternal(display.Id);
 
             return Task.FromResult(new GrabResult(GrabStatus.Failure, null, null, null));
         }
@@ -434,9 +435,9 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
         }
     }
 
-    private void ResetDisplayInternal(string displayName)
+    private void ResetDisplayInternal(string displayId)
     {
-        if (this._outputs.TryRemove(displayName, out var output))
+        if (this._outputs.TryRemove(displayId, out var output))
         {
             output.Dispose();
         }

@@ -18,7 +18,7 @@ public sealed class Connection : IConnectionImpl
     private List<ClientInfo> _viewers = [];
 
     private readonly Lock _connectionPropertiesLock = new();
-    private ConnectionProperties _lastSentProperties = new(CanSendSecureAttentionSequence: false, InputBlockedViewerIds: []);
+    private ConnectionProperties _lastSentProperties = new(CanSendSecureAttentionSequence: false, InputBlockedViewerIds: [], AvailableDisplays: []);
 
     public Connection(
         ConnectionHubClient owner,
@@ -71,7 +71,7 @@ public sealed class Connection : IConnectionImpl
             }
         }
     }
-    public ConnectionProperties ConnectionProperties { get; private set; } = new(CanSendSecureAttentionSequence: false, InputBlockedViewerIds: []);
+    public ConnectionProperties ConnectionProperties { get; private set; } = new(CanSendSecureAttentionSequence: false, InputBlockedViewerIds: [], AvailableDisplays: []);
 
     public FileTransferService FileTransfers { get; }
     public PresenterConnectionService? PresenterService { get; }
@@ -419,14 +419,22 @@ public sealed class Connection : IConnectionImpl
 
         var leftIds = left.InputBlockedViewerIds;
         var rightIds = right.InputBlockedViewerIds;
-        if (ReferenceEquals(leftIds, rightIds))
-            return true;
+        if (!ReferenceEquals(leftIds, rightIds))
+        {
+            if (leftIds.Count != rightIds.Count)
+                return false;
 
-        if (leftIds.Count != rightIds.Count)
+            var leftSet = new HashSet<string>(leftIds, StringComparer.Ordinal);
+            if (!leftSet.SetEquals(rightIds))
+                return false;
+        }
+
+        var leftDisplays = left.AvailableDisplays;
+        var rightDisplays = right.AvailableDisplays;
+        if (!ReferenceEquals(leftDisplays, rightDisplays) && !leftDisplays.SequenceEqual(rightDisplays))
             return false;
 
-        var leftSet = new HashSet<string>(leftIds, StringComparer.Ordinal);
-        return leftSet.SetEquals(rightIds);
+        return true;
     }
 
     async void IConnectionImpl.OnMessageReceived(string senderClientId, string messageType, byte[] data)
@@ -438,13 +446,16 @@ public sealed class Connection : IConnectionImpl
                 case MessageTypes.Display.Switch:
                     if (this.PresenterService is IPresenterServiceImpl presenterService)
                     {
-                        var newDisplayId = await presenterService.CycleViewerDisplayAsync(senderClientId);
-                        if (newDisplayId is not null)
-                        {
-                            this._viewersChanged?.Invoke(this, EventArgs.Empty);
-                        }
+                        await presenterService.CycleViewerDisplayAsync(senderClientId);
                     }
+                    break;
 
+                case MessageTypes.Display.Select:
+                    if (this.PresenterService is IPresenterServiceImpl presenterServiceForSelect)
+                    {
+                        var displayId = ProtocolSerializer.Deserialize<string>(data);
+                        await presenterServiceForSelect.SelectViewerDisplayAsync(senderClientId, displayId);
+                    }
                     break;
 
                 case MessageTypes.Input.MouseMove:

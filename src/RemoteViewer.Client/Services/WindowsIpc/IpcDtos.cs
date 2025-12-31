@@ -11,7 +11,8 @@ namespace RemoteViewer.Client.Services.WindowsIpc;
 
 [MessagePackObject(keyAsPropertyName: true)]
 public sealed record DisplayDto(
-    string Name,
+    string Id,
+    string FriendlyName,
     bool IsPrimary,
     int Left,
     int Top,

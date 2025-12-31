@@ -1,8 +1,8 @@
 #if WINDOWS
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
-using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.WindowsIpc;
+using RemoteViewer.Server.SharedAPI;
 using RemoteViewer.Server.SharedAPI.Protocol;
 using Windows.Win32;
 using WindowsInput;
@@ -33,21 +33,21 @@ public class WindowsInputInjectionService : IInputInjectionService
         this._logger = logger;
     }
 
-    public Task InjectMouseMove(Display display, float normalizedX, float normalizedY, CancellationToken ct)
+    public Task InjectMouseMove(DisplayInfo display, float normalizedX, float normalizedY, CancellationToken ct)
         => this.ExecuteWithFallbackAsync(
-            () => this._rpcClient!.Proxy!.InjectMouseMove(display.Name, normalizedX, normalizedY, ct),
+            () => this._rpcClient!.Proxy!.InjectMouseMove(display.Id, normalizedX, normalizedY, ct),
             () => this.ActualInjectMouseMove(display, normalizedX, normalizedY, ct),
             "inject mouse move");
 
-    public Task InjectMouseButton(Display display, ProtocolMouseButton button, bool isDown, float normalizedX, float normalizedY, CancellationToken ct)
+    public Task InjectMouseButton(DisplayInfo display, ProtocolMouseButton button, bool isDown, float normalizedX, float normalizedY, CancellationToken ct)
         => this.ExecuteWithFallbackAsync(
-            () => this._rpcClient!.Proxy!.InjectMouseButton(display.Name, (int)button, isDown, normalizedX, normalizedY, ct),
+            () => this._rpcClient!.Proxy!.InjectMouseButton(display.Id, (int)button, isDown, normalizedX, normalizedY, ct),
             () => this.ActualInjectMouseButton(display, button, isDown, normalizedX, normalizedY, ct),
             "inject mouse button");
 
-    public Task InjectMouseWheel(Display display, float deltaX, float deltaY, float normalizedX, float normalizedY, CancellationToken ct)
+    public Task InjectMouseWheel(DisplayInfo display, float deltaX, float deltaY, float normalizedX, float normalizedY, CancellationToken ct)
         => this.ExecuteWithFallbackAsync(
-            () => this._rpcClient!.Proxy!.InjectMouseWheel(display.Name, deltaX, deltaY, normalizedX, normalizedY, ct),
+            () => this._rpcClient!.Proxy!.InjectMouseWheel(display.Id, deltaX, deltaY, normalizedX, normalizedY, ct),
             () => this.ActualInjectMouseWheel(display, deltaX, deltaY, normalizedX, normalizedY, ct),
             "inject mouse wheel");
 
@@ -63,7 +63,7 @@ public class WindowsInputInjectionService : IInputInjectionService
             () => this.ActualReleaseAllModifiers(ct),
             "release modifiers");
 
-    private Task ActualInjectMouseMove(Display display, float normalizedX, float normalizedY, CancellationToken ct)
+    private Task ActualInjectMouseMove(DisplayInfo display, float normalizedX, float normalizedY, CancellationToken ct)
     {
         this.CheckAndReleaseStuckModifiers();
 
@@ -73,7 +73,7 @@ public class WindowsInputInjectionService : IInputInjectionService
         return Task.CompletedTask;
     }
 
-    private Task ActualInjectMouseButton(Display display, ProtocolMouseButton button, bool isDown, float normalizedX, float normalizedY, CancellationToken ct)
+    private Task ActualInjectMouseButton(DisplayInfo display, ProtocolMouseButton button, bool isDown, float normalizedX, float normalizedY, CancellationToken ct)
     {
         this.CheckAndReleaseStuckModifiers();
         this._lastInputTime = DateTime.UtcNow;
@@ -109,7 +109,7 @@ public class WindowsInputInjectionService : IInputInjectionService
         return Task.CompletedTask;
     }
 
-    private Task ActualInjectMouseWheel(Display display, float deltaX, float deltaY, float normalizedX, float normalizedY, CancellationToken ct)
+    private Task ActualInjectMouseWheel(DisplayInfo display, float deltaX, float deltaY, float normalizedX, float normalizedY, CancellationToken ct)
     {
         this.CheckAndReleaseStuckModifiers();
         this._lastInputTime = DateTime.UtcNow;
@@ -225,15 +225,15 @@ public class WindowsInputInjectionService : IInputInjectionService
         }
     }
 
-    private static (int absX, int absY) NormalizedToAbsolute(Display display, float normalizedX, float normalizedY)
+    private static (int absX, int absY) NormalizedToAbsolute(DisplayInfo display, float normalizedX, float normalizedY)
     {
         var virtualLeft = PInvoke.GetSystemMetrics(global::Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_XVIRTUALSCREEN);
         var virtualTop = PInvoke.GetSystemMetrics(global::Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_YVIRTUALSCREEN);
         var virtualWidth = PInvoke.GetSystemMetrics(global::Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_CXVIRTUALSCREEN);
         var virtualHeight = PInvoke.GetSystemMetrics(global::Windows.Win32.UI.WindowsAndMessaging.SYSTEM_METRICS_INDEX.SM_CYVIRTUALSCREEN);
 
-        var screenX = display.Bounds.Left + (int)(normalizedX * display.Bounds.Width);
-        var screenY = display.Bounds.Top + (int)(normalizedY * display.Bounds.Height);
+        var screenX = display.Left + (int)(normalizedX * display.Width);
+        var screenY = display.Top + (int)(normalizedY * display.Height);
 
         var absX = ((screenX - virtualLeft) * 65535) / virtualWidth;
         var absY = ((screenY - virtualTop) * 65535) / virtualHeight;

@@ -1,19 +1,18 @@
 using RemoteViewer.Client.Common;
 using RemoteViewer.Client.Services.Screenshot;
+using RemoteViewer.Server.SharedAPI;
 
 namespace RemoteViewer.Client.Services.WindowsIpc;
 
 public static class DtoExtensions
 {
-    // Display <-> DisplayDto conversions
-    public static DisplayDto ToDto(this Display display) =>
-        new(display.Name, display.IsPrimary,
-            display.Bounds.Left, display.Bounds.Top,
-            display.Bounds.Right, display.Bounds.Bottom);
+    // IPC DisplayDto -> DisplayInfo conversion
+    public static DisplayInfo ToDisplayInfo(this DisplayDto dto) =>
+        new(dto.Id, dto.FriendlyName, dto.IsPrimary, dto.Left, dto.Top, dto.Right, dto.Bottom);
 
-    public static Display FromDto(this DisplayDto dto) =>
-        new(dto.Name, dto.IsPrimary,
-            new DisplayRect(dto.Left, dto.Top, dto.Right, dto.Bottom));
+    // DisplayInfo -> IPC DisplayDto conversion
+    public static DisplayDto ToIpcDto(this DisplayInfo display) =>
+        new(display.Id, display.FriendlyName, display.IsPrimary, display.Left, display.Top, display.Right, display.Bottom);
 
     // GrabResult -> GrabResultDto (server side, for sending over IPC)
     public static GrabResultDto ToDto(this GrabResult result)

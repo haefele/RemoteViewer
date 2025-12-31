@@ -1,7 +1,9 @@
 ﻿using System.Collections.Concurrent;
+using System.Collections.Immutable;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Common;
 using RemoteViewer.Client.Services.Viewer;
+using RemoteViewer.Server.SharedAPI;
 using RemoteViewer.Server.SharedAPI.Protocol;
 
 namespace RemoteViewer.Client.Services.HubClient;
@@ -12,6 +14,11 @@ public sealed class ViewerConnectionService : IViewerServiceImpl, IDisposable
     private readonly ILogger<ViewerConnectionService> _logger;
     private readonly IWindowsKeyBlockerService _windowsKeyBlockerService;
     private readonly ConcurrentDictionary<ushort, object?> _pressedKeys = new();
+
+    private readonly Lock _displayLock = new();
+    private ImmutableList<DisplayInfo> _availableDisplays = [];
+    private string? _currentDisplayId;
+
     private bool _disposed;
 
     public ViewerConnectionService(
@@ -25,11 +32,132 @@ public sealed class ViewerConnectionService : IViewerServiceImpl, IDisposable
 
         this._windowsKeyBlockerService.WindowsKeyDown += this.WindowsKeyBlocker_WindowsKeyDown;
         this._windowsKeyBlockerService.WindowsKeyUp += this.WindowsKeyBlocker_WindowsKeyUp;
+        this._connection.ConnectionPropertiesChanged += this.Connection_ConnectionPropertiesChanged;
     }
 
     public bool IsInputEnabled { get; set; } = true;
 
     public event EventHandler<FrameReceivedEventArgs>? FrameReady;
+    public event EventHandler? AvailableDisplaysChanged;
+    public event EventHandler? CurrentDisplayChanged;
+
+    public ImmutableList<DisplayInfo> AvailableDisplays
+    {
+        get
+        {
+            using (this._displayLock.EnterScope())
+                return this._availableDisplays;
+        }
+    }
+
+    public DisplayInfo? CurrentDisplay
+    {
+        get
+        {
+            using (this._displayLock.EnterScope())
+            {
+                if (this._currentDisplayId is null)
+                    return null;
+                return this._availableDisplays.FirstOrDefault(d => d.Id == this._currentDisplayId);
+            }
+        }
+    }
+
+    private void Connection_ConnectionPropertiesChanged(object? sender, EventArgs e)
+    {
+        var props = this._connection.ConnectionProperties;
+        bool changed;
+
+        using (this._displayLock.EnterScope())
+        {
+            var newDisplays = props.AvailableDisplays.ToImmutableList();
+            changed = !this._availableDisplays.SequenceEqual(newDisplays);
+            if (changed)
+            {
+                this._availableDisplays = newDisplays;
+            }
+        }
+
+        if (changed)
+        {
+            this.AvailableDisplaysChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
+    public DisplayInfo? GetLeftAdjacentDisplay()
+    {
+        using (this._displayLock.EnterScope())
+        {
+            return this.FindAdjacentDisplay(isLeft: true);
+        }
+    }
+
+    public DisplayInfo? GetRightAdjacentDisplay()
+    {
+        using (this._displayLock.EnterScope())
+        {
+            return this.FindAdjacentDisplay(isLeft: false);
+        }
+    }
+
+    private DisplayInfo? FindAdjacentDisplay(bool isLeft)
+    {
+        if (this._currentDisplayId is null || this._availableDisplays.Count == 0)
+            return null;
+
+        var current = this._availableDisplays.FirstOrDefault(d => d.Id == this._currentDisplayId);
+        if (current is null)
+            return null;
+
+        var currentCenterX = (current.Left + current.Right) / 2;
+
+        DisplayInfo? best = null;
+        var bestDistance = int.MaxValue;
+
+        foreach (var candidate in this._availableDisplays)
+        {
+            if (candidate.Id == current.Id)
+                continue;
+
+            var candidateCenterX = (candidate.Left + candidate.Right) / 2;
+
+            // Check direction
+            var correctDirection = isLeft
+                ? candidateCenterX < currentCenterX
+                : candidateCenterX > currentCenterX;
+
+            if (!correctDirection)
+                continue;
+
+            // Check vertical overlap (displays must share some vertical space)
+            var hasVerticalOverlap = !(candidate.Bottom <= current.Top || candidate.Top >= current.Bottom);
+            if (!hasVerticalOverlap)
+                continue;
+
+            var distance = Math.Abs(candidateCenterX - currentCenterX);
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                best = candidate;
+            }
+        }
+
+        return best;
+    }
+
+    public async Task SelectDisplayAsync(string displayId)
+    {
+        try
+        {
+            using var buffer = PooledBufferWriter.Rent();
+            ProtocolSerializer.Serialize(buffer, displayId);
+            await this._connection.SendInputAsync(MessageTypes.Display.Select, buffer.WrittenMemory);
+        }
+        catch (Exception ex)
+        {
+            this._logger.LogError(ex, "Failed to select display {DisplayId}", displayId);
+        }
+    }
 
     public async Task SendMouseMoveAsync(float x, float y)
     {
@@ -180,6 +308,22 @@ public sealed class ViewerConnectionService : IViewerServiceImpl, IDisposable
 
     void IViewerServiceImpl.HandleFrame(string displayId, ulong frameNumber, FrameCodec codec, FrameRegion[] regions)
     {
+        // Track current display from incoming frames
+        bool displayChanged;
+        using (this._displayLock.EnterScope())
+        {
+            displayChanged = this._currentDisplayId != displayId;
+            if (displayChanged)
+            {
+                this._currentDisplayId = displayId;
+            }
+        }
+
+        if (displayChanged)
+        {
+            this.CurrentDisplayChanged?.Invoke(this, EventArgs.Empty);
+        }
+
         var args = new FrameReceivedEventArgs(displayId, frameNumber, codec, regions);
         this.FrameReady?.Invoke(this, args);
     }
@@ -209,5 +353,6 @@ public sealed class ViewerConnectionService : IViewerServiceImpl, IDisposable
 
         this._windowsKeyBlockerService.WindowsKeyDown -= this.WindowsKeyBlocker_WindowsKeyDown;
         this._windowsKeyBlockerService.WindowsKeyUp -= this.WindowsKeyBlocker_WindowsKeyUp;
+        this._connection.ConnectionPropertiesChanged -= this.Connection_ConnectionPropertiesChanged;
     }
 }

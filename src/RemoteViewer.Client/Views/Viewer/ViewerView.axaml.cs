@@ -1,7 +1,10 @@
 ﻿using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Avalonia.Win32.Input;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -97,6 +100,28 @@ public partial class ViewerView : Window, IDisposable
         if (files.Count > 0 && files[0].TryGetLocalPath() is { } path)
         {
             await this._viewModel.SendFileFromPathAsync(path);
+        }
+    }
+
+    private async void DisplaySelectButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    {
+        // Execute command and close the parent flyout when a display is selected
+        if (sender is Button button)
+        {
+            // Execute the command with the display parameter
+            if (button.Command is { } command && command.CanExecute(button.CommandParameter))
+            {
+                command.Execute(button.CommandParameter);
+            }
+
+            // Small delay to ensure async command starts before closing
+            await Task.Delay(50);
+
+            var flyoutPresenter = button.FindAncestorOfType<FlyoutPresenter>();
+            if (flyoutPresenter?.Parent is Popup popup)
+            {
+                popup.IsOpen = false;
+            }
         }
     }
     #endregion

@@ -1,9 +1,9 @@
 ﻿using System.Collections.Immutable;
-using RemoteViewer.Client.Services.Screenshot;
+using RemoteViewer.Server.SharedAPI;
 
 namespace RemoteViewer.Client.Services.Displays;
 
 public interface IDisplayService
 {
-    Task<ImmutableList<Display>> GetDisplays(CancellationToken ct);
+    Task<ImmutableList<DisplayInfo>> GetDisplays(CancellationToken ct);
 }

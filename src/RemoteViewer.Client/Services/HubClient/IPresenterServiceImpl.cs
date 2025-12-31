@@ -14,6 +14,7 @@ internal interface IPresenterServiceImpl
     // Display selection
     string? GetViewerDisplayId(string viewerClientId);
     Task<string?> CycleViewerDisplayAsync(string viewerClientId, CancellationToken ct = default);
+    Task<string?> SelectViewerDisplayAsync(string viewerClientId, string displayId, CancellationToken ct = default);
     Task<List<string>> GetViewerIdsWatchingDisplayAsync(string displayId, CancellationToken ct = default);
     Task<HashSet<string>> GetDisplaysWithViewers(CancellationToken ct = default);
 }

@@ -3,6 +3,7 @@ using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.ScreenCapture;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.VideoCodec;
+using RemoteViewer.Server.SharedAPI;
 
 namespace RemoteViewer.Client.Services.HubClient;
 
@@ -108,7 +109,7 @@ public sealed class PresenterCaptureService : IDisposable
                 {
                     if (this._pipelines.ContainsKey(displayId) is false)
                     {
-                        var display = availableDisplays.FirstOrDefault(d => d.Name == displayId);
+                        var display = availableDisplays.FirstOrDefault(d => d.Id == displayId);
                         if (display is not null)
                         {
                             this._logger.StartingPipeline(displayId);
@@ -126,7 +127,7 @@ public sealed class PresenterCaptureService : IDisposable
         this._logger.MonitorLoopStopped();
     }
 
-    private void StartPipelineForDisplay(Display display)
+    private void StartPipelineForDisplay(DisplayInfo display)
     {
         var pipeline = new DisplayCapturePipeline(
             display,
@@ -136,12 +137,12 @@ public sealed class PresenterCaptureService : IDisposable
             () => this.TargetFps,
             this._loggerFactory.CreateLogger<DisplayCapturePipeline>());
 
-        this._pipelines[display.Name] = pipeline;
+        this._pipelines[display.Id] = pipeline;
     }
 
-    private void StopPipelineForDisplay(string displayName)
+    private void StopPipelineForDisplay(string displayId)
     {
-        if (this._pipelines.Remove(displayName, out var pipeline))
+        if (this._pipelines.Remove(displayId, out var pipeline))
         {
             pipeline.Dispose();
         }

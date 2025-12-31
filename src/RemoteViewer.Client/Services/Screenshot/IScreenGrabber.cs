@@ -1,4 +1,5 @@
 ﻿using RemoteViewer.Client.Common;
+using RemoteViewer.Server.SharedAPI;
 
 namespace RemoteViewer.Client.Services.Screenshot;
 
@@ -7,7 +8,7 @@ public interface IScreenGrabber
     bool IsAvailable { get; }
     int Priority { get; }
 
-    Task<GrabResult> CaptureDisplay(Display display, bool forceKeyframe, CancellationToken ct);
+    Task<GrabResult> CaptureDisplay(DisplayInfo display, bool forceKeyframe, CancellationToken ct);
 }
 
 public readonly record struct GrabResult(

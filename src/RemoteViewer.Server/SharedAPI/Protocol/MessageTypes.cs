@@ -9,6 +9,9 @@ public static class MessageTypes
     {
         /// <summary>Request to switch to the next display (Viewer → Presenter)</summary>
         public const string Switch = "display.switch";
+
+        /// <summary>Request to switch to a specific display (Viewer → Presenter)</summary>
+        public const string Select = "display.select";
     }
 
     public static class Screen

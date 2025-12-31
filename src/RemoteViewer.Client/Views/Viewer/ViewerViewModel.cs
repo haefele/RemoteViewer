@@ -1,11 +1,13 @@
-﻿using Avalonia.Threading;
+﻿using System.Collections.Immutable;
+using System.Collections.ObjectModel;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Controls.Toasts;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.ViewModels;
-using System.Collections.ObjectModel;
+using RemoteViewer.Server.SharedAPI;
 
 namespace RemoteViewer.Client.Views.Viewer;
 
@@ -33,6 +35,10 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         this.Connection.ParticipantsChanged += this.Connection_ParticipantsChanged;
         this.Connection.ConnectionPropertiesChanged += this.Connection_ConnectionPropertiesChanged;
         this.Connection.Closed += this.Connection_Closed;
+
+        var viewerService = this.Connection.RequiredViewerService;
+        viewerService.AvailableDisplaysChanged += this.ViewerService_AvailableDisplaysChanged;
+        viewerService.CurrentDisplayChanged += this.ViewerService_CurrentDisplayChanged;
     }
     #endregion
 
@@ -146,11 +152,77 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         if (this.IsFullscreen)
             this.IsToolbarVisible = false;
     }
+    #endregion
+
+    #region Display Navigation
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(NavigateLeftCommand))]
+    [NotifyCanExecuteChangedFor(nameof(NavigateRightCommand))]
+    private ImmutableList<DisplayInfo> _availableDisplays = [];
+
+    [ObservableProperty]
+    private string? _currentDisplayId;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(NavigateLeftCommand))]
+    private bool _canNavigateLeft;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(NavigateRightCommand))]
+    private bool _canNavigateRight;
+
+    private void ViewerService_AvailableDisplaysChanged(object? sender, EventArgs e)
+    {
+        Dispatcher.UIThread.Post(this.UpdateDisplayState);
+    }
+
+    private void ViewerService_CurrentDisplayChanged(object? sender, EventArgs e)
+    {
+        Dispatcher.UIThread.Post(this.UpdateDisplayState);
+    }
+
+    private void UpdateDisplayState()
+    {
+        var viewerService = this.Connection.RequiredViewerService;
+        this.AvailableDisplays = viewerService.AvailableDisplays;
+
+        this.CurrentDisplayId = viewerService.CurrentDisplay?.Id;
+
+        this.CanNavigateLeft = viewerService.GetLeftAdjacentDisplay() is not null;
+        this.CanNavigateRight = viewerService.GetRightAdjacentDisplay() is not null;
+    }
+
+    private bool CanNavigateLeftExecute() => this.CanNavigateLeft;
+    [RelayCommand(CanExecute = nameof(CanNavigateLeftExecute))]
+    private async Task NavigateLeft()
+    {
+        var leftDisplay = this.Connection.RequiredViewerService.GetLeftAdjacentDisplay();
+        if (leftDisplay is not null)
+        {
+            await this.Connection.RequiredViewerService.SelectDisplayAsync(leftDisplay.Id);
+        }
+    }
+
+    private bool CanNavigateRightExecute() => this.CanNavigateRight;
+    [RelayCommand(CanExecute = nameof(CanNavigateRightExecute))]
+    private async Task NavigateRight()
+    {
+        var rightDisplay = this.Connection.RequiredViewerService.GetRightAdjacentDisplay();
+        if (rightDisplay is not null)
+        {
+            await this.Connection.RequiredViewerService.SelectDisplayAsync(rightDisplay.Id);
+        }
+    }
+
+    [RelayCommand]
+    private async Task SelectDisplay(DisplayInfo display)
+    {
+        await this.Connection.RequiredViewerService.SelectDisplayAsync(display.Id);
+    }
 
     [RelayCommand]
     private async Task NextDisplay()
     {
-        this.Toasts.Info("Switching display...");
         await this.Connection.RequiredViewerService.SwitchDisplayAsync();
     }
     #endregion
@@ -201,6 +273,13 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
         this.Connection.ParticipantsChanged -= this.Connection_ParticipantsChanged;
         this.Connection.ConnectionPropertiesChanged -= this.Connection_ConnectionPropertiesChanged;
         this.Connection.Closed -= this.Connection_Closed;
+
+        var viewerService = this.Connection.ViewerService;
+        if (viewerService is not null)
+        {
+            viewerService.AvailableDisplaysChanged -= this.ViewerService_AvailableDisplaysChanged;
+            viewerService.CurrentDisplayChanged -= this.ViewerService_CurrentDisplayChanged;
+        }
 
         GC.SuppressFinalize(this);
     }

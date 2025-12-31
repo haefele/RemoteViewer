@@ -11,6 +11,8 @@ namespace RemoteViewer.Server.SharedAPI;
 // Hub types
 [GenerateShapeFor<ConnectionInfo>]
 [GenerateShapeFor<ConnectionProperties>]
+[GenerateShapeFor<DisplayInfo>]
+[GenerateShapeFor<List<DisplayInfo>>]
 [GenerateShapeFor<TryConnectError>]
 [GenerateShapeFor<TryConnectError?>]
 [GenerateShapeFor<MessageDestination>]

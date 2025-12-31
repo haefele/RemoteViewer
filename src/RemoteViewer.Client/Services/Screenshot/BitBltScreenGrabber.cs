@@ -4,6 +4,7 @@ using System.Drawing;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Common;
+using RemoteViewer.Server.SharedAPI;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.Graphics.Gdi;
@@ -19,10 +20,10 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : I
     public bool IsAvailable => OperatingSystem.IsWindows();
     public int Priority => 50;
 
-    public unsafe Task<GrabResult> CaptureDisplay(Display display, bool forceKeyframe, CancellationToken ct)
+    public unsafe Task<GrabResult> CaptureDisplay(DisplayInfo display, bool forceKeyframe, CancellationToken ct)
     {
-        var width = display.Bounds.Width;
-        var height = display.Bounds.Height;
+        var width = display.Width;
+        var height = display.Height;
         var bufferSize = width * height * 4;
 
         var sourceDC = HDC.Null;
@@ -91,8 +92,8 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : I
                 width,
                 height,
                 sourceDC,
-                display.Bounds.Left,
-                display.Bounds.Top,
+                display.Left,
+                display.Top,
                 ROP_CODE.SRCCOPY) == false)
             {
                 var errorCode = Marshal.GetLastWin32Error();
@@ -109,11 +110,11 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : I
             }
 
             // Apply software diff detection
-            return Task.FromResult(this.ApplyDiffDetection(display.Name, frameMemory, width, height, forceKeyframe));
+            return Task.FromResult(this.ApplyDiffDetection(display.Id, frameMemory, width, height, forceKeyframe));
         }
         catch (Exception exception)
         {
-            logger.LogError(exception, "Exception occurred while capturing display {DisplayName}", display.Name);
+            logger.LogError(exception, "Exception occurred while capturing display {DisplayId}", display.Id);
             return Task.FromResult(new GrabResult(GrabStatus.Failure, null, null, null));
         }
         finally
@@ -142,13 +143,13 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : I
     }
 
     private GrabResult ApplyDiffDetection(
-        string displayName,
+        string displayId,
         RefCountedMemoryOwner frameMemory,
         int width,
         int height,
         bool forceKeyframe)
     {
-        var state = this.GetOrCreateDisplayState(displayName);
+        var state = this.GetOrCreateDisplayState(displayId);
 
         using (state.CaptureLock.EnterScope())
         {
@@ -206,9 +207,9 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : I
         }
     }
 
-    private BitBltDisplayState GetOrCreateDisplayState(string displayName)
+    private BitBltDisplayState GetOrCreateDisplayState(string displayId)
     {
-        return this._displayStates.GetOrAdd(displayName, _ => new BitBltDisplayState());
+        return this._displayStates.GetOrAdd(displayId, _ => new BitBltDisplayState());
     }
 
 

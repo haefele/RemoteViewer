@@ -5,6 +5,7 @@
         xmlns:toastControls="using:RemoteViewer.Client.Controls.Toasts"
         xmlns:mi="using:Material.Icons.Avalonia"
         xmlns:mik="using:Material.Icons"
+        xmlns:dto="using:RemoteViewer.Server.SharedAPI"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         x:Class="RemoteViewer.Client.Views.Viewer.ViewerView"
@@ -68,13 +69,57 @@
                                      Width="20" Height="20"/>
                 </Button>
 
-                <!-- Switch display button -->
-                <Button Command="{Binding NextDisplayCommand}"
-                        ToolTip.Tip="Switch display"
+                <!-- Display selection flyout -->
+                <Button ToolTip.Tip="Select display"
                         Background="Transparent"
                         BorderThickness="0"
                         Width="32" Height="32"
                         Padding="0">
+                    <Button.Flyout>
+                        <Flyout Placement="Bottom">
+                            <StackPanel MinWidth="220" Spacing="2">
+                                <TextBlock Text="Select Display"
+                                           FontWeight="SemiBold"
+                                           Margin="8,4,8,8"/>
+                                <ItemsControl ItemsSource="{Binding AvailableDisplays}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="dto:DisplayInfo">
+                                            <Button Command="{Binding $parent[Window].((vm:ViewerViewModel)DataContext).SelectDisplayCommand}"
+                                                    CommandParameter="{Binding}"
+                                                    Click="DisplaySelectButton_Click"
+                                                    HorizontalAlignment="Stretch"
+                                                    HorizontalContentAlignment="Left"
+                                                    Background="Transparent"
+                                                    Padding="8,6"
+                                                    CornerRadius="4">
+                                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                                    <mi:MaterialIcon Grid.Column="0"
+                                                                     Kind="{Binding IsPrimary, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.MonitorStar}, FalseValue={x:Static mik:MaterialIconKind.Monitor}}}"
+                                                                     Width="16" Height="16"
+                                                                     Margin="0,0,8,0"/>
+                                                    <TextBlock Grid.Column="1"
+                                                               Text="{Binding FriendlyName}"
+                                                               VerticalAlignment="Center"/>
+                                                    <mi:MaterialIcon Grid.Column="2"
+                                                                     Kind="Check"
+                                                                     Width="16" Height="16"
+                                                                     Margin="8,0,0,0"
+                                                                     Foreground="#4CAF50">
+                                                        <mi:MaterialIcon.IsVisible>
+                                                            <MultiBinding Converter="{x:Static conv:EqualityConverter.Instance}">
+                                                                <Binding Path="Id"/>
+                                                                <Binding Path="$parent[Window].((vm:ViewerViewModel)DataContext).CurrentDisplayId"/>
+                                                            </MultiBinding>
+                                                        </mi:MaterialIcon.IsVisible>
+                                                    </mi:MaterialIcon>
+                                                </Grid>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
                     <mi:MaterialIcon Kind="MonitorMultiple" Width="20" Height="20"/>
                 </Button>
 
@@ -208,6 +253,46 @@
                        VerticalAlignment="Center"
                        IsHitTestVisible="False"
                        IsVisible="False"/>
+
+                <!-- Left navigation arrow -->
+                <Button Command="{Binding NavigateLeftCommand}"
+                        IsVisible="{Binding CanNavigateLeft}"
+                        HorizontalAlignment="Left"
+                        VerticalAlignment="Center"
+                        Margin="16,0"
+                        Width="48" Height="80"
+                        Background="#80000000"
+                        BorderThickness="0"
+                        CornerRadius="8"
+                        Opacity="0.6"
+                        ToolTip.Tip="Navigate to left display">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover">
+                            <Setter Property="Opacity" Value="1"/>
+                        </Style>
+                    </Button.Styles>
+                    <mi:MaterialIcon Kind="ChevronLeft" Width="32" Height="32" Foreground="White"/>
+                </Button>
+
+                <!-- Right navigation arrow -->
+                <Button Command="{Binding NavigateRightCommand}"
+                        IsVisible="{Binding CanNavigateRight}"
+                        HorizontalAlignment="Right"
+                        VerticalAlignment="Center"
+                        Margin="16,0"
+                        Width="48" Height="80"
+                        Background="#80000000"
+                        BorderThickness="0"
+                        CornerRadius="8"
+                        Opacity="0.6"
+                        ToolTip.Tip="Navigate to right display">
+                    <Button.Styles>
+                        <Style Selector="Button:pointerover">
+                            <Setter Property="Opacity" Value="1"/>
+                        </Style>
+                    </Button.Styles>
+                    <mi:MaterialIcon Kind="ChevronRight" Width="32" Height="32" Foreground="White"/>
+                </Button>
             </Panel>
         </Border>
 

@@ -378,7 +378,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
             this.Id = id;
             this.Presenter = presenter;
             this._logger = logger;
-            this.Properties = new ConnectionProperties(CanSendSecureAttentionSequence: false, InputBlockedViewerIds: []);
+            this.Properties = new ConnectionProperties(CanSendSecureAttentionSequence: false, InputBlockedViewerIds: [], AvailableDisplays: []);
 
             this._logger.ConnectionCreated(id, presenter.Id);
         }

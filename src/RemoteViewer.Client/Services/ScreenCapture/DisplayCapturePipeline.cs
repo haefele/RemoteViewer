@@ -5,13 +5,14 @@ using RemoteViewer.Client.Common;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.VideoCodec;
+using RemoteViewer.Server.SharedAPI;
 using RemoteViewer.Server.SharedAPI.Protocol;
 
 namespace RemoteViewer.Client.Services.ScreenCapture;
 
 public sealed class DisplayCapturePipeline : IDisposable
 {
-    private readonly Display _display;
+    private readonly DisplayInfo _display;
     private readonly Connection _connection;
     private readonly IScreenshotService _screenshotService;
     private readonly IFrameEncoder _frameEncoder;
@@ -32,7 +33,7 @@ public sealed class DisplayCapturePipeline : IDisposable
     public bool IsFaulted { get; private set; }
 
     public DisplayCapturePipeline(
-        Display display,
+        DisplayInfo display,
         Connection connection,
         IScreenshotService screenshotService,
         IFrameEncoder frameEncoder,
@@ -46,7 +47,7 @@ public sealed class DisplayCapturePipeline : IDisposable
         this._getTargetFps = getTargetFps;
         this._logger = logger;
 
-        this._logger.PipelineStarted(display.Name);
+        this._logger.PipelineStarted(display.Id);
 
         this._captureToEncodeChannel = Channel.CreateBounded<CapturedFrame>(
             new BoundedChannelOptions(1)
@@ -74,7 +75,7 @@ public sealed class DisplayCapturePipeline : IDisposable
 
     private async Task CaptureLoopAsync(CancellationToken ct)
     {
-        this._logger.CaptureLoopStarted(this._display.Name);
+        this._logger.CaptureLoopStarted(this._display.Id);
 
         var frameStartTimestamp = Stopwatch.GetTimestamp();
 
@@ -91,7 +92,7 @@ public sealed class DisplayCapturePipeline : IDisposable
 
                     if (this._captureToEncodeChannel.Writer.TryWrite(frame) is false)
                     {
-                        this._logger.CapturedFrameDropped(this._display.Name, frameNumber);
+                        this._logger.CapturedFrameDropped(this._display.Id, frameNumber);
                         frame.Dispose();
                     }
 
@@ -109,7 +110,7 @@ public sealed class DisplayCapturePipeline : IDisposable
                 }
                 else
                 {
-                    this._logger.ScreenGrabFailed(this._display.Name, grabResult.Status);
+                    this._logger.ScreenGrabFailed(this._display.Id, grabResult.Status);
                     grabResult.Dispose();
                     await Task.Delay(10, ct);
                 }
@@ -121,19 +122,19 @@ public sealed class DisplayCapturePipeline : IDisposable
         }
         catch (Exception ex)
         {
-            this._logger.CaptureLoopFailed(ex, this._display.Name);
+            this._logger.CaptureLoopFailed(ex, this._display.Id);
             this.IsFaulted = true;
         }
         finally
         {
             this._captureToEncodeChannel.Writer.Complete();
-            this._logger.CaptureLoopCompleted(this._display.Name);
+            this._logger.CaptureLoopCompleted(this._display.Id);
         }
     }
 
     private async Task EncodeLoopAsync(CancellationToken ct)
     {
-        this._logger.EncodeLoopStarted(this._display.Name);
+        this._logger.EncodeLoopStarted(this._display.Id);
 
         try
         {
@@ -143,14 +144,14 @@ public sealed class DisplayCapturePipeline : IDisposable
                 {
                     var (codec, encodedRegions) = this._frameEncoder.ProcessFrame(
                         capturedFrame.GrabResult,
-                        this._display.Bounds.Width,
-                        this._display.Bounds.Height);
+                        this._display.Width,
+                        this._display.Height);
 
                     var frame = new EncodedFrame(capturedFrame.FrameNumber, codec, encodedRegions);
 
                     if (this._encodeToSendChannel.Writer.TryWrite(frame) is false)
                     {
-                        this._logger.EncodedFrameDropped(this._display.Name, capturedFrame.FrameNumber);
+                        this._logger.EncodedFrameDropped(this._display.Id, capturedFrame.FrameNumber);
                         frame.Dispose();
                     }
                 }
@@ -162,19 +163,19 @@ public sealed class DisplayCapturePipeline : IDisposable
         }
         catch (Exception ex)
         {
-            this._logger.EncodeLoopFailed(ex, this._display.Name);
+            this._logger.EncodeLoopFailed(ex, this._display.Id);
             this.IsFaulted = true;
         }
         finally
         {
             this._encodeToSendChannel.Writer.Complete();
-            this._logger.EncodeLoopCompleted(this._display.Name);
+            this._logger.EncodeLoopCompleted(this._display.Id);
         }
     }
 
     private async Task SendLoopAsync(CancellationToken ct)
     {
-        this._logger.SendLoopStarted(this._display.Name);
+        this._logger.SendLoopStarted(this._display.Id);
         var reader = this._encodeToSendChannel.Reader;
 
         try
@@ -197,7 +198,7 @@ public sealed class DisplayCapturePipeline : IDisposable
                     }
 
                     await this._connection.SendFrameAsync(
-                        this._display.Name,
+                        this._display.Id,
                         encodedFrame.FrameNumber,
                         encodedFrame.Codec,
                         regions);
@@ -210,12 +211,12 @@ public sealed class DisplayCapturePipeline : IDisposable
         }
         catch (Exception ex)
         {
-            this._logger.SendLoopFailed(ex, this._display.Name);
+            this._logger.SendLoopFailed(ex, this._display.Id);
             this.IsFaulted = true;
         }
         finally
         {
-            this._logger.SendLoopCompleted(this._display.Name);
+            this._logger.SendLoopCompleted(this._display.Id);
         }
     }
 
@@ -232,7 +233,7 @@ public sealed class DisplayCapturePipeline : IDisposable
         this._encodeToSendChannel.DisposeItems();
 
         this._pipelineCts.Dispose();
-        this._logger.PipelineStopped(this._display.Name);
+        this._logger.PipelineStopped(this._display.Id);
     }
 
     private readonly record struct CapturedFrame(

@@ -16,15 +16,15 @@ internal static partial class PresenterCaptureServiceLogs
     [LoggerMessage(Level = LogLevel.Debug, Message = "Monitor loop stopped")]
     public static partial void MonitorLoopStopped(this ILogger logger);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Starting capture pipeline for display {DisplayName}")]
-    public static partial void StartingPipeline(this ILogger logger, string displayName);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Starting capture pipeline for display {DisplayId}")]
+    public static partial void StartingPipeline(this ILogger logger, string displayId);
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "Stopping capture pipeline for display {DisplayName}")]
-    public static partial void StoppingPipeline(this ILogger logger, string displayName);
+    [LoggerMessage(Level = LogLevel.Information, Message = "Stopping capture pipeline for display {DisplayId}")]
+    public static partial void StoppingPipeline(this ILogger logger, string displayId);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Faulted pipeline detected for display {DisplayName}, restarting")]
-    public static partial void FaultedPipelineDetected(this ILogger logger, string displayName);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Faulted pipeline detected for display {DisplayId}, restarting")]
+    public static partial void FaultedPipelineDetected(this ILogger logger, string displayId);
 
-    [LoggerMessage(Level = LogLevel.Debug, Message = "Display {DisplayName} requested but not found in display list")]
-    public static partial void DisplayNotFound(this ILogger logger, string displayName);
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Display {DisplayId} requested but not found in display list")]
+    public static partial void DisplayNotFound(this ILogger logger, string displayId);
 }
