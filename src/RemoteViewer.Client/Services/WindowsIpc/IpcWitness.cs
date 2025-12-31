@@ -3,6 +3,7 @@ using RemoteViewer.Client.Services.Screenshot;
 
 namespace RemoteViewer.Client.Services.WindowsIpc;
 
+[GenerateShapeFor<AuthenticateResult>]
 [GenerateShapeFor<DisplayDto>]
 [GenerateShapeFor<DisplayDto[]>]
 [GenerateShapeFor<SharedRegionInfo>]

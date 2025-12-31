@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR;
 using RemoteViewer.Server.Services;
 using RemoteViewer.Server.SharedAPI;
 using ConnectionInfo = RemoteViewer.Server.SharedAPI.ConnectionInfo;
@@ -16,15 +16,27 @@ public interface IConnectionHubClient
     Task MessageReceived(string connectionId, string senderClientId, string messageType, byte[] data);
 
     Task VersionMismatch(string serverVersion, string clientVersion);
+
+    Task IpcTokenValidated(string? connectionId);
 }
 
-public class ConnectionHub(IConnectionsService clientsService, ILogger<ConnectionHub> logger) : Hub<IConnectionHubClient>
+public class ConnectionHub(IConnectionsService clientsService, IIpcTokenService ipcTokenService, ILogger<ConnectionHub> logger) : Hub<IConnectionHubClient>
 {
     public override async Task OnConnectedAsync()
     {
         var httpContext = this.Context.GetHttpContext();
 
-        // Check if client version matches server version
+        // IPC token validation request - no version check needed
+        var ipcToken = httpContext?.Request.Headers["X-Ipc-Token"].ToString();
+        if (string.IsNullOrEmpty(ipcToken) is false)
+        {
+            var connectionId = ipcTokenService.ValidateAndConsumeToken(ipcToken);
+            await this.Clients.Caller.IpcTokenValidated(connectionId);
+            this.Context.Abort();
+            return;
+        }
+
+        // Normal client connection - check version
         var clientVersion = httpContext?.Request.Headers["X-Client-Version"].ToString();
         var serverVersion = ThisAssembly.AssemblyInformationalVersion;
 
@@ -75,5 +87,14 @@ public class ConnectionHub(IConnectionsService clientsService, ILogger<Connectio
     public async Task Disconnect(string connectionId)
     {
         await clientsService.DisconnectFromConnection(this.Context.ConnectionId, connectionId);
+    }
+
+    public string? GenerateIpcAuthToken(string connectionId)
+    {
+        // Only the presenter of a connection can generate IPC tokens
+        if (clientsService.IsPresenterOfConnection(this.Context.ConnectionId, connectionId) is false)
+            return null;
+
+        return ipcTokenService.GenerateToken(connectionId);
     }
 }

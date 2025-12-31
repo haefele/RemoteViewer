@@ -13,7 +13,10 @@ try
         .ReadFrom.Configuration(builder.Configuration)
         .CreateLogger();
 
+    builder.Services.AddSingleton(TimeProvider.System);
     builder.Services.AddSingleton<IConnectionsService, ConnectionsService>();
+    builder.Services.AddSingleton<IIpcTokenService, IpcTokenService>();
+    builder.Services.AddControllers();
     builder.Services
         .AddSignalR(f =>
         {
@@ -26,6 +29,7 @@ try
 
     app.UseStaticFiles();
 
+    app.MapControllers();
     app.MapHub<ConnectionHub>("/connection");
 
     app.MapGet("/", () => Results.Content("""

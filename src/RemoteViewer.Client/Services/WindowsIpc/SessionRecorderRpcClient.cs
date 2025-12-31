@@ -15,6 +15,9 @@ public sealed class SessionRecorderRpcClient : IAsyncDisposable
     private readonly SemaphoreSlim _connectionLock = new(1, 1);
     private readonly string _pipeName;
 
+    private readonly HashSet<string> _authenticatedConnectionIds = new(StringComparer.Ordinal);
+    private readonly Lock _authLock = new();
+
     private NamedPipeClientStream? _pipeClient;
     private JsonRpc? _jsonRpc;
     private ISessionRecorderRpc? _proxy;
@@ -44,6 +47,47 @@ public sealed class SessionRecorderRpcClient : IAsyncDisposable
     }
 
     public ISessionRecorderRpc? Proxy => this._proxy;
+
+    /// <summary>
+    /// Checks if a connectionId has been authenticated for IPC calls.
+    /// </summary>
+    public bool IsAuthenticatedFor(string connectionId)
+    {
+        using (this._authLock.EnterScope())
+        {
+            return this._authenticatedConnectionIds.Contains(connectionId);
+        }
+    }
+
+    /// <summary>
+    /// Authenticates the IPC connection for a specific presenter-viewer connection.
+    /// The connectionId is validated server-side and must be passed to subsequent RPC calls.
+    /// </summary>
+    /// <param name="token">The IPC auth token from the SignalR server.</param>
+    /// <param name="connectionId">The presenter-viewer connection ID.</param>
+    /// <returns>True if authentication succeeded.</returns>
+    public async Task<bool> AuthenticateForConnectionAsync(string token, string connectionId, CancellationToken ct)
+    {
+        if (this.IsConnected is false || this._proxy is null)
+        {
+            this._logger.LogWarning("Cannot authenticate - IPC not connected");
+            return false;
+        }
+
+        var result = await this._proxy.Authenticate(token, ct);
+        if (result.Success)
+        {
+            using (this._authLock.EnterScope())
+            {
+                this._authenticatedConnectionIds.Add(connectionId);
+            }
+            this._logger.LogInformation("IPC authenticated for connection: {ConnectionId}", connectionId);
+            return true;
+        }
+
+        this._logger.LogWarning("IPC authentication failed: {Error}", result.Error);
+        return false;
+    }
 
     private EventHandler? _connectionStatusChanged;
     public event EventHandler? ConnectionStatusChanged
@@ -129,6 +173,12 @@ public sealed class SessionRecorderRpcClient : IAsyncDisposable
         {
             await this._pipeClient.DisposeAsync();
             this._pipeClient = null;
+        }
+
+        // Clear authenticated connections - they'll need to re-authenticate after reconnect
+        using (this._authLock.EnterScope())
+        {
+            this._authenticatedConnectionIds.Clear();
         }
 
         this.IsConnected = false;

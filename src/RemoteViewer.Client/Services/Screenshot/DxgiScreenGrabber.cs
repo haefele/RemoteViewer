@@ -28,7 +28,7 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
 
     private readonly ConcurrentDictionary<string, DxOutput> _outputs = new();
 
-    public Task<GrabResult> CaptureDisplay(DisplayInfo display, bool forceKeyframe, CancellationToken ct)
+    public Task<GrabResult> CaptureDisplay(DisplayInfo display, bool forceKeyframe, string? connectionId, CancellationToken ct)
     {
         if (!OperatingSystem.IsOSPlatformVersionAtLeast("windows", 8))
             return Task.FromResult(new GrabResult(GrabStatus.Failure, null, null, null));

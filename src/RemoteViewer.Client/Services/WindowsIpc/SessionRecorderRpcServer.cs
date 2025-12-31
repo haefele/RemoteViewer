@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.Displays;
+using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.WindowsSession;
@@ -20,22 +22,90 @@ public class SessionRecorderRpcServer(
     private readonly Dictionary<string, SharedFrameBuffer> _displayBuffers = [];
     private readonly object _buffersLock = new();
 
-    public async Task<string> GetSharedMemoryToken(string displayId, CancellationToken ct)
+    // Authentication state
+    private readonly HashSet<string> _authenticatedConnections = [];
+    private readonly object _connectionsLock = new();
+
+    public async Task<AuthenticateResult> Authenticate(string token, CancellationToken ct)
     {
+        try
+        {
+            // Connect to SignalR with token header - server validates and returns connectionId
+            var connection = new HubConnectionBuilder()
+                .WithUrl($"{ConnectionHubClient.BaseUrl}/connection", options =>
+                {
+                    options.Headers.Add("X-Ipc-Token", token);
+                })
+                .Build();
+
+            var validationResult = new TaskCompletionSource<string?>();
+
+            connection.On<string?>("IpcTokenValidated", connectionId => validationResult.TrySetResult(connectionId));
+            connection.Closed += _ =>
+            {
+                validationResult.TrySetResult(null);
+                return Task.CompletedTask;
+            };
+
+            await connection.StartAsync(ct);
+
+            // Wait for validation result (server will abort connection after sending)
+            var validatedConnectionId = await validationResult.Task.WaitAsync(ct);
+
+            await connection.DisposeAsync();
+
+            if (validatedConnectionId is not null)
+            {
+                lock (this._connectionsLock)
+                {
+                    this._authenticatedConnections.Add(validatedConnectionId);
+                }
+                logger.ConnectionAuthenticated(validatedConnectionId);
+                return new AuthenticateResult(true, null);
+            }
+
+            logger.AuthenticationRejected();
+            return new AuthenticateResult(false, "Invalid or expired token");
+        }
+        catch (Exception ex)
+        {
+            logger.AuthenticationFailed(ex);
+            return new AuthenticateResult(false, "Failed to validate token");
+        }
+    }
+
+    private void ValidateConnectionId(string connectionId)
+    {
+        lock (this._connectionsLock)
+        {
+            if (!this._authenticatedConnections.Contains(connectionId))
+                throw new InvalidOperationException("Connection ID not authenticated");
+        }
+    }
+
+    public async Task<string> GetSharedMemoryToken(string connectionId, string displayId, CancellationToken ct)
+    {
+        this.ValidateConnectionId(connectionId);
+
         var display = await this.ResolveDisplayAsync(displayId, ct)
             ?? throw new ArgumentException($"Display not found: {displayId}");
 
         var buffer = this.EnsureDisplayBuffer(display);
         return buffer.Token;
     }
-    public async Task<DisplayDto[]> GetDisplays(CancellationToken ct)
+
+    public async Task<DisplayDto[]> GetDisplays(string connectionId, CancellationToken ct)
     {
-        var displays = await displayService.GetDisplays(ct);
+        this.ValidateConnectionId(connectionId);
+
+        var displays = await displayService.GetDisplays(null, ct);
         return displays.Select(d => d.ToIpcDto()).ToArray();
     }
 
-    public async Task<SharedFrameResult> CaptureDisplayShared(string displayId, bool forceKeyframe, CancellationToken ct)
+    public async Task<SharedFrameResult> CaptureDisplayShared(string connectionId, string displayId, bool forceKeyframe, CancellationToken ct)
     {
+        this.ValidateConnectionId(connectionId);
+
         win32SessionService.SwitchToInputDesktop();
 
         var display = await this.ResolveDisplayAsync(displayId, ct);
@@ -49,7 +119,7 @@ public class SessionRecorderRpcServer(
             await screenshotService.ForceKeyframe(displayId, ct);
         }
 
-        using var result = await screenshotService.CaptureDisplay(display, ct);
+        using var result = await screenshotService.CaptureDisplay(display, null, ct);
 
         if (result.Status != GrabStatus.Success)
         {
@@ -123,50 +193,62 @@ public class SessionRecorderRpcServer(
         }
     }
 
-    public async Task InjectMouseMove(string displayId, float normalizedX, float normalizedY, CancellationToken ct)
+    public async Task InjectMouseMove(string connectionId, string displayId, float normalizedX, float normalizedY, CancellationToken ct)
     {
+        this.ValidateConnectionId(connectionId);
+
         win32SessionService.SwitchToInputDesktop();
 
         var display = await this.ResolveDisplayAsync(displayId, ct);
         if (display is null) return;
 
-        await inputInjectionService.InjectMouseMove(display, normalizedX, normalizedY, ct);
+        await inputInjectionService.InjectMouseMove(display, normalizedX, normalizedY, null, ct);
     }
 
-    public async Task InjectMouseButton(string displayId, int button, bool isDown, float normalizedX, float normalizedY, CancellationToken ct)
+    public async Task InjectMouseButton(string connectionId, string displayId, int button, bool isDown, float normalizedX, float normalizedY, CancellationToken ct)
     {
+        this.ValidateConnectionId(connectionId);
+
         win32SessionService.SwitchToInputDesktop();
 
         var display = await this.ResolveDisplayAsync(displayId, ct);
         if (display is null) return;
 
-        await inputInjectionService.InjectMouseButton(display, (MouseButton)button, isDown, normalizedX, normalizedY, ct);
+        await inputInjectionService.InjectMouseButton(display, (MouseButton)button, isDown, normalizedX, normalizedY, null, ct);
     }
 
-    public async Task InjectMouseWheel(string displayId, float deltaX, float deltaY, float normalizedX, float normalizedY, CancellationToken ct)
+    public async Task InjectMouseWheel(string connectionId, string displayId, float deltaX, float deltaY, float normalizedX, float normalizedY, CancellationToken ct)
     {
+        this.ValidateConnectionId(connectionId);
+
         win32SessionService.SwitchToInputDesktop();
 
         var display = await this.ResolveDisplayAsync(displayId, ct);
         if (display is null) return;
 
-        await inputInjectionService.InjectMouseWheel(display, deltaX, deltaY, normalizedX, normalizedY, ct);
+        await inputInjectionService.InjectMouseWheel(display, deltaX, deltaY, normalizedX, normalizedY, null, ct);
     }
 
-    public Task InjectKey(ushort keyCode, bool isDown, CancellationToken ct)
+    public Task InjectKey(string connectionId, ushort keyCode, bool isDown, CancellationToken ct)
     {
+        this.ValidateConnectionId(connectionId);
+
         win32SessionService.SwitchToInputDesktop();
-        return inputInjectionService.InjectKey(keyCode, isDown, ct);
+        return inputInjectionService.InjectKey(keyCode, isDown, null, ct);
     }
 
-    public Task ReleaseAllModifiers(CancellationToken ct)
+    public Task ReleaseAllModifiers(string connectionId, CancellationToken ct)
     {
+        this.ValidateConnectionId(connectionId);
+
         win32SessionService.SwitchToInputDesktop();
-        return inputInjectionService.ReleaseAllModifiers(ct);
+        return inputInjectionService.ReleaseAllModifiers(null, ct);
     }
 
-    public Task<bool> SendSecureAttentionSequence(CancellationToken ct)
+    public Task<bool> SendSecureAttentionSequence(string connectionId, CancellationToken ct)
     {
+        this.ValidateConnectionId(connectionId);
+
         try
         {
             PInvoke.SendSAS(AsUser: true);
@@ -181,7 +263,7 @@ public class SessionRecorderRpcServer(
 
     private async Task<DisplayInfo?> ResolveDisplayAsync(string displayId, CancellationToken ct)
     {
-        var displays = await displayService.GetDisplays(ct);
+        var displays = await displayService.GetDisplays(null, ct);
         return displays.FirstOrDefault(d => d.Id == displayId);
     }
 

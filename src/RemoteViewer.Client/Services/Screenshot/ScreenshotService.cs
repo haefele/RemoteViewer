@@ -25,14 +25,14 @@ public sealed class ScreenshotService : IScreenshotService
             .ToArray();
     }
 
-    public async Task<GrabResult> CaptureDisplay(DisplayInfo display, CancellationToken ct)
+    public async Task<GrabResult> CaptureDisplay(DisplayInfo display, string? connectionId, CancellationToken ct)
     {
         var state = this.GetOrCreateDisplayState(display.Id);
         var keyframeDue = state.KeyframeTimer.ElapsedMilliseconds >= KeyframeIntervalMs || state.ForceNextKeyframe;
 
         foreach (var grabber in this._sortedGrabbers)
         {
-            var result = await grabber.CaptureDisplay(display, keyframeDue, ct);
+            var result = await grabber.CaptureDisplay(display, keyframeDue, connectionId, ct);
 
             if (result.Status == GrabStatus.NoChanges)
             {

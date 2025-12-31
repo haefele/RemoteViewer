@@ -16,14 +16,14 @@ public class IpcScreenGrabber(
     public bool IsAvailable => true;
     public int Priority => 200;
 
-    public async Task<GrabResult> CaptureDisplay(DisplayInfo display, bool forceKeyframe, CancellationToken ct)
+    public async Task<GrabResult> CaptureDisplay(DisplayInfo display, bool forceKeyframe, string? connectionId, CancellationToken ct)
     {
-        if (rpcClient.IsConnected is false)
+        if (connectionId is null || rpcClient.IsConnected is false || rpcClient.IsAuthenticatedFor(connectionId) is false)
             return new GrabResult { Status = GrabStatus.Failure };
 
         try
         {
-            var sharedResult = await rpcClient.Proxy!.CaptureDisplayShared(display.Id, forceKeyframe, ct);
+            var sharedResult = await rpcClient.Proxy!.CaptureDisplayShared(connectionId, display.Id, forceKeyframe, ct);
 
             if (sharedResult.Status != GrabStatus.Success)
                 return new GrabResult(sharedResult.Status, null, null, null);
@@ -32,7 +32,7 @@ public class IpcScreenGrabber(
             SharedFrameBuffer? buffer = null;
             if (sharedResult.HasFullFrame || sharedResult.DirtyRegions is not null)
             {
-                buffer = await this.EnsureDisplayBufferAsync(display, ct);
+                buffer = await this.EnsureDisplayBufferAsync(display, connectionId, ct);
             }
 
             // Read full frame from shared memory if present
@@ -83,7 +83,7 @@ public class IpcScreenGrabber(
         }
     }
 
-    private async Task<SharedFrameBuffer> EnsureDisplayBufferAsync(DisplayInfo display, CancellationToken ct)
+    private async Task<SharedFrameBuffer> EnsureDisplayBufferAsync(DisplayInfo display, string connectionId, CancellationToken ct)
     {
         await this._buffersLock.WaitAsync(ct);
         try
@@ -100,7 +100,7 @@ public class IpcScreenGrabber(
             }
 
             // Get the token from the server via secured RPC
-            var token = await rpcClient.Proxy!.GetSharedMemoryToken(display.Id, ct);
+            var token = await rpcClient.Proxy!.GetSharedMemoryToken(connectionId, display.Id, ct);
             var buffer = SharedFrameBuffer.OpenClient(token, display.Width, display.Height);
 
             this._displayBuffers[display.Id] = buffer;

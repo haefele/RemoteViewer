@@ -24,9 +24,9 @@ public class WindowsDisplayService(
         EagerRefreshThreshold = 0.8f,
     };
 
-    public async Task<ImmutableList<DisplayInfo>> GetDisplays(CancellationToken ct)
+    public async Task<ImmutableList<DisplayInfo>> GetDisplays(string? connectionId, CancellationToken ct)
     {
-        if (rpcClient?.IsConnected == true)
+        if (connectionId is not null && rpcClient is not null && rpcClient.IsConnected && rpcClient.IsAuthenticatedFor(connectionId))
         {
             try
             {
@@ -35,7 +35,7 @@ public class WindowsDisplayService(
                     async (_, ct2) =>
                     {
                         var proxy = rpcClient.Proxy!;
-                        var dtos = await proxy.GetDisplays(ct2);
+                        var dtos = await proxy.GetDisplays(connectionId, ct2);
                         logger.LogDebug("Retrieved {Count} displays from SessionRecorder service", dtos.Length);
                         return dtos.Select(d => d.ToDisplayInfo())
                             .OrderByDescending(d => d.IsPrimary)

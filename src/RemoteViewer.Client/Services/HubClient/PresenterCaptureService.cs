@@ -74,7 +74,7 @@ public sealed class PresenterCaptureService : IDisposable
 
             // Get display info outside the lock to avoid holding it during external calls
             var displayIdsWithViewers = await ((IPresenterServiceImpl)this._connection.RequiredPresenterService).GetDisplaysWithViewers(ct);
-            var availableDisplays = await this._displayService.GetDisplays(ct);
+            var availableDisplays = await this._displayService.GetDisplays(this._connection.ConnectionId, ct);
 
             using (this._pipelinesLock.EnterScope())
             {

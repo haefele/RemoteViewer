@@ -33,33 +33,38 @@ public class WindowsInputInjectionService : IInputInjectionService
         this._logger = logger;
     }
 
-    public Task InjectMouseMove(DisplayInfo display, float normalizedX, float normalizedY, CancellationToken ct)
+    public Task InjectMouseMove(DisplayInfo display, float normalizedX, float normalizedY, string? connectionId, CancellationToken ct)
         => this.ExecuteWithFallbackAsync(
-            () => this._rpcClient!.Proxy!.InjectMouseMove(display.Id, normalizedX, normalizedY, ct),
+            connectionId,
+            cid => this._rpcClient!.Proxy!.InjectMouseMove(cid, display.Id, normalizedX, normalizedY, ct),
             () => this.ActualInjectMouseMove(display, normalizedX, normalizedY, ct),
             "inject mouse move");
 
-    public Task InjectMouseButton(DisplayInfo display, ProtocolMouseButton button, bool isDown, float normalizedX, float normalizedY, CancellationToken ct)
+    public Task InjectMouseButton(DisplayInfo display, ProtocolMouseButton button, bool isDown, float normalizedX, float normalizedY, string? connectionId, CancellationToken ct)
         => this.ExecuteWithFallbackAsync(
-            () => this._rpcClient!.Proxy!.InjectMouseButton(display.Id, (int)button, isDown, normalizedX, normalizedY, ct),
+            connectionId,
+            cid => this._rpcClient!.Proxy!.InjectMouseButton(cid, display.Id, (int)button, isDown, normalizedX, normalizedY, ct),
             () => this.ActualInjectMouseButton(display, button, isDown, normalizedX, normalizedY, ct),
             "inject mouse button");
 
-    public Task InjectMouseWheel(DisplayInfo display, float deltaX, float deltaY, float normalizedX, float normalizedY, CancellationToken ct)
+    public Task InjectMouseWheel(DisplayInfo display, float deltaX, float deltaY, float normalizedX, float normalizedY, string? connectionId, CancellationToken ct)
         => this.ExecuteWithFallbackAsync(
-            () => this._rpcClient!.Proxy!.InjectMouseWheel(display.Id, deltaX, deltaY, normalizedX, normalizedY, ct),
+            connectionId,
+            cid => this._rpcClient!.Proxy!.InjectMouseWheel(cid, display.Id, deltaX, deltaY, normalizedX, normalizedY, ct),
             () => this.ActualInjectMouseWheel(display, deltaX, deltaY, normalizedX, normalizedY, ct),
             "inject mouse wheel");
 
-    public Task InjectKey(ushort keyCode, bool isDown, CancellationToken ct)
+    public Task InjectKey(ushort keyCode, bool isDown, string? connectionId, CancellationToken ct)
         => this.ExecuteWithFallbackAsync(
-            () => this._rpcClient!.Proxy!.InjectKey(keyCode, isDown, ct),
+            connectionId,
+            cid => this._rpcClient!.Proxy!.InjectKey(cid, keyCode, isDown, ct),
             () => this.ActualInjectKey(keyCode, isDown, ct),
             "inject key");
 
-    public Task ReleaseAllModifiers(CancellationToken ct)
+    public Task ReleaseAllModifiers(string? connectionId, CancellationToken ct)
         => this.ExecuteWithFallbackAsync(
-            () => this._rpcClient!.Proxy!.ReleaseAllModifiers(ct),
+            connectionId,
+            cid => this._rpcClient!.Proxy!.ReleaseAllModifiers(cid, ct),
             () => this.ActualReleaseAllModifiers(ct),
             "release modifiers");
 
@@ -179,13 +184,13 @@ public class WindowsInputInjectionService : IInputInjectionService
         return Task.CompletedTask;
     }
 
-    private async Task ExecuteWithFallbackAsync(Func<Task> ipcAction, Func<Task> localAction, string operationName)
+    private async Task ExecuteWithFallbackAsync(string? connectionId, Func<string, Task> ipcAction, Func<Task> localAction, string operationName)
     {
-        if (this._rpcClient?.IsConnected == true)
+        if (connectionId is not null && this._rpcClient is not null && this._rpcClient.IsConnected && this._rpcClient.IsAuthenticatedFor(connectionId))
         {
             try
             {
-                await ipcAction();
+                await ipcAction(connectionId);
                 return;
             }
             catch (Exception ex)

@@ -15,9 +15,9 @@ public sealed class ConnectionHubClient : IAsyncDisposable
     private readonly ConcurrentDictionary<string, Connection> _connections = new();
 
 #if DEBUG
-    private static readonly string s_baseUrl = "http://localhost:8080";
+    public static readonly string BaseUrl = "http://localhost:8080";
 #else
-    private static readonly string s_baseUrl = "https://rdp.xemio.net";
+    public static readonly string BaseUrl = "https://rdp.xemio.net";
 #endif
 
     public ConnectionHubClient(ILogger<ConnectionHubClient> logger, IServiceProvider serviceProvider)
@@ -26,7 +26,7 @@ public sealed class ConnectionHubClient : IAsyncDisposable
         this._serviceProvider = serviceProvider;
 
         this._connection = new HubConnectionBuilder()
-            .WithUrl($"{s_baseUrl}/connection", options =>
+            .WithUrl($"{BaseUrl}/connection", options =>
             {
                 options.Headers.Add("X-Client-Version", ThisAssembly.AssemblyInformationalVersion);
                 options.Headers.Add("X-Display-Name", this.DisplayName);
@@ -330,6 +330,23 @@ public sealed class ConnectionHubClient : IAsyncDisposable
         catch (Exception ex) when (!this.IsConnected)
         {
             this._logger.LogWarning(ex, "Failed to set connection properties - hub disconnected");
+        }
+    }
+
+    internal async Task<string?> GenerateIpcAuthTokenAsync(string connectionId)
+    {
+        if (!this.IsConnected)
+            return null;
+
+        try
+        {
+            this._logger.LogDebug("Generating IPC auth token for connection: {ConnectionId}", connectionId);
+            return await this._connection.InvokeAsync<string?>("GenerateIpcAuthToken", connectionId);
+        }
+        catch (Exception ex) when (!this.IsConnected)
+        {
+            this._logger.LogWarning(ex, "Failed to generate IPC auth token - hub disconnected");
+            return null;
         }
     }
 }

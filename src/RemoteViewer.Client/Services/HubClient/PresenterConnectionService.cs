@@ -61,7 +61,7 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
 
         try
         {
-            var displays = await this._displayService.GetDisplays(CancellationToken.None);
+            var displays = await this._displayService.GetDisplays(this._connection.ConnectionId, CancellationToken.None);
 
             if (this._lastSyncedDisplays is not null && this._lastSyncedDisplays.SequenceEqual(displays))
                 return;
@@ -91,7 +91,7 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
 
     async Task<string?> IPresenterServiceImpl.CycleViewerDisplayAsync(string viewerClientId, CancellationToken ct)
     {
-        var displays = await this._displayService.GetDisplays(ct);
+        var displays = await this._displayService.GetDisplays(this._connection.ConnectionId, ct);
         if (displays.Count == 0)
             return null;
 
@@ -127,7 +127,7 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
 
     async Task<string?> IPresenterServiceImpl.SelectViewerDisplayAsync(string viewerClientId, string displayId, CancellationToken ct)
     {
-        var displays = await this._displayService.GetDisplays(ct);
+        var displays = await this._displayService.GetDisplays(this._connection.ConnectionId, ct);
 
         // Validate the display exists
         var display = displays.FirstOrDefault(d => string.Equals(d.Id, displayId, StringComparison.Ordinal));
@@ -150,7 +150,7 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
     {
         var result = new List<string>();
 
-        var displays = await this._displayService.GetDisplays(ct);
+        var displays = await this._displayService.GetDisplays(this._connection.ConnectionId, ct);
         var primaryDisplayId = displays.FirstOrDefault(d => d.IsPrimary)?.Id;
         var viewers = this._connection.Viewers;
 
@@ -175,7 +175,7 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
     {
         var result = new HashSet<string>(StringComparer.Ordinal);
 
-        var displays = await this._displayService.GetDisplays(ct);
+        var displays = await this._displayService.GetDisplays(this._connection.ConnectionId, ct);
         var primaryDisplayId = displays.FirstOrDefault(d => d.IsPrimary)?.Id;
         var viewers = this._connection.Viewers;
 
@@ -207,13 +207,13 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
                 return;
 
             var displayId = ((IPresenterServiceImpl)this).GetViewerDisplayId(senderClientId);
-            var displays = await this._displayService.GetDisplays(CancellationToken.None);
+            var displays = await this._displayService.GetDisplays(this._connection.ConnectionId, CancellationToken.None);
             var display = displays.FirstOrDefault(d => d.Id == displayId) ?? displays.FirstOrDefault(d => d.IsPrimary);
 
             if (display is null)
                 return;
 
-            await this._inputInjectionService.InjectMouseMove(display, x, y, CancellationToken.None);
+            await this._inputInjectionService.InjectMouseMove(display, x, y, this._connection.ConnectionId, CancellationToken.None);
         }
         catch (Exception ex)
         {
@@ -232,13 +232,13 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
                 return;
 
             var displayId = ((IPresenterServiceImpl)this).GetViewerDisplayId(senderClientId);
-            var displays = await this._displayService.GetDisplays(CancellationToken.None);
+            var displays = await this._displayService.GetDisplays(this._connection.ConnectionId, CancellationToken.None);
             var display = displays.FirstOrDefault(d => d.Id == displayId) ?? displays.FirstOrDefault(d => d.IsPrimary);
 
             if (display is null)
                 return;
 
-            await this._inputInjectionService.InjectMouseButton(display, button, isDown, x, y, CancellationToken.None);
+            await this._inputInjectionService.InjectMouseButton(display, button, isDown, x, y, this._connection.ConnectionId, CancellationToken.None);
         }
         catch (Exception ex)
         {
@@ -257,13 +257,13 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
                 return;
 
             var displayId = ((IPresenterServiceImpl)this).GetViewerDisplayId(senderClientId);
-            var displays = await this._displayService.GetDisplays(CancellationToken.None);
+            var displays = await this._displayService.GetDisplays(this._connection.ConnectionId, CancellationToken.None);
             var display = displays.FirstOrDefault(d => d.Id == displayId) ?? displays.FirstOrDefault(d => d.IsPrimary);
 
             if (display is null)
                 return;
 
-            await this._inputInjectionService.InjectMouseWheel(display, deltaX, deltaY, x, y, CancellationToken.None);
+            await this._inputInjectionService.InjectMouseWheel(display, deltaX, deltaY, x, y, this._connection.ConnectionId, CancellationToken.None);
         }
         catch (Exception ex)
         {
@@ -281,7 +281,7 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
             if (this._connection.ConnectionProperties.InputBlockedViewerIds.Contains(senderClientId))
                 return;
 
-            await this._inputInjectionService.InjectKey(keyCode, isDown, CancellationToken.None);
+            await this._inputInjectionService.InjectKey(keyCode, isDown, this._connection.ConnectionId, CancellationToken.None);
         }
         catch (Exception ex)
         {
@@ -305,7 +305,7 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
                 return;
             }
 
-            var result = await this._rpcClient.Proxy.SendSecureAttentionSequence(CancellationToken.None);
+            var result = await this._rpcClient.Proxy.SendSecureAttentionSequence(this._connection.ConnectionId, CancellationToken.None);
             if (result)
             {
                 this._logger.LogInformation("Sent Ctrl+Alt+Del on behalf of viewer: {ViewerId}", senderClientId);
@@ -340,8 +340,7 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
     {
         try
         {
-            this._inputInjectionService.ReleaseAllModifiers(CancellationToken.None).GetAwaiter().GetResult();
-
+            this._inputInjectionService.ReleaseAllModifiers(this._connection.ConnectionId, CancellationToken.None).GetAwaiter().GetResult();
         }
         catch (Exception ex)
         {
@@ -363,7 +362,7 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
 
         this._localInputMonitor.StopMonitoring();
 
-        this._inputInjectionService.ReleaseAllModifiers(CancellationToken.None).GetAwaiter().GetResult();
+        this._inputInjectionService.ReleaseAllModifiers(this._connection.ConnectionId, CancellationToken.None).GetAwaiter().GetResult();
         GC.SuppressFinalize(this);
     }
 }

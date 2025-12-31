@@ -7,22 +7,27 @@ namespace RemoteViewer.Client.Services.WindowsIpc;
 [GenerateShape(IncludeMethods = MethodShapeFlags.PublicInstance)]
 public partial interface ISessionRecorderRpc
 {
+    // Authentication - validates IPC access for a connection
+    Task<AuthenticateResult> Authenticate(string token, CancellationToken ct);
+
     // Shared memory handshake - returns token for a specific display's shared memory
-    Task<string> GetSharedMemoryToken(string displayId, CancellationToken ct);
+    Task<string> GetSharedMemoryToken(string connectionId, string displayId, CancellationToken ct);
 
     // Display operations
-    Task<DisplayDto[]> GetDisplays(CancellationToken ct);
+    Task<DisplayDto[]> GetDisplays(string connectionId, CancellationToken ct);
 
     // Screenshot operations (shared memory for full frames, serialization for dirty regions)
-    Task<SharedFrameResult> CaptureDisplayShared(string displayId, bool forceKeyframe, CancellationToken ct);
+    Task<SharedFrameResult> CaptureDisplayShared(string connectionId, string displayId, bool forceKeyframe, CancellationToken ct);
 
     // Input injection operations
-    Task InjectMouseMove(string displayId, float normalizedX, float normalizedY, CancellationToken ct);
-    Task InjectMouseButton(string displayId, int button, bool isDown, float normalizedX, float normalizedY, CancellationToken ct);
-    Task InjectMouseWheel(string displayId, float deltaX, float deltaY, float normalizedX, float normalizedY, CancellationToken ct);
-    Task InjectKey(ushort keyCode, bool isDown, CancellationToken ct);
-    Task ReleaseAllModifiers(CancellationToken ct);
+    Task InjectMouseMove(string connectionId, string displayId, float normalizedX, float normalizedY, CancellationToken ct);
+    Task InjectMouseButton(string connectionId, string displayId, int button, bool isDown, float normalizedX, float normalizedY, CancellationToken ct);
+    Task InjectMouseWheel(string connectionId, string displayId, float deltaX, float deltaY, float normalizedX, float normalizedY, CancellationToken ct);
+    Task InjectKey(string connectionId, ushort keyCode, bool isDown, CancellationToken ct);
+    Task ReleaseAllModifiers(string connectionId, CancellationToken ct);
 
     // Secure Attention Sequence (Ctrl+Alt+Del)
-    Task<bool> SendSecureAttentionSequence(CancellationToken ct);
+    Task<bool> SendSecureAttentionSequence(string connectionId, CancellationToken ct);
 }
+
+public record AuthenticateResult(bool Success, string? Error);

@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Common;
 using RemoteViewer.Client.Services.FileTransfer;
+using RemoteViewer.Client.Services.WindowsIpc;
 using RemoteViewer.Server.SharedAPI;
 using RemoteViewer.Server.SharedAPI.Protocol;
 
@@ -39,10 +40,72 @@ public sealed class Connection : IConnectionImpl
         {
             this.PresenterCapture = ActivatorUtilities.CreateInstance<PresenterCaptureService>(this._serviceProvider, this);
             this.PresenterService = ActivatorUtilities.CreateInstance<PresenterConnectionService>(this._serviceProvider, this);
+
+            // Setup IPC authentication for presenter
+            this.SetupIpcAuthentication();
         }
         else
         {
             this.ViewerService = ActivatorUtilities.CreateInstance<ViewerConnectionService>(this._serviceProvider, this);
+        }
+    }
+
+    private SessionRecorderRpcClient? _rpcClient;
+    private Task? _ipcAuthTask;
+
+    private void SetupIpcAuthentication()
+    {
+        this._rpcClient = this._serviceProvider.GetService<SessionRecorderRpcClient>();
+        if (this._rpcClient is null)
+        {
+            this._logger.LogDebug("IPC client not available, skipping IPC authentication");
+            return;
+        }
+
+        // ConnectionStatusChanged fires immediately on subscribe if already connected
+        this._rpcClient.ConnectionStatusChanged += this.OnIpcConnectionStatusChanged;
+    }
+
+    private void OnIpcConnectionStatusChanged(object? sender, EventArgs e)
+    {
+        // Skip if closed, not connected, already authenticated, or auth already in progress
+        if (this.IsClosed || this._rpcClient is not { IsConnected: true })
+            return;
+        if (this._rpcClient.IsAuthenticatedFor(this.ConnectionId))
+            return;
+        if (this._ipcAuthTask is { IsCompleted: false })
+            return;
+
+        this._ipcAuthTask = this.AuthenticateIpcWithRetryAsync();
+    }
+
+    private async Task AuthenticateIpcWithRetryAsync()
+    {
+        while (this.IsClosed is false && this._rpcClient is { IsConnected: true } && this._rpcClient.IsAuthenticatedFor(this.ConnectionId) is false)
+        {
+            try
+            {
+                var token = await this.Owner.GenerateIpcAuthTokenAsync(this.ConnectionId);
+                if (token is null)
+                {
+                    this._logger.LogWarning("Failed to get IPC auth token from server");
+                    await Task.Delay(1000);
+                    continue;
+                }
+
+                if (await this._rpcClient.AuthenticateForConnectionAsync(token, this.ConnectionId, CancellationToken.None))
+                {
+                    this._logger.LogInformation("IPC authenticated for connection {ConnectionId}", this.ConnectionId);
+                    return;
+                }
+
+                await Task.Delay(1000);
+            }
+            catch (Exception ex)
+            {
+                this._logger.LogError(ex, "Error during IPC authentication");
+                await Task.Delay(1000);
+            }
         }
     }
 

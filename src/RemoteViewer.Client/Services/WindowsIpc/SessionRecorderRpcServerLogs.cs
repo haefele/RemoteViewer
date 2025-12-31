@@ -12,4 +12,13 @@ internal static partial class SessionRecorderRpcServerLogs
 
     [LoggerMessage(Level = LogLevel.Error, Message = "SendSAS failed")]
     public static partial void SendSasFailed(this ILogger logger, Exception ex);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Connection {ConnectionId} authenticated successfully")]
+    public static partial void ConnectionAuthenticated(this ILogger logger, string connectionId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Authentication rejected: invalid or expired token")]
+    public static partial void AuthenticationRejected(this ILogger logger);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Authentication failed")]
+    public static partial void AuthenticationFailed(this ILogger logger, Exception ex);
 }

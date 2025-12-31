@@ -20,7 +20,7 @@ public sealed class BitBltScreenGrabber(ILogger<BitBltScreenGrabber> logger) : I
     public bool IsAvailable => OperatingSystem.IsWindows();
     public int Priority => 50;
 
-    public unsafe Task<GrabResult> CaptureDisplay(DisplayInfo display, bool forceKeyframe, CancellationToken ct)
+    public unsafe Task<GrabResult> CaptureDisplay(DisplayInfo display, bool forceKeyframe, string? connectionId, CancellationToken ct)
     {
         var width = display.Width;
         var height = display.Height;
