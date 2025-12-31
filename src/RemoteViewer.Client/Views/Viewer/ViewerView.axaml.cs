@@ -146,6 +146,23 @@ public partial class ViewerView : Window, IDisposable
             return;
         }
 
+        // Ctrl+Arrow keys for display navigation
+        if (e.KeyModifiers == KeyModifiers.Control)
+        {
+            if (e.Key == Key.Left && this._viewModel.NavigateLeftCommand.CanExecute(null))
+            {
+                e.Handled = true;
+                this._viewModel.NavigateLeftCommand.Execute(null);
+                return;
+            }
+            if (e.Key == Key.Right && this._viewModel.NavigateRightCommand.CanExecute(null))
+            {
+                e.Handled = true;
+                this._viewModel.NavigateRightCommand.Execute(null);
+                return;
+            }
+        }
+
         if (!this._viewModel.IsInputEnabled)
             return;
 

@@ -97,9 +97,15 @@
                                                                      Kind="{Binding IsPrimary, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.MonitorStar}, FalseValue={x:Static mik:MaterialIconKind.Monitor}}}"
                                                                      Width="16" Height="16"
                                                                      Margin="0,0,8,0"/>
-                                                    <TextBlock Grid.Column="1"
-                                                               Text="{Binding FriendlyName}"
-                                                               VerticalAlignment="Center"/>
+                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                        <TextBlock Text="{Binding FriendlyName}"/>
+                                                        <TextBlock FontSize="11"
+                                                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}">
+                                                            <Run Text="{Binding Width}"/>
+                                                            <Run Text=" × "/>
+                                                            <Run Text="{Binding Height}"/>
+                                                        </TextBlock>
+                                                    </StackPanel>
                                                     <mi:MaterialIcon Grid.Column="2"
                                                                      Kind="Check"
                                                                      Width="16" Height="16"
@@ -179,7 +185,10 @@
                         Padding="0">
                     <Button.Flyout>
                         <Flyout Placement="Bottom">
-                            <StackPanel MinWidth="180">
+                            <StackPanel MinWidth="180" Spacing="2">
+                                <TextBlock Text="Participants"
+                                           FontWeight="SemiBold"
+                                           Margin="8,4,8,8"/>
                                 <ItemsControl ItemsSource="{Binding Participants}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="vm:ParticipantDisplay">
@@ -265,7 +274,7 @@
                         BorderThickness="0"
                         CornerRadius="8"
                         Opacity="0.6"
-                        ToolTip.Tip="Navigate to left display">
+                        ToolTip.Tip="Navigate to left display (Ctrl+Left)">
                     <Button.Styles>
                         <Style Selector="Button:pointerover">
                             <Setter Property="Opacity" Value="1"/>
@@ -285,7 +294,7 @@
                         BorderThickness="0"
                         CornerRadius="8"
                         Opacity="0.6"
-                        ToolTip.Tip="Navigate to right display">
+                        ToolTip.Tip="Navigate to right display (Ctrl+Right)">
                     <Button.Styles>
                         <Style Selector="Button:pointerover">
                             <Setter Property="Opacity" Value="1"/>
