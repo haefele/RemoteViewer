@@ -139,8 +139,7 @@ public sealed class Connection : IConnectionImpl
         return this.Owner.DisconnectAsync(this.ConnectionId);
     }
 
-    /// <summary>Viewer-only: Request to switch to the next display.</summary>
-    public async Task SwitchDisplayAsync()
+    async Task IConnectionImpl.SwitchDisplayAsync()
     {
         if (this.IsPresenter)
             throw new InvalidOperationException("SwitchDisplayAsync is only valid for viewers");
@@ -153,8 +152,7 @@ public sealed class Connection : IConnectionImpl
         this._logger.LogDebug("Requested display switch");
     }
 
-    /// <summary>Viewer-only: Send input to the presenter.</summary>
-    public async Task SendInputAsync(string messageType, ReadOnlyMemory<byte> data)
+    async Task IConnectionImpl.SendInputAsync(string messageType, ReadOnlyMemory<byte> data)
     {
         if (this.IsPresenter)
             throw new InvalidOperationException("SendInputAsync is only valid for viewers");
@@ -165,8 +163,7 @@ public sealed class Connection : IConnectionImpl
         await this.Owner.SendMessageAsync(this.ConnectionId, messageType, data, MessageDestination.PresenterOnly, null);
     }
 
-    /// <summary>Presenter-only: Send a frame to all viewers watching a specific display.</summary>
-    public async Task SendFrameAsync(
+    async Task IConnectionImpl.SendFrameAsync(
         string displayId,
         ulong frameNumber,
         FrameCodec codec,
@@ -198,8 +195,7 @@ public sealed class Connection : IConnectionImpl
         await this.Owner.SendMessageAsync(this.ConnectionId, MessageTypes.Screen.Frame, buffer.WrittenMemory, MessageDestination.SpecificClients, targetViewerIds);
     }
 
-    // File transfer: Send request - Bidirectional with optional targetClientId
-    public async Task SendFileSendRequestAsync(string transferId, string fileName, long fileSize, string? targetClientId = null)
+    async Task IConnectionImpl.SendFileSendRequestAsync(string transferId, string fileName, long fileSize, string? targetClientId)
     {
         if (this.IsClosed)
             return;
@@ -222,8 +218,7 @@ public sealed class Connection : IConnectionImpl
         }
     }
 
-    // File transfer: Send response - Bidirectional with optional targetClientId
-    public async Task SendFileSendResponseAsync(string transferId, bool accepted, string? error, string? targetClientId = null)
+    async Task IConnectionImpl.SendFileSendResponseAsync(string transferId, bool accepted, string? error, string? targetClientId)
     {
         if (this.IsClosed)
             return;
@@ -246,8 +241,7 @@ public sealed class Connection : IConnectionImpl
         }
     }
 
-    // File transfer: Chunk/Complete/Cancel/Error - Bidirectional with optional targetClientId
-    public async Task SendFileChunkAsync(FileChunkMessage chunk, string? targetClientId = null)
+    async Task IConnectionImpl.SendFileChunkAsync(FileChunkMessage chunk, string? targetClientId)
     {
         if (this.IsClosed)
             return;
@@ -269,7 +263,7 @@ public sealed class Connection : IConnectionImpl
         }
     }
 
-    public async Task SendFileCompleteAsync(string transferId, string? targetClientId = null)
+    async Task IConnectionImpl.SendFileCompleteAsync(string transferId, string? targetClientId)
     {
         if (this.IsClosed)
             return;
@@ -292,7 +286,7 @@ public sealed class Connection : IConnectionImpl
         }
     }
 
-    public async Task SendFileCancelAsync(string transferId, string reason, string? targetClientId = null)
+    async Task IConnectionImpl.SendFileCancelAsync(string transferId, string reason, string? targetClientId)
     {
         if (this.IsClosed)
             return;
@@ -315,7 +309,7 @@ public sealed class Connection : IConnectionImpl
         }
     }
 
-    public async Task SendFileErrorAsync(string transferId, string error, string? targetClientId = null)
+    async Task IConnectionImpl.SendFileErrorAsync(string transferId, string error, string? targetClientId)
     {
         if (this.IsClosed)
             return;
@@ -378,7 +372,7 @@ public sealed class Connection : IConnectionImpl
         }
     }
 
-    internal async Task UpdateConnectionPropertiesAndSend(Func<ConnectionProperties, ConnectionProperties> update)
+    public async Task UpdateConnectionPropertiesAndSend(Func<ConnectionProperties, ConnectionProperties> update)
     {
         ConnectionProperties properties;
         var changed = false;

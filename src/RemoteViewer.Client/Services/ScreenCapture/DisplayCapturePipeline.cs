@@ -197,7 +197,7 @@ public sealed class DisplayCapturePipeline : IDisposable
                             region.JpegData.Memory);
                     }
 
-                    await this._connection.SendFrameAsync(
+                    await ((IConnectionImpl)this._connection).SendFrameAsync(
                         this._display.Id,
                         encodedFrame.FrameNumber,
                         encodedFrame.Codec,

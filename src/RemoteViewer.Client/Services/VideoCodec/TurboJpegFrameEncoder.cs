@@ -10,6 +10,7 @@ namespace RemoteViewer.Client.Services.VideoCodec;
 public sealed class TurboJpegFrameEncoder : IFrameEncoder
 {
     private const int JpegQuality = 90;
+    private const int MaxPoolSize = 4;
 
     private readonly ConcurrentBag<TJCompressor> _compressorPool = new();
     private bool _disposed;
@@ -60,7 +61,7 @@ public sealed class TurboJpegFrameEncoder : IFrameEncoder
 
     private void ReturnCompressor(TJCompressor compressor)
     {
-        if (this._disposed)
+        if (this._disposed || this._compressorPool.Count >= MaxPoolSize)
         {
             compressor.Dispose();
             return;

@@ -1,13 +1,13 @@
 ﻿using CommunityToolkit.Mvvm.ComponentModel;
-using RemoteViewer.Client.Services.HubClient;
+using Microsoft.Extensions.Logging;
 using RemoteViewer.Server.SharedAPI.Protocol;
 
 namespace RemoteViewer.Client.Services.FileTransfer;
 
 public partial class FileReceiveOperation : ObservableObject, IFileTransfer
 {
-    private readonly Connection _connection;
     private readonly FileTransferService _fileTransferService;
+    private readonly ILogger _logger;
     private readonly Func<string, string, Task> _sendCancel;
     private FileStream? _fileStream;
     private bool _disposed;
@@ -16,12 +16,12 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
         string transferId,
         string fileName,
         long fileSize,
-        Connection connection,
         FileTransferService fileTransferService,
+        ILogger logger,
         Func<string, string, Task> sendCancel)
     {
-        this._connection = connection;
         this._fileTransferService = fileTransferService;
+        this._logger = logger;
         this._sendCancel = sendCancel;
 
         this.TransferId = transferId;
@@ -195,9 +195,9 @@ public partial class FileReceiveOperation : ObservableObject, IFileTransfer
             if (!string.IsNullOrEmpty(this.TempPath) && File.Exists(this.TempPath))
                 File.Delete(this.TempPath);
         }
-        catch
+        catch (Exception ex)
         {
-            // Ignore deletion errors
+            this._logger.LogWarning(ex, "Failed to delete temp file: {TempPath}", this.TempPath);
         }
     }
 

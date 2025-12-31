@@ -94,7 +94,7 @@ public partial class FileSendOperation : ObservableObject, IFileTransfer
         if (this._requiresAcceptance)
         {
             this.State = FileTransferState.WaitingForAcceptance;
-            await this._connection.SendFileSendRequestAsync(this.TransferId, this.FileName!, this.FileSize, this._targetClientId);
+            await ((IConnectionImpl)this._connection).SendFileSendRequestAsync(this.TransferId, this.FileName!, this.FileSize, this._targetClientId);
         }
         else
         {

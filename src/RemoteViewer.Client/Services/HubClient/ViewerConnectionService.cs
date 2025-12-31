@@ -151,7 +151,7 @@ public sealed class ViewerConnectionService : IViewerServiceImpl, IDisposable
         {
             using var buffer = PooledBufferWriter.Rent();
             ProtocolSerializer.Serialize(buffer, displayId);
-            await this._connection.SendInputAsync(MessageTypes.Display.Select, buffer.WrittenMemory);
+            await ((IConnectionImpl)this._connection).SendInputAsync(MessageTypes.Display.Select, buffer.WrittenMemory);
         }
         catch (Exception ex)
         {
@@ -166,7 +166,7 @@ public sealed class ViewerConnectionService : IViewerServiceImpl, IDisposable
             var message = new MouseMoveMessage(x, y);
             using var buffer = PooledBufferWriter.Rent();
             ProtocolSerializer.Serialize(buffer, message);
-            await this._connection.SendInputAsync(MessageTypes.Input.MouseMove, buffer.WrittenMemory);
+            await ((IConnectionImpl)this._connection).SendInputAsync(MessageTypes.Input.MouseMove, buffer.WrittenMemory);
         }
         catch (Exception ex)
         {
@@ -181,7 +181,7 @@ public sealed class ViewerConnectionService : IViewerServiceImpl, IDisposable
             var message = new MouseButtonMessage(button, x, y);
             using var buffer = PooledBufferWriter.Rent();
             ProtocolSerializer.Serialize(buffer, message);
-            await this._connection.SendInputAsync(MessageTypes.Input.MouseDown, buffer.WrittenMemory);
+            await ((IConnectionImpl)this._connection).SendInputAsync(MessageTypes.Input.MouseDown, buffer.WrittenMemory);
         }
         catch (Exception ex)
         {
@@ -196,7 +196,7 @@ public sealed class ViewerConnectionService : IViewerServiceImpl, IDisposable
             var message = new MouseButtonMessage(button, x, y);
             using var buffer = PooledBufferWriter.Rent();
             ProtocolSerializer.Serialize(buffer, message);
-            await this._connection.SendInputAsync(MessageTypes.Input.MouseUp, buffer.WrittenMemory);
+            await ((IConnectionImpl)this._connection).SendInputAsync(MessageTypes.Input.MouseUp, buffer.WrittenMemory);
         }
         catch (Exception ex)
         {
@@ -211,7 +211,7 @@ public sealed class ViewerConnectionService : IViewerServiceImpl, IDisposable
             var message = new MouseWheelMessage(deltaX, deltaY, x, y);
             using var buffer = PooledBufferWriter.Rent();
             ProtocolSerializer.Serialize(buffer, message);
-            await this._connection.SendInputAsync(MessageTypes.Input.MouseWheel, buffer.WrittenMemory);
+            await ((IConnectionImpl)this._connection).SendInputAsync(MessageTypes.Input.MouseWheel, buffer.WrittenMemory);
         }
         catch (Exception ex)
         {
@@ -228,7 +228,7 @@ public sealed class ViewerConnectionService : IViewerServiceImpl, IDisposable
             var message = new KeyMessage(keyCode, modifiers);
             using var buffer = PooledBufferWriter.Rent();
             ProtocolSerializer.Serialize(buffer, message);
-            await this._connection.SendInputAsync(MessageTypes.Input.KeyDown, buffer.WrittenMemory);
+            await ((IConnectionImpl)this._connection).SendInputAsync(MessageTypes.Input.KeyDown, buffer.WrittenMemory);
         }
         catch (Exception ex)
         {
@@ -245,7 +245,7 @@ public sealed class ViewerConnectionService : IViewerServiceImpl, IDisposable
             var message = new KeyMessage(keyCode, modifiers);
             using var buffer = PooledBufferWriter.Rent();
             ProtocolSerializer.Serialize(buffer, message);
-            await this._connection.SendInputAsync(MessageTypes.Input.KeyUp, buffer.WrittenMemory);
+            await ((IConnectionImpl)this._connection).SendInputAsync(MessageTypes.Input.KeyUp, buffer.WrittenMemory);
         }
         catch (Exception ex)
         {
@@ -267,7 +267,7 @@ public sealed class ViewerConnectionService : IViewerServiceImpl, IDisposable
                 var message = new KeyMessage(keyCode, KeyModifiers.None);
                 using var buffer = PooledBufferWriter.Rent();
                 ProtocolSerializer.Serialize(buffer, message);
-                await this._connection.SendInputAsync(MessageTypes.Input.KeyUp, buffer.WrittenMemory);
+                await ((IConnectionImpl)this._connection).SendInputAsync(MessageTypes.Input.KeyUp, buffer.WrittenMemory);
             }
             catch (Exception ex)
             {
@@ -280,7 +280,7 @@ public sealed class ViewerConnectionService : IViewerServiceImpl, IDisposable
     {
         try
         {
-            await this._connection.SendInputAsync(MessageTypes.Input.SecureAttentionSequence, ReadOnlyMemory<byte>.Empty);
+            await ((IConnectionImpl)this._connection).SendInputAsync(MessageTypes.Input.SecureAttentionSequence, ReadOnlyMemory<byte>.Empty);
             this._logger.LogInformation("Sent Ctrl+Alt+Del request");
         }
         catch (Exception ex)
@@ -291,17 +291,17 @@ public sealed class ViewerConnectionService : IViewerServiceImpl, IDisposable
 
     public async Task SwitchDisplayAsync()
     {
-        await this._connection.SwitchDisplayAsync();
+        await ((IConnectionImpl)this._connection).SwitchDisplayAsync();
     }
 
     private const ushort WindowsKeyCode = 0x5B;
 
-    public Task SendWindowsKeyDownAsync()
+    private Task SendWindowsKeyDownAsync()
     {
         return this.SendKeyDownAsync(WindowsKeyCode, KeyModifiers.None);
     }
 
-    public Task SendWindowsKeyUpAsync()
+    private Task SendWindowsKeyUpAsync()
     {
         return this.SendKeyUpAsync(WindowsKeyCode, KeyModifiers.None);
     }

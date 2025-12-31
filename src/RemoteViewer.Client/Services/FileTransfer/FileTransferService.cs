@@ -44,10 +44,10 @@ public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
             filePath,
             this._connection,
             this,
-            sendChunk: chunk => this._connection.SendFileChunkAsync(chunk),
-            sendComplete: tid => this._connection.SendFileCompleteAsync(tid),
-            sendCancel: (tid, reason) => this._connection.SendFileCancelAsync(tid, reason),
-            sendError: (tid, error) => this._connection.SendFileErrorAsync(tid, error),
+            sendChunk: chunk => ((IConnectionImpl)this._connection).SendFileChunkAsync(chunk, null),
+            sendComplete: tid => ((IConnectionImpl)this._connection).SendFileCompleteAsync(tid, null),
+            sendCancel: (tid, reason) => ((IConnectionImpl)this._connection).SendFileCancelAsync(tid, reason, null),
+            sendError: (tid, error) => ((IConnectionImpl)this._connection).SendFileErrorAsync(tid, error, null),
             requiresAcceptance: true);
 
         this.TrackSend(transfer);
@@ -66,10 +66,10 @@ public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
             filePath,
             this._connection,
             this,
-            sendChunk: chunk => this._connection.SendFileChunkAsync(chunk, targetClientId),
-            sendComplete: tid => this._connection.SendFileCompleteAsync(tid, targetClientId),
-            sendCancel: (tid, reason) => this._connection.SendFileCancelAsync(tid, reason, targetClientId),
-            sendError: (tid, error) => this._connection.SendFileErrorAsync(tid, error, targetClientId),
+            sendChunk: chunk => ((IConnectionImpl)this._connection).SendFileChunkAsync(chunk, targetClientId),
+            sendComplete: tid => ((IConnectionImpl)this._connection).SendFileCompleteAsync(tid, targetClientId),
+            sendCancel: (tid, reason) => ((IConnectionImpl)this._connection).SendFileCancelAsync(tid, reason, targetClientId),
+            sendError: (tid, error) => ((IConnectionImpl)this._connection).SendFileErrorAsync(tid, error, targetClientId),
             requiresAcceptance: true,
             targetClientId: targetClientId);
 
@@ -152,9 +152,9 @@ public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
                     transferId,
                     fileName,
                     fileSize,
-                    this._connection,
                     this,
-                    sendCancel: (tid, reason) => this._connection.SendFileCancelAsync(tid, reason, targetClientId));
+                    this._logger,
+                    sendCancel: (tid, reason) => ((IConnectionImpl)this._connection).SendFileCancelAsync(tid, reason, targetClientId));
 
                 if (this._cancelledTransfers.TryRemove(transferId, out _))
                 {
@@ -165,13 +165,13 @@ public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
                 this.TrackReceive(transfer);
                 await transfer.AcceptAsync();
                 this.Toasts?.AddTransfer(transfer, isUpload: false);
-                await this._connection.SendFileSendResponseAsync(transferId, true, null, targetClientId);
+                await ((IConnectionImpl)this._connection).SendFileSendResponseAsync(transferId, true, null, targetClientId);
                 this._logger.LogInformation("Accepted file upload: {TransferId} -> {DestinationPath}", transferId, transfer.DestinationPath);
             }
             else
             {
                 this._cancelledTransfers.TryRemove(transferId, out _);
-                await this._connection.SendFileSendResponseAsync(transferId, false, "The recipient declined the file transfer.", targetClientId);
+                await ((IConnectionImpl)this._connection).SendFileSendResponseAsync(transferId, false, "The recipient declined the file transfer.", targetClientId);
                 this._logger.LogInformation("Rejected file upload: {TransferId}", transferId);
             }
         });
