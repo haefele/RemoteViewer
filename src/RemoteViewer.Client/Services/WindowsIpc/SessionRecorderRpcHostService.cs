@@ -25,14 +25,17 @@ public class SessionRecorderRpcHostService(
         {
             try
             {
+                // Use large buffers for efficient frame data transfer (default 4KB is way too small)
+                const int pipeBufferSize = 1024 * 1024; // 1MB
+
                 var pipeServer = NamedPipeServerStreamAcl.Create(
                     pipeName,
                     PipeDirection.InOut,
                     NamedPipeServerStream.MaxAllowedServerInstances,
                     PipeTransmissionMode.Byte,
                     PipeOptions.Asynchronous,
-                    inBufferSize: 0,
-                    outBufferSize: 0,
+                    inBufferSize: pipeBufferSize,
+                    outBufferSize: pipeBufferSize,
                     pipeSecurity: CreatePipeSecurity());
 
                 logger.LogDebug("Waiting for client connection on pipe: {PipeName}", pipeName);
