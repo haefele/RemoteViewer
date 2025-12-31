@@ -1,4 +1,4 @@
-#if WINDOWS
+﻿#if WINDOWS
 using System.Collections.Immutable;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
@@ -37,7 +37,10 @@ public class WindowsDisplayService(
                         var proxy = rpcClient.Proxy!;
                         var dtos = await proxy.GetDisplays(ct2);
                         logger.LogDebug("Retrieved {Count} displays from SessionRecorder service", dtos.Length);
-                        return dtos.Select(d => d.ToDisplayInfo()).ToImmutableList();
+                        return dtos.Select(d => d.ToDisplayInfo())
+                            .OrderByDescending(d => d.IsPrimary)
+                            .ThenBy(d => d.FriendlyName)
+                            .ToImmutableList();
                     },
                     s_cacheOptions,
                     ct);
@@ -79,7 +82,10 @@ public class WindowsDisplayService(
                 logger.LogWarning("No displays found during enumeration");
             }
 
-            return Task.FromResult(displays.ToImmutableList());
+            return Task.FromResult(displays
+                .OrderByDescending(d => d.IsPrimary)
+                .ThenBy(d => d.FriendlyName)
+                .ToImmutableList());
 
             BOOL MonitorEnumCallback(HMONITOR hMonitor, HDC hdc, RECT* lprcMonitor, LPARAM dwData)
             {

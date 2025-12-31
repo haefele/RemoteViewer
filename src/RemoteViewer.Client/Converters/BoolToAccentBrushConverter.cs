@@ -14,11 +14,10 @@ public class BoolToAccentBrushConverter : IValueConverter
         if (value is not true)
             return Brushes.Transparent;
 
-        // Get accent color from theme resources
-        if (Application.Current?.TryGetResource("SystemAccentColor", Application.Current.ActualThemeVariant, out var resource) == true
-            && resource is Color accentColor)
+        if (Application.Current?.TryGetResource("SystemControlHighlightListAccentLowBrush", Application.Current.ActualThemeVariant, out var resource) == true
+            && resource is IBrush brush)
         {
-            return new SolidColorBrush(Color.FromArgb(40, accentColor.R, accentColor.G, accentColor.B));
+            return brush;
         }
 
         return Brushes.Transparent;

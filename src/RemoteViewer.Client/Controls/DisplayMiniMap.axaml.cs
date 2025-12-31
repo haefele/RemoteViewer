@@ -1,7 +1,6 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using Avalonia;
 using Avalonia.Controls;
-using Avalonia.Media;
 using RemoteViewer.Server.SharedAPI;
 
 namespace RemoteViewer.Client.Controls;
@@ -86,52 +85,22 @@ public partial class DisplayMiniMap : UserControl
         this.MapCanvas.Width = totalWidth * scale;
         this.MapCanvas.Height = totalHeight * scale;
 
-        // Get accent color from theme
-        var accentColor = Color.FromRgb(0, 120, 212); // fallback
-        if (Application.Current?.TryGetResource("SystemAccentColor", Application.Current.ActualThemeVariant, out var resource) == true
-            && resource is Color themeAccent)
-        {
-            accentColor = themeAccent;
-        }
-
-        var accentBackground = new SolidColorBrush(Color.FromArgb(60, accentColor.R, accentColor.G, accentColor.B));
-        var accentBorder = new SolidColorBrush(accentColor);
-        var accentForeground = new SolidColorBrush(accentColor);
-
         foreach (var display in displays)
         {
             var isCurrent = display.Id == this.CurrentDisplayId;
-
-            var textBlock = new TextBlock
-            {
-                Text = display.FriendlyName,
-                FontSize = 11,
-                FontWeight = isCurrent ? FontWeight.SemiBold : FontWeight.Normal,
-                TextTrimming = TextTrimming.CharacterEllipsis
-            };
-
-            if (isCurrent)
-            {
-                textBlock.Foreground = accentForeground;
-            }
 
             var button = new Button
             {
                 Width = Math.Max(display.Width * scale - gap, minDisplayWidth),
                 Height = Math.Max(display.Height * scale - gap, minDisplayHeight),
                 Tag = display,
-                Padding = new Thickness(4, 2),
-                CornerRadius = new CornerRadius(3),
-                HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center,
-                VerticalContentAlignment = Avalonia.Layout.VerticalAlignment.Center,
-                Content = textBlock
+                Content = new TextBlock { Text = display.FriendlyName }
             };
 
+            button.Classes.Add("DisplayButton");
             if (isCurrent)
             {
-                button.Background = accentBackground;
-                button.BorderBrush = accentBorder;
-                button.BorderThickness = new Thickness(2);
+                button.Classes.Add("Current");
             }
 
             button.Click += this.OnDisplayClicked;

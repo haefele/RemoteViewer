@@ -72,6 +72,7 @@
 
                 <!-- Display selection flyout -->
                 <Button ToolTip.Tip="Select display"
+                        IsVisible="{Binding AvailableDisplays.Count, Converter={x:Static conv:GreaterThanConverter.Instance}, ConverterParameter=1}"
                         Background="Transparent"
                         BorderThickness="0"
                         Width="32" Height="32"
@@ -119,7 +120,7 @@
                                 </ItemsControl>
 
                                 <!-- Mini-map -->
-                                <TextBlock Text="Display Map"
+                                <TextBlock Text="Display Layout"
                                            FontWeight="SemiBold"
                                            Margin="8,12,8,4"/>
                                 <controls:DisplayMiniMap
