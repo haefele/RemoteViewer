@@ -15,6 +15,7 @@ public static class DtoExtensions
         new(display.Id, display.FriendlyName, display.IsPrimary, display.Left, display.Top, display.Right, display.Bottom);
 
     // GrabResult -> GrabResultDto (server side, for sending over IPC)
+    // With Nerdbank.MessagePack, we can now pass ReadOnlyMemory<byte> directly without .ToArray()
     public static GrabResultDto ToDto(this GrabResult result)
     {
         DirtyRegionDto[]? dirtyRegions = null;
@@ -24,7 +25,7 @@ public static class DtoExtensions
             for (var i = 0; i < result.DirtyRegions.Length; i++)
             {
                 var r = result.DirtyRegions[i];
-                dirtyRegions[i] = new DirtyRegionDto(r.X, r.Y, r.Width, r.Height, r.Pixels.Span.ToArray());
+                dirtyRegions[i] = new DirtyRegionDto(r.X, r.Y, r.Width, r.Height, r.Pixels.Memory);
             }
         }
 
@@ -39,7 +40,7 @@ public static class DtoExtensions
             }
         }
 
-        return new GrabResultDto(result.Status, result.FullFramePixels?.Span.ToArray(), dirtyRegions, moveRegions);
+        return new GrabResultDto(result.Status, result.FullFramePixels?.Memory, dirtyRegions, moveRegions);
     }
 
     // GrabResultDto -> GrabResult (client side, after receiving over IPC)
@@ -49,7 +50,7 @@ public static class DtoExtensions
         if (dto.FullFramePixels is { } fullFramePixels)
         {
             fullFrame = RefCountedMemoryOwner.Create(fullFramePixels.Length);
-            fullFramePixels.AsSpan().CopyTo(fullFrame.Span);
+            fullFramePixels.Span.CopyTo(fullFrame.Span);
         }
 
         DirtyRegion[]? dirtyRegions = null;
@@ -60,7 +61,7 @@ public static class DtoExtensions
             {
                 var r = dto.DirtyRegions[i];
                 var pixels = RefCountedMemoryOwner.Create(r.Pixels.Length);
-                r.Pixels.AsSpan().CopyTo(pixels.Span);
+                r.Pixels.Span.CopyTo(pixels.Span);
                 dirtyRegions[i] = new DirtyRegion(r.X, r.Y, r.Width, r.Height, pixels);
             }
         }

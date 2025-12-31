@@ -44,7 +44,7 @@
     <PackageReference Include="Quamotion.TurboJpegWrapper" Version="2.0.32" />
     <PackageReference Include="ZiggyCreatures.FusionCache" Version="2.2.0" />
     <PackageReference Include="Nerdbank.Streams" Version="2.13.16" />
-    <PackageReference Include="StreamJsonRpc" Version="2.23.32-alpha" />
+    <PackageReference Include="StreamJsonRpc" Version="2.24.84" />
   </ItemGroup>
 
   <ItemGroup Condition="$(TargetFramework.Contains('windows'))">

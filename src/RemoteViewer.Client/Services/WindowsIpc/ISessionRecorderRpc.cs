@@ -1,6 +1,11 @@
+using PolyType;
+using StreamJsonRpc;
+
 namespace RemoteViewer.Client.Services.WindowsIpc;
 
-public interface ISessionRecorderRpc
+[JsonRpcContract]
+[GenerateShape(IncludeMethods = MethodShapeFlags.PublicInstance)]
+public partial interface ISessionRecorderRpc
 {
     // Display operations
     Task<DisplayDto[]> GetDisplays(CancellationToken ct);

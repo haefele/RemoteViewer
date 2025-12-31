@@ -63,8 +63,11 @@ public class SessionRecorderRpcHostService(
             // Create the RPC server target
             var rpcTarget = serviceProvider.GetRequiredService<SessionRecorderRpcServer>();
 
-            // Configure MessagePack formatter for StreamJsonRpc
-            var formatter = new MessagePackFormatter();
+            // Configure Nerdbank.MessagePack formatter for StreamJsonRpc
+            var formatter = new NerdbankMessagePackFormatter
+            {
+                TypeShapeProvider = IpcWitness.GeneratedTypeShapeProvider
+            };
             var handler = new LengthHeaderMessageHandler(pipeServer.UsePipe(cancellationToken: stoppingToken), formatter);
             var jsonRpc = new JsonRpc(handler, rpcTarget);
 

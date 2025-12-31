@@ -98,7 +98,10 @@ public sealed class SessionRecorderRpcClient : IAsyncDisposable
 
         await this._pipeClient.ConnectAsync(cts.Token);
 
-        var formatter = new MessagePackFormatter();
+        var formatter = new NerdbankMessagePackFormatter
+        {
+            TypeShapeProvider = IpcWitness.GeneratedTypeShapeProvider
+        };
         var handler = new LengthHeaderMessageHandler(this._pipeClient.UsePipe(cancellationToken: ct), formatter);
         this._jsonRpc = new JsonRpc(handler);
 
