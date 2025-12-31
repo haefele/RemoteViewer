@@ -116,7 +116,7 @@ public class WindowsDisplayService(
             var id = ExtractDeviceName(infoEx.szDevice.AsSpan(), displayIndex);
             var isPrimary = (infoEx.monitorInfo.dwFlags & MONITORINFOF_PRIMARY) != 0;
             var rect = infoEx.monitorInfo.rcMonitor;
-            var friendlyName = GetFriendlyDisplayName(id, isPrimary);
+            var friendlyName = GetFriendlyDisplayName(id);
 
             return new DisplayInfo(id, friendlyName, isPrimary, rect.left, rect.top, rect.right, rect.bottom);
         }
@@ -127,14 +127,12 @@ public class WindowsDisplayService(
         }
     }
 
-    private static string GetFriendlyDisplayName(string id, bool isPrimary)
+    private static string GetFriendlyDisplayName(string id)
     {
         var match = System.Text.RegularExpressions.Regex.Match(id, @"DISPLAY(\d+)", System.Text.RegularExpressions.RegexOptions.IgnoreCase);
         if (match.Success)
         {
-            var num = match.Groups[1].Value;
-            var suffix = isPrimary ? " (Primary)" : "";
-            return $"Display {num}{suffix}";
+            return $"Display {match.Groups[1].Value}";
         }
         return id;
     }

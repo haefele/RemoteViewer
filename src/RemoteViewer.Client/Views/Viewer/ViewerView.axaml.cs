@@ -124,6 +124,25 @@ public partial class ViewerView : Window, IDisposable
             }
         }
     }
+
+    private async void DisplayMiniMap_DisplaySelected(object? sender, Server.SharedAPI.DisplayInfo display)
+    {
+        if (this._viewModel is null)
+            return;
+
+        this._viewModel.SelectDisplayCommand.Execute(display);
+
+        await Task.Delay(50);
+
+        if (sender is Control control)
+        {
+            var flyoutPresenter = control.FindAncestorOfType<FlyoutPresenter>();
+            if (flyoutPresenter?.Parent is Popup popup)
+            {
+                popup.IsOpen = false;
+            }
+        }
+    }
     #endregion
 
 
