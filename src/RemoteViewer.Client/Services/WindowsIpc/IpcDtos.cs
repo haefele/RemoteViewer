@@ -11,18 +11,19 @@ public sealed record DisplayDto(
     int Right,
     int Bottom);
 
-public sealed record GrabResultDto(
-    GrabStatus Status,
-    ReadOnlyMemory<byte>? FullFramePixels,
-    DirtyRegionDto[]? DirtyRegions,
-    MoveRegionDto[]? MoveRegions);
-
-public sealed record DirtyRegionDto(
+/// <summary>
+/// Metadata for a dirty region stored in shared memory.
+/// Pixels are at the specified offset in the shared buffer.
+/// </summary>
+public sealed record SharedRegionInfo(
     int X,
     int Y,
     int Width,
     int Height,
-    ReadOnlyMemory<byte> Pixels);
+    int Offset)
+{
+    public int ByteLength => this.Width * this.Height * 4;
+}
 
 public sealed record MoveRegionDto(
     int SourceX,
@@ -31,3 +32,13 @@ public sealed record MoveRegionDto(
     int DestinationY,
     int Width,
     int Height);
+
+/// <summary>
+/// Result of shared memory capture.
+/// All pixel data (full frame or dirty regions) is in shared memory.
+/// </summary>
+public sealed record SharedFrameResult(
+    GrabStatus Status,
+    bool HasFullFrame,
+    SharedRegionInfo[]? DirtyRegions,
+    MoveRegionDto[]? MoveRegions);

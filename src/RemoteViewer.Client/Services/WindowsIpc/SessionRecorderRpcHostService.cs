@@ -23,15 +23,16 @@ public class SessionRecorderRpcHostService(
 
         while (!stoppingToken.IsCancellationRequested)
         {
+            NamedPipeServerStream? pipeServer = null;
             try
             {
                 // Use large buffers for efficient frame data transfer (default 4KB is way too small)
                 const int pipeBufferSize = 1024 * 1024; // 1MB
 
-                var pipeServer = NamedPipeServerStreamAcl.Create(
+                pipeServer = NamedPipeServerStreamAcl.Create(
                     pipeName,
                     PipeDirection.InOut,
-                    NamedPipeServerStream.MaxAllowedServerInstances,
+                    maxNumberOfServerInstances: 1,
                     PipeTransmissionMode.Byte,
                     PipeOptions.Asynchronous,
                     inBufferSize: pipeBufferSize,
@@ -44,8 +45,9 @@ public class SessionRecorderRpcHostService(
 
                 logger.LogInformation("Client connected to RPC server");
 
-                // Handle this client in a separate task
-                _ = this.HandleClientAsync(pipeServer, stoppingToken);
+                // Handle client and wait for it to complete before accepting next connection
+                await this.HandleClientAsync(pipeServer, stoppingToken);
+                pipeServer = null; // HandleClientAsync takes ownership and disposes
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
@@ -55,6 +57,11 @@ public class SessionRecorderRpcHostService(
             {
                 logger.LogError(ex, "Error in RPC server accept loop");
                 await Task.Delay(1000, stoppingToken);
+            }
+            finally
+            {
+                if (pipeServer is not null)
+                    await pipeServer.DisposeAsync();
             }
         }
     }

@@ -7,11 +7,14 @@ namespace RemoteViewer.Client.Services.WindowsIpc;
 [GenerateShape(IncludeMethods = MethodShapeFlags.PublicInstance)]
 public partial interface ISessionRecorderRpc
 {
+    // Shared memory handshake - returns token for a specific display's shared memory
+    Task<string> GetSharedMemoryToken(string displayId, CancellationToken ct);
+
     // Display operations
     Task<DisplayDto[]> GetDisplays(CancellationToken ct);
 
-    // Screenshot operations
-    Task<GrabResultDto> CaptureDisplay(string displayId, bool forceKeyframe, CancellationToken ct);
+    // Screenshot operations (shared memory for full frames, serialization for dirty regions)
+    Task<SharedFrameResult> CaptureDisplayShared(string displayId, bool forceKeyframe, CancellationToken ct);
 
     // Input injection operations
     Task InjectMouseMove(string displayId, float normalizedX, float normalizedY, CancellationToken ct);
