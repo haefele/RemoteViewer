@@ -30,8 +30,7 @@ public sealed class ViewerConnectionService : IViewerServiceImpl, IDisposable
         this._windowsKeyBlockerService = windowsKeyBlockerService;
         this._logger = logger;
 
-        this._windowsKeyBlockerService.WindowsKeyDown += this.WindowsKeyBlocker_WindowsKeyDown;
-        this._windowsKeyBlockerService.WindowsKeyUp += this.WindowsKeyBlocker_WindowsKeyUp;
+        this._windowsKeyBlockerService.ShortcutIntercepted += this.WindowsKeyBlocker_ShortcutIntercepted;
         this._connection.ConnectionPropertiesChanged += this.Connection_ConnectionPropertiesChanged;
     }
 
@@ -294,18 +293,6 @@ public sealed class ViewerConnectionService : IViewerServiceImpl, IDisposable
         await ((IConnectionImpl)this._connection).SwitchDisplayAsync();
     }
 
-    private const ushort WindowsKeyCode = 0x5B;
-
-    private Task SendWindowsKeyDownAsync()
-    {
-        return this.SendKeyDownAsync(WindowsKeyCode, KeyModifiers.None);
-    }
-
-    private Task SendWindowsKeyUpAsync()
-    {
-        return this.SendKeyUpAsync(WindowsKeyCode, KeyModifiers.None);
-    }
-
     void IViewerServiceImpl.HandleFrame(string displayId, ulong frameNumber, FrameCodec codec, FrameRegion[] regions)
     {
         // Track current display from incoming frames
@@ -328,20 +315,20 @@ public sealed class ViewerConnectionService : IViewerServiceImpl, IDisposable
         this.FrameReady?.Invoke(this, args);
     }
 
-    private async void WindowsKeyBlocker_WindowsKeyDown(ushort vkCode)
+    private async void WindowsKeyBlocker_ShortcutIntercepted(InterceptedShortcut shortcut)
     {
         if (!this.IsInputEnabled)
             return;
 
-        await this.SendWindowsKeyDownAsync();
-    }
+        var modifiers = KeyModifiers.None;
+        if (shortcut.Alt) modifiers |= KeyModifiers.Alt;
+        if (shortcut.Ctrl) modifiers |= KeyModifiers.Control;
+        if (shortcut.Shift) modifiers |= KeyModifiers.Shift;
 
-    private async void WindowsKeyBlocker_WindowsKeyUp(ushort vkCode)
-    {
-        if (!this.IsInputEnabled)
-            return;
-
-        await this.SendWindowsKeyUpAsync();
+        if (shortcut.IsKeyDown)
+            await this.SendKeyDownAsync(shortcut.VirtualKeyCode, modifiers);
+        else
+            await this.SendKeyUpAsync(shortcut.VirtualKeyCode, modifiers);
     }
 
     public void Dispose()
@@ -351,8 +338,7 @@ public sealed class ViewerConnectionService : IViewerServiceImpl, IDisposable
 
         this._disposed = true;
 
-        this._windowsKeyBlockerService.WindowsKeyDown -= this.WindowsKeyBlocker_WindowsKeyDown;
-        this._windowsKeyBlockerService.WindowsKeyUp -= this.WindowsKeyBlocker_WindowsKeyUp;
+        this._windowsKeyBlockerService.ShortcutIntercepted -= this.WindowsKeyBlocker_ShortcutIntercepted;
         this._connection.ConnectionPropertiesChanged -= this.Connection_ConnectionPropertiesChanged;
     }
 }

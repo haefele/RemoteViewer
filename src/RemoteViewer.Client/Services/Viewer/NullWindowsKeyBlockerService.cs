@@ -3,11 +3,10 @@ namespace RemoteViewer.Client.Services.Viewer;
 public sealed class NullWindowsKeyBlockerService : IWindowsKeyBlockerService
 {
 #pragma warning disable CS0067 // Events are never used (this is a null implementation)
-    public event Action<ushort>? WindowsKeyDown;
-    public event Action<ushort>? WindowsKeyUp;
+    public event Action<InterceptedShortcut>? ShortcutIntercepted;
 #pragma warning restore CS0067
 
-    public IDisposable StartBlocking(Func<bool> shouldSuppressWindowsKey) => NullDisposable.Instance;
+    public IDisposable StartBlocking(Func<bool> shouldSuppressShortcuts) => NullDisposable.Instance;
 
     private sealed class NullDisposable : IDisposable
     {
