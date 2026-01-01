@@ -1,7 +1,7 @@
 using System.IO.MemoryMappedFiles;
 using System.Security.Cryptography;
 
-namespace RemoteViewer.Client.Services.WindowsIpc;
+namespace RemoteViewer.Client.Services.SessionRecorderIpc;
 
 /// <summary>
 /// Per-display shared memory for zero-copy frame transfer between processes.

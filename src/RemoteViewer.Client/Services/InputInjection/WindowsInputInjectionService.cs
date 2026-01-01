@@ -1,7 +1,7 @@
 #if WINDOWS
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
-using RemoteViewer.Client.Services.WindowsIpc;
+using RemoteViewer.Client.Services.SessionRecorderIpc;
 using RemoteViewer.Server.SharedAPI;
 using RemoteViewer.Server.SharedAPI.Protocol;
 using Windows.Win32;

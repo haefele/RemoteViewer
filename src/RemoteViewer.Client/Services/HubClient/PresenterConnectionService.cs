@@ -4,7 +4,7 @@ using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.Client.Services.LocalInputMonitor;
 using RemoteViewer.Client.Services.Screenshot;
-using RemoteViewer.Client.Services.WindowsIpc;
+using RemoteViewer.Client.Services.WinServiceIpc;
 using RemoteViewer.Server.SharedAPI;
 using RemoteViewer.Server.SharedAPI.Protocol;
 
@@ -17,7 +17,7 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
     private readonly IScreenshotService _screenshotService;
     private readonly IInputInjectionService _inputInjectionService;
     private readonly ILocalInputMonitorService _localInputMonitor;
-    private readonly SessionRecorderRpcClient _rpcClient;
+    private readonly WinServiceRpcClient _winServiceRpcClient;
     private readonly ILogger<PresenterConnectionService> _logger;
 
     private readonly Lock _selectionsLock = new();
@@ -34,7 +34,7 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
         IScreenshotService screenshotService,
         IInputInjectionService inputInjectionService,
         ILocalInputMonitorService localInputMonitor,
-        SessionRecorderRpcClient rpcClient,
+        WinServiceRpcClient winServiceRpcClient,
         ILogger<PresenterConnectionService> logger)
     {
         this._connection = connection;
@@ -42,11 +42,11 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
         this._screenshotService = screenshotService;
         this._inputInjectionService = inputInjectionService;
         this._localInputMonitor = localInputMonitor;
-        this._rpcClient = rpcClient;
+        this._winServiceRpcClient = winServiceRpcClient;
         this._logger = logger;
 
         this._connection.Closed += this.OnConnectionClosed;
-        this._rpcClient.ConnectionStatusChanged += this.RpcClient_ConnectionStatusChanged;
+        this._winServiceRpcClient.ConnectionStatusChanged += this.WinServiceRpcClient_ConnectionStatusChanged;
 
         this._localInputMonitor.StartMonitoring();
 
@@ -299,13 +299,18 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
                 return;
             }
 
-            if (!this._rpcClient.IsConnected || this._rpcClient.Proxy is null)
+            if (!this._winServiceRpcClient.IsConnected || this._winServiceRpcClient.Proxy is null)
             {
                 this._logger.LogWarning("Cannot send Ctrl+Alt+Del - not connected to Windows Service");
                 return;
             }
 
-            var result = await this._rpcClient.Proxy.SendSecureAttentionSequence(this._connection.ConnectionId, CancellationToken.None);
+            var sessionId = (uint)System.Diagnostics.Process.GetCurrentProcess().SessionId;
+            var result = await this._winServiceRpcClient.Proxy.SendSecureAttentionSequence(
+                this._connection.ConnectionId,
+                sessionId,
+                CancellationToken.None);
+
             if (result)
             {
                 this._logger.LogInformation("Sent Ctrl+Alt+Del on behalf of viewer: {ViewerId}", senderClientId);
@@ -321,18 +326,18 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
         }
     }
 
-    private async void RpcClient_ConnectionStatusChanged(object? sender, EventArgs e)
+    private async void WinServiceRpcClient_ConnectionStatusChanged(object? sender, EventArgs e)
     {
         try
         {
             await this._connection.UpdateConnectionPropertiesAndSend(current =>
             {
-                return current with { CanSendSecureAttentionSequence = this._rpcClient.IsConnected };
+                return current with { CanSendSecureAttentionSequence = this._winServiceRpcClient.IsConnected };
             });
         }
         catch (Exception ex)
         {
-            this._logger.LogError(ex, "Error updating connection properties after RPC status change");
+            this._logger.LogError(ex, "Error updating connection properties after WinService RPC status change");
         }
     }
 
@@ -358,7 +363,7 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
         this._displaySyncTimer.Dispose();
 
         this._connection.Closed -= this.OnConnectionClosed;
-        this._rpcClient.ConnectionStatusChanged -= this.RpcClient_ConnectionStatusChanged;
+        this._winServiceRpcClient.ConnectionStatusChanged -= this.WinServiceRpcClient_ConnectionStatusChanged;
 
         this._localInputMonitor.StopMonitoring();
 

@@ -7,9 +7,8 @@ using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.WindowsSession;
 using RemoteViewer.Server.SharedAPI;
 using RemoteViewer.Server.SharedAPI.Protocol;
-using Windows.Win32;
 
-namespace RemoteViewer.Client.Services.WindowsIpc;
+namespace RemoteViewer.Client.Services.SessionRecorderIpc;
 
 public class SessionRecorderRpcServer(
     IWin32SessionService win32SessionService,
@@ -243,22 +242,6 @@ public class SessionRecorderRpcServer(
 
         win32SessionService.SwitchToInputDesktop();
         return inputInjectionService.ReleaseAllModifiers(null, ct);
-    }
-
-    public Task<bool> SendSecureAttentionSequence(string connectionId, CancellationToken ct)
-    {
-        this.ValidateConnectionId(connectionId);
-
-        try
-        {
-            PInvoke.SendSAS(AsUser: true);
-            return Task.FromResult(true);
-        }
-        catch (Exception ex)
-        {
-            logger.SendSasFailed(ex);
-            return Task.FromResult(false);
-        }
     }
 
     private async Task<DisplayInfo?> ResolveDisplayAsync(string displayId, CancellationToken ct)

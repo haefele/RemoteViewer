@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging;
 using Nerdbank.Streams;
 using StreamJsonRpc;
 
-namespace RemoteViewer.Client.Services.WindowsIpc;
+namespace RemoteViewer.Client.Services.SessionRecorderIpc;
 
 public sealed class SessionRecorderRpcClient : IAsyncDisposable
 {
@@ -144,7 +144,7 @@ public sealed class SessionRecorderRpcClient : IAsyncDisposable
 
         var formatter = new NerdbankMessagePackFormatter
         {
-            TypeShapeProvider = IpcWitness.GeneratedTypeShapeProvider
+            TypeShapeProvider = SessionRecorderIpcWitness.GeneratedTypeShapeProvider
         };
         var handler = new LengthHeaderMessageHandler(this._pipeClient.UsePipe(cancellationToken: ct), formatter);
         this._jsonRpc = new JsonRpc(handler);

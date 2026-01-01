@@ -1,6 +1,6 @@
 using RemoteViewer.Client.Services.Screenshot;
 
-namespace RemoteViewer.Client.Services.WindowsIpc;
+namespace RemoteViewer.Client.Services.SessionRecorderIpc;
 
 public sealed record DisplayDto(
     string Id,

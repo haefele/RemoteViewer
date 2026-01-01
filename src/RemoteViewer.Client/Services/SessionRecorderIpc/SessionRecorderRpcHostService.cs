@@ -8,7 +8,7 @@ using Microsoft.Extensions.Logging;
 using Nerdbank.Streams;
 using StreamJsonRpc;
 
-namespace RemoteViewer.Client.Services.WindowsIpc;
+namespace RemoteViewer.Client.Services.SessionRecorderIpc;
 
 public class SessionRecorderRpcHostService(
     ILogger<SessionRecorderRpcHostService> logger,
@@ -27,7 +27,7 @@ public class SessionRecorderRpcHostService(
             try
             {
                 // Use large buffers for efficient frame data transfer (default 4KB is way too small)
-                const int pipeBufferSize = 1024 * 1024; // 1MB
+                const int PipeBufferSize = 1024 * 1024; // 1MB
 
                 pipeServer = NamedPipeServerStreamAcl.Create(
                     pipeName,
@@ -35,8 +35,8 @@ public class SessionRecorderRpcHostService(
                     maxNumberOfServerInstances: 1,
                     PipeTransmissionMode.Byte,
                     PipeOptions.Asynchronous,
-                    inBufferSize: pipeBufferSize,
-                    outBufferSize: pipeBufferSize,
+                    inBufferSize: PipeBufferSize,
+                    outBufferSize: PipeBufferSize,
                     pipeSecurity: CreatePipeSecurity());
 
                 logger.LogDebug("Waiting for client connection on pipe: {PipeName}", pipeName);
@@ -76,7 +76,7 @@ public class SessionRecorderRpcHostService(
             // Configure Nerdbank.MessagePack formatter for StreamJsonRpc
             var formatter = new NerdbankMessagePackFormatter
             {
-                TypeShapeProvider = IpcWitness.GeneratedTypeShapeProvider
+                TypeShapeProvider = SessionRecorderIpcWitness.GeneratedTypeShapeProvider
             };
             var handler = new LengthHeaderMessageHandler(pipeServer.UsePipe(cancellationToken: stoppingToken), formatter);
             var jsonRpc = new JsonRpc(handler, rpcTarget);

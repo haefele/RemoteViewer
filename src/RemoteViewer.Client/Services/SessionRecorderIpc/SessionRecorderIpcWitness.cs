@@ -1,7 +1,7 @@
 using PolyType;
 using RemoteViewer.Client.Services.Screenshot;
 
-namespace RemoteViewer.Client.Services.WindowsIpc;
+namespace RemoteViewer.Client.Services.SessionRecorderIpc;
 
 [GenerateShapeFor<AuthenticateResult>]
 [GenerateShapeFor<DisplayDto>]
@@ -17,4 +17,4 @@ namespace RemoteViewer.Client.Services.WindowsIpc;
 [GenerateShapeFor<int>]
 [GenerateShapeFor<float>]
 [GenerateShapeFor<ushort>]
-public partial class IpcWitness;
+public partial class SessionRecorderIpcWitness;

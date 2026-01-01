@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Common;
-using RemoteViewer.Client.Services.WindowsIpc;
+using RemoteViewer.Client.Services.SessionRecorderIpc;
 using RemoteViewer.Server.SharedAPI;
 
 namespace RemoteViewer.Client.Services.Screenshot;

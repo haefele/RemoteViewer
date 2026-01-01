@@ -1,7 +1,7 @@
 using PolyType;
 using StreamJsonRpc;
 
-namespace RemoteViewer.Client.Services.WindowsIpc;
+namespace RemoteViewer.Client.Services.SessionRecorderIpc;
 
 [JsonRpcContract]
 [GenerateShape(IncludeMethods = MethodShapeFlags.PublicInstance)]
@@ -25,9 +25,6 @@ public partial interface ISessionRecorderRpc
     Task InjectMouseWheel(string connectionId, string displayId, float deltaX, float deltaY, float normalizedX, float normalizedY, CancellationToken ct);
     Task InjectKey(string connectionId, ushort keyCode, bool isDown, CancellationToken ct);
     Task ReleaseAllModifiers(string connectionId, CancellationToken ct);
-
-    // Secure Attention Sequence (Ctrl+Alt+Del)
-    Task<bool> SendSecureAttentionSequence(string connectionId, CancellationToken ct);
 }
 
 public record AuthenticateResult(bool Success, string? Error);

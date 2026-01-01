@@ -2,7 +2,8 @@
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Common;
 using RemoteViewer.Client.Services.FileTransfer;
-using RemoteViewer.Client.Services.WindowsIpc;
+using RemoteViewer.Client.Services.SessionRecorderIpc;
+using RemoteViewer.Client.Services.WinServiceIpc;
 using RemoteViewer.Server.SharedAPI;
 using RemoteViewer.Server.SharedAPI.Protocol;
 
@@ -20,6 +21,11 @@ public sealed class Connection : IConnectionImpl
 
     private readonly Lock _connectionPropertiesLock = new();
     private ConnectionProperties _lastSentProperties = new(CanSendSecureAttentionSequence: false, InputBlockedViewerIds: [], AvailableDisplays: []);
+
+    private readonly SessionRecorderRpcClient? _sessionRecorderRpcClient;
+    private readonly WinServiceRpcClient? _winServiceRpcClient;
+    private Task? _sessionRecorderAuthTask;
+    private Task? _winServiceAuthTask;
 
     public Connection(
         ConnectionHubClient owner,
@@ -41,71 +47,15 @@ public sealed class Connection : IConnectionImpl
             this.PresenterCapture = ActivatorUtilities.CreateInstance<PresenterCaptureService>(this._serviceProvider, this);
             this.PresenterService = ActivatorUtilities.CreateInstance<PresenterConnectionService>(this._serviceProvider, this);
 
-            // Setup IPC authentication for presenter
-            this.SetupIpcAuthentication();
+            this._sessionRecorderRpcClient = this._serviceProvider.GetRequiredService<SessionRecorderRpcClient>();
+            this._sessionRecorderRpcClient.ConnectionStatusChanged += this.OnSessionRecorderConnectionStatusChanged;
+
+            this._winServiceRpcClient = this._serviceProvider.GetRequiredService<WinServiceRpcClient>();
+            this._winServiceRpcClient.ConnectionStatusChanged += this.OnWinServiceConnectionStatusChanged;
         }
         else
         {
             this.ViewerService = ActivatorUtilities.CreateInstance<ViewerConnectionService>(this._serviceProvider, this);
-        }
-    }
-
-    private SessionRecorderRpcClient? _rpcClient;
-    private Task? _ipcAuthTask;
-
-    private void SetupIpcAuthentication()
-    {
-        this._rpcClient = this._serviceProvider.GetService<SessionRecorderRpcClient>();
-        if (this._rpcClient is null)
-        {
-            this._logger.LogDebug("IPC client not available, skipping IPC authentication");
-            return;
-        }
-
-        // ConnectionStatusChanged fires immediately on subscribe if already connected
-        this._rpcClient.ConnectionStatusChanged += this.OnIpcConnectionStatusChanged;
-    }
-
-    private void OnIpcConnectionStatusChanged(object? sender, EventArgs e)
-    {
-        // Skip if closed, not connected, already authenticated, or auth already in progress
-        if (this.IsClosed || this._rpcClient is not { IsConnected: true })
-            return;
-        if (this._rpcClient.IsAuthenticatedFor(this.ConnectionId))
-            return;
-        if (this._ipcAuthTask is { IsCompleted: false })
-            return;
-
-        this._ipcAuthTask = this.AuthenticateIpcWithRetryAsync();
-    }
-
-    private async Task AuthenticateIpcWithRetryAsync()
-    {
-        while (this.IsClosed is false && this._rpcClient is { IsConnected: true } && this._rpcClient.IsAuthenticatedFor(this.ConnectionId) is false)
-        {
-            try
-            {
-                var token = await this.Owner.GenerateIpcAuthTokenAsync(this.ConnectionId);
-                if (token is null)
-                {
-                    this._logger.LogWarning("Failed to get IPC auth token from server");
-                    await Task.Delay(1000);
-                    continue;
-                }
-
-                if (await this._rpcClient.AuthenticateForConnectionAsync(token, this.ConnectionId, CancellationToken.None))
-                {
-                    this._logger.LogInformation("IPC authenticated for connection {ConnectionId}", this.ConnectionId);
-                    return;
-                }
-
-                await Task.Delay(1000);
-            }
-            catch (Exception ex)
-            {
-                this._logger.LogError(ex, "Error during IPC authentication");
-                await Task.Delay(1000);
-            }
         }
     }
 
@@ -435,65 +385,6 @@ public sealed class Connection : IConnectionImpl
         }
     }
 
-    public async Task UpdateConnectionPropertiesAndSend(Func<ConnectionProperties, ConnectionProperties> update)
-    {
-        ConnectionProperties properties;
-        var changed = false;
-        var shouldSend = false;
-
-        using (this._connectionPropertiesLock.EnterScope())
-        {
-            properties = update(this.ConnectionProperties);
-
-            if (!AreConnectionPropertiesEqual(this.ConnectionProperties, properties))
-            {
-                this.ConnectionProperties = properties;
-                changed = true;
-            }
-
-            if (!AreConnectionPropertiesEqual(this._lastSentProperties, properties))
-            {
-                this._lastSentProperties = properties;
-                shouldSend = true;
-            }
-        }
-
-        if (changed)
-        {
-            this._connectionPropertiesChanged?.Invoke(this, EventArgs.Empty);
-        }
-
-        if (shouldSend)
-        {
-            await this.Owner.SetConnectionPropertiesAsync(this.ConnectionId, properties);
-        }
-    }
-
-    private static bool AreConnectionPropertiesEqual(ConnectionProperties left, ConnectionProperties right)
-    {
-        if (left.CanSendSecureAttentionSequence != right.CanSendSecureAttentionSequence)
-            return false;
-
-        var leftIds = left.InputBlockedViewerIds;
-        var rightIds = right.InputBlockedViewerIds;
-        if (!ReferenceEquals(leftIds, rightIds))
-        {
-            if (leftIds.Count != rightIds.Count)
-                return false;
-
-            var leftSet = new HashSet<string>(leftIds, StringComparer.Ordinal);
-            if (!leftSet.SetEquals(rightIds))
-                return false;
-        }
-
-        var leftDisplays = left.AvailableDisplays;
-        var rightDisplays = right.AvailableDisplays;
-        if (!ReferenceEquals(leftDisplays, rightDisplays) && !leftDisplays.SequenceEqual(rightDisplays))
-            return false;
-
-        return true;
-    }
-
     async void IConnectionImpl.OnMessageReceived(string senderClientId, string messageType, byte[] data)
     {
         try
@@ -621,6 +512,7 @@ public sealed class Connection : IConnectionImpl
             this._logger.LogError(ex, "Error handling message {MessageType} from {SenderClientId}", messageType, senderClientId);
         }
     }
+
     void IConnectionImpl.OnClosed()
     {
         this.IsClosed = true;
@@ -630,6 +522,149 @@ public sealed class Connection : IConnectionImpl
         this.ViewerService?.Dispose();
         this._logger.LogDebug("Connection closed: {ConnectionId}", this.ConnectionId);
         this.Closed?.Invoke(this, EventArgs.Empty);
+    }
+
+    public async Task UpdateConnectionPropertiesAndSend(Func<ConnectionProperties, ConnectionProperties> update)
+    {
+        ConnectionProperties properties;
+        var changed = false;
+        var shouldSend = false;
+
+        using (this._connectionPropertiesLock.EnterScope())
+        {
+            properties = update(this.ConnectionProperties);
+
+            if (!AreConnectionPropertiesEqual(this.ConnectionProperties, properties))
+            {
+                this.ConnectionProperties = properties;
+                changed = true;
+            }
+
+            if (!AreConnectionPropertiesEqual(this._lastSentProperties, properties))
+            {
+                this._lastSentProperties = properties;
+                shouldSend = true;
+            }
+        }
+
+        if (changed)
+        {
+            this._connectionPropertiesChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        if (shouldSend)
+        {
+            await this.Owner.SetConnectionPropertiesAsync(this.ConnectionId, properties);
+        }
+    }
+
+    private static bool AreConnectionPropertiesEqual(ConnectionProperties left, ConnectionProperties right)
+    {
+        if (left.CanSendSecureAttentionSequence != right.CanSendSecureAttentionSequence)
+            return false;
+
+        var leftIds = left.InputBlockedViewerIds;
+        var rightIds = right.InputBlockedViewerIds;
+        if (!ReferenceEquals(leftIds, rightIds))
+        {
+            if (leftIds.Count != rightIds.Count)
+                return false;
+
+            var leftSet = new HashSet<string>(leftIds, StringComparer.Ordinal);
+            if (!leftSet.SetEquals(rightIds))
+                return false;
+        }
+
+        var leftDisplays = left.AvailableDisplays;
+        var rightDisplays = right.AvailableDisplays;
+        if (!ReferenceEquals(leftDisplays, rightDisplays) && !leftDisplays.SequenceEqual(rightDisplays))
+            return false;
+
+        return true;
+    }
+
+    private void OnSessionRecorderConnectionStatusChanged(object? sender, EventArgs e)
+    {
+        if (this.IsClosed || !this._sessionRecorderRpcClient!.IsConnected)
+            return;
+        if (this._sessionRecorderRpcClient.IsAuthenticatedFor(this.ConnectionId))
+            return;
+        if (this._sessionRecorderAuthTask is { IsCompleted: false })
+            return;
+
+        this._sessionRecorderAuthTask = this.AuthenticateSessionRecorderWithRetryAsync();
+    }
+
+    private void OnWinServiceConnectionStatusChanged(object? sender, EventArgs e)
+    {
+        if (this.IsClosed || !this._winServiceRpcClient!.IsConnected)
+            return;
+        if (this._winServiceRpcClient.IsAuthenticatedFor(this.ConnectionId))
+            return;
+        if (this._winServiceAuthTask is { IsCompleted: false })
+            return;
+
+        this._winServiceAuthTask = this.AuthenticateWinServiceWithRetryAsync();
+    }
+
+    private async Task AuthenticateSessionRecorderWithRetryAsync()
+    {
+        while (this.IsClosed is false && this._sessionRecorderRpcClient!.IsConnected && this._sessionRecorderRpcClient.IsAuthenticatedFor(this.ConnectionId) is false)
+        {
+            try
+            {
+                var token = await this.Owner.GenerateIpcAuthTokenAsync(this.ConnectionId);
+                if (token is null)
+                {
+                    this._logger.LogWarning("Failed to get IPC auth token from server for SessionRecorder");
+                    await Task.Delay(1000);
+                    continue;
+                }
+
+                if (await this._sessionRecorderRpcClient.AuthenticateForConnectionAsync(token, this.ConnectionId, CancellationToken.None))
+                {
+                    this._logger.LogInformation("SessionRecorder IPC authenticated for connection {ConnectionId}", this.ConnectionId);
+                    return;
+                }
+
+                await Task.Delay(1000);
+            }
+            catch (Exception ex)
+            {
+                this._logger.LogError(ex, "Error during SessionRecorder IPC authentication");
+                await Task.Delay(1000);
+            }
+        }
+    }
+
+    private async Task AuthenticateWinServiceWithRetryAsync()
+    {
+        while (this.IsClosed is false && this._winServiceRpcClient!.IsConnected && this._winServiceRpcClient.IsAuthenticatedFor(this.ConnectionId) is false)
+        {
+            try
+            {
+                var token = await this.Owner.GenerateIpcAuthTokenAsync(this.ConnectionId);
+                if (token is null)
+                {
+                    this._logger.LogWarning("Failed to get IPC auth token from server for WinService");
+                    await Task.Delay(1000);
+                    continue;
+                }
+
+                if (await this._winServiceRpcClient.AuthenticateForConnectionAsync(token, this.ConnectionId, CancellationToken.None))
+                {
+                    this._logger.LogInformation("WinService IPC authenticated for connection {ConnectionId}", this.ConnectionId);
+                    return;
+                }
+
+                await Task.Delay(1000);
+            }
+            catch (Exception ex)
+            {
+                this._logger.LogError(ex, "Error during WinService IPC authentication");
+                await Task.Delay(1000);
+            }
+        }
     }
 }
 

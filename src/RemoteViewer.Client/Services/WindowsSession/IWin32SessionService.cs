@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
@@ -18,6 +18,8 @@ public interface IWin32SessionService
     ImmutableList<DesktopSession> GetActiveSessions();
 
     Process? CreateInteractiveSystemProcess(string commandLine, uint sessionId);
+
+    bool SendSasToSession(uint sessionId);
 }
 
 public record DesktopSession(uint SessionId, string Name, DesktopSessionType Type, string Username);
@@ -243,6 +245,51 @@ public class Win32SessionService(ILogger<Win32SessionService> logger) : IWin32Se
         {
             logger.LogError(exception, "Exception occurred while creating interactive system process");
             return null;
+        }
+    }
+
+    public bool SendSasToSession(uint sessionId)
+    {
+        var currentSessionId = (uint)Process.GetCurrentProcess().SessionId;
+
+        // For session 0, use direct SendSAS API (services run in session 0)
+        if (sessionId == 0 || sessionId == currentSessionId)
+        {
+            try
+            {
+                PInvoke.SendSAS(AsUser: false);
+                logger.LogInformation("SendSAS (direct) succeeded for session {SessionId}", sessionId);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "SendSAS (direct) failed for session {SessionId}", sessionId);
+                return false;
+            }
+        }
+
+        // For other sessions (including RDP), use WmsgSendMessage
+        // This undocumented API from wmsgapi.dll can send SAS to specific sessions
+        // Requires TcbPrivilege which LocalSystem services already have
+        try
+        {
+            var result = Wmsgapi.SendSasToSession((int)sessionId);
+            if (result == 0)
+            {
+                logger.LogInformation("WmsgSendMessage SAS succeeded for session {SessionId}", sessionId);
+                return true;
+            }
+            else
+            {
+                logger.LogError("WmsgSendMessage SAS failed for session {SessionId}, result: {Result}, error: {ErrorCode}",
+                    sessionId, result, Marshal.GetLastWin32Error());
+                return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "WmsgSendMessage SAS threw exception for session {SessionId}", sessionId);
+            return false;
         }
     }
 }

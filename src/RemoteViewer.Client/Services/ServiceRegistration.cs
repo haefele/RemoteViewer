@@ -10,7 +10,8 @@ using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.VideoCodec;
 using RemoteViewer.Client.Services.Viewer;
 using RemoteViewer.Client.Services.ViewModels;
-using RemoteViewer.Client.Services.WindowsIpc;
+using RemoteViewer.Client.Services.SessionRecorderIpc;
+using RemoteViewer.Client.Services.WinServiceIpc;
 using RemoteViewer.Client.Services.WindowsSession;
 using Serilog;
 using ZiggyCreatures.Caching.Fusion;
@@ -43,8 +44,9 @@ static class ServiceRegistration
         // Screen Encoding
         services.AddSingleton<IFrameEncoder, TurboJpegFrameEncoder>();
 
-        // IPC Client (to communicate with SessionRecorder)
+        // IPC Clients (to communicate with SessionRecorder and Windows Service)
         services.AddSingleton<SessionRecorderRpcClient>();
+        services.AddSingleton<WinServiceRpcClient>();
 
         // Screen Capture (IPC-first, with local fallback)
         services.AddSingleton<IScreenGrabber, IpcScreenGrabber>();
@@ -78,6 +80,10 @@ static class ServiceRegistration
 
         // Background Service (spawns SessionRecorder processes)
         services.AddHostedService<TrackActiveSessionsBackgroundService>();
+
+        // IPC Server (serves Desktop client requests for SendSAS)
+        services.AddSingleton<WinServiceRpcServer>();
+        services.AddHostedService<WinServiceRpcHostService>();
 
         // Windows Service Integration
         services.AddWindowsService();

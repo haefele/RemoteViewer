@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 using Windows.Win32;
 using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.Foundation;
-using RemoteViewer.Client.Services.WindowsIpc;
+using RemoteViewer.Client.Services.SessionRecorderIpc;
 using RemoteViewer.Server.SharedAPI;
 using ZiggyCreatures.Caching.Fusion;
 
