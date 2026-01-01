@@ -1,29 +1,42 @@
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Common;
 using RemoteViewer.Client.Services.SessionRecorderIpc;
 using RemoteViewer.Server.SharedAPI;
 
 namespace RemoteViewer.Client.Services.Screenshot;
 
-public class IpcScreenGrabber(
-    SessionRecorderRpcClient rpcClient,
-    ILogger<IpcScreenGrabber> logger) : IScreenGrabber, IDisposable
+public class IpcScreenGrabber : IScreenGrabber, IDisposable
 {
+    private readonly SessionRecorderRpcClient _rpcClient;
+    private readonly ILogger<IpcScreenGrabber> _logger;
+
     // Per-display shared memory buffers
     private readonly Dictionary<string, SharedFrameBuffer> _displayBuffers = [];
     private readonly SemaphoreSlim _buffersLock = new(1, 1);
+
+    // Track connection state to detect reconnects
+    private bool _wasConnected;
+
+    public IpcScreenGrabber(SessionRecorderRpcClient rpcClient, ILogger<IpcScreenGrabber> logger)
+    {
+        this._rpcClient = rpcClient;
+        this._logger = logger;
+
+        // Subscribe to connection changes to clear stale buffers on reconnect
+        rpcClient.ConnectionStatusChanged += this.OnConnectionStatusChanged;
+    }
 
     public bool IsAvailable => true;
     public int Priority => 200;
 
     public async Task<GrabResult> CaptureDisplay(DisplayInfo display, bool forceKeyframe, string? connectionId, CancellationToken ct)
     {
-        if (connectionId is null || rpcClient.IsConnected is false || rpcClient.IsAuthenticatedFor(connectionId) is false)
+        if (connectionId is null || this._rpcClient.IsConnected is false || this._rpcClient.IsAuthenticatedFor(connectionId) is false)
             return new GrabResult { Status = GrabStatus.Failure };
 
         try
         {
-            var sharedResult = await rpcClient.Proxy!.CaptureDisplayShared(connectionId, display.Id, forceKeyframe, ct);
+            var sharedResult = await this._rpcClient.Proxy!.CaptureDisplayShared(connectionId, display.Id, forceKeyframe, ct);
 
             if (sharedResult.Status != GrabStatus.Success)
                 return new GrabResult(sharedResult.Status, null, null, null);
@@ -78,7 +91,7 @@ public class IpcScreenGrabber(
         }
         catch (Exception ex)
         {
-            logger.CaptureError(display.Id, ex);
+            this._logger.CaptureError(display.Id, ex);
             return new GrabResult { Status = GrabStatus.Failure };
         }
     }
@@ -94,17 +107,17 @@ public class IpcScreenGrabber(
                 if (existing.Width == display.Width && existing.Height == display.Height)
                     return existing;
 
-                logger.SharedMemoryResolutionChanged(display.Id, existing.Width, existing.Height, display.Width, display.Height);
+                this._logger.SharedMemoryResolutionChanged(display.Id, existing.Width, existing.Height, display.Width, display.Height);
                 existing.Dispose();
                 this._displayBuffers.Remove(display.Id);
             }
 
             // Get the token from the server via secured RPC
-            var token = await rpcClient.Proxy!.GetSharedMemoryToken(connectionId, display.Id, ct);
+            var token = await this._rpcClient.Proxy!.GetSharedMemoryToken(connectionId, display.Id, ct);
             var buffer = SharedFrameBuffer.OpenClient(token, display.Width, display.Height);
 
             this._displayBuffers[display.Id] = buffer;
-            logger.SharedMemoryOpened(display.Id, buffer.Name);
+            this._logger.SharedMemoryOpened(display.Id, buffer.Name);
 
             return buffer;
         }
@@ -114,8 +127,35 @@ public class IpcScreenGrabber(
         }
     }
 
+    private void OnConnectionStatusChanged(object? sender, EventArgs e)
+    {
+        var isConnected = this._rpcClient.IsConnected;
+
+        // When connection is lost, clear all cached buffers
+        // This ensures we get fresh tokens after reconnect (server creates new shared framebuffers)
+        if (this._wasConnected && isConnected is false)
+        {
+            this._logger.LogInformation("IPC connection lost - clearing cached shared memory buffers");
+            this._buffersLock.Wait();
+            try
+            {
+                foreach (var buffer in this._displayBuffers.Values)
+                    buffer.Dispose();
+                this._displayBuffers.Clear();
+            }
+            finally
+            {
+                this._buffersLock.Release();
+            }
+        }
+
+        this._wasConnected = isConnected;
+    }
+
     public void Dispose()
     {
+        this._rpcClient.ConnectionStatusChanged -= this.OnConnectionStatusChanged;
+
         foreach (var buffer in this._displayBuffers.Values)
             buffer.Dispose();
         this._displayBuffers.Clear();
