@@ -31,7 +31,11 @@
       "WebFetch(domain:eiriktsarpalis.github.io)",
       "WebFetch(domain:blog.nerdbank.net)",
       "Bash(dotnet package search:*)",
-      "Bash(del \"C:\\\\Users\\\\haefe\\\\source\\\\repos\\\\RemoteViewer\\\\src\\\\RemoteViewer.Client\\\\NativeMethods\\\\SasDll.cs\")"
+      "Bash(del \"C:\\\\Users\\\\haefe\\\\source\\\\repos\\\\RemoteViewer\\\\src\\\\RemoteViewer.Client\\\\NativeMethods\\\\SasDll.cs\")",
+      "Bash(del \"C:\\\\Users\\\\haefe\\\\source\\\\repos\\\\RemoteViewer\\\\src\\\\RemoteViewer.Client\\\\Services\\\\ScreenCapture\\\\DisplayCaptureManager.cs\")",
+      "Bash(git diff:*)",
+      "Bash(git checkout:*)",
+      "Bash(git pull:*)"
     ],
     "deny": [],
     "ask": []
