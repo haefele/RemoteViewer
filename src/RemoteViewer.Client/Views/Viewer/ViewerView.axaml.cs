@@ -1,7 +1,6 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
-using Avalonia.Media.Imaging;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
@@ -10,13 +9,15 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.Viewer;
+using RemoteViewer.Client.Common;
 using System.ComponentModel;
 using ProtocolMouseButton = RemoteViewer.Server.SharedAPI.Protocol.MouseButton;
 using ProtocolKeyModifiers = RemoteViewer.Server.SharedAPI.Protocol.KeyModifiers;
 
 namespace RemoteViewer.Client.Views.Viewer;
 
-public partial class ViewerView : Window, IDisposable
+#pragma warning disable CA1001 // Disposal is handled via Window_Closed()
+public partial class ViewerView : Window
 {
     private readonly IWindowsKeyBlockerService _windowsKeyBlocker;
 
@@ -30,6 +31,10 @@ public partial class ViewerView : Window, IDisposable
         this.InitializeComponent();
 
         this._windowsKeyBlocker = App.Current.Services.GetRequiredService<IWindowsKeyBlockerService>();
+
+        this.AddHandler(DragDrop.DragEnterEvent, this.Window_DragEnter);
+        this.AddHandler(DragDrop.DragLeaveEvent, this.Window_DragLeave);
+        this.AddHandler(DragDrop.DropEvent, this.Window_Drop);
     }
     #endregion
 
@@ -41,7 +46,9 @@ public partial class ViewerView : Window, IDisposable
             this._viewModel.PropertyChanged -= this.ViewModel_PropertyChanged;
             this._viewModel.CloseRequested -= this.ViewModel_CloseRequested;
             this._viewModel.OpenFilePickerRequested -= this.ViewModel_OpenFilePickerRequested;
-            this.UnbindConnection(this._viewModel);
+            this._viewModel.Connection.ViewerService?.FrameReady -= this.ViewerService_FrameReady;
+            this._frameCompositor?.Dispose();
+            this._frameCompositor = null;
         }
 
         this._viewModel = this.DataContext as ViewerViewModel;
@@ -51,7 +58,8 @@ public partial class ViewerView : Window, IDisposable
             this._viewModel.CloseRequested += this.ViewModel_CloseRequested;
             this._viewModel.PropertyChanged += this.ViewModel_PropertyChanged;
             this._viewModel.OpenFilePickerRequested += this.ViewModel_OpenFilePickerRequested;
-            this.BindConnection(this._viewModel);
+            this._viewModel.Connection.RequiredViewerService.FrameReady += this.ViewerService_FrameReady;
+            this._frameCompositor = new FrameCompositor();
         }
     }
     private void Window_Opened(object? sender, EventArgs e)
@@ -69,10 +77,12 @@ public partial class ViewerView : Window, IDisposable
         this._windowsKeyBlockerHandle?.Dispose();
 
         if (this._viewModel is not null)
-            this.UnbindConnection(this._viewModel);
-
-        if (this._viewModel is not null)
+        {
+            this._viewModel.Connection.ViewerService?.FrameReady -= this.ViewerService_FrameReady;
+            this._frameCompositor?.Dispose();
+            this._frameCompositor = null;
             await this._viewModel.DisposeAsync();
+        }
     }
     #endregion
 
@@ -82,10 +92,12 @@ public partial class ViewerView : Window, IDisposable
         if (e.PropertyName == nameof(ViewerViewModel.IsFullscreen))
             this.UpdateFullscreenState();
     }
+
     private void ViewModel_CloseRequested(object? sender, EventArgs e)
     {
         this.Close();
     }
+
     private async void ViewModel_OpenFilePickerRequested(object? sender, EventArgs e)
     {
         if (this._viewModel is null)
@@ -103,6 +115,51 @@ public partial class ViewerView : Window, IDisposable
         }
     }
 
+    private void ViewerService_FrameReady(object? sender, FrameReceivedEventArgs e)
+    {
+        var compositor = this._frameCompositor;
+        if (compositor is null)
+            return;
+
+        try
+        {
+            if (e.Regions is [{ IsKeyframe: true }])
+            {
+                compositor.ApplyKeyframe(e.Regions, e.FrameNumber);
+            }
+            else
+            {
+                compositor.ApplyDeltaRegions(e.Regions, e.FrameNumber);
+            }
+
+            var frame = compositor.Canvas;
+            var overlay = compositor.DebugOverlay;
+
+            Dispatcher.UIThread.Post(() =>
+            {
+                if (this.FrameImage is { } frameImage)
+                {
+                    frameImage.Source = frame;
+                    frameImage.InvalidateVisual();
+                }
+
+                if (this.DebugOverlayImage is { } overlayImage)
+                {
+                    overlayImage.Source = overlay;
+                    overlayImage.IsVisible = overlay is not null;
+                    overlayImage.InvalidateVisual();
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            var logger = App.Current.Services.GetRequiredService<ILogger<ViewerView>>();
+            logger.LogError(ex, "Error processing frame");
+        }
+    }
+    #endregion
+
+    #region UI Event Handlers
     private async void DisplaySelectButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         // Execute command and close the parent flyout when a display is selected
@@ -145,7 +202,40 @@ public partial class ViewerView : Window, IDisposable
     }
     #endregion
 
+    #region Drag and Drop
+    private void Window_DragEnter(object? sender, DragEventArgs e)
+    {
+        if (e.IsSingleFileDrag)
+        {
+            e.DragEffects = DragDropEffects.Copy;
+            this.DropOverlay.IsVisible = true;
+        }
+        else
+        {
+            e.DragEffects = DragDropEffects.None;
+        }
+    }
 
+    private void Window_DragLeave(object? sender, DragEventArgs e)
+    {
+        this.DropOverlay.IsVisible = false;
+    }
+
+    private async void Window_Drop(object? sender, DragEventArgs e)
+    {
+        this.DropOverlay.IsVisible = false;
+
+        if (this._viewModel is null)
+            return;
+
+        if (e.SingleFile?.TryGetLocalPath() is { } path)
+        {
+            await this._viewModel.SendFileFromPathAsync(path);
+        }
+    }
+    #endregion
+
+    #region Input Handling
     private async void DisplayPanel_KeyDown(object? sender, KeyEventArgs e)
     {
         if (this._viewModel is null)
@@ -263,6 +353,7 @@ public partial class ViewerView : Window, IDisposable
             await this._viewModel.Connection.RequiredViewerService.SendMouseWheelAsync((float)e.Delta.X, (float)e.Delta.Y, x, y);
         }
     }
+    #endregion
 
     #region Fullscreen & Toolbar Management
     private DispatcherTimer? _toolbarHideTimer;
@@ -324,63 +415,6 @@ public partial class ViewerView : Window, IDisposable
     #endregion
 
     #region Helper Methods
-    private void BindConnection(ViewerViewModel viewModel)
-    {
-        viewModel.Connection.RequiredViewerService.FrameReady += this.ViewerService_FrameReady;
-        this._frameCompositor = new FrameCompositor();
-    }
-
-    private void UnbindConnection(ViewerViewModel viewModel)
-    {
-        viewModel.Connection.ViewerService?.FrameReady -= this.ViewerService_FrameReady;
-        this._frameCompositor?.Dispose();
-        this._frameCompositor = null;
-    }
-    #endregion
-
-    private void ViewerService_FrameReady(object? sender, FrameReceivedEventArgs e)
-    {
-        var compositor = this._frameCompositor;
-        if (compositor is null)
-            return;
-
-        try
-        {
-            if (e.Regions is [{ IsKeyframe: true }])
-            {
-                compositor.ApplyKeyframe(e.Regions, e.FrameNumber);
-            }
-            else
-            {
-                compositor.ApplyDeltaRegions(e.Regions, e.FrameNumber);
-            }
-
-            var frame = compositor.Canvas;
-            var overlay = compositor.DebugOverlay;
-
-            Dispatcher.UIThread.Post(() =>
-            {
-                if (this.FrameImage is { } frameImage)
-                {
-                    frameImage.Source = frame;
-                    frameImage.InvalidateVisual();
-                }
-
-                if (this.DebugOverlayImage is { } overlayImage)
-                {
-                    overlayImage.Source = overlay;
-                    overlayImage.IsVisible = overlay is not null;
-                    overlayImage.InvalidateVisual();
-                }
-            });
-        }
-        catch (Exception ex)
-        {
-            var logger = App.Current.Services.GetRequiredService<ILogger<ViewerView>>();
-            logger.LogError(ex, "Error processing frame");
-        }
-    }
-
     private bool TryGetNormalizedPosition(PointerEventArgs e, out float x, out float y)
     {
         x = -1;
@@ -428,12 +462,5 @@ public partial class ViewerView : Window, IDisposable
 
         return result;
     }
-
-    public void Dispose()
-    {
-        if (this._viewModel is not null)
-            this.UnbindConnection(this._viewModel);
-        this._windowsKeyBlockerHandle?.Dispose();
-        GC.SuppressFinalize(this);
-    }
+    #endregion
 }

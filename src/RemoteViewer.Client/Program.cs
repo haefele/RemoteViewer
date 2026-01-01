@@ -17,8 +17,10 @@ enum ApplicationMode
 
 sealed class Program
 {
+    // Main must remain synchronous - async Main breaks [STAThread] and OLE initialization,
+    // which disables drag-and-drop functionality in Avalonia on Windows.
     [STAThread]
-    public static async Task<int> Main(string[] args)
+    public static int Main(string[] args)
     {
         var mode = DetectApplicationMode(args);
 
@@ -29,7 +31,7 @@ sealed class Program
             return mode switch
             {
                 ApplicationMode.Desktop => RunAsDesktopApp(args),
-                ApplicationMode.WindowsService or ApplicationMode.SessionRecorder => await RunAsHostedService(args, mode),
+                ApplicationMode.WindowsService or ApplicationMode.SessionRecorder => RunAsHostedService(args, mode),
                 _ => throw new InvalidOperationException($"Unknown application mode: {mode}"),
             };
         }
@@ -40,7 +42,7 @@ sealed class Program
         }
         finally
         {
-            await Log.CloseAndFlushAsync();
+            Log.CloseAndFlush();
         }
     }
 
@@ -93,14 +95,14 @@ sealed class Program
             .CreateLogger();
     }
 
-    private static async Task<int> RunAsHostedService(string[] args, ApplicationMode mode)
+    private static int RunAsHostedService(string[] args, ApplicationMode mode)
     {
         var builder = Host.CreateApplicationBuilder(args);
 
         builder.Services.AddRemoteViewerServices(mode);
 
         var host = builder.Build();
-        await host.RunAsync();
+        host.Run();
         return 0;
     }
 

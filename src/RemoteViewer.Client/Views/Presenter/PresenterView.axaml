@@ -3,6 +3,7 @@
         xmlns:vm="using:RemoteViewer.Client.Views.Presenter"
         xmlns:conv="using:RemoteViewer.Client.Converters"
         xmlns:toastControls="using:RemoteViewer.Client.Controls.Toasts"
+        xmlns:controls="using:RemoteViewer.Client.Controls"
         xmlns:mi="using:Material.Icons.Avalonia"
         xmlns:mik="using:Material.Icons"
         x:Class="RemoteViewer.Client.Views.Presenter.PresenterView"
@@ -10,10 +11,11 @@
 
         Icon="/Assets/avalonia-logo.ico"
         Title="Presenting"
-        Width="300" 
+        Width="300"
         CanResize="False"
         SizeToContent="Height"
         WindowStartupLocation="CenterScreen"
+        DragDrop.AllowDrop="True"
 
         DataContextChanged="Window_DataContextChanged"
         Closed="Window_Closed">
@@ -88,7 +90,7 @@
                         BorderThickness="0"
                         Width="32" Height="32"
                         Padding="0">
-                    <mi:MaterialIcon Kind="LanDisconnect" Width="20" Height="20" Foreground="#F44336"/>
+                    <mi:MaterialIcon Kind="LanDisconnect" Width="20" Height="20" Foreground="{DynamicResource ErrorBrush}"/>
                 </Button>
             </StackPanel>
         </Border>
@@ -214,7 +216,7 @@
                     </ScrollViewer>
                 </Grid>
             </Border>
-        </StackPanel>
+            </StackPanel>
 
         <!-- Toast Notifications (overlay, bottom-right) -->
         <toastControls:ToastsView Grid.Row="1"
@@ -222,5 +224,12 @@
                                   VerticalAlignment="Bottom"
                                   HorizontalAlignment="Right"
                                   Margin="0,0,8,8"/>
+
+        <!-- Drop overlay for file transfer (covers entire window) -->
+        <controls:DropOverlay x:Name="DropOverlay"
+                              Grid.RowSpan="2"
+                              Mode="Presenter"
+                              IsVisible="False"
+                              IsHitTestVisible="False"/>
     </Grid>
 </Window>

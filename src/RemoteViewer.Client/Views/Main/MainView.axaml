@@ -161,18 +161,18 @@
         <!-- Version Mismatch Warning Banner (overlay) -->
         <Border VerticalAlignment="Top"
                 HorizontalAlignment="Stretch"
-                Background="#FFF3CD"
+                Background="{DynamicResource WarningBackgroundBrush}"
                 Padding="12,8"
                 IsVisible="{Binding HasVersionMismatch}">
             <Grid ColumnDefinitions="Auto,*">
                 <mi:MaterialIcon Kind="AlertOutline"
                                  Width="20" Height="20"
-                                 Foreground="#856404"
+                                 Foreground="{DynamicResource WarningForegroundBrush}"
                                  VerticalAlignment="Center"
                                  Margin="0,0,10,0"/>
                 <TextBlock Grid.Column="1"
                            Text="{Binding VersionMismatchText}"
-                           Foreground="#856404"
+                           Foreground="{DynamicResource WarningForegroundBrush}"
                            VerticalAlignment="Center"/>
             </Grid>
         </Border>

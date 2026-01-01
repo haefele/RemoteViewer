@@ -6,10 +6,29 @@
              RequestedThemeVariant="Default">
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
+    <Application.Resources>
+        <!-- Semantic Status Colors -->
+        <SolidColorBrush x:Key="SuccessBrush" Color="#4CAF50"/>
+        <SolidColorBrush x:Key="ErrorBrush" Color="#F44336"/>
+        <SolidColorBrush x:Key="InfoBrush" Color="#2196F3"/>
+        <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#FFF3CD"/>
+        <SolidColorBrush x:Key="WarningForegroundBrush" Color="#856404"/>
+
+        <!-- Overlay Colors -->
+        <SolidColorBrush x:Key="OverlayDimBrush" Color="#B0000000"/>
+        <SolidColorBrush x:Key="OverlayButtonBrush" Color="#80000000"/>
+
+        <!-- Toast Colors -->
+        <SolidColorBrush x:Key="ToastTransferBackgroundBrush" Color="#333333"/>
+        <SolidColorBrush x:Key="ToastProgressBackgroundBrush" Color="#555555"/>
+        <SolidColorBrush x:Key="ToastSecondaryTextBrush" Color="#CCCCCC"/>
+        <SolidColorBrush x:Key="ToastMutedTextBrush" Color="#AAAAAA"/>
+    </Application.Resources>
+
     <Application.DataTemplates>
         <local:ViewLocator/>
     </Application.DataTemplates>
-  
+
     <Application.Styles>
         <FluentTheme />
         <mi:MaterialIconStyles />

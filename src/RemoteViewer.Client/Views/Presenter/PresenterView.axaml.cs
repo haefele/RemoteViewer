@@ -1,5 +1,8 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
+using Avalonia.Input;
+using Avalonia.Platform;
 using Avalonia.Platform.Storage;
+using RemoteViewer.Client.Common;
 
 namespace RemoteViewer.Client.Views.Presenter;
 
@@ -10,6 +13,10 @@ public partial class PresenterView : Window
     public PresenterView()
     {
         this.InitializeComponent();
+
+        this.AddHandler(DragDrop.DragEnterEvent, this.Window_DragEnter);
+        this.AddHandler(DragDrop.DragLeaveEvent, this.Window_DragLeave);
+        this.AddHandler(DragDrop.DropEvent, this.Window_Drop);
     }
 
     private void Window_DataContextChanged(object? sender, EventArgs e)
@@ -109,5 +116,38 @@ public partial class PresenterView : Window
         this._viewModel.SendFileCommand.Execute(selectedViewerIds);
     }
 
+    #endregion
+
+    #region Drag and Drop
+    private void Window_DragEnter(object? sender, DragEventArgs e)
+    {
+        if (e.IsSingleFileDrag && this._viewModel?.Viewers.Count == 1)
+        {
+            e.DragEffects = DragDropEffects.Copy;
+            this.DropOverlay.IsVisible = true;
+        }
+        else
+        {
+            e.DragEffects = DragDropEffects.None;
+        }
+    }
+
+    private void Window_DragLeave(object? sender, DragEventArgs e)
+    {
+        this.DropOverlay.IsVisible = false;
+    }
+
+    private async void Window_Drop(object? sender, DragEventArgs e)
+    {
+        this.DropOverlay.IsVisible = false;
+
+        if (this._viewModel?.Viewers is not [var viewer])
+            return;
+
+        if (e.SingleFile?.TryGetLocalPath() is { } filePath)
+        {
+            await this._viewModel.SendFileToViewersAsync(filePath, [viewer.ClientId]);
+        }
+    }
     #endregion
 }

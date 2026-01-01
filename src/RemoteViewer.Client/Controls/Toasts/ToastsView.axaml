@@ -26,25 +26,10 @@
                     <Border.Background>
                         <Binding Path="Type">
                             <Binding.Converter>
-                                <conv:ObjectToObject>
-                                    <conv:ObjectToObject.DefaultValue>
-                                        <SolidColorBrush Color="#2196F3"/>
-                                    </conv:ObjectToObject.DefaultValue>
-                                    <conv:MapItem From="{x:Static toasts:ToastType.Success}">
-                                        <conv:MapItem.To>
-                                            <SolidColorBrush Color="#4CAF50"/>
-                                        </conv:MapItem.To>
-                                    </conv:MapItem>
-                                    <conv:MapItem From="{x:Static toasts:ToastType.Error}">
-                                        <conv:MapItem.To>
-                                            <SolidColorBrush Color="#F44336"/>
-                                        </conv:MapItem.To>
-                                    </conv:MapItem>
-                                    <conv:MapItem From="{x:Static toasts:ToastType.Info}">
-                                        <conv:MapItem.To>
-                                            <SolidColorBrush Color="#2196F3"/>
-                                        </conv:MapItem.To>
-                                    </conv:MapItem>
+                                <conv:ObjectToObject DefaultValue="{StaticResource InfoBrush}">
+                                    <conv:MapItem From="{x:Static toasts:ToastType.Success}" To="{StaticResource SuccessBrush}"/>
+                                    <conv:MapItem From="{x:Static toasts:ToastType.Error}" To="{StaticResource ErrorBrush}"/>
+                                    <conv:MapItem From="{x:Static toasts:ToastType.Info}" To="{StaticResource InfoBrush}"/>
                                 </conv:ObjectToObject>
                             </Binding.Converter>
                         </Binding>
@@ -106,7 +91,7 @@
                         Padding="8"
                         MaxWidth="320"
                         MinWidth="200"
-                        Background="#4CAF50">
+                        Background="{DynamicResource SuccessBrush}">
                     <Border.Transitions>
                         <Transitions>
                             <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
@@ -131,7 +116,7 @@
 
                             <Button Command="{Binding ExecuteActionCommand}"
                                     Background="White"
-                                    Foreground="#4CAF50"
+                                    Foreground="{DynamicResource SuccessBrush}"
                                     CornerRadius="4"
                                     Padding="8,4"
                                     HorizontalAlignment="Right"
@@ -174,7 +159,7 @@
                         Padding="12"
                         MaxWidth="300"
                         MinWidth="250"
-                        Background="#333333">
+                        Background="{DynamicResource ToastTransferBackgroundBrush}">
                     <Border.Transitions>
                         <Transitions>
                             <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
@@ -211,7 +196,7 @@
                                 <mi:MaterialIcon Kind="Close"
                                                  Width="14"
                                                  Height="14"
-                                                 Foreground="#AAAAAA"/>
+                                                 Foreground="{DynamicResource ToastMutedTextBrush}"/>
                             </Button>
                         </Grid>
 
@@ -219,7 +204,7 @@
                         <TextBlock Grid.Row="1"
                                    Text="{Binding Transfer.FileName}"
                                    TextTrimming="CharacterEllipsis"
-                                   Foreground="#CCCCCC"
+                                   Foreground="{DynamicResource ToastSecondaryTextBrush}"
                                    FontSize="12"
                                    Margin="0,4,0,8"
                                    ToolTip.Tip="{Binding Transfer.FileName}"/>
@@ -231,7 +216,7 @@
                                      Maximum="1"
                                      Height="4"
                                      CornerRadius="2"
-                                     Background="#555555">
+                                     Background="{DynamicResource ToastProgressBackgroundBrush}">
                             <ProgressBar.IsIndeterminate>
                                 <Binding Path="Transfer.State">
                                     <Binding.Converter>
@@ -247,7 +232,7 @@
                         <!-- Row 3: Footer - waiting text OR size/percent -->
                         <TextBlock Grid.Row="3"
                                    Text="Waiting for approval..."
-                                   Foreground="#AAAAAA"
+                                   Foreground="{DynamicResource ToastMutedTextBrush}"
                                    FontSize="11"
                                    Margin="0,6,0,0">
                             <TextBlock.IsVisible>
@@ -276,12 +261,12 @@
                             </Grid.IsVisible>
                             <TextBlock Grid.Column="0"
                                        Text="{Binding Transfer.FileSizeFormatted}"
-                                       Foreground="#AAAAAA"
+                                       Foreground="{DynamicResource ToastMutedTextBrush}"
                                        FontSize="11"/>
 
                             <TextBlock Grid.Column="1"
                                        Text="{Binding Transfer.ProgressPercent, StringFormat={}{0}%}"
-                                       Foreground="#AAAAAA"
+                                       Foreground="{DynamicResource ToastMutedTextBrush}"
                                        FontSize="11"/>
                         </Grid>
                     </Grid>

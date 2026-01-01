@@ -17,6 +17,7 @@
         Width="1280"
         Height="720"
         WindowStartupLocation="CenterScreen"
+        DragDrop.AllowDrop="True"
 
         DataContextChanged="Window_DataContextChanged"
         Opened="Window_Opened"
@@ -227,7 +228,7 @@
                         BorderThickness="0"
                         Width="32" Height="32"
                         Padding="0">
-                    <mi:MaterialIcon Kind="LanDisconnect" Width="20" Height="20" Foreground="#F44336"/>
+                    <mi:MaterialIcon Kind="LanDisconnect" Width="20" Height="20" Foreground="{DynamicResource ErrorBrush}"/>
                 </Button>
             </StackPanel>
         </Border>
@@ -264,7 +265,7 @@
                         VerticalAlignment="Center"
                         Margin="16,0"
                         Width="48" Height="80"
-                        Background="#80000000"
+                        Background="{DynamicResource OverlayButtonBrush}"
                         BorderThickness="0"
                         CornerRadius="8"
                         Opacity="0.6"
@@ -284,7 +285,7 @@
                         VerticalAlignment="Center"
                         Margin="16,0"
                         Width="48" Height="80"
-                        Background="#80000000"
+                        Background="{DynamicResource OverlayButtonBrush}"
                         BorderThickness="0"
                         CornerRadius="8"
                         Opacity="0.6"
@@ -305,6 +306,13 @@
                                   VerticalAlignment="Bottom"
                                   HorizontalAlignment="Right"
                                   Margin="0,0,8,8"/>
+
+        <!-- Drop overlay for file transfer (covers entire window) -->
+        <controls:DropOverlay x:Name="DropOverlay"
+                              Grid.RowSpan="2"
+                              Mode="Viewer"
+                              IsVisible="False"
+                              IsHitTestVisible="False"/>
     </Grid>
 
 </Window>
