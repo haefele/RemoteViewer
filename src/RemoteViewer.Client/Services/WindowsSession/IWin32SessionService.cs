@@ -30,16 +30,25 @@ public enum DesktopSessionType
     Rdp,
 }
 
-public class Win32SessionService(ILogger<Win32SessionService> logger) : IWin32SessionService
+public class Win32SessionService(ILogger<Win32SessionService> logger) : IWin32SessionService, IDisposable
 {
+    // Desktop associations are per-thread, so we need per-thread handle storage
+    private readonly ThreadLocal<CloseDesktopSafeHandle?> _currentInputDesktop = new();
+
+    public void Dispose()
+    {
+        this._currentInputDesktop.Dispose();
+    }
+
     public void SwitchToInputDesktop()
     {
         try
         {
-            using var inputDesktop = PInvoke.OpenInputDesktop_SafeHandle(
+            const uint GENERIC_ALL = 0x10000000;
+            var inputDesktop = PInvoke.OpenInputDesktop_SafeHandle(
                 0,
-                false,
-                DESKTOP_ACCESS_FLAGS.DESKTOP_READOBJECTS);
+                true,
+                (DESKTOP_ACCESS_FLAGS)GENERIC_ALL);
 
             if (inputDesktop.IsInvalid)
             {
@@ -50,8 +59,13 @@ public class Win32SessionService(ILogger<Win32SessionService> logger) : IWin32Se
             if (PInvoke.SetThreadDesktop(inputDesktop) == false)
             {
                 logger.LogError("Failed to set thread desktop: {ErrorCode}", Marshal.GetLastWin32Error());
+                inputDesktop.Dispose();
                 return;
             }
+
+            // Close the previous desktop handle (if any) and keep the new one
+            this._currentInputDesktop.Value?.Dispose();
+            this._currentInputDesktop.Value = inputDesktop;
 
             logger.LogTrace("Successfully switched to input desktop");
         }
