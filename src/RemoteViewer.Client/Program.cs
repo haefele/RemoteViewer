@@ -82,7 +82,7 @@ sealed class Program
 
         Log.Logger = new LoggerConfiguration()
             .Enrich.FromLogContext()
-            .MinimumLevel.Verbose()
+            .MinimumLevel.Information()
             .MinimumLevel.Override("Microsoft", LogEventLevel.Information)
             .MinimumLevel.Override("System", LogEventLevel.Warning)
             .MinimumLevel.Override("ZiggyCreatures.Caching.Fusion", LogEventLevel.Warning)
