@@ -1,5 +1,4 @@
-﻿using System.Collections.Immutable;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.Client.Services.LocalInputMonitor;
@@ -23,8 +22,7 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
     private readonly Lock _selectionsLock = new();
     private readonly Dictionary<string, string?> _viewerDisplaySelections = new(StringComparer.Ordinal);
 
-    private readonly Timer _displaySyncTimer;
-    private ImmutableList<DisplayInfo>? _lastSyncedDisplays;
+    private readonly Timer _propertiesSyncTimer;
 
     private bool _disposed;
 
@@ -45,16 +43,13 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
         this._winServiceRpcClient = winServiceRpcClient;
         this._logger = logger;
 
-        this._connection.Closed += this.OnConnectionClosed;
-        this._winServiceRpcClient.ConnectionStatusChanged += this.WinServiceRpcClient_ConnectionStatusChanged;
-
         this._localInputMonitor.StartMonitoring();
 
-        // Sync display list periodically (every 3 seconds)
-        this._displaySyncTimer = new Timer(this.SyncDisplaysCallback, null, TimeSpan.Zero, TimeSpan.FromSeconds(3));
+        // Sync connection properties periodically (every 3 seconds) to ensure eventual consistency
+        this._propertiesSyncTimer = new Timer(this.SyncPropertiesCallback, null, TimeSpan.Zero, TimeSpan.FromSeconds(3));
     }
 
-    private async void SyncDisplaysCallback(object? state)
+    private async void SyncPropertiesCallback(object? state)
     {
         if (this._disposed)
             return;
@@ -62,20 +57,19 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
         try
         {
             var displays = await this._displayService.GetDisplays(this._connection.ConnectionId, CancellationToken.None);
+            var canSendSas = this._winServiceRpcClient.IsConnected;
 
-            if (this._lastSyncedDisplays is not null && this._lastSyncedDisplays.SequenceEqual(displays))
-                return;
-
-            this._lastSyncedDisplays = displays;
-
-            await this._connection.UpdateConnectionPropertiesAndSend(current =>
-                current with { AvailableDisplays = displays.ToList() });
-
-            this._logger.LogDebug("Synced {Count} displays to viewers", displays.Count);
+            await this._connection.UpdateConnectionPropertiesAndSend(
+                current => current with
+                {
+                    AvailableDisplays = displays.ToList(),
+                    CanSendSecureAttentionSequence = canSendSas
+                },
+                forceSend: true);
         }
         catch (Exception ex)
         {
-            this._logger.LogError(ex, "Error syncing displays");
+            this._logger.LogError(ex, "Error syncing connection properties");
         }
     }
 
@@ -326,33 +320,6 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
         }
     }
 
-    private async void WinServiceRpcClient_ConnectionStatusChanged(object? sender, EventArgs e)
-    {
-        try
-        {
-            await this._connection.UpdateConnectionPropertiesAndSend(current =>
-            {
-                return current with { CanSendSecureAttentionSequence = this._winServiceRpcClient.IsConnected };
-            });
-        }
-        catch (Exception ex)
-        {
-            this._logger.LogError(ex, "Error updating connection properties after WinService RPC status change");
-        }
-    }
-
-    private void OnConnectionClosed(object? sender, EventArgs e)
-    {
-        try
-        {
-            this._inputInjectionService.ReleaseAllModifiers(this._connection.ConnectionId, CancellationToken.None).GetAwaiter().GetResult();
-        }
-        catch (Exception ex)
-        {
-            this._logger.LogError(ex, "Error handling connection closed event");
-        }
-    }
-
     public void Dispose()
     {
         if (this._disposed)
@@ -360,10 +327,7 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
 
         this._disposed = true;
 
-        this._displaySyncTimer.Dispose();
-
-        this._connection.Closed -= this.OnConnectionClosed;
-        this._winServiceRpcClient.ConnectionStatusChanged -= this.WinServiceRpcClient_ConnectionStatusChanged;
+        this._propertiesSyncTimer.Dispose();
 
         this._localInputMonitor.StopMonitoring();
 

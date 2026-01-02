@@ -541,7 +541,7 @@ public sealed class Connection : IConnectionImpl
         this.Closed?.Invoke(this, EventArgs.Empty);
     }
 
-    public async Task UpdateConnectionPropertiesAndSend(Func<ConnectionProperties, ConnectionProperties> update)
+    public async Task UpdateConnectionPropertiesAndSend(Func<ConnectionProperties, ConnectionProperties> update, bool forceSend = false)
     {
         ConnectionProperties properties;
         var changed = false;
@@ -557,7 +557,7 @@ public sealed class Connection : IConnectionImpl
                 changed = true;
             }
 
-            if (!AreConnectionPropertiesEqual(this._lastSentProperties, properties))
+            if (forceSend || !AreConnectionPropertiesEqual(this._lastSentProperties, properties))
             {
                 this._lastSentProperties = properties;
                 shouldSend = true;
