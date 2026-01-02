@@ -106,6 +106,18 @@ public class WindowsInputInjectionService : IInputInjectionService
                 else
                     this._simulator.Mouse.MiddleButtonUp();
                 break;
+            case ProtocolMouseButton.XButton1:
+                if (isDown)
+                    this._simulator.Mouse.XButtonDown(1);
+                else
+                    this._simulator.Mouse.XButtonUp(1);
+                break;
+            case ProtocolMouseButton.XButton2:
+                if (isDown)
+                    this._simulator.Mouse.XButtonDown(2);
+                else
+                    this._simulator.Mouse.XButtonUp(2);
+                break;
             default:
                 this._logger.LogWarning("Unknown mouse button: {Button}", button);
                 break;

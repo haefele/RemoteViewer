@@ -323,6 +323,8 @@ public partial class ViewerView : Window
                 MouseButton.Left => ProtocolMouseButton.Left,
                 MouseButton.Right => ProtocolMouseButton.Right,
                 MouseButton.Middle => ProtocolMouseButton.Middle,
+                MouseButton.XButton1 => ProtocolMouseButton.XButton1,
+                MouseButton.XButton2 => ProtocolMouseButton.XButton2,
                 _ => (ProtocolMouseButton?)null
             };
 
@@ -431,6 +433,8 @@ public partial class ViewerView : Window
         { IsLeftButtonPressed: true } => ProtocolMouseButton.Left,
         { IsRightButtonPressed: true } => ProtocolMouseButton.Right,
         { IsMiddleButtonPressed: true } => ProtocolMouseButton.Middle,
+        { IsXButton1Pressed: true } => ProtocolMouseButton.XButton1,
+        { IsXButton2Pressed: true } => ProtocolMouseButton.XButton2,
         _ => null,
     };
 
