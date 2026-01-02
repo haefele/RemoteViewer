@@ -52,6 +52,9 @@ static class ServiceRegistration
         services.AddSingleton<IScreenGrabber, IpcScreenGrabber>();
         services.AddScreenCaptureServices();
 
+        // Session Management (for input desktop switching in fallback path)
+        services.AddSingleton<IWin32SessionService, Win32SessionService>();
+
         // Display & Input (with IPC fallback via injected SessionRecorderRpcClient)
         services.AddSingleton<IDisplayService, WindowsDisplayService>();
         services.AddSingleton<IInputInjectionService, WindowsInputInjectionService>();
@@ -109,6 +112,7 @@ static class ServiceRegistration
             sp.GetRequiredService<IFusionCache>(),
             sp.GetRequiredService<ILogger<WindowsDisplayService>>()));
         services.AddSingleton<IInputInjectionService>(sp => new WindowsInputInjectionService(
+            sp.GetRequiredService<IWin32SessionService>(),
             null,
             sp.GetRequiredService<ILogger<WindowsInputInjectionService>>()));
 

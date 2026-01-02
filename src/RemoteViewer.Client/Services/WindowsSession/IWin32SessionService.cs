@@ -13,7 +13,7 @@ namespace RemoteViewer.Client.Services.WindowsSession;
 
 public interface IWin32SessionService
 {
-    bool SwitchToInputDesktop();
+    void SwitchToInputDesktop();
 
     ImmutableList<DesktopSession> GetActiveSessions();
 
@@ -32,7 +32,7 @@ public enum DesktopSessionType
 
 public class Win32SessionService(ILogger<Win32SessionService> logger) : IWin32SessionService
 {
-    public bool SwitchToInputDesktop()
+    public void SwitchToInputDesktop()
     {
         try
         {
@@ -44,21 +44,20 @@ public class Win32SessionService(ILogger<Win32SessionService> logger) : IWin32Se
             if (inputDesktop.IsInvalid)
             {
                 logger.LogError("Failed to open input desktop: {ErrorCode}", Marshal.GetLastWin32Error());
-                return false;
+                return;
             }
 
             if (PInvoke.SetThreadDesktop(inputDesktop) == false)
             {
                 logger.LogError("Failed to set thread desktop: {ErrorCode}", Marshal.GetLastWin32Error());
-                return false;
+                return;
             }
 
-            return true;
+            logger.LogTrace("Successfully switched to input desktop");
         }
         catch (Exception exception)
         {
             logger.LogError(exception, "Exception occurred while switching to input desktop");
-            return false;
         }
     }
 

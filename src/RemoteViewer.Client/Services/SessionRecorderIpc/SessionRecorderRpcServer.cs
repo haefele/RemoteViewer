@@ -105,8 +105,6 @@ public class SessionRecorderRpcServer(
     {
         this.ValidateConnectionId(connectionId);
 
-        win32SessionService.SwitchToInputDesktop();
-
         var display = await this.ResolveDisplayAsync(displayId, ct);
         if (display is null)
         {
@@ -117,6 +115,8 @@ public class SessionRecorderRpcServer(
         {
             await screenshotService.ForceKeyframe(displayId, ct);
         }
+
+        win32SessionService.SwitchToInputDesktop();
 
         using var result = await screenshotService.CaptureDisplay(display, null, ct);
 
@@ -196,8 +196,6 @@ public class SessionRecorderRpcServer(
     {
         this.ValidateConnectionId(connectionId);
 
-        win32SessionService.SwitchToInputDesktop();
-
         var display = await this.ResolveDisplayAsync(displayId, ct);
         if (display is null) return;
 
@@ -207,8 +205,6 @@ public class SessionRecorderRpcServer(
     public async Task InjectMouseButton(string connectionId, string displayId, int button, bool isDown, float normalizedX, float normalizedY, CancellationToken ct)
     {
         this.ValidateConnectionId(connectionId);
-
-        win32SessionService.SwitchToInputDesktop();
 
         var display = await this.ResolveDisplayAsync(displayId, ct);
         if (display is null) return;
@@ -220,8 +216,6 @@ public class SessionRecorderRpcServer(
     {
         this.ValidateConnectionId(connectionId);
 
-        win32SessionService.SwitchToInputDesktop();
-
         var display = await this.ResolveDisplayAsync(displayId, ct);
         if (display is null) return;
 
@@ -231,16 +225,12 @@ public class SessionRecorderRpcServer(
     public Task InjectKey(string connectionId, ushort keyCode, bool isDown, CancellationToken ct)
     {
         this.ValidateConnectionId(connectionId);
-
-        win32SessionService.SwitchToInputDesktop();
         return inputInjectionService.InjectKey(keyCode, isDown, null, ct);
     }
 
     public Task ReleaseAllModifiers(string connectionId, CancellationToken ct)
     {
         this.ValidateConnectionId(connectionId);
-
-        win32SessionService.SwitchToInputDesktop();
         return inputInjectionService.ReleaseAllModifiers(null, ct);
     }
 

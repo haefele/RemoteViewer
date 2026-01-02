@@ -2,6 +2,7 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.SessionRecorderIpc;
+using RemoteViewer.Client.Services.WindowsSession;
 using RemoteViewer.Server.SharedAPI;
 using RemoteViewer.Server.SharedAPI.Protocol;
 using Windows.Win32;
@@ -15,6 +16,7 @@ public class WindowsInputInjectionService : IInputInjectionService
 {
     private static readonly TimeSpan s_modifierTimeout = TimeSpan.FromSeconds(10);
 
+    private readonly IWin32SessionService _sessionService;
     private readonly SessionRecorderRpcClient? _rpcClient;
     private readonly ILogger<WindowsInputInjectionService> _logger;
     private readonly InputSimulator _simulator = new();
@@ -26,9 +28,11 @@ public class WindowsInputInjectionService : IInputInjectionService
     private float _horizontalScrollAccumulator;
 
     public WindowsInputInjectionService(
+        IWin32SessionService sessionService,
         SessionRecorderRpcClient? rpcClient,
         ILogger<WindowsInputInjectionService> logger)
     {
+        this._sessionService = sessionService;
         this._rpcClient = rpcClient;
         this._logger = logger;
     }
@@ -70,6 +74,7 @@ public class WindowsInputInjectionService : IInputInjectionService
 
     private Task ActualInjectMouseMove(DisplayInfo display, float normalizedX, float normalizedY, CancellationToken ct)
     {
+        this._sessionService.SwitchToInputDesktop();
         this.CheckAndReleaseStuckModifiers();
 
         var (absX, absY) = NormalizedToAbsolute(display, normalizedX, normalizedY);
@@ -80,6 +85,7 @@ public class WindowsInputInjectionService : IInputInjectionService
 
     private Task ActualInjectMouseButton(DisplayInfo display, ProtocolMouseButton button, bool isDown, float normalizedX, float normalizedY, CancellationToken ct)
     {
+        this._sessionService.SwitchToInputDesktop();
         this.CheckAndReleaseStuckModifiers();
         this._lastInputTime = DateTime.UtcNow;
 
@@ -128,6 +134,7 @@ public class WindowsInputInjectionService : IInputInjectionService
 
     private Task ActualInjectMouseWheel(DisplayInfo display, float deltaX, float deltaY, float normalizedX, float normalizedY, CancellationToken ct)
     {
+        this._sessionService.SwitchToInputDesktop();
         this.CheckAndReleaseStuckModifiers();
         this._lastInputTime = DateTime.UtcNow;
 
@@ -155,6 +162,7 @@ public class WindowsInputInjectionService : IInputInjectionService
 
     private Task ActualInjectKey(ushort keyCode, bool isDown, CancellationToken ct)
     {
+        this._sessionService.SwitchToInputDesktop();
         this.CheckAndReleaseStuckModifiers();
         this._lastInputTime = DateTime.UtcNow;
 
@@ -186,6 +194,8 @@ public class WindowsInputInjectionService : IInputInjectionService
 
     private Task ActualReleaseAllModifiers(CancellationToken ct)
     {
+        this._sessionService.SwitchToInputDesktop();
+
         foreach (var vk in this._pressedModifiers.Keys)
         {
             this._logger.LogInformation("Releasing modifier key on cleanup: {Key}", vk);
