@@ -57,7 +57,10 @@ static class ServiceRegistration
 
         // Display & Input (with IPC fallback via injected SessionRecorderRpcClient)
         services.AddSingleton<IDisplayService, WindowsDisplayService>();
-        services.AddSingleton<IInputInjectionService, WindowsInputInjectionService>();
+        services.AddSingleton<IInputInjectionService>(sp => new WindowsInputInjectionService(
+            null,
+            sp.GetRequiredService<SessionRecorderRpcClient>(),
+            sp.GetRequiredService<ILogger<WindowsInputInjectionService>>()));
 
         // Local Input Monitoring
         services.AddSingleton<ILocalInputMonitorService, WindowsLocalInputMonitorService>();

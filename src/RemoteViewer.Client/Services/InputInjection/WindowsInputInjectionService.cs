@@ -12,11 +12,11 @@ using ProtocolMouseButton = RemoteViewer.Server.SharedAPI.Protocol.MouseButton;
 
 namespace RemoteViewer.Client.Services.InputInjection;
 
-public class WindowsInputInjectionService : IInputInjectionService
+public class WindowsInputInjectionService : IInputInjectionService, IDisposable
 {
     private static readonly TimeSpan s_modifierTimeout = TimeSpan.FromSeconds(10);
 
-    private readonly IWin32SessionService _sessionService;
+    private readonly IWin32SessionService? _sessionService;
     private readonly SessionRecorderRpcClient? _rpcClient;
     private readonly ILogger<WindowsInputInjectionService> _logger;
     private readonly InputSimulator _simulator = new();
@@ -27,14 +27,51 @@ public class WindowsInputInjectionService : IInputInjectionService
     private float _verticalScrollAccumulator;
     private float _horizontalScrollAccumulator;
 
+    // Dedicated input thread with BlockingCollection
+    private readonly BlockingCollection<Action> _actionQueue = [];
+    private readonly CancellationTokenSource _processorCts = new();
+    private readonly Thread _processorThread;
+
     public WindowsInputInjectionService(
-        IWin32SessionService sessionService,
+        IWin32SessionService? sessionService,
         SessionRecorderRpcClient? rpcClient,
         ILogger<WindowsInputInjectionService> logger)
     {
         this._sessionService = sessionService;
         this._rpcClient = rpcClient;
         this._logger = logger;
+
+        // Start dedicated input thread
+        this._processorThread = new Thread(this.ProcessInputLoop)
+        {
+            Name = "InputProcessor",
+            IsBackground = true
+        };
+        this._processorThread.Start();
+    }
+
+    private void ProcessInputLoop()
+    {
+        try
+        {
+            foreach (var action in this._actionQueue.GetConsumingEnumerable(this._processorCts.Token))
+            {
+                try
+                {
+                    // Only switch desktops in SessionRecorder mode (when sessionService is not null)
+                    this._sessionService?.SwitchToInputDesktop();
+                    action.Invoke();
+                }
+                catch (Exception ex)
+                {
+                    this._logger.LogError(ex, "Error processing input action");
+                }
+            }
+        }
+        catch (OperationCanceledException)
+        {
+            // Expected during shutdown
+        }
     }
 
     public Task InjectMouseMove(DisplayInfo display, float normalizedX, float normalizedY, string? connectionId, CancellationToken ct)
@@ -74,135 +111,138 @@ public class WindowsInputInjectionService : IInputInjectionService
 
     private Task ActualInjectMouseMove(DisplayInfo display, float normalizedX, float normalizedY, CancellationToken ct)
     {
-        this._sessionService.SwitchToInputDesktop();
-        this.CheckAndReleaseStuckModifiers();
-
-        var (absX, absY) = NormalizedToAbsolute(display, normalizedX, normalizedY);
-        this._simulator.Mouse.MoveMouseToPositionOnVirtualDesktop(absX, absY);
-
+        this._actionQueue.Add(() =>
+        {
+            this.CheckAndReleaseStuckModifiers();
+            var (absX, absY) = NormalizedToAbsolute(display, normalizedX, normalizedY);
+            this._simulator.Mouse.MoveMouseToPositionOnVirtualDesktop(absX, absY);
+        }, ct);
         return Task.CompletedTask;
     }
 
     private Task ActualInjectMouseButton(DisplayInfo display, ProtocolMouseButton button, bool isDown, float normalizedX, float normalizedY, CancellationToken ct)
     {
-        this._sessionService.SwitchToInputDesktop();
-        this.CheckAndReleaseStuckModifiers();
-        this._lastInputTime = DateTime.UtcNow;
-
-        var (absX, absY) = NormalizedToAbsolute(display, normalizedX, normalizedY);
-        this._simulator.Mouse.MoveMouseToPositionOnVirtualDesktop(absX, absY);
-
-        switch (button)
+        this._actionQueue.Add(() =>
         {
-            case ProtocolMouseButton.Left:
-                if (isDown)
-                    this._simulator.Mouse.LeftButtonDown();
-                else
-                    this._simulator.Mouse.LeftButtonUp();
-                break;
-            case ProtocolMouseButton.Right:
-                if (isDown)
-                    this._simulator.Mouse.RightButtonDown();
-                else
-                    this._simulator.Mouse.RightButtonUp();
-                break;
-            case ProtocolMouseButton.Middle:
-                if (isDown)
-                    this._simulator.Mouse.MiddleButtonDown();
-                else
-                    this._simulator.Mouse.MiddleButtonUp();
-                break;
-            case ProtocolMouseButton.XButton1:
-                if (isDown)
-                    this._simulator.Mouse.XButtonDown(1);
-                else
-                    this._simulator.Mouse.XButtonUp(1);
-                break;
-            case ProtocolMouseButton.XButton2:
-                if (isDown)
-                    this._simulator.Mouse.XButtonDown(2);
-                else
-                    this._simulator.Mouse.XButtonUp(2);
-                break;
-            default:
-                this._logger.LogWarning("Unknown mouse button: {Button}", button);
-                break;
-        }
+            this.CheckAndReleaseStuckModifiers();
+            this._lastInputTime = DateTime.UtcNow;
 
+            var (absX, absY) = NormalizedToAbsolute(display, normalizedX, normalizedY);
+            this._simulator.Mouse.MoveMouseToPositionOnVirtualDesktop(absX, absY);
+
+            switch (button)
+            {
+                case ProtocolMouseButton.Left:
+                    if (isDown)
+                        this._simulator.Mouse.LeftButtonDown();
+                    else
+                        this._simulator.Mouse.LeftButtonUp();
+                    break;
+                case ProtocolMouseButton.Right:
+                    if (isDown)
+                        this._simulator.Mouse.RightButtonDown();
+                    else
+                        this._simulator.Mouse.RightButtonUp();
+                    break;
+                case ProtocolMouseButton.Middle:
+                    if (isDown)
+                        this._simulator.Mouse.MiddleButtonDown();
+                    else
+                        this._simulator.Mouse.MiddleButtonUp();
+                    break;
+                case ProtocolMouseButton.XButton1:
+                    if (isDown)
+                        this._simulator.Mouse.XButtonDown(1);
+                    else
+                        this._simulator.Mouse.XButtonUp(1);
+                    break;
+                case ProtocolMouseButton.XButton2:
+                    if (isDown)
+                        this._simulator.Mouse.XButtonDown(2);
+                    else
+                        this._simulator.Mouse.XButtonUp(2);
+                    break;
+                default:
+                    this._logger.LogWarning("Unknown mouse button: {Button}", button);
+                    break;
+            }
+        }, ct);
         return Task.CompletedTask;
     }
 
     private Task ActualInjectMouseWheel(DisplayInfo display, float deltaX, float deltaY, float normalizedX, float normalizedY, CancellationToken ct)
     {
-        this._sessionService.SwitchToInputDesktop();
-        this.CheckAndReleaseStuckModifiers();
-        this._lastInputTime = DateTime.UtcNow;
-
-        var (absX, absY) = NormalizedToAbsolute(display, normalizedX, normalizedY);
-        this._simulator.Mouse.MoveMouseToPositionOnVirtualDesktop(absX, absY);
-
-        this._verticalScrollAccumulator += deltaY;
-        var verticalClicks = (int)this._verticalScrollAccumulator;
-        if (verticalClicks != 0)
+        this._actionQueue.Add(() =>
         {
-            this._simulator.Mouse.VerticalScroll(verticalClicks);
-            this._verticalScrollAccumulator -= verticalClicks;
-        }
+            this.CheckAndReleaseStuckModifiers();
+            this._lastInputTime = DateTime.UtcNow;
 
-        this._horizontalScrollAccumulator += deltaX;
-        var horizontalClicks = (int)this._horizontalScrollAccumulator;
-        if (horizontalClicks != 0)
-        {
-            this._simulator.Mouse.HorizontalScroll(horizontalClicks);
-            this._horizontalScrollAccumulator -= horizontalClicks;
-        }
+            var (absX, absY) = NormalizedToAbsolute(display, normalizedX, normalizedY);
+            this._simulator.Mouse.MoveMouseToPositionOnVirtualDesktop(absX, absY);
 
+            this._verticalScrollAccumulator += deltaY;
+            var verticalClicks = (int)this._verticalScrollAccumulator;
+            if (verticalClicks != 0)
+            {
+                this._simulator.Mouse.VerticalScroll(verticalClicks);
+                this._verticalScrollAccumulator -= verticalClicks;
+            }
+
+            this._horizontalScrollAccumulator += deltaX;
+            var horizontalClicks = (int)this._horizontalScrollAccumulator;
+            if (horizontalClicks != 0)
+            {
+                this._simulator.Mouse.HorizontalScroll(horizontalClicks);
+                this._horizontalScrollAccumulator -= horizontalClicks;
+            }
+        }, ct);
         return Task.CompletedTask;
     }
 
     private Task ActualInjectKey(ushort keyCode, bool isDown, CancellationToken ct)
     {
-        this._sessionService.SwitchToInputDesktop();
-        this.CheckAndReleaseStuckModifiers();
-        this._lastInputTime = DateTime.UtcNow;
-
-        var vk = (VirtualKeyCode)keyCode;
-
-        if (IsModifierKey(vk))
+        this._actionQueue.Add(() =>
         {
+            this.CheckAndReleaseStuckModifiers();
+            this._lastInputTime = DateTime.UtcNow;
+
+            var vk = (VirtualKeyCode)keyCode;
+
+            if (IsModifierKey(vk))
+            {
+                if (isDown)
+                {
+                    this._pressedModifiers[vk] = DateTime.UtcNow;
+                }
+                else
+                {
+                    this._pressedModifiers.TryRemove(vk, out _);
+                }
+            }
+
             if (isDown)
             {
-                this._pressedModifiers[vk] = DateTime.UtcNow;
+                this._simulator.Keyboard.KeyDown(vk);
             }
             else
             {
-                this._pressedModifiers.TryRemove(vk, out _);
+                this._simulator.Keyboard.KeyUp(vk);
             }
-        }
-
-        if (isDown)
-        {
-            this._simulator.Keyboard.KeyDown(vk);
-        }
-        else
-        {
-            this._simulator.Keyboard.KeyUp(vk);
-        }
-
+        }, ct);
         return Task.CompletedTask;
     }
 
     private Task ActualReleaseAllModifiers(CancellationToken ct)
     {
-        this._sessionService.SwitchToInputDesktop();
-
-        foreach (var vk in this._pressedModifiers.Keys)
+        this._actionQueue.Add(() =>
         {
-            this._logger.LogInformation("Releasing modifier key on cleanup: {Key}", vk);
-            this._simulator.Keyboard.KeyUp(vk);
-        }
-        this._pressedModifiers.Clear();
-
+            foreach (var vk in this._pressedModifiers.Keys)
+            {
+                this._logger.LogInformation("Releasing modifier key on cleanup: {Key}", vk);
+                this._simulator.Keyboard.KeyUp(vk);
+            }
+            this._pressedModifiers.Clear();
+        }, ct);
         return Task.CompletedTask;
     }
 
@@ -266,6 +306,15 @@ public class WindowsInputInjectionService : IInputInjectionService
         var absY = ((screenY - virtualTop) * 65535) / virtualHeight;
 
         return (absX, absY);
+    }
+
+    public void Dispose()
+    {
+        this._processorCts.Cancel();
+        this._actionQueue.CompleteAdding();
+        this._processorThread.Join(TimeSpan.FromSeconds(5));
+        this._actionQueue.Dispose();
+        this._processorCts.Dispose();
     }
 }
 #endif
