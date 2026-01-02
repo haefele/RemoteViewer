@@ -32,7 +32,6 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 
     public event EventHandler? CloseRequested;
     public event EventHandler<string>? CopyToClipboardRequested;
-    public event EventHandler<IReadOnlyList<string>>? OpenFilePickerRequested;
 
     public PresenterViewModel(
         Connection connection,
@@ -190,51 +189,6 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
     }
 
     #region File Transfer - Send to Viewers
-
-    private IReadOnlyList<string>? _pendingViewerIds;
-
-    [RelayCommand]
-    private void SendFile(IReadOnlyList<string>? viewerIds = null)
-    {
-        // If no specific viewers provided and multiple viewers, the UI should handle selection first
-        if (viewerIds is null or { Count: 0 })
-        {
-            if (this.Viewers.Count == 0)
-            {
-                this.Toasts.Info("No viewers connected.");
-                return;
-            }
-
-            // If only one viewer, auto-select
-            if (this.Viewers.Count == 1)
-            {
-                viewerIds = [this.Viewers[0].ClientId];
-            }
-            else
-            {
-                // UI should have provided viewer IDs for multi-viewer scenario
-                this.Toasts.Info("Select viewers first.");
-                return;
-            }
-        }
-
-        this._pendingViewerIds = viewerIds;
-        this.OpenFilePickerRequested?.Invoke(this, viewerIds);
-    }
-
-    public async Task SendFileFromPathAsync(string filePath)
-    {
-        var viewerIds = this._pendingViewerIds;
-        this._pendingViewerIds = null;
-
-        if (viewerIds is null or { Count: 0 })
-        {
-            // Fallback: send to all viewers
-            viewerIds = this.Viewers.Select(v => v.ClientId).ToList();
-        }
-
-        await this.SendFileToViewersAsync(filePath, viewerIds);
-    }
 
     public async Task SendFileToViewersAsync(string filePath, IReadOnlyList<string> viewerIds)
     {

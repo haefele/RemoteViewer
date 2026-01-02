@@ -20,45 +20,6 @@
         DataContextChanged="Window_DataContextChanged"
         Closed="Window_Closed">
 
-    <Window.Resources>
-        <!-- Viewer selection flyout (shown programmatically for multiple viewers) -->
-        <Flyout x:Key="ViewerSelectionFlyout" Placement="Bottom">
-            <Border Padding="4" MinWidth="200">
-                <StackPanel Spacing="12">
-                    <!-- Header with icon -->
-                    <StackPanel Orientation="Horizontal" Spacing="8">
-                        <mi:MaterialIcon Kind="FileUpload" Width="18" Height="18"
-                                         Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
-                        <TextBlock Text="Send File" FontWeight="SemiBold"/>
-                    </StackPanel>
-
-                    <TextBlock Text="Select the viewers who should receive this file:"
-                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                               FontSize="12"
-                               TextWrapping="Wrap"/>
-
-                    <!-- Viewer checkboxes -->
-                    <ItemsControl ItemsSource="{Binding Viewers}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:PresenterViewerDisplay">
-                                <CheckBox Content="{Binding DisplayName}"
-                                          IsChecked="{Binding IsSelected}"
-                                          Padding="4,6"/>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-
-                    <!-- Action button -->
-                    <Button Content="Send"
-                            Click="SendFileToSelected_Click"
-                            Classes="accent"
-                            Padding="16,6"
-                            HorizontalAlignment="Right"/>
-                </StackPanel>
-            </Border>
-        </Flyout>
-    </Window.Resources>
-
     <Grid RowDefinitions="Auto,*">
         <!-- Toolbar -->
         <Border Grid.Row="0"

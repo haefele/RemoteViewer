@@ -1,8 +1,9 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Platform;
 using Avalonia.Platform.Storage;
 using RemoteViewer.Client.Common;
+using RemoteViewer.Client.Controls.Dialogs;
+using RemoteViewer.Client.Services.FileTransfer;
 
 namespace RemoteViewer.Client.Views.Presenter;
 
@@ -25,7 +26,6 @@ public partial class PresenterView : Window
         {
             this._viewModel.CloseRequested -= this.ViewModel_CloseRequested;
             this._viewModel.CopyToClipboardRequested -= this.ViewModel_CopyToClipboardRequested;
-            this._viewModel.OpenFilePickerRequested -= this.ViewModel_OpenFilePickerRequested;
         }
 
         this._viewModel = this.DataContext as PresenterViewModel;
@@ -34,7 +34,6 @@ public partial class PresenterView : Window
         {
             this._viewModel.CloseRequested += this.ViewModel_CloseRequested;
             this._viewModel.CopyToClipboardRequested += this.ViewModel_CopyToClipboardRequested;
-            this._viewModel.OpenFilePickerRequested += this.ViewModel_OpenFilePickerRequested;
         }
     }
 
@@ -60,60 +59,45 @@ public partial class PresenterView : Window
 
     #region File Transfer
 
-    private void SendFileButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private async void SendFileButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
     {
         if (this._viewModel is null)
             return;
 
-        // Single viewer: directly send (skip flyout)
-        if (this._viewModel.Viewers.Count == 1)
-        {
-            var viewerId = this._viewModel.Viewers[0].ClientId;
-            this._viewModel.SendFileCommand.Execute([viewerId]);
-            return;
-        }
-
-        // Multiple viewers: show the flyout
-        if (sender is Button button && this.TryFindResource("ViewerSelectionFlyout", out var resource) && resource is Flyout flyout)
-        {
-            flyout.ShowAt(button);
-        }
-    }
-
-    private async void ViewModel_OpenFilePickerRequested(object? sender, IReadOnlyList<string> viewerIds)
-    {
-        if (this._viewModel is null)
-            return;
-
+        // Step 1: Pick file first
         var files = await this.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
             AllowMultiple = false,
             Title = "Select file to send"
         });
 
-        if (files.Count > 0 && files[0].TryGetLocalPath() is { } path)
-        {
-            await this._viewModel.SendFileFromPathAsync(path);
-        }
+        if (files.Count == 0 || files[0].TryGetLocalPath() is not { } filePath)
+            return;
+
+        // Step 2: Get viewer IDs (show dialog if multiple)
+        var viewerIds = await this.GetViewerIdsForTransferAsync(filePath);
+        if (viewerIds is null or { Count: 0 })
+            return;
+
+        // Step 3: Send file
+        await this._viewModel.SendFileToViewersAsync(filePath, viewerIds);
     }
 
-    private void SendFileToSelected_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
+    private async Task<IReadOnlyList<string>?> GetViewerIdsForTransferAsync(string filePath)
     {
         if (this._viewModel is null)
-            return;
+            return null;
 
-        var selectedViewerIds = this._viewModel.Viewers
-            .Where(v => v.IsSelected)
-            .Select(v => v.ClientId)
-            .ToList();
+        if (this._viewModel.Viewers.Count == 1)
+            return [this._viewModel.Viewers[0].ClientId];
 
-        if (selectedViewerIds.Count == 0)
-        {
-            this._viewModel.Toasts.Info("No viewers selected.");
-            return;
-        }
+        var fileInfo = new FileInfo(filePath);
+        var dialog = ViewerSelectionDialog.Create(
+            this._viewModel.Viewers,
+            fileInfo.Name,
+            FileTransferHelpers.FormatFileSize(fileInfo.Length));
 
-        this._viewModel.SendFileCommand.Execute(selectedViewerIds);
+        return await dialog.ShowDialog<IReadOnlyList<string>?>(this);
     }
 
     #endregion
@@ -121,7 +105,7 @@ public partial class PresenterView : Window
     #region Drag and Drop
     private void Window_DragEnter(object? sender, DragEventArgs e)
     {
-        if (e.IsSingleFileDrag && this._viewModel?.Viewers.Count == 1)
+        if (e.IsSingleFileDrag && this._viewModel?.Viewers.Count > 0)
         {
             e.DragEffects = DragDropEffects.Copy;
             this.DropOverlay.IsVisible = true;
@@ -141,13 +125,17 @@ public partial class PresenterView : Window
     {
         this.DropOverlay.IsVisible = false;
 
-        if (this._viewModel?.Viewers is not [var viewer])
+        if (this._viewModel is null)
             return;
 
-        if (e.SingleFile?.TryGetLocalPath() is { } filePath)
-        {
-            await this._viewModel.SendFileToViewersAsync(filePath, [viewer.ClientId]);
-        }
+        if (e.SingleFile?.TryGetLocalPath() is not { } filePath)
+            return;
+
+        var viewerIds = await this.GetViewerIdsForTransferAsync(filePath);
+        if (viewerIds is null or { Count: 0 })
+            return;
+
+        await this._viewModel.SendFileToViewersAsync(filePath, viewerIds);
     }
     #endregion
 }
