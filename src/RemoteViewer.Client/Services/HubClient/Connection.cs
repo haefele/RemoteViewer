@@ -42,6 +42,7 @@ public sealed class Connection : IConnectionImpl
         this._logger = logger;
 
         this.FileTransfers = ActivatorUtilities.CreateInstance<FileTransferService>(this._serviceProvider, this);
+        this.ClipboardSync = ActivatorUtilities.CreateInstance<ClipboardSyncService>(this._serviceProvider, this);
         if (this.IsPresenter)
         {
             this.PresenterCapture = ActivatorUtilities.CreateInstance<PresenterCaptureService>(this._serviceProvider, this);
@@ -92,6 +93,7 @@ public sealed class Connection : IConnectionImpl
     public ViewerConnectionService? ViewerService { get; }
     public ViewerConnectionService RequiredViewerService => this.ViewerService ?? throw new InvalidOperationException("Viewer connection service is not available.");
     public PresenterCaptureService? PresenterCapture { get; }
+    public ClipboardSyncService ClipboardSync { get; }
 
     public event EventHandler? Closed;
 
@@ -502,6 +504,20 @@ public sealed class Connection : IConnectionImpl
                         break;
                     }
 
+                case MessageTypes.Clipboard.Text:
+                    {
+                        var message = ProtocolSerializer.Deserialize<ClipboardTextMessage>(data);
+                        ((IClipboardSyncServiceImpl)this.ClipboardSync).HandleTextMessage(message);
+                        break;
+                    }
+
+                case MessageTypes.Clipboard.Image:
+                    {
+                        var message = ProtocolSerializer.Deserialize<ClipboardImageMessage>(data);
+                        ((IClipboardSyncServiceImpl)this.ClipboardSync).HandleImageMessage(message);
+                        break;
+                    }
+
                 default:
                     this._logger.LogWarning("Unknown message type: {MessageType}", messageType);
                     break;
@@ -517,6 +533,7 @@ public sealed class Connection : IConnectionImpl
     {
         this.IsClosed = true;
         this.FileTransfers.Dispose();
+        this.ClipboardSync.Dispose();
         this.PresenterService?.Dispose();
         this.PresenterCapture?.Dispose();
         this.ViewerService?.Dispose();

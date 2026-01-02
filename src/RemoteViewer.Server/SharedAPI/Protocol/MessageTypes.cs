@@ -64,4 +64,13 @@ public static class MessageTypes
         /// <summary>Transfer error (Bidirectional)</summary>
         public const string Error = "file.error";
     }
+
+    public static class Clipboard
+    {
+        /// <summary>Clipboard text content (Bidirectional)</summary>
+        public const string Text = "clipboard.text";
+
+        /// <summary>Clipboard image content (Bidirectional)</summary>
+        public const string Image = "clipboard.image";
+    }
 }
