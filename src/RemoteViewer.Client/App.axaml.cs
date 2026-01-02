@@ -1,4 +1,5 @@
 ﻿using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
 using Avalonia.Markup.Xaml;
@@ -16,6 +17,7 @@ public partial class App : Application
 
     private IServiceProvider? _serviceProvider;
     public IServiceProvider Services => this._serviceProvider ?? throw new InvalidOperationException("Services not initialized");
+    public Window ActiveWindow => (this.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.Windows.FirstOrDefault(w => w.IsVisible) ?? throw new InvalidOperationException("No visible window available");
 
     public override void Initialize()
     {

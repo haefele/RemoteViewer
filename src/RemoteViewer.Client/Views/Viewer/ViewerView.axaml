@@ -81,49 +81,9 @@
                     <Button.Flyout>
                         <Flyout Placement="Bottom">
                             <StackPanel MinWidth="220" Spacing="2">
-                                <TextBlock Text="Select Display"
+                                <TextBlock Text="Displays"
                                            FontWeight="SemiBold"
                                            Margin="8,4,8,8"/>
-                                <ItemsControl ItemsSource="{Binding AvailableDisplays}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="dto:DisplayInfo">
-                                            <Button Command="{Binding $parent[Window].((vm:ViewerViewModel)DataContext).SelectDisplayCommand}"
-                                                    CommandParameter="{Binding}"
-                                                    Click="DisplaySelectButton_Click"
-                                                    HorizontalAlignment="Stretch"
-                                                    HorizontalContentAlignment="Left"
-                                                    Padding="8,6"
-                                                    CornerRadius="4">
-                                                <Button.Background>
-                                                    <MultiBinding Converter="{x:Static conv:EqualityToBrushConverter.Instance}">
-                                                        <Binding Path="Id"/>
-                                                        <Binding Path="$parent[Window].((vm:ViewerViewModel)DataContext).CurrentDisplayId"/>
-                                                    </MultiBinding>
-                                                </Button.Background>
-                                                <Grid ColumnDefinitions="Auto,*">
-                                                    <mi:MaterialIcon Grid.Column="0"
-                                                                     Kind="{Binding IsPrimary, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.MonitorStar}, FalseValue={x:Static mik:MaterialIconKind.Monitor}}}"
-                                                                     Width="16" Height="16"
-                                                                     Margin="0,0,8,0"/>
-                                                    <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding FriendlyName}"/>
-                                                        <TextBlock FontSize="11"
-                                                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}">
-                                                            <Run Text="{Binding Width}"/>
-                                                            <Run Text=" × "/>
-                                                            <Run Text="{Binding Height}"/>
-                                                        </TextBlock>
-                                                    </StackPanel>
-                                                </Grid>
-                                            </Button>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-
-                                <!-- Mini-map -->
-                                <TextBlock Text="Display Layout"
-                                           FontWeight="SemiBold"
-                                           Margin="8,12,8,4"/>
                                 <controls:DisplayMiniMap
                                     AvailableDisplays="{Binding AvailableDisplays}"
                                     CurrentDisplayId="{Binding CurrentDisplayId}"
@@ -153,6 +113,7 @@
 
                 <!-- Send Ctrl+Alt+Del button -->
                 <Button Command="{Binding SendCtrlAltDelCommand}"
+                        IsVisible="{Binding CanSendSecureAttentionSequence}"
                         ToolTip.ShowOnDisabled="True"
                         Background="Transparent"
                         BorderThickness="0"

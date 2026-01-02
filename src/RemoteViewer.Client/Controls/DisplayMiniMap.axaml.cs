@@ -1,6 +1,8 @@
 ﻿using System.Collections.Immutable;
 using Avalonia;
 using Avalonia.Controls;
+using Material.Icons;
+using Material.Icons.Avalonia;
 using RemoteViewer.Server.SharedAPI;
 
 namespace RemoteViewer.Client.Controls;
@@ -67,19 +69,19 @@ public partial class DisplayMiniMap : UserControl
             return;
 
         // Scale to fit in max dimensions, with minimum display size
-        const double maxCanvasWidth = 280;
-        const double maxCanvasHeight = 160;
-        const double minDisplayWidth = 65;
-        const double minDisplayHeight = 35;
-        const double gap = 2;
+        const double MaxCanvasWidth = 280;
+        const double MaxCanvasHeight = 180;
+        const double MinDisplayWidth = 95;
+        const double MinDisplayHeight = 60;
+        const double Gap = 2;
 
-        var scale = Math.Min(maxCanvasWidth / totalWidth, maxCanvasHeight / totalHeight);
+        var scale = Math.Min(MaxCanvasWidth / totalWidth, MaxCanvasHeight / totalHeight);
 
         // Ensure minimum display size
         var smallestDisplayWidth = displays.Min(d => d.Width);
         var smallestDisplayHeight = displays.Min(d => d.Height);
-        var minScaleForWidth = minDisplayWidth / smallestDisplayWidth;
-        var minScaleForHeight = minDisplayHeight / smallestDisplayHeight;
+        var minScaleForWidth = MinDisplayWidth / smallestDisplayWidth;
+        var minScaleForHeight = MinDisplayHeight / smallestDisplayHeight;
         scale = Math.Max(scale, Math.Max(minScaleForWidth, minScaleForHeight));
 
         this.MapCanvas.Width = totalWidth * scale;
@@ -87,28 +89,53 @@ public partial class DisplayMiniMap : UserControl
 
         foreach (var display in displays)
         {
-            var isCurrent = display.Id == this.CurrentDisplayId;
-
             var button = new Button
             {
-                Width = Math.Max(display.Width * scale - gap, minDisplayWidth),
-                Height = Math.Max(display.Height * scale - gap, minDisplayHeight),
+                Width = Math.Max(display.Width * scale - Gap, MinDisplayWidth),
+                Height = Math.Max(display.Height * scale - Gap, MinDisplayHeight),
                 Tag = display,
-                Content = new TextBlock { Text = display.FriendlyName }
+                Content = CreateButtonContent(display)
             };
 
             button.Classes.Add("DisplayButton");
-            if (isCurrent)
+            if (display.Id == this.CurrentDisplayId)
             {
-                button.Classes.Add("Current");
+                button.Classes.Add("accent");
             }
 
             button.Click += this.OnDisplayClicked;
 
-            Canvas.SetLeft(button, (display.Left - minX) * scale + gap / 2);
-            Canvas.SetTop(button, (display.Top - minY) * scale + gap / 2);
+            Canvas.SetLeft(button, (display.Left - minX) * scale + Gap / 2);
+            Canvas.SetTop(button, (display.Top - minY) * scale + Gap / 2);
             this.MapCanvas.Children.Add(button);
         }
+    }
+
+    private static StackPanel CreateButtonContent(DisplayInfo display)
+    {
+        var icon = new MaterialIcon
+        {
+            Kind = display.IsPrimary ? MaterialIconKind.MonitorStar : MaterialIconKind.Monitor,
+            Width = 20,
+            Height = 20
+        };
+
+        if (display.IsPrimary)
+        {
+            ToolTip.SetTip(icon, "Primary display");
+        }
+
+        return new StackPanel
+        {
+            Orientation = Avalonia.Layout.Orientation.Vertical,
+            Spacing = 2,
+            Children =
+            {
+                icon,
+                new TextBlock { Text = display.FriendlyName },
+                new TextBlock { Text = $"{display.Width} × {display.Height}", Classes = { "dimensions" } }
+            }
+        };
     }
 
     private void OnDisplayClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs e)

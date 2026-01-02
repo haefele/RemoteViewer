@@ -11,6 +11,7 @@ namespace RemoteViewer.Client.Services.FileTransfer;
 
 public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
 {
+    private readonly App _app;
     private readonly Connection _connection;
     private readonly ILogger<FileTransferService> _logger;
     private readonly ConcurrentDictionary<string, byte> _cancelledTransfers = new();
@@ -18,8 +19,9 @@ public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
 
     public ToastsViewModel? Toasts { get; set; }
 
-    public FileTransferService(Connection connection, ILogger<FileTransferService> logger)
+    public FileTransferService(App app, Connection connection, ILogger<FileTransferService> logger)
     {
+        this._app = app;
         this._connection = connection;
         this._logger = logger;
     }
@@ -136,17 +138,15 @@ public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
     {
         Dispatcher.UIThread.Post(async () =>
         {
+            var targetClientId = this._connection.IsPresenter ? senderClientId : null;
+
             var displayName = this._connection.IsPresenter
                 ? this._connection.Viewers.FirstOrDefault(v => v.ClientId == senderClientId)?.DisplayName ?? "Unknown Viewer"
                 : this._connection.Presenter?.DisplayName ?? "Presenter";
             var fileSizeFormatted = FileTransferHelpers.FormatFileSize(fileSize);
-            var dialog = FileTransferConfirmationDialog.AskForConfirmation(displayName, fileName, fileSizeFormatted);
 
-            dialog.Show();
-
-            var targetClientId = this._connection.IsPresenter ? senderClientId : null;
-
-            if (await dialog.ResultTask)
+            var dialog = FileTransferConfirmationDialog.Create(displayName, fileName, fileSizeFormatted);
+            if (await dialog.ShowDialog<bool?>(this._app.ActiveWindow) ?? false)
             {
                 var transfer = new FileReceiveOperation(
                     transferId,

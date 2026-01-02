@@ -160,28 +160,6 @@ public partial class ViewerView : Window
     #endregion
 
     #region UI Event Handlers
-    private async void DisplaySelectButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-    {
-        // Execute command and close the parent flyout when a display is selected
-        if (sender is Button button)
-        {
-            // Execute the command with the display parameter
-            if (button.Command is { } command && command.CanExecute(button.CommandParameter))
-            {
-                command.Execute(button.CommandParameter);
-            }
-
-            // Small delay to ensure async command starts before closing
-            await Task.Delay(50);
-
-            var flyoutPresenter = button.FindAncestorOfType<FlyoutPresenter>();
-            if (flyoutPresenter?.Parent is Popup popup)
-            {
-                popup.IsOpen = false;
-            }
-        }
-    }
-
     private async void DisplayMiniMap_DisplaySelected(object? sender, Server.SharedAPI.DisplayInfo display)
     {
         if (this._viewModel is null)

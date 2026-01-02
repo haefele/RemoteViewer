@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using Avalonia;
 using Avalonia.Data.Converters;
 using Avalonia.Media;
@@ -14,7 +14,7 @@ public class BoolToAccentBrushConverter : IValueConverter
         if (value is not true)
             return Brushes.Transparent;
 
-        if (Application.Current?.TryGetResource("SystemControlHighlightListAccentLowBrush", Application.Current.ActualThemeVariant, out var resource) == true
+        if (Application.Current?.TryGetResource("SystemControlBackgroundAccentBrush", Application.Current.ActualThemeVariant, out var resource) == true
             && resource is IBrush brush)
         {
             return brush;

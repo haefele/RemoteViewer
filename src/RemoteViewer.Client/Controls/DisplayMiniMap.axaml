@@ -5,14 +5,16 @@
         <Style Selector="Button.DisplayButton">
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
-        </Style>
-        <Style Selector="Button.DisplayButton.Current">
-            <Setter Property="Background" Value="{DynamicResource SystemControlHighlightListAccentLowBrush}" />
+            <Setter Property="FontSize" Value="11" />
         </Style>
 
         <Style Selector="Button.DisplayButton TextBlock">
-            <Setter Property="FontSize" Value="11" />
             <Setter Property="TextTrimming" Value="CharacterEllipsis" />
+            <Setter Property="HorizontalAlignment" Value="Center" />
+        </Style>
+
+        <Style Selector="Button.DisplayButton TextBlock.dimensions">
+            <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
         </Style>
     </UserControl.Styles>
 
