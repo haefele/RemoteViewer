@@ -156,12 +156,22 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     #region Display Navigation
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(NavigateLeftCommand))]
-    [NotifyCanExecuteChangedFor(nameof(NavigateRightCommand))]
     private ImmutableList<DisplayInfo> _availableDisplays = [];
 
     [ObservableProperty]
     private string? _currentDisplayId;
+
+    [ObservableProperty]
+    private ImmutableList<DisplayInfo> _leftAdjacentDisplays = [];
+
+    [ObservableProperty]
+    private ImmutableList<DisplayInfo> _rightAdjacentDisplays = [];
+
+    [ObservableProperty]
+    private ImmutableList<DisplayInfo> _upAdjacentDisplays = [];
+
+    [ObservableProperty]
+    private ImmutableList<DisplayInfo> _downAdjacentDisplays = [];
 
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(NavigateLeftCommand))]
@@ -170,6 +180,14 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     [ObservableProperty]
     [NotifyCanExecuteChangedFor(nameof(NavigateRightCommand))]
     private bool _canNavigateRight;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(NavigateUpCommand))]
+    private bool _canNavigateUp;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(NavigateDownCommand))]
+    private bool _canNavigateDown;
 
     private void ViewerService_AvailableDisplaysChanged(object? sender, EventArgs e)
     {
@@ -185,45 +203,59 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     {
         var viewerService = this.Connection.RequiredViewerService;
         this.AvailableDisplays = viewerService.AvailableDisplays;
-
         this.CurrentDisplayId = viewerService.CurrentDisplay?.Id;
 
-        this.CanNavigateLeft = viewerService.GetLeftAdjacentDisplay() is not null;
-        this.CanNavigateRight = viewerService.GetRightAdjacentDisplay() is not null;
+        this.LeftAdjacentDisplays = viewerService.GetAdjacentDisplays(NavigationDirection.Left);
+        this.RightAdjacentDisplays = viewerService.GetAdjacentDisplays(NavigationDirection.Right);
+        this.UpAdjacentDisplays = viewerService.GetAdjacentDisplays(NavigationDirection.Up);
+        this.DownAdjacentDisplays = viewerService.GetAdjacentDisplays(NavigationDirection.Down);
+
+        this.CanNavigateLeft = this.LeftAdjacentDisplays.Count > 0;
+        this.CanNavigateRight = this.RightAdjacentDisplays.Count > 0;
+        this.CanNavigateUp = this.UpAdjacentDisplays.Count > 0;
+        this.CanNavigateDown = this.DownAdjacentDisplays.Count > 0;
     }
 
     private bool CanNavigateLeftExecute() => this.CanNavigateLeft;
     [RelayCommand(CanExecute = nameof(CanNavigateLeftExecute))]
     private async Task NavigateLeft()
     {
-        var leftDisplay = this.Connection.RequiredViewerService.GetLeftAdjacentDisplay();
+        var leftDisplay = this.LeftAdjacentDisplays.FirstOrDefault();
         if (leftDisplay is not null)
-        {
             await this.Connection.RequiredViewerService.SelectDisplayAsync(leftDisplay.Id);
-        }
     }
 
     private bool CanNavigateRightExecute() => this.CanNavigateRight;
     [RelayCommand(CanExecute = nameof(CanNavigateRightExecute))]
     private async Task NavigateRight()
     {
-        var rightDisplay = this.Connection.RequiredViewerService.GetRightAdjacentDisplay();
+        var rightDisplay = this.RightAdjacentDisplays.FirstOrDefault();
         if (rightDisplay is not null)
-        {
             await this.Connection.RequiredViewerService.SelectDisplayAsync(rightDisplay.Id);
-        }
+    }
+
+    private bool CanNavigateUpExecute() => this.CanNavigateUp;
+    [RelayCommand(CanExecute = nameof(CanNavigateUpExecute))]
+    private async Task NavigateUp()
+    {
+        var upDisplay = this.UpAdjacentDisplays.FirstOrDefault();
+        if (upDisplay is not null)
+            await this.Connection.RequiredViewerService.SelectDisplayAsync(upDisplay.Id);
+    }
+
+    private bool CanNavigateDownExecute() => this.CanNavigateDown;
+    [RelayCommand(CanExecute = nameof(CanNavigateDownExecute))]
+    private async Task NavigateDown()
+    {
+        var downDisplay = this.DownAdjacentDisplays.FirstOrDefault();
+        if (downDisplay is not null)
+            await this.Connection.RequiredViewerService.SelectDisplayAsync(downDisplay.Id);
     }
 
     [RelayCommand]
     private async Task SelectDisplay(DisplayInfo display)
     {
         await this.Connection.RequiredViewerService.SelectDisplayAsync(display.Id);
-    }
-
-    [RelayCommand]
-    private async Task NextDisplay()
-    {
-        await this.Connection.RequiredViewerService.SwitchDisplayAsync();
     }
     #endregion
 

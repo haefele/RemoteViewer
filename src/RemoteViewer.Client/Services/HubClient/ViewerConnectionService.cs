@@ -8,6 +8,14 @@ using RemoteViewer.Server.SharedAPI.Protocol;
 
 namespace RemoteViewer.Client.Services.HubClient;
 
+public enum NavigationDirection
+{
+    Left,
+    Right,
+    Up,
+    Down
+}
+
 public sealed class ViewerConnectionService : IViewerServiceImpl, IDisposable
 {
     private readonly Connection _connection;
@@ -83,65 +91,61 @@ public sealed class ViewerConnectionService : IViewerServiceImpl, IDisposable
         }
     }
 
-    public DisplayInfo? GetLeftAdjacentDisplay()
+    public ImmutableList<DisplayInfo> GetAdjacentDisplays(NavigationDirection direction)
     {
         using (this._displayLock.EnterScope())
         {
-            return this.FindAdjacentDisplay(isLeft: true);
-        }
-    }
+            if (this._currentDisplayId is null || this._availableDisplays.Count == 0)
+                return [];
 
-    public DisplayInfo? GetRightAdjacentDisplay()
-    {
-        using (this._displayLock.EnterScope())
-        {
-            return this.FindAdjacentDisplay(isLeft: false);
-        }
-    }
+            var current = this._availableDisplays.FirstOrDefault(d => d.Id == this._currentDisplayId);
+            if (current is null)
+                return [];
 
-    private DisplayInfo? FindAdjacentDisplay(bool isLeft)
-    {
-        if (this._currentDisplayId is null || this._availableDisplays.Count == 0)
-            return null;
+            var result = ImmutableList.CreateBuilder<DisplayInfo>();
 
-        var current = this._availableDisplays.FirstOrDefault(d => d.Id == this._currentDisplayId);
-        if (current is null)
-            return null;
-
-        var currentCenterX = (current.Left + current.Right) / 2;
-
-        DisplayInfo? best = null;
-        var bestDistance = int.MaxValue;
-
-        foreach (var candidate in this._availableDisplays)
-        {
-            if (candidate.Id == current.Id)
-                continue;
-
-            var candidateCenterX = (candidate.Left + candidate.Right) / 2;
-
-            // Check direction
-            var correctDirection = isLeft
-                ? candidateCenterX < currentCenterX
-                : candidateCenterX > currentCenterX;
-
-            if (!correctDirection)
-                continue;
-
-            // Check vertical overlap (displays must share some vertical space)
-            var hasVerticalOverlap = !(candidate.Bottom <= current.Top || candidate.Top >= current.Bottom);
-            if (!hasVerticalOverlap)
-                continue;
-
-            var distance = Math.Abs(candidateCenterX - currentCenterX);
-            if (distance < bestDistance)
+            foreach (var candidate in this._availableDisplays)
             {
-                bestDistance = distance;
-                best = candidate;
-            }
-        }
+                if (candidate.Id == current.Id)
+                    continue;
 
-        return best;
+                bool isAdjacent;
+                bool hasOverlap;
+
+                switch (direction)
+                {
+                    case NavigationDirection.Left:
+                        isAdjacent = current.Left - candidate.Right is 0 or 1;
+                        hasOverlap = !(candidate.Bottom <= current.Top || candidate.Top >= current.Bottom);
+                        break;
+                    case NavigationDirection.Right:
+                        isAdjacent = candidate.Left - current.Right is 0 or 1;
+                        hasOverlap = !(candidate.Bottom <= current.Top || candidate.Top >= current.Bottom);
+                        break;
+                    case NavigationDirection.Up:
+                        isAdjacent = current.Top - candidate.Bottom is 0 or 1;
+                        hasOverlap = !(candidate.Right <= current.Left || candidate.Left >= current.Right);
+                        break;
+                    case NavigationDirection.Down:
+                        isAdjacent = candidate.Top - current.Bottom is 0 or 1;
+                        hasOverlap = !(candidate.Right <= current.Left || candidate.Left >= current.Right);
+                        break;
+                    default:
+                        continue;
+                }
+
+                if (isAdjacent && hasOverlap)
+                    result.Add(candidate);
+            }
+
+            // Sort by position to match visual layout
+            return direction switch
+            {
+                NavigationDirection.Up or NavigationDirection.Down => result.OrderBy(d => d.Left).ToImmutableList(),
+                NavigationDirection.Left or NavigationDirection.Right => result.OrderBy(d => d.Top).ToImmutableList(),
+                _ => result.ToImmutable()
+            };
+        }
     }
 
     public async Task SelectDisplayAsync(string displayId)
@@ -286,11 +290,6 @@ public sealed class ViewerConnectionService : IViewerServiceImpl, IDisposable
         {
             this._logger.LogError(ex, "Failed to send Ctrl+Alt+Del");
         }
-    }
-
-    public async Task SwitchDisplayAsync()
-    {
-        await ((IConnectionImpl)this._connection).SwitchDisplayAsync();
     }
 
     void IViewerServiceImpl.HandleFrame(string displayId, ulong frameNumber, FrameCodec codec, FrameRegion[] regions)

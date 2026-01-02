@@ -248,6 +248,18 @@ public partial class ViewerView : Window
                 this._viewModel.NavigateRightCommand.Execute(null);
                 return;
             }
+            if (e.Key == Key.Up && this._viewModel.NavigateUpCommand.CanExecute(null))
+            {
+                e.Handled = true;
+                this._viewModel.NavigateUpCommand.Execute(null);
+                return;
+            }
+            if (e.Key == Key.Down && this._viewModel.NavigateDownCommand.CanExecute(null))
+            {
+                e.Handled = true;
+                this._viewModel.NavigateDownCommand.Execute(null);
+                return;
+            }
         }
 
         if (!this._viewModel.IsInputEnabled)

@@ -43,7 +43,9 @@
       "Bash(git -C \"C:\\\\Users\\\\haefe\\\\source\\\\repos\\\\RemoteViewer\" commit -m \"$\\(cat <<''EOF''\nReplace viewer selection flyout with dialog for file transfers\n\n- Add ViewerSelectionDialog for selecting target viewers when sending files\n- Change flow: pick file first, then show dialog if multiple viewers\n- Enable drag-and-drop file transfer for multiple viewers \\(shows dialog\\)\n- Remove flyout and OpenFilePickerRequested event from PresenterView\n- Simplify PresenterViewModel by removing SendFileCommand\n- Update FileTransferConfirmationDialog button layout\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")",
       "Bash(Select-String -Pattern \"\\(error CS|error :\\)\" -NotMatch)",
       "Bash(Select-String -Pattern \"error\" -SimpleMatch)",
-      "Bash(Select-String -Pattern \"error CS\")"
+      "Bash(Select-String -Pattern \"error CS\")",
+      "Bash(git -C \"C:\\\\Users\\\\haefe\\\\source\\\\repos\\\\RemoteViewer\" add -A)",
+      "Bash(git -C \"C:\\\\Users\\\\haefe\\\\source\\\\repos\\\\RemoteViewer\" commit -m \"$\\(cat <<''EOF''\nAdd dynamic display navigation buttons for all directions\n\n- Replace hardcoded left/right buttons with dynamic ItemsControls\n- Support navigation in all 4 directions \\(up/down/left/right\\)\n- Only show buttons for displays that actually touch \\(distance 0-1\\)\n- Sort buttons by position to match visual layout\n- Add Ctrl+Up/Down keyboard shortcuts\n- Remove unused NextDisplay command and SwitchDisplayAsync\n\n🤖 Generated with [Claude Code]\\(https://claude.com/claude-code\\)\n\nCo-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>\nEOF\n\\)\")"
     ],
     "deny": [],
     "ask": []

@@ -219,45 +219,129 @@
                        IsHitTestVisible="False"
                        IsVisible="False"/>
 
-                <!-- Left navigation arrow -->
-                <Button Command="{Binding NavigateLeftCommand}"
-                        IsVisible="{Binding CanNavigateLeft}"
-                        HorizontalAlignment="Left"
-                        VerticalAlignment="Center"
-                        Margin="16,0"
-                        Width="48" Height="80"
-                        Background="{DynamicResource OverlayButtonBrush}"
-                        BorderThickness="0"
-                        CornerRadius="8"
-                        Opacity="0.6"
-                        ToolTip.Tip="Navigate to left display (Ctrl+Left)">
-                    <Button.Styles>
-                        <Style Selector="Button:pointerover">
-                            <Setter Property="Opacity" Value="1"/>
-                        </Style>
-                    </Button.Styles>
-                    <mi:MaterialIcon Kind="ChevronLeft" Width="32" Height="32" Foreground="White"/>
-                </Button>
+                <!-- Left navigation arrows -->
+                <ItemsControl ItemsSource="{Binding LeftAdjacentDisplays}"
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Center"
+                              Margin="16,0">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Vertical" Spacing="8"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="dto:DisplayInfo">
+                            <Button Command="{Binding $parent[Window].((vm:ViewerViewModel)DataContext).SelectDisplayCommand}"
+                                    CommandParameter="{Binding}"
+                                    Width="48" Height="80"
+                                    Background="{DynamicResource OverlayButtonBrush}"
+                                    BorderThickness="0"
+                                    CornerRadius="8"
+                                    Opacity="0.6"
+                                    ToolTip.Tip="{Binding FriendlyName, StringFormat='Navigate to {0} (Ctrl+Left)'}">
+                                <Button.Styles>
+                                    <Style Selector="Button:pointerover">
+                                        <Setter Property="Opacity" Value="1"/>
+                                    </Style>
+                                </Button.Styles>
+                                <mi:MaterialIcon Kind="ChevronLeft" Width="32" Height="32" Foreground="White"/>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
 
-                <!-- Right navigation arrow -->
-                <Button Command="{Binding NavigateRightCommand}"
-                        IsVisible="{Binding CanNavigateRight}"
-                        HorizontalAlignment="Right"
-                        VerticalAlignment="Center"
-                        Margin="16,0"
-                        Width="48" Height="80"
-                        Background="{DynamicResource OverlayButtonBrush}"
-                        BorderThickness="0"
-                        CornerRadius="8"
-                        Opacity="0.6"
-                        ToolTip.Tip="Navigate to right display (Ctrl+Right)">
-                    <Button.Styles>
-                        <Style Selector="Button:pointerover">
-                            <Setter Property="Opacity" Value="1"/>
-                        </Style>
-                    </Button.Styles>
-                    <mi:MaterialIcon Kind="ChevronRight" Width="32" Height="32" Foreground="White"/>
-                </Button>
+                <!-- Right navigation arrows -->
+                <ItemsControl ItemsSource="{Binding RightAdjacentDisplays}"
+                              HorizontalAlignment="Right"
+                              VerticalAlignment="Center"
+                              Margin="16,0">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Vertical" Spacing="8"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="dto:DisplayInfo">
+                            <Button Command="{Binding $parent[Window].((vm:ViewerViewModel)DataContext).SelectDisplayCommand}"
+                                    CommandParameter="{Binding}"
+                                    Width="48" Height="80"
+                                    Background="{DynamicResource OverlayButtonBrush}"
+                                    BorderThickness="0"
+                                    CornerRadius="8"
+                                    Opacity="0.6"
+                                    ToolTip.Tip="{Binding FriendlyName, StringFormat='Navigate to {0} (Ctrl+Right)'}">
+                                <Button.Styles>
+                                    <Style Selector="Button:pointerover">
+                                        <Setter Property="Opacity" Value="1"/>
+                                    </Style>
+                                </Button.Styles>
+                                <mi:MaterialIcon Kind="ChevronRight" Width="32" Height="32" Foreground="White"/>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Up navigation arrows -->
+                <ItemsControl ItemsSource="{Binding UpAdjacentDisplays}"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Top"
+                              Margin="0,16">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="8"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="dto:DisplayInfo">
+                            <Button Command="{Binding $parent[Window].((vm:ViewerViewModel)DataContext).SelectDisplayCommand}"
+                                    CommandParameter="{Binding}"
+                                    Width="80" Height="48"
+                                    Background="{DynamicResource OverlayButtonBrush}"
+                                    BorderThickness="0"
+                                    CornerRadius="8"
+                                    Opacity="0.6"
+                                    ToolTip.Tip="{Binding FriendlyName, StringFormat='Navigate to {0} (Ctrl+Up)'}">
+                                <Button.Styles>
+                                    <Style Selector="Button:pointerover">
+                                        <Setter Property="Opacity" Value="1"/>
+                                    </Style>
+                                </Button.Styles>
+                                <mi:MaterialIcon Kind="ChevronUp" Width="32" Height="32" Foreground="White"/>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- Down navigation arrows -->
+                <ItemsControl ItemsSource="{Binding DownAdjacentDisplays}"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Bottom"
+                              Margin="0,16">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <StackPanel Orientation="Horizontal" Spacing="8"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="dto:DisplayInfo">
+                            <Button Command="{Binding $parent[Window].((vm:ViewerViewModel)DataContext).SelectDisplayCommand}"
+                                    CommandParameter="{Binding}"
+                                    Width="80" Height="48"
+                                    Background="{DynamicResource OverlayButtonBrush}"
+                                    BorderThickness="0"
+                                    CornerRadius="8"
+                                    Opacity="0.6"
+                                    ToolTip.Tip="{Binding FriendlyName, StringFormat='Navigate to {0} (Ctrl+Down)'}">
+                                <Button.Styles>
+                                    <Style Selector="Button:pointerover">
+                                        <Setter Property="Opacity" Value="1"/>
+                                    </Style>
+                                </Button.Styles>
+                                <mi:MaterialIcon Kind="ChevronDown" Width="32" Height="32" Foreground="White"/>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </Panel>
         </Border>
 
