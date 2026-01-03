@@ -48,7 +48,6 @@ public partial class ViewerView : Window
         {
             this._viewModel.PropertyChanged -= this.ViewModel_PropertyChanged;
             this._viewModel.CloseRequested -= this.ViewModel_CloseRequested;
-            this._viewModel.OpenFilePickerRequested -= this.ViewModel_OpenFilePickerRequested;
             this._viewModel.Chat.OpenChatRequested -= this.Chat_OpenChatRequested;
             this._viewModel.Connection.ViewerService?.FrameReady -= this.ViewerService_FrameReady;
             this._frameCompositor?.Dispose();
@@ -61,7 +60,6 @@ public partial class ViewerView : Window
         {
             this._viewModel.CloseRequested += this.ViewModel_CloseRequested;
             this._viewModel.PropertyChanged += this.ViewModel_PropertyChanged;
-            this._viewModel.OpenFilePickerRequested += this.ViewModel_OpenFilePickerRequested;
             this._viewModel.Chat.OpenChatRequested += this.Chat_OpenChatRequested;
             this._viewModel.Connection.RequiredViewerService.FrameReady += this.ViewerService_FrameReady;
             this._frameCompositor = new FrameCompositor();
@@ -128,23 +126,6 @@ public partial class ViewerView : Window
     private void ViewModel_CloseRequested(object? sender, EventArgs e)
     {
         this.Close();
-    }
-
-    private async void ViewModel_OpenFilePickerRequested(object? sender, EventArgs e)
-    {
-        if (this._viewModel is null)
-            return;
-
-        var files = await this.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
-        {
-            AllowMultiple = false,
-            Title = "Select file to send"
-        });
-
-        if (files.Count > 0 && files[0].TryGetLocalPath() is { } path)
-        {
-            await this._viewModel.SendFileFromPathAsync(path);
-        }
     }
 
     private void ViewerService_FrameReady(object? sender, FrameReceivedEventArgs e)
@@ -238,9 +219,9 @@ public partial class ViewerView : Window
         if (this._viewModel is null)
             return;
 
-        if (e.SingleFile?.TryGetLocalPath() is { } path)
+        if (e.SingleFile?.TryGetLocalPath() is { } path && this._viewModel.SendFileCommand.CanExecute(path))
         {
-            await this._viewModel.SendFileFromPathAsync(path);
+            await this._viewModel.SendFileCommand.ExecuteAsync(path);
         }
     }
     #endregion

@@ -1,11 +1,14 @@
 ﻿using System.Collections.ObjectModel;
 using System.ComponentModel;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Views.Chat;
+using RemoteViewer.Client.Controls.Dialogs;
 using RemoteViewer.Client.Controls.Toasts;
+using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.ViewModels;
 using RemoteViewer.Server.SharedAPI;
@@ -32,7 +35,6 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
     public ObservableCollection<PresenterViewerDisplay> Viewers { get; } = [];
 
     public event EventHandler? CloseRequested;
-    public event EventHandler<string>? CopyToClipboardRequested;
 
     public PresenterViewModel(
         Connection connection,
@@ -170,7 +172,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
     }
 
     [RelayCommand]
-    private void CopyCredentials()
+    private async Task CopyCredentials()
     {
         if (this.YourId is null || this.YourPassword is null)
             return;
@@ -179,7 +181,11 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
                     ID: {this.YourId}
                     Password: {this.YourPassword}
                     """;
-        this.CopyToClipboardRequested?.Invoke(this, text);
+        var clipboard = App.Current.Clipboard;
+        if (clipboard is not null)
+        {
+            await clipboard.SetTextAsync(text);
+        }
         this.Toasts.Success("ID and password copied to clipboard.");
     }
 
@@ -189,21 +195,66 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         await this._hubClient.GenerateNewPassword();
     }
 
-    #region File Transfer - Send to Viewers
 
-    public async Task SendFileToViewersAsync(string filePath, IReadOnlyList<string> viewerIds)
+    [RelayCommand]
+    public async Task SendFile(string? path = null)
     {
-        if (!File.Exists(filePath))
+        // Check for connected viewers
+        if (this.Viewers.Count == 0)
         {
-            this.Toasts.Error($"File not found: {filePath}");
+            this.Toasts.Error("No viewers connected to receive the file.");
             return;
         }
 
+        // If no path provided, open file picker
+        if (path is null)
+        {
+            var files = await App.Current.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+            {
+                AllowMultiple = false,
+                Title = "Select file to send"
+            });
+
+            if (files.Count == 0 || files[0].TryGetLocalPath() is not { } filePath)
+                return;
+
+            path = filePath;
+        }
+
+        // Validate file existence
+        if (!File.Exists(path))
+        {
+            this.Toasts.Error($"File not found: {path}");
+            return;
+        }
+
+        // Select viewers
+        IReadOnlyList<string> viewerIds;
+        if (this.Viewers.Count == 1)
+        {
+            viewerIds = [this.Viewers[0].ClientId];
+        }
+        else
+        {
+            var fileInfo = new FileInfo(path);
+            var dialog = ViewerSelectionDialog.Create(
+                this.Viewers,
+                fileInfo.Name,
+                FileTransferHelpers.FormatFileSize(fileInfo.Length));
+
+            var selected = await dialog.ShowDialog<IReadOnlyList<string>?>(App.Current.ActiveWindow);
+            if (selected is null or { Count: 0 })
+                return;
+
+            viewerIds = selected;
+        }
+
+        // Start file transfer
         foreach (var viewerId in viewerIds)
         {
             try
             {
-                var transfer = await this._connection.FileTransfers.SendFileToViewerAsync(filePath, viewerId);
+                var transfer = await this._connection.FileTransfers.SendFileToViewerAsync(path, viewerId);
                 this.Toasts.AddTransfer(transfer, isUpload: true);
                 var viewer = this.Viewers.FirstOrDefault(v => v.ClientId == viewerId);
                 this._logger.LogInformation("Started file send to {ViewerName}: {FileName} ({FileSize} bytes)",
@@ -211,13 +262,11 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
             }
             catch (Exception ex)
             {
-                this._logger.LogError(ex, "Failed to initiate file send to {ViewerId} for {FilePath}", viewerId, filePath);
+                this._logger.LogError(ex, "Failed to initiate file send to {ViewerId} for {FilePath}", viewerId, path);
                 this.Toasts.Error($"Failed to send file: {ex.Message}");
             }
         }
     }
-
-    #endregion
 
     public async ValueTask DisposeAsync()
     {

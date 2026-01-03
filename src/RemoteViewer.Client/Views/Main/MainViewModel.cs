@@ -45,7 +45,6 @@ public partial class MainViewModel : ViewModelBase
 
     public event EventHandler? RequestHideMainView;
     public event EventHandler? RequestShowMainView;
-    public event EventHandler<string>? CopyToClipboardRequested;
 
     public MainViewModel(ConnectionHubClient hubClient, IViewModelFactory viewModelFactory, ILogger<MainViewModel> logger)
     {
@@ -170,7 +169,7 @@ public partial class MainViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void CopyCredentials()
+    private async Task CopyCredentials()
     {
         if (this.YourUsername is null || this.YourPassword is null)
             return;
@@ -179,7 +178,11 @@ public partial class MainViewModel : ViewModelBase
                     ID: {this.YourUsername}
                     Password: {this.YourPassword}
                     """;
-        this.CopyToClipboardRequested?.Invoke(this, text);
+        var clipboard = App.Current.Clipboard;
+        if (clipboard is not null)
+        {
+            await clipboard.SetTextAsync(text);
+        }
         this.Toasts.Success("ID and password copied to clipboard.");
 
         this._logger.CopiedCredentialsToClipboard();

@@ -35,7 +35,7 @@
                         Width="32" Height="32"
                         Padding="0"
                         IsEnabled="{Binding Viewers.Count}"
-                        Click="SendFileButton_Click">
+                        Command="{Binding SendFileCommand}">
                     <mi:MaterialIcon Kind="FileUpload" Width="20" Height="20"/>
                 </Button>
 

@@ -20,7 +20,6 @@ public partial class MainView : Window
         {
             this._viewModel.RequestShowMainView -= this.ViewModel_RequestShowMainView;
             this._viewModel.RequestHideMainView -= this.ViewModel_RequestHideMainView;
-            this._viewModel.CopyToClipboardRequested -= this.ViewModel_CopyToClipboardRequested;
         }
 
         this._viewModel = this.DataContext as MainViewModel;
@@ -29,7 +28,6 @@ public partial class MainView : Window
         {
             this._viewModel.RequestShowMainView += this.ViewModel_RequestShowMainView;
             this._viewModel.RequestHideMainView += this.ViewModel_RequestHideMainView;
-            this._viewModel.CopyToClipboardRequested += this.ViewModel_CopyToClipboardRequested;
         }
     }
 
@@ -43,15 +41,6 @@ public partial class MainView : Window
         this.Show();
     }
 
-    private async void ViewModel_CopyToClipboardRequested(object? sender, string text)
-    {
-        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
-        if (clipboard is not null)
-        {
-            await clipboard.SetTextAsync(text);
-        }
-    }
-
     private void TargetPasswordBox_KeyDown(object? sender, KeyEventArgs e)
     {
         if (e.Key == Key.Enter && this._viewModel?.ConnectToDeviceCommand.CanExecute(null) == true)
@@ -62,7 +51,7 @@ public partial class MainView : Window
 
     private async void TargetUsernameBox_Pasting(object? sender, RoutedEventArgs e)
     {
-        var clipboard = TopLevel.GetTopLevel(this)?.Clipboard;
+        var clipboard = this.Clipboard;
         if (clipboard is null || this._viewModel is null)
             return;
 

@@ -2,7 +2,9 @@
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Data.Core.Plugins;
+using Avalonia.Input.Platform;
 using Avalonia.Markup.Xaml;
+using Avalonia.Platform.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using RemoteViewer.Client.Services;
 using RemoteViewer.Client.Services.HubClient;
@@ -18,6 +20,8 @@ public partial class App : Application
     private IServiceProvider? _serviceProvider;
     public IServiceProvider Services => this._serviceProvider ?? throw new InvalidOperationException("Services not initialized");
     public Window ActiveWindow => (this.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.Windows.FirstOrDefault(w => w.IsVisible) ?? throw new InvalidOperationException("No visible window available");
+    public IStorageProvider StorageProvider => this.ActiveWindow.StorageProvider;
+    public IClipboard? Clipboard => this.ActiveWindow.Clipboard;
 
     public override void Initialize()
     {

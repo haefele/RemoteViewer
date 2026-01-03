@@ -1,5 +1,6 @@
 ﻿using System.Collections.Immutable;
 using System.Collections.ObjectModel;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -22,7 +23,6 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     public ChatViewModel Chat { get; }
 
     public event EventHandler? CloseRequested;
-    public event EventHandler? OpenFilePickerRequested;
 
     public ViewerViewModel(
         Connection connection,
@@ -264,28 +264,40 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     #region File Transfer
     [RelayCommand]
-    private void SendFile()
-    {
-        this.OpenFilePickerRequested?.Invoke(this, EventArgs.Empty);
-    }
-
-    public async Task SendFileFromPathAsync(string filePath)
+    public async Task SendFile(string? path = null)
     {
         try
         {
-            if (!File.Exists(filePath))
+            // If no path is provided, open file picker
+            if (path is null)
             {
-                this.Toasts.Error($"File not found: {filePath}");
+                var files = await App.Current.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+                {
+                    AllowMultiple = false,
+                    Title = "Select file to send"
+                });
+
+                if (files.Count == 0 || files[0].TryGetLocalPath() is not { } filePath)
+                    return;
+
+                path = filePath;
+            }
+
+            // Validate file existence
+            if (File.Exists(path) is false)
+            {
+                this.Toasts.Error($"File not found: {path}");
                 return;
             }
 
-            var transfer = await this.Connection.FileTransfers.SendFileAsync(filePath);
+            // Start file transfer
+            var transfer = await this.Connection.FileTransfers.SendFileAsync(path);
             this.Toasts.AddTransfer(transfer, isUpload: true);
             this._logger.LogInformation("Started file upload: {FileName} ({FileSize} bytes)", transfer.FileName, transfer.FileSize);
         }
         catch (Exception ex)
         {
-            this._logger.LogError(ex, "Failed to initiate file upload for {FilePath}", filePath);
+            this._logger.LogError(ex, "Failed to initiate file upload for {FilePath}", path);
             this.Toasts.Error($"Failed to send file: {ex.Message}");
         }
     }
