@@ -1,12 +1,14 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 using Avalonia.Win32.Input;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using RemoteViewer.Client.Views.Chat;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.Viewer;
 using RemoteViewer.Client.Common;
@@ -24,6 +26,7 @@ public partial class ViewerView : Window
     private ViewerViewModel? _viewModel;
     private FrameCompositor? _frameCompositor;
     private IDisposable? _windowsKeyBlockerHandle;
+    private ChatView? _chatView;
 
     #region Constructor
     public ViewerView()
@@ -46,6 +49,7 @@ public partial class ViewerView : Window
             this._viewModel.PropertyChanged -= this.ViewModel_PropertyChanged;
             this._viewModel.CloseRequested -= this.ViewModel_CloseRequested;
             this._viewModel.OpenFilePickerRequested -= this.ViewModel_OpenFilePickerRequested;
+            this._viewModel.Chat.OpenChatRequested -= this.Chat_OpenChatRequested;
             this._viewModel.Connection.ViewerService?.FrameReady -= this.ViewerService_FrameReady;
             this._frameCompositor?.Dispose();
             this._frameCompositor = null;
@@ -58,23 +62,51 @@ public partial class ViewerView : Window
             this._viewModel.CloseRequested += this.ViewModel_CloseRequested;
             this._viewModel.PropertyChanged += this.ViewModel_PropertyChanged;
             this._viewModel.OpenFilePickerRequested += this.ViewModel_OpenFilePickerRequested;
+            this._viewModel.Chat.OpenChatRequested += this.Chat_OpenChatRequested;
             this._viewModel.Connection.RequiredViewerService.FrameReady += this.ViewerService_FrameReady;
             this._frameCompositor = new FrameCompositor();
         }
     }
+
+    private void Chat_OpenChatRequested(object? sender, EventArgs e)
+    {
+        this.ShowChatWindow();
+    }
+
+    private void ChatButton_Click(object? sender, RoutedEventArgs e)
+    {
+        this.ShowChatWindow();
+    }
+
+    private void ShowChatWindow()
+    {
+        if (this._viewModel is null)
+            return;
+
+        if (this._chatView is null)
+        {
+            this._chatView = new ChatView { DataContext = this._viewModel.Chat };
+        }
+
+        this._chatView.ShowAndActivate();
+    }
+
     private void Window_Opened(object? sender, EventArgs e)
     {
         this.DisplayPanel.Focus();
         this._windowsKeyBlockerHandle = this._windowsKeyBlocker.StartBlocking(() => this.IsActive && (this._viewModel?.IsInputEnabled ?? false));
     }
+
     private async void Window_Deactivated(object? sender, EventArgs e)
     {
         if (this._viewModel is not null)
             await this._viewModel.Connection.RequiredViewerService.ReleaseAllKeysAsync();
     }
+
     private async void Window_Closed(object? sender, EventArgs e)
     {
         this._windowsKeyBlockerHandle?.Dispose();
+        this._chatView?.ForceClose();
 
         if (this._viewModel is not null)
         {

@@ -1,0 +1,138 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:mi="using:Material.Icons.Avalonia"
+        xmlns:hub="using:RemoteViewer.Client.Services.HubClient"
+        xmlns:local="using:RemoteViewer.Client.Views.Chat"
+        x:Class="RemoteViewer.Client.Views.Chat.ChatView"
+        x:DataType="local:ChatViewModel"
+        x:Name="ChatWindow"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="Chat"
+        Width="340"
+        Height="440"
+        CanResize="False"
+        ShowInTaskbar="True"
+        WindowStartupLocation="CenterOwner">
+
+    <Grid RowDefinitions="*,Auto" Margin="8">
+        <!-- Message list -->
+        <ScrollViewer Grid.Row="0"
+                      x:Name="MessageScrollViewer"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl ItemsSource="{Binding Messages}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="hub:ChatMessageDisplay">
+                        <Border Margin="0,2"
+                                Padding="8,6"
+                                CornerRadius="8"
+                                Classes.self="{Binding IsFromSelf}"
+                                Classes.other="{Binding !IsFromSelf}">
+                            <Border.Styles>
+                                <Style Selector="Border.self">
+                                    <Setter Property="HorizontalAlignment" Value="Right"/>
+                                    <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundBaseLowBrush}"/>
+                                </Style>
+                                <Style Selector="Border.other">
+                                    <Setter Property="HorizontalAlignment" Value="Left"/>
+                                    <Setter Property="Background" Value="{DynamicResource SystemControlBackgroundBaseLowBrush}"/>
+                                </Style>
+                            </Border.Styles>
+                            <StackPanel MaxWidth="240">
+                                <!-- Sender name (hidden for self) -->
+                                <TextBlock Text="{Binding SenderDisplayName}"
+                                           FontSize="11"
+                                           FontWeight="SemiBold"
+                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                           IsVisible="{Binding !IsFromSelf}"/>
+                                <!-- Message text (selectable) -->
+                                <SelectableTextBlock Text="{Binding Text}"
+                                                     TextWrapping="Wrap"
+                                                     FontSize="13"/>
+                                <!-- Link buttons -->
+                                <ItemsControl ItemsSource="{Binding Links}"
+                                              IsVisible="{Binding Links.Count}"
+                                              Margin="0,4,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="hub:ChatLinkDisplay">
+                                            <Button Command="{Binding #ChatWindow.((local:ChatViewModel)DataContext).OpenLinkCommand}"
+                                                    CommandParameter="{Binding Url}"
+                                                    Padding="6,4"
+                                                    Margin="0,2,0,0"
+                                                    HorizontalContentAlignment="Left">
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <mi:MaterialIcon Kind="Link" Width="16" Height="16" VerticalAlignment="Center"/>
+                                                    <StackPanel>
+                                                        <TextBlock Text="{Binding Domain}" FontSize="12" FontWeight="SemiBold"/>
+                                                        <TextBlock Text="{Binding Url}" FontSize="10"
+                                                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                                                   TextTrimming="CharacterEllipsis"
+                                                                   MaxWidth="180"/>
+                                                    </StackPanel>
+                                                </StackPanel>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <!-- Timestamp -->
+                                <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:HH:mm}'}"
+                                           FontSize="10"
+                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumLowBrush}"
+                                           HorizontalAlignment="Right"/>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- Empty state -->
+        <TextBlock Grid.Row="0"
+                   Text="No messages yet"
+                   FontSize="12"
+                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
+                   IsVisible="{Binding !Messages.Count}"/>
+
+        <!-- Input area -->
+        <StackPanel Grid.Row="1" Margin="0,8,0,0" Spacing="4">
+            <!-- Character limit warning -->
+            <TextBlock Text="{Binding CharactersRemaining, StringFormat='{}{0} characters remaining'}"
+                       FontSize="10"
+                       HorizontalAlignment="Right"
+                       IsVisible="{Binding IsNearLimit}"
+                       Classes.warning="{Binding IsNearLimit}"
+                       Classes.error="{Binding IsAtLimit}">
+                <TextBlock.Styles>
+                    <Style Selector="TextBlock.warning">
+                        <Setter Property="Foreground" Value="{DynamicResource WarningBrush}"/>
+                    </Style>
+                    <Style Selector="TextBlock.error">
+                        <Setter Property="Foreground" Value="{DynamicResource ErrorBrush}"/>
+                    </Style>
+                </TextBlock.Styles>
+            </TextBlock>
+
+            <TextBox Text="{Binding MessageInput}"
+                     MaxLength="{Binding MaxLength}"
+                     Watermark="Type a message..."
+                     AcceptsReturn="False"
+                     TextWrapping="Wrap"
+                     MaxHeight="80"
+                     x:Name="MessageInputBox"
+                     KeyDown="MessageInputBox_KeyDown">
+                <TextBox.InnerRightContent>
+                    <Button Command="{Binding SendMessageCommand}"
+                            ToolTip.Tip="Send message"
+                            Background="Transparent"
+                            BorderThickness="0"
+                            Padding="4">
+                        <mi:MaterialIcon Kind="Send" Width="18" Height="18"
+                                         Foreground="{DynamicResource SystemAccentColor}"/>
+                    </Button>
+                </TextBox.InnerRightContent>
+            </TextBox>
+        </StackPanel>
+    </Grid>
+</Window>

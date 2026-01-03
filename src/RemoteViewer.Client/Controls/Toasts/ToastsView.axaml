@@ -85,13 +85,23 @@
                 </Border>
             </DataTemplate>
 
-            <!-- Action toast (success with button) -->
+            <!-- Action toast (with button) -->
             <DataTemplate x:DataType="toasts:ActionToastItemViewModel">
                 <Border CornerRadius="4"
                         Padding="8"
                         MaxWidth="320"
-                        MinWidth="200"
-                        Background="{DynamicResource SuccessBrush}">
+                        MinWidth="200">
+                    <Border.Background>
+                        <Binding Path="Type">
+                            <Binding.Converter>
+                                <conv:ObjectToObject DefaultValue="{StaticResource InfoBrush}">
+                                    <conv:MapItem From="{x:Static toasts:ToastType.Success}" To="{StaticResource SuccessBrush}"/>
+                                    <conv:MapItem From="{x:Static toasts:ToastType.Error}" To="{StaticResource ErrorBrush}"/>
+                                    <conv:MapItem From="{x:Static toasts:ToastType.Info}" To="{StaticResource InfoBrush}"/>
+                                </conv:ObjectToObject>
+                            </Binding.Converter>
+                        </Binding>
+                    </Border.Background>
                     <Border.Transitions>
                         <Transitions>
                             <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
@@ -101,12 +111,23 @@
                     <Grid ColumnDefinitions="Auto,*,Auto">
                         <!-- Left column: icon, vertically centered -->
                         <mi:MaterialIcon Grid.Column="0"
-                                         Kind="CheckCircle"
                                          Width="16"
                                          Height="16"
                                          VerticalAlignment="Center"
                                          Foreground="White"
-                                         Margin="0,0,8,0"/>
+                                         Margin="0,0,8,0">
+                            <mi:MaterialIcon.Kind>
+                                <Binding Path="Type">
+                                    <Binding.Converter>
+                                        <conv:ObjectToObject DefaultValue="{x:Static mik:MaterialIconKind.InformationOutline}">
+                                            <conv:MapItem From="{x:Static toasts:ToastType.Success}" To="{x:Static mik:MaterialIconKind.CheckCircle}"/>
+                                            <conv:MapItem From="{x:Static toasts:ToastType.Error}" To="{x:Static mik:MaterialIconKind.AlertCircle}"/>
+                                            <conv:MapItem From="{x:Static toasts:ToastType.Info}" To="{x:Static mik:MaterialIconKind.InformationOutline}"/>
+                                        </conv:ObjectToObject>
+                                    </Binding.Converter>
+                                </Binding>
+                            </mi:MaterialIcon.Kind>
+                        </mi:MaterialIcon>
 
                         <!-- Middle column: message + action button -->
                         <StackPanel Grid.Column="1" Spacing="8">
@@ -116,11 +137,21 @@
 
                             <Button Command="{Binding ExecuteActionCommand}"
                                     Background="White"
-                                    Foreground="{DynamicResource SuccessBrush}"
                                     CornerRadius="4"
                                     Padding="8,4"
                                     HorizontalAlignment="Right"
                                     Cursor="Hand">
+                                <Button.Foreground>
+                                    <Binding Path="Type">
+                                        <Binding.Converter>
+                                            <conv:ObjectToObject DefaultValue="{StaticResource InfoBrush}">
+                                                <conv:MapItem From="{x:Static toasts:ToastType.Success}" To="{StaticResource SuccessBrush}"/>
+                                                <conv:MapItem From="{x:Static toasts:ToastType.Error}" To="{StaticResource ErrorBrush}"/>
+                                                <conv:MapItem From="{x:Static toasts:ToastType.Info}" To="{StaticResource InfoBrush}"/>
+                                            </conv:ObjectToObject>
+                                        </Binding.Converter>
+                                    </Binding>
+                                </Button.Foreground>
                                 <StackPanel Orientation="Horizontal" Spacing="4">
                                     <mi:MaterialIcon Kind="{Binding ActionIcon}"
                                                      Width="14"

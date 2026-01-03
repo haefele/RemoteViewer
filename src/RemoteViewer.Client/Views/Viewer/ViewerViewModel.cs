@@ -4,6 +4,7 @@ using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using RemoteViewer.Client.Views.Chat;
 using RemoteViewer.Client.Controls.Toasts;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.ViewModels;
@@ -18,6 +19,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     private readonly ILogger<ViewerViewModel> _logger;
 
     public ToastsViewModel Toasts { get; }
+    public ChatViewModel Chat { get; }
 
     public event EventHandler? CloseRequested;
     public event EventHandler? OpenFilePickerRequested;
@@ -25,11 +27,12 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     public ViewerViewModel(
         Connection connection,
         IViewModelFactory viewModelFactory,
-        ILogger<ViewerViewModel> logger)
+        ILoggerFactory loggerFactory)
     {
         this.Connection = connection;
-        this._logger = logger;
+        this._logger = loggerFactory.CreateLogger<ViewerViewModel>();
         this.Toasts = viewModelFactory.CreateToastsViewModel();
+        this.Chat = new ChatViewModel(this.Connection.Chat, loggerFactory.CreateLogger<ChatViewModel>());
         this.Connection.FileTransfers.Toasts = this.Toasts;
 
         this.Connection.ParticipantsChanged += this.Connection_ParticipantsChanged;
@@ -301,6 +304,8 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
         await this.Connection.FileTransfers.CancelAllAsync();
         await this.Connection.DisconnectAsync();
+
+        this.Chat.Dispose();
 
         this.Connection.ParticipantsChanged -= this.Connection_ParticipantsChanged;
         this.Connection.ConnectionPropertiesChanged -= this.Connection_ConnectionPropertiesChanged;

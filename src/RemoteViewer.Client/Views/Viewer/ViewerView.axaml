@@ -4,6 +4,7 @@
         xmlns:conv="using:RemoteViewer.Client.Converters"
         xmlns:toastControls="using:RemoteViewer.Client.Controls.Toasts"
         xmlns:controls="using:RemoteViewer.Client.Controls"
+        xmlns:chatControls="using:RemoteViewer.Client.Views.Chat"
         xmlns:mi="using:Material.Icons.Avalonia"
         xmlns:mik="using:Material.Icons"
         xmlns:dto="using:RemoteViewer.Server.SharedAPI"
@@ -176,10 +177,30 @@
                     </Button.Flyout>
                     <mi:MaterialIcon Kind="AccountGroup" Width="20" Height="20"/>
                 </Button>
-                
+
+                <!-- Chat button -->
+                <Button x:Name="ChatButton"
+                        ToolTip.Tip="Chat"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Width="32" Height="32"
+                        Padding="0"
+                        Click="ChatButton_Click">
+                    <Panel>
+                        <mi:MaterialIcon Kind="Chat" Width="20" Height="20"/>
+                        <!-- Unread indicator -->
+                        <Ellipse Width="8" Height="8"
+                                 Fill="{DynamicResource ErrorBrush}"
+                                 HorizontalAlignment="Right"
+                                 VerticalAlignment="Top"
+                                 Margin="0,2,2,0"
+                                 IsVisible="{Binding Chat.HasUnreadMessages}"/>
+                    </Panel>
+                </Button>
+
                 <!-- Separator -->
-                <Border Width="1" 
-                        Margin="0,4" 
+                <Border Width="1"
+                        Margin="0,4"
                         Background="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
 
                 <!-- Disconnect button -->

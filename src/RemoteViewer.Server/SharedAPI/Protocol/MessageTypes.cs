@@ -73,4 +73,10 @@ public static class MessageTypes
         /// <summary>Clipboard image content (Bidirectional)</summary>
         public const string Image = "clipboard.image";
     }
+
+    public static class Chat
+    {
+        /// <summary>Chat message (Bidirectional - All participants)</summary>
+        public const string Message = "chat.message";
+    }
 }

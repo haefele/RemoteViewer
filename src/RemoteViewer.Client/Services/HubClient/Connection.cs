@@ -43,6 +43,7 @@ public sealed class Connection : IConnectionImpl
 
         this.FileTransfers = ActivatorUtilities.CreateInstance<FileTransferService>(this._serviceProvider, this);
         this.ClipboardSync = ActivatorUtilities.CreateInstance<ClipboardSyncService>(this._serviceProvider, this);
+        this.Chat = ActivatorUtilities.CreateInstance<ChatService>(this._serviceProvider, this);
         if (this.IsPresenter)
         {
             this.PresenterCapture = ActivatorUtilities.CreateInstance<PresenterCaptureService>(this._serviceProvider, this);
@@ -94,6 +95,7 @@ public sealed class Connection : IConnectionImpl
     public ViewerConnectionService RequiredViewerService => this.ViewerService ?? throw new InvalidOperationException("Viewer connection service is not available.");
     public PresenterCaptureService? PresenterCapture { get; }
     public ClipboardSyncService ClipboardSync { get; }
+    public ChatService Chat { get; }
 
     public event EventHandler? Closed;
 
@@ -518,6 +520,13 @@ public sealed class Connection : IConnectionImpl
                         break;
                     }
 
+                case MessageTypes.Chat.Message:
+                    {
+                        var message = ProtocolSerializer.Deserialize<ChatMessage>(data);
+                        ((IChatServiceImpl)this.Chat).HandleChatMessage(message);
+                        break;
+                    }
+
                 default:
                     this._logger.LogWarning("Unknown message type: {MessageType}", messageType);
                     break;
@@ -534,6 +543,7 @@ public sealed class Connection : IConnectionImpl
         this.IsClosed = true;
         this.FileTransfers.Dispose();
         this.ClipboardSync.Dispose();
+        this.Chat.Dispose();
         this.PresenterService?.Dispose();
         this.PresenterCapture?.Dispose();
         this.ViewerService?.Dispose();

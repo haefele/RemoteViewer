@@ -32,4 +32,5 @@ namespace RemoteViewer.Server.SharedAPI;
 [GenerateShapeFor<FileErrorMessage>]
 [GenerateShapeFor<ClipboardTextMessage>]
 [GenerateShapeFor<ClipboardImageMessage>]
+[GenerateShapeFor<ChatMessage>]
 public partial class Witness;

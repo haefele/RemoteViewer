@@ -7,6 +7,10 @@
              <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
 
     <Application.Resources>
+        <!-- Accent Colors -->
+        <SolidColorBrush x:Key="AccentBrush" Color="#0078D4"/>
+        <SolidColorBrush x:Key="WarningBrush" Color="#FFA500"/>
+
         <!-- Semantic Status Colors -->
         <SolidColorBrush x:Key="SuccessBrush" Color="#4CAF50"/>
         <SolidColorBrush x:Key="ErrorBrush" Color="#F44336"/>

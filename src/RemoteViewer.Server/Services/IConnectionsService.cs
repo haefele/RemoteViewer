@@ -493,6 +493,25 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
                     this._logger.MessageSentToAll(this.Id, sender.Id, this._viewers.Count + 1);
                     break;
 
+                case MessageDestination.AllExceptSender:
+                    var recipientCount = 0;
+                    if (this.Presenter != sender)
+                    {
+                        actions.Add(f => f.Client(this.Presenter.SignalrConnectionId).MessageReceived(this.Id, sender.Id, messageType, data));
+                        recipientCount++;
+                    }
+
+                    foreach (var viewer in this._viewers)
+                    {
+                        if (viewer != sender)
+                        {
+                            actions.Add(f => f.Client(viewer.SignalrConnectionId).MessageReceived(this.Id, sender.Id, messageType, data));
+                            recipientCount++;
+                        }
+                    }
+                    this._logger.MessageSentToAll(this.Id, sender.Id, recipientCount);
+                    break;
+
                 case MessageDestination.SpecificClients:
                     if (targetClientIds is null || targetClientIds.Count == 0)
                         break;

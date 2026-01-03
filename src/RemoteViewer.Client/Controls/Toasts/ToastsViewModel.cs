@@ -75,6 +75,15 @@ public partial class ToastsViewModel : ObservableObject
         });
     }
 
+    public void InfoWithAction(string message, string actionText, MaterialIconKind actionIcon, Action action, int durationMs = 4000)
+    {
+        Dispatcher.UIThread.Post(() =>
+        {
+            var toast = new ActionToastItemViewModel(message, ToastType.Info, actionText, actionIcon, action, durationMs, this.RemoveToast);
+            this.Items.Add(toast);
+        });
+    }
+
     private static void OpenDownloadsFolder()
     {
         var downloadsPath = FileTransferHelpers.GetDownloadsFolder();

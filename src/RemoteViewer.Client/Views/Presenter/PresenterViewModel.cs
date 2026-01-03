@@ -1,10 +1,10 @@
 ﻿using System.Collections.ObjectModel;
-using Avalonia.Threading;
 using System.ComponentModel;
-using System.Linq;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using RemoteViewer.Client.Views.Chat;
 using RemoteViewer.Client.Controls.Toasts;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.ViewModels;
@@ -19,6 +19,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
     private readonly ILogger<PresenterViewModel> _logger;
 
     public ToastsViewModel Toasts { get; }
+    public ChatViewModel Chat { get; }
 
     private bool _disposed;
 
@@ -37,12 +38,13 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         Connection connection,
         ConnectionHubClient hubClient,
         IViewModelFactory viewModelFactory,
-        ILogger<PresenterViewModel> logger)
+        ILoggerFactory loggerFactory)
     {
         this._connection = connection;
         this._hubClient = hubClient;
-        this._logger = logger;
+        this._logger = loggerFactory.CreateLogger<PresenterViewModel>();
         this.Toasts = viewModelFactory.CreateToastsViewModel();
+        this.Chat = new ChatViewModel(this._connection.Chat, loggerFactory.CreateLogger<ChatViewModel>());
         this._connection.FileTransfers.Toasts = this.Toasts;
 
         // Subscribe to Connection events
@@ -52,7 +54,6 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 
         // Subscribe to credentials changes
         this._hubClient.CredentialsAssigned += this.OnCredentialsAssigned;
-
     }
 
     private void OnCredentialsAssigned(object? sender, CredentialsAssignedEventArgs e)
@@ -227,6 +228,8 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 
         await this._connection.FileTransfers.CancelAllAsync();
         await this._connection.DisconnectAsync();
+
+        this.Chat.Dispose();
 
         // Unsubscribe from Connection events
         this._connection.ViewersChanged -= this.OnViewersChanged;
