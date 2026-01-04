@@ -41,8 +41,10 @@ public class SignalRHubTests
             });
         });
 
+        // Act
         var result = await credentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+        // Assert
         await Assert.That(result.clientId).IsNotNull().And.IsNotEmpty();
         await Assert.That(result.username.Replace(" ", "")).Length().IsEqualTo(10);
         await Assert.That(result.password).Length().IsEqualTo(8);
@@ -70,9 +72,11 @@ public class SignalRHubTests
             });
         });
 
+        // Act
         var result1 = await credentials1.Task.WaitAsync(TimeSpan.FromSeconds(5));
         var result2 = await credentials2.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+        // Assert
         await Assert.That(result1.clientId).IsNotEqualTo(result2.clientId);
         await Assert.That(result1.username).IsNotEqualTo(result2.username);
     }
@@ -107,8 +111,10 @@ public class SignalRHubTests
             });
         });
 
+        // Act
         var connectResult = await viewer.InvokeAsync<TryConnectError?>("ConnectTo", creds.username, creds.password);
 
+        // Assert
         await Assert.That(connectResult).IsNull();
 
         var presenterResult = await presenterConnectionStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -139,8 +145,10 @@ public class SignalRHubTests
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
         });
 
+        // Act
         var connectResult = await viewer.InvokeAsync<TryConnectError?>("ConnectTo", creds.username, "wrongpassword");
 
+        // Assert
         await Assert.That(connectResult).IsEqualTo(TryConnectError.IncorrectUsernameOrPassword);
     }
 
@@ -165,10 +173,11 @@ public class SignalRHubTests
 
         await credentialsReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+        // Act
         await connection.InvokeAsync("GenerateNewPassword");
-
         await secondCredentialsReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+        // Assert
         await Assert.That(credentialsList).Count().IsEqualTo(2);
         await Assert.That(credentialsList[0]).IsNotEqualTo(credentialsList[1]);
     }
@@ -208,10 +217,12 @@ public class SignalRHubTests
         var connId = await presenterConnectionId.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         var testData = new byte[] { 1, 2, 3, 4, 5 };
-        await presenter.InvokeAsync("SendMessage", connId, "test.message", testData, MessageDestination.AllViewers, (List<string>?)null);
 
+        // Act
+        await presenter.InvokeAsync("SendMessage", connId, "test.message", testData, MessageDestination.AllViewers, (List<string>?)null);
         var received = await viewerReceivedMessage.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+        // Assert
         await Assert.That(received.connectionId).IsEqualTo(connId);
         await Assert.That(received.messageType).IsEqualTo("test.message");
         await Assert.That(received.data).IsEquivalentTo(testData);
@@ -256,11 +267,11 @@ public class SignalRHubTests
         await viewer.InvokeAsync<TryConnectError?>("ConnectTo", creds.username, creds.password);
         await presenterConnectionId.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        // Disconnect viewer
+        // Act
         await viewer.DisposeAsync();
-
         var finalInfo = await viewerDisconnected.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+        // Assert
         await Assert.That(finalInfo.Viewers).IsEmpty();
     }
 
@@ -301,10 +312,11 @@ public class SignalRHubTests
         await viewer.InvokeAsync<TryConnectError?>("ConnectTo", creds.username, creds.password);
         await presenterConnectionId.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+        // Act
         await presenter.InvokeAsync("SetDisplayName", "New Display Name");
-
         var info = await connectionChanged.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+        // Assert
         await Assert.That(info.Presenter.DisplayName).IsEqualTo("New Display Name");
     }
 
@@ -355,10 +367,11 @@ public class SignalRHubTests
             AvailableDisplays: displays
         );
 
+        // Act
         await presenter.InvokeAsync("SetConnectionProperties", connId, properties);
-
         var info = await connectionChanged.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+        // Assert
         await Assert.That(info.Properties.CanSendSecureAttentionSequence).IsTrue();
         await Assert.That(info.Properties.AvailableDisplays).Count().IsEqualTo(1);
     }
@@ -392,8 +405,10 @@ public class SignalRHubTests
         await viewer.InvokeAsync<TryConnectError?>("ConnectTo", creds.username, creds.password);
         var connId = await presenterConnectionId.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+        // Act
         var token = await presenter.InvokeAsync<string?>("GenerateIpcAuthToken", connId);
 
+        // Assert
         await Assert.That(token).IsNotNull().And.IsNotEmpty();
     }
 
@@ -431,9 +446,10 @@ public class SignalRHubTests
         var connId = await presenterConnectionId.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await viewerConnectionStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        // Viewer tries to generate token - should fail
+        // Act - Viewer tries to generate token - should fail
         var token = await viewer.InvokeAsync<string?>("GenerateIpcAuthToken", connId);
 
+        // Assert
         await Assert.That(token).IsNull();
     }
 
@@ -456,10 +472,11 @@ public class SignalRHubTests
             versionMismatch.TrySetResult((serverVersion, clientVersion));
         });
 
+        // Act
         await connection.StartAsync();
-
         var result = await versionMismatch.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+        // Assert
         await Assert.That(result.clientVersion).IsEqualTo("0.0.0-invalid");
         await Assert.That(result.serverVersion).IsEqualTo(ThisAssembly.AssemblyInformationalVersion);
 
@@ -517,10 +534,11 @@ public class SignalRHubTests
             ipcValidated.TrySetResult(connectionId);
         });
 
+        // Act
         await ipcConnection.StartAsync();
-
         var validatedConnectionId = await ipcValidated.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+        // Assert
         await Assert.That(validatedConnectionId).IsEqualTo(connId);
 
         await ipcConnection.DisposeAsync();
@@ -545,10 +563,11 @@ public class SignalRHubTests
             ipcValidated.TrySetResult(connectionId);
         });
 
+        // Act
         await ipcConnection.StartAsync();
-
         var validatedConnectionId = await ipcValidated.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+        // Assert
         await Assert.That(validatedConnectionId).IsNull();
 
         await ipcConnection.DisposeAsync();
@@ -589,10 +608,12 @@ public class SignalRHubTests
         var connId = await presenterConnectionId.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         var testData = new byte[] { 1, 2, 3, 4, 5 };
-        await viewer.InvokeAsync("SendMessage", connId, "viewer.message", testData, MessageDestination.PresenterOnly, (List<string>?)null);
 
+        // Act
+        await viewer.InvokeAsync("SendMessage", connId, "viewer.message", testData, MessageDestination.PresenterOnly, (List<string>?)null);
         var received = await presenterReceivedMessage.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+        // Assert
         await Assert.That(received.connectionId).IsEqualTo(connId);
         await Assert.That(received.messageType).IsEqualTo("viewer.message");
         await Assert.That(received.data).IsEquivalentTo(testData);
@@ -638,11 +659,13 @@ public class SignalRHubTests
         var connId = await presenterConnectionId.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         var testData = new byte[] { 10, 20, 30 };
-        await presenter.InvokeAsync("SendMessage", connId, "broadcast.all", testData, MessageDestination.All, (List<string>?)null);
 
+        // Act
+        await presenter.InvokeAsync("SendMessage", connId, "broadcast.all", testData, MessageDestination.All, (List<string>?)null);
         var presenterReceived = await presenterReceivedMessage.Task.WaitAsync(TimeSpan.FromSeconds(5));
         var viewerReceived = await viewerReceivedMessage.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+        // Assert
         await Assert.That(presenterReceived.messageType).IsEqualTo("broadcast.all");
         await Assert.That(viewerReceived.messageType).IsEqualTo("broadcast.all");
         await Assert.That(presenterReceived.data).IsEquivalentTo(testData);
@@ -701,12 +724,13 @@ public class SignalRHubTests
         var connId = await presenterConnectionId.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         var testData = new byte[] { 42, 43, 44 };
-        // viewer1 sends - should NOT receive it back, but presenter and viewer2 should
-        await viewer1.InvokeAsync("SendMessage", connId, "except.sender", testData, MessageDestination.AllExceptSender, (List<string>?)null);
 
+        // Act - viewer1 sends - should NOT receive it back, but presenter and viewer2 should
+        await viewer1.InvokeAsync("SendMessage", connId, "except.sender", testData, MessageDestination.AllExceptSender, (List<string>?)null);
         var presenterReceived = await presenterReceivedMessage.Task.WaitAsync(TimeSpan.FromSeconds(5));
         var viewer2Received = await viewer2ReceivedMessage.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+        // Assert
         await Assert.That(presenterReceived.messageType).IsEqualTo("except.sender");
         await Assert.That(viewer2Received.messageType).IsEqualTo("except.sender");
 
@@ -774,11 +798,12 @@ public class SignalRHubTests
         var viewer1Id = info.Viewers[0].ClientId;
 
         var testData = new byte[] { 100, 101, 102 };
-        // Send to only viewer1
-        await presenter.InvokeAsync("SendMessage", connId, "specific.target", testData, MessageDestination.SpecificClients, new List<string> { viewer1Id });
 
+        // Act - Send to only viewer1
+        await presenter.InvokeAsync("SendMessage", connId, "specific.target", testData, MessageDestination.SpecificClients, new List<string> { viewer1Id });
         var viewer1Received = await viewer1ReceivedMessage.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
+        // Assert
         await Assert.That(viewer1Received.messageType).IsEqualTo("specific.target");
         await Assert.That(viewer1Received.data).IsEquivalentTo(testData);
 

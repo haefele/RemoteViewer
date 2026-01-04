@@ -39,8 +39,10 @@ public class BatchedHubActionsTests
 
         batch.Add(clients => clients.All.TestMethod("hello"));
 
+        // Act
         await batch.ExecuteAll();
 
+        // Assert
         await this._mockClient.Received(1).TestMethod("hello");
     }
 
@@ -58,8 +60,10 @@ public class BatchedHubActionsTests
         batch.Add(clients => clients.All.TestMethod("second"));
         batch.Add(clients => clients.All.TestMethod("third"));
 
+        // Act
         await batch.ExecuteAll();
 
+        // Assert
         await Assert.That(callOrder).Count().IsEqualTo(3);
         await Assert.That(callOrder[0]).IsEqualTo("first");
         await Assert.That(callOrder[1]).IsEqualTo("second");
@@ -76,9 +80,10 @@ public class BatchedHubActionsTests
 
         this._mockClient.ClearReceivedCalls();
 
-        // Second execute should not call anything
+        // Act - Second execute should not call anything
         await batch.ExecuteAll();
 
+        // Assert
         await this._mockClient.DidNotReceive().TestMethod(Arg.Any<string>());
     }
 
@@ -98,10 +103,10 @@ public class BatchedHubActionsTests
         batch.Add(clients => clients.All.TestMethod("fail"));
         batch.Add(clients => clients.All.TestMethod("success"));
 
-        // Should not throw
+        // Act - Should not throw
         await batch.ExecuteAll();
 
-        // Both should have been called
+        // Assert - Both should have been called
         await this._mockClient.Received(1).TestMethod("fail");
         await this._mockClient.Received(1).TestMethod("success");
     }
@@ -111,9 +116,10 @@ public class BatchedHubActionsTests
     {
         var batch = new BatchedHubActions<TestHub, ITestHubClient>(this._hubContext, this._logger);
 
-        // Should not throw
+        // Act - Should not throw
         await batch.ExecuteAll();
 
+        // Assert
         await this._mockClient.DidNotReceive().TestMethod(Arg.Any<string>());
     }
 
@@ -125,8 +131,10 @@ public class BatchedHubActionsTests
         batch.Add(clients => clients.All.TestMethod("message"));
         batch.Add(clients => clients.All.TestMethod2(42));
 
+        // Act
         await batch.ExecuteAll();
 
+        // Assert
         await this._mockClient.Received(1).TestMethod("message");
         await this._mockClient.Received(1).TestMethod2(42);
     }

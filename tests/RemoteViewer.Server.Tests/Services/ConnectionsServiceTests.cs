@@ -46,8 +46,10 @@ public class ConnectionsServiceTests : IDisposable
     {
         const string signalrConnectionId = "conn-123";
 
+        // Act
         await this._service.Register(signalrConnectionId, displayName: null);
 
+        // Assert
         await this._mockClient.Received(1).CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Is<string>(u => u.Replace(" ", "").Length == 10 && u.Replace(" ", "").All(char.IsDigit)),
@@ -61,8 +63,10 @@ public class ConnectionsServiceTests : IDisposable
         const string signalrConnectionId = "conn-123";
         const string displayName = "Test User";
 
+        // Act
         await this._service.Register(signalrConnectionId, displayName);
 
+        // Assert
         await this._mockClient.Received(1).CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Any<string>(),
@@ -80,10 +84,12 @@ public class ConnectionsServiceTests : IDisposable
             Arg.Any<string>()
         );
 
+        // Act
         await this._service.Register("conn-1", null);
         await this._service.Register("conn-2", null);
         await this._service.Register("conn-3", null);
 
+        // Assert
         await Assert.That(capturedUsernames).Count().IsEqualTo(3);
         await Assert.That(capturedUsernames.Distinct().Count()).IsEqualTo(3);
     }
@@ -94,17 +100,19 @@ public class ConnectionsServiceTests : IDisposable
         const string signalrConnectionId = "conn-123";
         await this._service.Register(signalrConnectionId, null);
 
+        // Act
         await this._service.Unregister(signalrConnectionId);
 
-        // No exception should be thrown - client should be removed successfully
+        // Assert - No exception should be thrown - client should be removed successfully
     }
 
     [Test]
     public async Task UnregisterNonExistentClientDoesNotThrow()
     {
+        // Act
         await this._service.Unregister("non-existent-connection");
 
-        // Should not throw
+        // Assert - Should not throw
     }
 
     [Test]
@@ -112,16 +120,17 @@ public class ConnectionsServiceTests : IDisposable
     {
         const string signalrConnectionId = "conn-123";
         var capturedPasswords = new List<string>();
-
         await this._mockClient.CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Any<string>(),
             Arg.Do<string>(p => capturedPasswords.Add(p))
         );
-
         await this._service.Register(signalrConnectionId, null);
+
+        // Act
         await this._service.GenerateNewPassword(signalrConnectionId);
 
+        // Assert
         await Assert.That(capturedPasswords).Count().IsEqualTo(2);
         await Assert.That(capturedPasswords[0]).IsNotEqualTo(capturedPasswords[1]);
     }
@@ -129,8 +138,10 @@ public class ConnectionsServiceTests : IDisposable
     [Test]
     public async Task GenerateNewPasswordNonExistentClientDoesNothing()
     {
+        // Act
         await this._service.GenerateNewPassword("non-existent-connection");
 
+        // Assert
         await this._mockClient.DidNotReceive().CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Any<string>(),
@@ -144,16 +155,20 @@ public class ConnectionsServiceTests : IDisposable
         const string viewerConnectionId = "viewer-conn";
         await this._service.Register(viewerConnectionId, null);
 
+        // Act
         var result = await this._service.TryConnectTo(viewerConnectionId, "wrong-username", "wrong-password");
 
+        // Assert
         await Assert.That(result).IsEqualTo(TryConnectError.IncorrectUsernameOrPassword);
     }
 
     [Test]
     public async Task TryConnectToViewerNotRegisteredReturnsViewerNotFound()
     {
+        // Act
         var result = await this._service.TryConnectTo("non-existent", "username", "password");
 
+        // Assert
         await Assert.That(result).IsEqualTo(TryConnectError.ViewerNotFound);
     }
 
@@ -163,17 +178,17 @@ public class ConnectionsServiceTests : IDisposable
         const string connectionId = "conn-123";
         string? capturedUsername = null;
         string? capturedPassword = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Do<string>(u => capturedUsername = u.Replace(" ", "")),
             Arg.Do<string>(p => capturedPassword = p)
         );
-
         await this._service.Register(connectionId, null);
 
+        // Act
         var result = await this._service.TryConnectTo(connectionId, capturedUsername!, capturedPassword!);
 
+        // Assert
         await Assert.That(result).IsEqualTo(TryConnectError.CannotConnectToYourself);
     }
 
@@ -184,18 +199,18 @@ public class ConnectionsServiceTests : IDisposable
         const string viewerConnectionId = "viewer-conn";
         string? presenterUsername = null;
         string? presenterPassword = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
             Arg.Do<string>(p => presenterPassword ??= p)
         );
-
         await this._service.Register(presenterConnectionId, null);
         await this._service.Register(viewerConnectionId, null);
 
+        // Act
         var result = await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
 
+        // Assert
         await Assert.That(result).IsNull();
         await this._mockClient.Received().ConnectionStarted(Arg.Any<string>(), isPresenter: true);
         await this._mockClient.Received().ConnectionStarted(Arg.Any<string>(), isPresenter: false);
@@ -208,19 +223,18 @@ public class ConnectionsServiceTests : IDisposable
         const string viewerConnectionId = "viewer-conn";
         string? presenterUsername = null;
         string? presenterPassword = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Do<string>(u => presenterUsername ??= u),
             Arg.Do<string>(p => presenterPassword ??= p)
         );
-
         await this._service.Register(presenterConnectionId, null);
         await this._service.Register(viewerConnectionId, null);
 
-        // Username comes with spaces from CredentialsAssigned, but should still work
+        // Act - Username comes with spaces from CredentialsAssigned, but should still work
         var result = await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
 
+        // Assert
         await Assert.That(result).IsNull();
     }
 
@@ -231,19 +245,18 @@ public class ConnectionsServiceTests : IDisposable
         const string viewerConnectionId = "viewer-conn";
         string? presenterUsername = null;
         string? presenterPassword = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
             Arg.Do<string>(p => presenterPassword ??= p)
         );
-
         await this._service.Register(presenterConnectionId, null);
         await this._service.Register(viewerConnectionId, null);
 
-        // Use uppercase password
+        // Act - Use uppercase password
         var result = await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!.ToUpperInvariant());
 
+        // Assert
         await Assert.That(result).IsNull();
     }
 
@@ -255,24 +268,23 @@ public class ConnectionsServiceTests : IDisposable
         string? presenterUsername = null;
         string? presenterPassword = null;
         string? connectionId = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
             Arg.Do<string>(p => presenterPassword ??= p)
         );
-
         await this._mockClient.ConnectionStarted(
             Arg.Do<string>(cid => connectionId ??= cid),
             Arg.Any<bool>()
         );
-
         await this._service.Register(presenterConnectionId, null);
         await this._service.Register(viewerConnectionId, null);
         await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
 
+        // Act
         await this._service.DisconnectFromConnection(viewerConnectionId, connectionId!);
 
+        // Assert
         await this._mockClient.Received().ConnectionStopped(connectionId!);
     }
 
@@ -285,28 +297,25 @@ public class ConnectionsServiceTests : IDisposable
         string? presenterUsername = null;
         string? presenterPassword = null;
         string? connectionId = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
             Arg.Do<string>(p => presenterPassword ??= p)
         );
-
         await this._mockClient.ConnectionStarted(
             Arg.Do<string>(cid => connectionId ??= cid),
             Arg.Any<bool>()
         );
-
         await this._service.Register(presenterConnectionId, null);
         await this._service.Register(viewer1ConnectionId, null);
         await this._service.Register(viewer2ConnectionId, null);
-
         await this._service.TryConnectTo(viewer1ConnectionId, presenterUsername!, presenterPassword!);
         await this._service.TryConnectTo(viewer2ConnectionId, presenterUsername!, presenterPassword!);
 
+        // Act
         await this._service.DisconnectFromConnection(presenterConnectionId, connectionId!);
 
-        // All participants should receive ConnectionStopped
+        // Assert - All participants should receive ConnectionStopped
         await this._mockClient.Received(3).ConnectionStopped(connectionId!);
     }
 
@@ -318,25 +327,24 @@ public class ConnectionsServiceTests : IDisposable
         string? presenterUsername = null;
         string? presenterPassword = null;
         string? connectionId = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
             Arg.Do<string>(p => presenterPassword ??= p)
         );
-
         await this._mockClient.ConnectionStarted(
             Arg.Do<string>(cid => connectionId ??= cid),
             Arg.Any<bool>()
         );
-
         await this._service.Register(presenterConnectionId, null);
         await this._service.Register(viewerConnectionId, null);
         await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
-
         var testData = new byte[] { 1, 2, 3 };
+
+        // Act
         await this._service.SendMessage(viewerConnectionId, connectionId!, "test.message", testData, MessageDestination.PresenterOnly);
 
+        // Assert
         await this._mockClient.Received(1).MessageReceived(
             connectionId!,
             Arg.Any<string>(),
@@ -354,28 +362,26 @@ public class ConnectionsServiceTests : IDisposable
         string? presenterUsername = null;
         string? presenterPassword = null;
         string? connectionId = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
             Arg.Do<string>(p => presenterPassword ??= p)
         );
-
         await this._mockClient.ConnectionStarted(
             Arg.Do<string>(cid => connectionId ??= cid),
             Arg.Any<bool>()
         );
-
         await this._service.Register(presenterConnectionId, null);
         await this._service.Register(viewer1ConnectionId, null);
         await this._service.Register(viewer2ConnectionId, null);
-
         await this._service.TryConnectTo(viewer1ConnectionId, presenterUsername!, presenterPassword!);
         await this._service.TryConnectTo(viewer2ConnectionId, presenterUsername!, presenterPassword!);
-
         var testData = new byte[] { 1, 2, 3 };
+
+        // Act
         await this._service.SendMessage(presenterConnectionId, connectionId!, "test.message", testData, MessageDestination.AllViewers);
 
+        // Assert
         await this._mockClient.Received(2).MessageReceived(
             connectionId!,
             Arg.Any<string>(),
@@ -392,24 +398,23 @@ public class ConnectionsServiceTests : IDisposable
         string? presenterUsername = null;
         string? presenterPassword = null;
         string? connectionId = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
             Arg.Do<string>(p => presenterPassword ??= p)
         );
-
         await this._mockClient.ConnectionStarted(
             Arg.Do<string>(cid => connectionId ??= cid),
             Arg.Any<bool>()
         );
-
         await this._service.Register(presenterConnectionId, null);
         await this._service.Register(viewerConnectionId, null);
         await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
 
+        // Act
         var result = this._service.IsPresenterOfConnection(presenterConnectionId, connectionId!);
 
+        // Assert
         await Assert.That(result).IsTrue();
     }
 
@@ -421,24 +426,23 @@ public class ConnectionsServiceTests : IDisposable
         string? presenterUsername = null;
         string? presenterPassword = null;
         string? connectionId = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
             Arg.Do<string>(p => presenterPassword ??= p)
         );
-
         await this._mockClient.ConnectionStarted(
             Arg.Do<string>(cid => connectionId ??= cid),
             Arg.Any<bool>()
         );
-
         await this._service.Register(presenterConnectionId, null);
         await this._service.Register(viewerConnectionId, null);
         await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
 
+        // Act
         var result = this._service.IsPresenterOfConnection(viewerConnectionId, connectionId!);
 
+        // Assert
         await Assert.That(result).IsFalse();
     }
 
@@ -450,30 +454,28 @@ public class ConnectionsServiceTests : IDisposable
         string? presenterUsername = null;
         string? presenterPassword = null;
         string? connectionId = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
             Arg.Do<string>(p => presenterPassword ??= p)
         );
-
         await this._mockClient.ConnectionStarted(
             Arg.Do<string>(cid => connectionId ??= cid),
             Arg.Any<bool>()
         );
-
         await this._service.Register(presenterConnectionId, null);
         await this._service.Register(viewerConnectionId, null);
         await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
-
         var properties = new ConnectionProperties(
             CanSendSecureAttentionSequence: true,
             InputBlockedViewerIds: [],
             AvailableDisplays: [new DisplayInfo("display1", "Primary Monitor", true, 0, 0, 1920, 1080)]
         );
 
+        // Act
         await this._service.SetConnectionProperties(presenterConnectionId, connectionId!, properties);
 
+        // Assert
         await this._mockClient.Received().ConnectionChanged(Arg.Is<ConnectionInfo>(ci =>
             ci.Properties.CanSendSecureAttentionSequence == true &&
             ci.Properties.AvailableDisplays.Count == 1
@@ -487,19 +489,19 @@ public class ConnectionsServiceTests : IDisposable
         const string viewerConnectionId = "viewer-conn";
         string? presenterUsername = null;
         string? presenterPassword = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
             Arg.Do<string>(p => presenterPassword ??= p)
         );
-
         await this._service.Register(presenterConnectionId, null);
         await this._service.Register(viewerConnectionId, null);
         await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
 
+        // Act
         await this._service.SetDisplayName(presenterConnectionId, "New Display Name");
 
+        // Assert
         await this._mockClient.Received().ConnectionChanged(Arg.Is<ConnectionInfo>(ci =>
             ci.Presenter.DisplayName == "New Display Name"
         ));
@@ -513,23 +515,21 @@ public class ConnectionsServiceTests : IDisposable
         const string viewer2ConnectionId = "viewer2-conn";
         string? presenterUsername = null;
         string? presenterPassword = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
             Arg.Do<string>(p => presenterPassword ??= p)
         );
-
         await this._service.Register(presenterConnectionId, null);
         await this._service.Register(viewer1ConnectionId, null);
         await this._service.Register(viewer2ConnectionId, null);
-
         await this._service.TryConnectTo(viewer1ConnectionId, presenterUsername!, presenterPassword!);
         this._mockClient.ClearReceivedCalls();
 
+        // Act
         await this._service.TryConnectTo(viewer2ConnectionId, presenterUsername!, presenterPassword!);
 
-        // After second viewer joins, all 3 participants should receive ConnectionChanged
+        // Assert - After second viewer joins, all 3 participants should receive ConnectionChanged
         await this._mockClient.Received(3).ConnectionChanged(Arg.Any<ConnectionInfo>());
     }
 
@@ -542,31 +542,27 @@ public class ConnectionsServiceTests : IDisposable
         string? presenterUsername = null;
         string? presenterPassword = null;
         string? connectionId = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
             Arg.Do<string>(p => presenterPassword ??= p)
         );
-
         await this._mockClient.ConnectionStarted(
             Arg.Do<string>(cid => connectionId ??= cid),
             Arg.Any<bool>()
         );
-
         await this._service.Register(presenterConnectionId, null);
         await this._service.Register(viewer1ConnectionId, null);
         await this._service.Register(viewer2ConnectionId, null);
-
         await this._service.TryConnectTo(viewer1ConnectionId, presenterUsername!, presenterPassword!);
         await this._service.TryConnectTo(viewer2ConnectionId, presenterUsername!, presenterPassword!);
-
         this._mockClient.ClearReceivedCalls();
-
         var testData = new byte[] { 1, 2, 3 };
+
+        // Act
         await this._service.SendMessage(viewer1ConnectionId, connectionId!, "chat.message", testData, MessageDestination.AllExceptSender);
 
-        // Should send to presenter and viewer2 (2 recipients), not viewer1 (sender)
+        // Assert - Should send to presenter and viewer2 (2 recipients), not viewer1 (sender)
         await this._mockClient.Received(2).MessageReceived(
             connectionId!,
             Arg.Any<string>(),
@@ -583,27 +579,25 @@ public class ConnectionsServiceTests : IDisposable
         string? presenterUsername = null;
         string? presenterPassword = null;
         string? connectionId = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
             Arg.Do<string>(p => presenterPassword ??= p)
         );
-
         await this._mockClient.ConnectionStarted(
             Arg.Do<string>(cid => connectionId ??= cid),
             Arg.Any<bool>()
         );
-
         await this._service.Register(presenterConnectionId, null);
         await this._service.Register(viewerConnectionId, null);
         await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
-
         this._mockClient.ClearReceivedCalls();
-
         var testData = new byte[] { 1, 2, 3 };
+
+        // Act
         await this._service.SendMessage(presenterConnectionId, connectionId!, "test.message", testData, MessageDestination.SpecificClients, targetClientIds: null);
 
+        // Assert
         await this._mockClient.DidNotReceive().MessageReceived(
             Arg.Any<string>(),
             Arg.Any<string>(),
@@ -620,27 +614,25 @@ public class ConnectionsServiceTests : IDisposable
         string? presenterUsername = null;
         string? presenterPassword = null;
         string? connectionId = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
             Arg.Do<string>(p => presenterPassword ??= p)
         );
-
         await this._mockClient.ConnectionStarted(
             Arg.Do<string>(cid => connectionId ??= cid),
             Arg.Any<bool>()
         );
-
         await this._service.Register(presenterConnectionId, null);
         await this._service.Register(viewerConnectionId, null);
         await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
-
         this._mockClient.ClearReceivedCalls();
-
         var testData = new byte[] { 1, 2, 3 };
+
+        // Act
         await this._service.SendMessage(presenterConnectionId, connectionId!, "test.message", testData, MessageDestination.SpecificClients, targetClientIds: []);
 
+        // Assert
         await this._mockClient.DidNotReceive().MessageReceived(
             Arg.Any<string>(),
             Arg.Any<string>(),
@@ -657,27 +649,25 @@ public class ConnectionsServiceTests : IDisposable
         string? presenterUsername = null;
         string? presenterPassword = null;
         string? connectionId = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
             Arg.Do<string>(p => presenterPassword ??= p)
         );
-
         await this._mockClient.ConnectionStarted(
             Arg.Do<string>(cid => connectionId ??= cid),
             Arg.Any<bool>()
         );
-
         await this._service.Register(presenterConnectionId, null);
         await this._service.Register(viewerConnectionId, null);
         await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
-
         this._mockClient.ClearReceivedCalls();
-
         var testData = new byte[] { 1, 2, 3 };
+
+        // Act
         await this._service.SendMessage(presenterConnectionId, connectionId!, "test.message", testData, MessageDestination.SpecificClients, targetClientIds: ["invalid-id-1", "invalid-id-2"]);
 
+        // Assert
         await this._mockClient.DidNotReceive().MessageReceived(
             Arg.Any<string>(),
             Arg.Any<string>(),
@@ -696,36 +686,30 @@ public class ConnectionsServiceTests : IDisposable
         string? presenterPassword = null;
         string? connectionId = null;
         string? clientId = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Do<string>(id => clientId = id),
             Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
             Arg.Do<string>(p => presenterPassword ??= p)
         );
-
         await this._mockClient.ConnectionStarted(
             Arg.Do<string>(cid => connectionId ??= cid),
             Arg.Any<bool>()
         );
-
         await this._service.Register(presenterConnectionId, null);
         var presenterId = clientId;
-
         await this._service.Register(viewer1ConnectionId, null);
         var viewer1Id = clientId;
-
         await this._service.Register(viewer2ConnectionId, null);
         var viewer2Id = clientId;
-
         await this._service.TryConnectTo(viewer1ConnectionId, presenterUsername!, presenterPassword!);
         await this._service.TryConnectTo(viewer2ConnectionId, presenterUsername!, presenterPassword!);
-
         this._mockClient.ClearReceivedCalls();
-
         var testData = new byte[] { 1, 2, 3 };
-        // Send to presenter (valid) and invalid ID - should only send to presenter
+
+        // Act - Send to presenter (valid) and invalid ID - should only send to presenter
         await this._service.SendMessage(viewer1ConnectionId, connectionId!, "test.message", testData, MessageDestination.SpecificClients, targetClientIds: [presenterId!, "invalid-id"]);
 
+        // Assert
         await this._mockClient.Received(1).MessageReceived(
             connectionId!,
             Arg.Any<string>(),
@@ -742,27 +726,25 @@ public class ConnectionsServiceTests : IDisposable
         string? presenterUsername = null;
         string? presenterPassword = null;
         string? connectionId = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
             Arg.Do<string>(p => presenterPassword ??= p)
         );
-
         await this._mockClient.ConnectionStarted(
             Arg.Do<string>(cid => connectionId ??= cid),
             Arg.Any<bool>()
         );
-
         await this._service.Register(presenterConnectionId, null);
         await this._service.Register(viewerConnectionId, null);
         await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
-
         this._mockClient.ClearReceivedCalls();
-
         var testData = new byte[] { 1, 2, 3 };
+
+        // Act
         await this._service.SendMessage("non-existent-sender", connectionId!, "test.message", testData, MessageDestination.AllViewers);
 
+        // Assert
         await this._mockClient.DidNotReceive().MessageReceived(
             Arg.Any<string>(),
             Arg.Any<string>(),
@@ -775,14 +757,14 @@ public class ConnectionsServiceTests : IDisposable
     public async Task SendMessageNonExistentConnectionReturnsEarly()
     {
         const string presenterConnectionId = "presenter-conn";
-
         await this._service.Register(presenterConnectionId, null);
-
         this._mockClient.ClearReceivedCalls();
-
         var testData = new byte[] { 1, 2, 3 };
+
+        // Act
         await this._service.SendMessage(presenterConnectionId, "non-existent-connection", "test.message", testData, MessageDestination.AllViewers);
 
+        // Assert
         await this._mockClient.DidNotReceive().MessageReceived(
             Arg.Any<string>(),
             Arg.Any<string>(),
@@ -800,29 +782,26 @@ public class ConnectionsServiceTests : IDisposable
         string? presenterUsername = null;
         string? presenterPassword = null;
         string? connectionId = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
             Arg.Do<string>(p => presenterPassword ??= p)
         );
-
         await this._mockClient.ConnectionStarted(
             Arg.Do<string>(cid => connectionId ??= cid),
             Arg.Any<bool>()
         );
-
         await this._service.Register(presenterConnectionId, null);
         await this._service.Register(viewerConnectionId, null);
         await this._service.Register(outsiderConnectionId, null);
         await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
-
         this._mockClient.ClearReceivedCalls();
-
         var testData = new byte[] { 1, 2, 3 };
-        // Outsider tries to send message to a connection they're not part of
+
+        // Act - Outsider tries to send message to a connection they're not part of
         await this._service.SendMessage(outsiderConnectionId, connectionId!, "test.message", testData, MessageDestination.AllViewers);
 
+        // Assert
         await this._mockClient.DidNotReceive().MessageReceived(
             Arg.Any<string>(),
             Arg.Any<string>(),
@@ -839,32 +818,29 @@ public class ConnectionsServiceTests : IDisposable
         string? presenterUsername = null;
         string? presenterPassword = null;
         string? connectionId = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
             Arg.Do<string>(p => presenterPassword ??= p)
         );
-
         await this._mockClient.ConnectionStarted(
             Arg.Do<string>(cid => connectionId ??= cid),
             Arg.Any<bool>()
         );
-
         await this._service.Register(presenterConnectionId, null);
         await this._service.Register(viewerConnectionId, null);
         await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
-
         this._mockClient.ClearReceivedCalls();
-
         var properties = new ConnectionProperties(
             CanSendSecureAttentionSequence: true,
             InputBlockedViewerIds: [],
             AvailableDisplays: []
         );
 
+        // Act
         await this._service.SetConnectionProperties("non-existent-sender", connectionId!, properties);
 
+        // Assert
         await this._mockClient.DidNotReceive().ConnectionChanged(Arg.Any<ConnectionInfo>());
     }
 
@@ -872,19 +848,18 @@ public class ConnectionsServiceTests : IDisposable
     public async Task SetConnectionPropertiesNonExistentConnectionReturnsEarly()
     {
         const string presenterConnectionId = "presenter-conn";
-
         await this._service.Register(presenterConnectionId, null);
-
         this._mockClient.ClearReceivedCalls();
-
         var properties = new ConnectionProperties(
             CanSendSecureAttentionSequence: true,
             InputBlockedViewerIds: [],
             AvailableDisplays: []
         );
 
+        // Act
         await this._service.SetConnectionProperties(presenterConnectionId, "non-existent-connection", properties);
 
+        // Assert
         await this._mockClient.DidNotReceive().ConnectionChanged(Arg.Any<ConnectionInfo>());
     }
 
@@ -896,33 +871,29 @@ public class ConnectionsServiceTests : IDisposable
         string? presenterUsername = null;
         string? presenterPassword = null;
         string? connectionId = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Any<string>(),
             Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
             Arg.Do<string>(p => presenterPassword ??= p)
         );
-
         await this._mockClient.ConnectionStarted(
             Arg.Do<string>(cid => connectionId ??= cid),
             Arg.Any<bool>()
         );
-
         await this._service.Register(presenterConnectionId, null);
         await this._service.Register(viewerConnectionId, null);
         await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
-
         this._mockClient.ClearReceivedCalls();
-
         var properties = new ConnectionProperties(
             CanSendSecureAttentionSequence: true,
             InputBlockedViewerIds: [],
             AvailableDisplays: []
         );
 
-        // Viewer tries to set connection properties (only presenter should be allowed)
+        // Act - Viewer tries to set connection properties (only presenter should be allowed)
         await this._service.SetConnectionProperties(viewerConnectionId, connectionId!, properties);
 
+        // Assert
         await this._mockClient.DidNotReceive().ConnectionChanged(Arg.Any<ConnectionInfo>());
     }
 
@@ -935,39 +906,33 @@ public class ConnectionsServiceTests : IDisposable
         string? presenterPassword = null;
         string? connectionId = null;
         string? viewerId = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Do<string>(id => viewerId = id),
             Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
             Arg.Do<string>(p => presenterPassword ??= p)
         );
-
         await this._mockClient.ConnectionStarted(
             Arg.Do<string>(cid => connectionId ??= cid),
             Arg.Any<bool>()
         );
-
         await this._service.Register(presenterConnectionId, null);
         var presenterId = viewerId;
-
         await this._service.Register(viewerConnectionId, null);
         var actualViewerId = viewerId;
-
         await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
-
         this._mockClient.ClearReceivedCalls();
-
         var properties = new ConnectionProperties(
             CanSendSecureAttentionSequence: false,
             InputBlockedViewerIds: [actualViewerId!, "invalid-viewer-id", "another-invalid-id"],
             AvailableDisplays: []
         );
-
         ConnectionInfo? capturedInfo = null;
         await this._mockClient.ConnectionChanged(Arg.Do<ConnectionInfo>(ci => capturedInfo = ci));
 
+        // Act
         await this._service.SetConnectionProperties(presenterConnectionId, connectionId!, properties);
 
+        // Assert
         await Assert.That(capturedInfo).IsNotNull();
         // Should only contain the valid viewer ID, invalid IDs should be filtered out
         await Assert.That(capturedInfo!.Properties.InputBlockedViewerIds).Count().IsEqualTo(1);
@@ -983,40 +948,34 @@ public class ConnectionsServiceTests : IDisposable
         string? presenterPassword = null;
         string? connectionId = null;
         string? viewerId = null;
-
         await this._mockClient.CredentialsAssigned(
             Arg.Do<string>(id => viewerId = id),
             Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
             Arg.Do<string>(p => presenterPassword ??= p)
         );
-
         await this._mockClient.ConnectionStarted(
             Arg.Do<string>(cid => connectionId ??= cid),
             Arg.Any<bool>()
         );
-
         await this._service.Register(presenterConnectionId, null);
         var presenterId = viewerId;
-
         await this._service.Register(viewerConnectionId, null);
         var actualViewerId = viewerId;
-
         await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
-
         this._mockClient.ClearReceivedCalls();
-
         // Pass the same viewer ID multiple times
         var properties = new ConnectionProperties(
             CanSendSecureAttentionSequence: false,
             InputBlockedViewerIds: [actualViewerId!, actualViewerId!, actualViewerId!],
             AvailableDisplays: []
         );
-
         ConnectionInfo? capturedInfo = null;
         await this._mockClient.ConnectionChanged(Arg.Do<ConnectionInfo>(ci => capturedInfo = ci));
 
+        // Act
         await this._service.SetConnectionProperties(presenterConnectionId, connectionId!, properties);
 
+        // Assert
         await Assert.That(capturedInfo).IsNotNull();
         // Duplicates should be removed
         await Assert.That(capturedInfo!.Properties.InputBlockedViewerIds).Count().IsEqualTo(1);

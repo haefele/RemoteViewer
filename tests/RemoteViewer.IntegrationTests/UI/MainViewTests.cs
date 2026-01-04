@@ -29,8 +29,10 @@ public class MainViewTests
     [Test]
     public async Task MainViewModelStatusTextDefaultsToConnecting()
     {
+        // Act
         var viewModel = this.CreateViewModel();
 
+        // Assert
         await Assert.That(viewModel.StatusText).IsEqualTo("Connecting...");
     }
 
@@ -38,8 +40,11 @@ public class MainViewTests
     public async Task MainViewModelCanSetTargetUsername()
     {
         var viewModel = this.CreateViewModel();
+
+        // Act
         viewModel.TargetUsername = "1234567890";
 
+        // Assert
         await Assert.That(viewModel.TargetUsername).IsEqualTo("1234567890");
     }
 
@@ -47,8 +52,11 @@ public class MainViewTests
     public async Task MainViewModelCanSetTargetPassword()
     {
         var viewModel = this.CreateViewModel();
+
+        // Act
         viewModel.TargetPassword = "testpass";
 
+        // Assert
         await Assert.That(viewModel.TargetPassword).IsEqualTo("testpass");
     }
 
@@ -56,9 +64,12 @@ public class MainViewTests
     public async Task MainViewModelYourCredentialsCanBeSet()
     {
         var viewModel = this.CreateViewModel();
+
+        // Act
         viewModel.YourUsername = "...";
         viewModel.YourPassword = "...";
 
+        // Assert
         await Assert.That(viewModel.YourUsername).IsEqualTo("...");
         await Assert.That(viewModel.YourPassword).IsEqualTo("...");
     }
@@ -66,24 +77,30 @@ public class MainViewTests
     [Test]
     public async Task MainViewModelHasVersionMismatchDefaultsFalse()
     {
+        // Act
         var viewModel = this.CreateViewModel();
 
+        // Assert
         await Assert.That(viewModel.HasVersionMismatch).IsFalse();
     }
 
     [Test]
     public async Task MainViewModelIsConnectedDefaultsFalse()
     {
+        // Act
         var viewModel = this.CreateViewModel();
 
+        // Assert
         await Assert.That(viewModel.IsConnected).IsFalse();
     }
 
     [Test]
     public async Task MainViewModelToastsIsCreated()
     {
+        // Act
         var viewModel = this.CreateViewModel();
 
+        // Assert
         await Assert.That(viewModel.Toasts).IsNotNull();
     }
 }
