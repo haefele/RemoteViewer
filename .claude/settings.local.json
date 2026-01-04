@@ -2,6 +2,10 @@
   "permissions": {
     "allow": [
       "Bash(dotnet:*)",
+      "Bash(apt-get:*)",
+      "Bash(curl:*)",
+      "Bash(chmod:*)",
+      "Bash(wget:*)",
       "Bash(dir:*)",
       "Bash(ls:*)",
       "Bash(find:*)",
@@ -21,5 +25,18 @@
     ],
     "deny": [],
     "ask": []
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/session-start-dotnet-install.sh"
+          }
+        ]
+      }
+    ]
   }
 }
