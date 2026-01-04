@@ -30,11 +30,11 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        this._serviceProvider = BuildServiceProvider(this);
+
         if (this.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             DisableAvaloniaDataAnnotationValidation();
-
-            this._serviceProvider = BuildServiceProvider(this);
 
             desktop.MainWindow = new MainView
             {
@@ -48,10 +48,10 @@ public partial class App : Application
                 if (this._serviceProvider is IDisposable disposable)
                     disposable.Dispose();
             };
-
-            // Connect to the hub in the background, don't wait for it
-            _ = this._serviceProvider.GetRequiredService<ConnectionHubClient>().ConnectToHub();
         }
+
+        // Connect to the hub in the background, don't wait for it
+        _ = this._serviceProvider.GetRequiredService<ConnectionHubClient>().ConnectToHub();
     }
 
     private static IServiceProvider BuildServiceProvider(App app)

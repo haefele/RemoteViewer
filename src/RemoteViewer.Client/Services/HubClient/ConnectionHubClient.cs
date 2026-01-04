@@ -1,4 +1,4 @@
-using System.Collections.Concurrent;
+﻿using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -28,6 +28,9 @@ public class ConnectionHubClient : IAsyncDisposable
             {
                 httpOptions.Headers.Add("X-Client-Version", ThisAssembly.AssemblyInformationalVersion);
                 httpOptions.Headers.Add("X-Display-Name", this.DisplayName);
+
+                if (options.Value.HttpMessageHandlerFactory is not null)
+                    httpOptions.HttpMessageHandlerFactory = (f) => options.Value.HttpMessageHandlerFactory();
             })
             .WithAutomaticReconnect()
             .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)

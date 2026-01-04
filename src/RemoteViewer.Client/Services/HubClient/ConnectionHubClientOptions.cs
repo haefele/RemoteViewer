@@ -1,4 +1,4 @@
-namespace RemoteViewer.Client.Services.HubClient;
+﻿namespace RemoteViewer.Client.Services.HubClient;
 
 public class ConnectionHubClientOptions
 {
@@ -7,4 +7,6 @@ public class ConnectionHubClientOptions
 #else
     public string BaseUrl { get; set; } = "https://rdp.xemio.net";
 #endif
+
+    public Func<HttpMessageHandler>? HttpMessageHandlerFactory { get; set; }
 }
