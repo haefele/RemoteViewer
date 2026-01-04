@@ -23,8 +23,10 @@ public class IpcTokenServiceTests : IDisposable
     [Test]
     public async Task GenerateTokenReturnsBase64Token()
     {
+        // Act
         var token = this._service.GenerateToken("connection-123");
 
+        // Assert
         await Assert.That(token).IsNotNull().And.IsNotEmpty();
         // Base64 of 32 bytes = 44 characters (with padding)
         await Assert.That(token).Length().IsEqualTo(44);
@@ -36,10 +38,12 @@ public class IpcTokenServiceTests : IDisposable
     [Test]
     public async Task GenerateTokenReturnsUniqueTokensEachCall()
     {
+        // Act
         var token1 = this._service.GenerateToken("connection-1");
         var token2 = this._service.GenerateToken("connection-1");
         var token3 = this._service.GenerateToken("connection-2");
 
+        // Assert
         await Assert.That(token1).IsNotEqualTo(token2);
         await Assert.That(token1).IsNotEqualTo(token3);
         await Assert.That(token2).IsNotEqualTo(token3);
@@ -51,16 +55,20 @@ public class IpcTokenServiceTests : IDisposable
         const string connectionId = "connection-123";
         var token = this._service.GenerateToken(connectionId);
 
+        // Act
         var result = this._service.ValidateAndConsumeToken(token);
 
+        // Assert
         await Assert.That(result).IsEqualTo(connectionId);
     }
 
     [Test]
     public async Task ValidateAndConsumeTokenInvalidTokenReturnsNull()
     {
+        // Act
         var result = this._service.ValidateAndConsumeToken("invalid-token");
 
+        // Assert
         await Assert.That(result).IsNull();
     }
 
@@ -69,9 +77,11 @@ public class IpcTokenServiceTests : IDisposable
     {
         var token = this._service.GenerateToken("connection-123");
 
+        // Act
         var firstResult = this._service.ValidateAndConsumeToken(token);
         var secondResult = this._service.ValidateAndConsumeToken(token);
 
+        // Assert
         await Assert.That(firstResult).IsEqualTo("connection-123");
         await Assert.That(secondResult).IsNull();
     }
@@ -80,12 +90,12 @@ public class IpcTokenServiceTests : IDisposable
     public async Task ValidateAndConsumeTokenExpiredTokenReturnsNull()
     {
         var token = this._service.GenerateToken("connection-123");
-
-        // Advance time past the 30-second TTL
         this._timeProvider.Advance(TimeSpan.FromSeconds(31));
 
+        // Act
         var result = this._service.ValidateAndConsumeToken(token);
 
+        // Assert
         await Assert.That(result).IsNull();
     }
 
@@ -93,12 +103,12 @@ public class IpcTokenServiceTests : IDisposable
     public async Task ValidateAndConsumeTokenJustBeforeExpirationSucceeds()
     {
         var token = this._service.GenerateToken("connection-123");
-
-        // Advance time to just before expiration (29 seconds)
         this._timeProvider.Advance(TimeSpan.FromSeconds(29));
 
+        // Act
         var result = this._service.ValidateAndConsumeToken(token);
 
+        // Assert
         await Assert.That(result).IsEqualTo("connection-123");
     }
 
@@ -109,16 +119,16 @@ public class IpcTokenServiceTests : IDisposable
         var tokens = new string[tokenCount];
         var connectionIds = new string[tokenCount];
 
-        // Generate tokens
         for (var i = 0; i < tokenCount; i++)
         {
             connectionIds[i] = $"connection-{i}";
             tokens[i] = this._service.GenerateToken(connectionIds[i]);
         }
 
-        // Validate concurrently
         var results = new string?[tokenCount];
         var tasks = new Task[tokenCount];
+
+        // Act
         for (var i = 0; i < tokenCount; i++)
         {
             var index = i;
@@ -130,13 +140,12 @@ public class IpcTokenServiceTests : IDisposable
 
         await Task.WhenAll(tasks);
 
-        // All should have succeeded
+        // Assert
         for (var i = 0; i < tokenCount; i++)
         {
             await Assert.That(results[i]).IsEqualTo(connectionIds[i]);
         }
 
-        // Second validation should fail for all
         for (var i = 0; i < tokenCount; i++)
         {
             var secondResult = this._service.ValidateAndConsumeToken(tokens[i]);
@@ -148,13 +157,14 @@ public class IpcTokenServiceTests : IDisposable
     public async Task MultipleTokensForSameConnectionAllValid()
     {
         const string connectionId = "connection-123";
-
         var token1 = this._service.GenerateToken(connectionId);
         var token2 = this._service.GenerateToken(connectionId);
 
+        // Act
         var result1 = this._service.ValidateAndConsumeToken(token1);
         var result2 = this._service.ValidateAndConsumeToken(token2);
 
+        // Assert
         await Assert.That(result1).IsEqualTo(connectionId);
         await Assert.That(result2).IsEqualTo(connectionId);
     }

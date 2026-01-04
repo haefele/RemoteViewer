@@ -11,8 +11,10 @@ public class CredentialParserTests
     [Arguments("\t\n")]
     public async Task TryParseNullOrWhitespaceReturnsNullTuple(string? input)
     {
+        // Act
         var (id, password) = CredentialParser.TryParse(input);
 
+        // Assert
         await Assert.That(id).IsNull();
         await Assert.That(password).IsNull();
     }
@@ -27,8 +29,10 @@ public class CredentialParserTests
     [Arguments("id:1234567890\npwd:abc123", "1234567890", "abc123")]
     public async Task TryParseLabeledFormatExtractsCredentials(string input, string expectedId, string expectedPassword)
     {
+        // Act
         var (id, password) = CredentialParser.TryParse(input);
 
+        // Assert
         await Assert.That(id).IsEqualTo(expectedId);
         await Assert.That(password).IsEqualTo(expectedPassword);
     }
@@ -39,8 +43,10 @@ public class CredentialParserTests
     [Arguments("  1234567890 abc123  ", "1234567890", "abc123")]
     public async Task TryParseUnlabeledFormatExtractsCredentials(string input, string expectedId, string expectedPassword)
     {
+        // Act
         var (id, password) = CredentialParser.TryParse(input);
 
+        // Assert
         await Assert.That(id).IsEqualTo(expectedId);
         await Assert.That(password).IsEqualTo(expectedPassword);
     }
@@ -51,8 +57,10 @@ public class CredentialParserTests
     [Arguments("  1234567890  \n  abc123  ", "1234567890", "abc123")]
     public async Task TryParseTwoLineFormatExtractsCredentials(string input, string expectedId, string expectedPassword)
     {
+        // Act
         var (id, password) = CredentialParser.TryParse(input);
 
+        // Assert
         await Assert.That(id).IsEqualTo(expectedId);
         await Assert.That(password).IsEqualTo(expectedPassword);
     }
@@ -62,8 +70,10 @@ public class CredentialParserTests
     [Arguments("ID:  spaced id  \nPassword:  spaced pass  ", "spaced id", "spaced pass")]
     public async Task TryParseLabeledWithSpacesTrimsValues(string input, string expectedId, string expectedPassword)
     {
+        // Act
         var (id, password) = CredentialParser.TryParse(input);
 
+        // Assert
         await Assert.That(id).IsEqualTo(expectedId);
         await Assert.That(password).IsEqualTo(expectedPassword);
     }
@@ -74,8 +84,10 @@ public class CredentialParserTests
     [Arguments("abc def ghi")]
     public async Task TryParseInvalidFormatReturnsNullTuple(string input)
     {
+        // Act
         var (id, password) = CredentialParser.TryParse(input);
 
+        // Assert
         await Assert.That(id).IsNull();
         await Assert.That(password).IsNull();
     }
@@ -85,8 +97,10 @@ public class CredentialParserTests
     {
         var input = "line1\nline2\nline3";
 
+        // Act
         var (id, password) = CredentialParser.TryParse(input);
 
+        // Assert
         await Assert.That(id).IsNull();
         await Assert.That(password).IsNull();
     }
@@ -96,8 +110,10 @@ public class CredentialParserTests
     {
         var input = "  ID:   1234567890   \n   Password:   abc123   ";
 
+        // Act
         var (id, password) = CredentialParser.TryParse(input);
 
+        // Assert
         await Assert.That(id).IsEqualTo("1234567890");
         await Assert.That(password).IsEqualTo("abc123");
     }
@@ -107,8 +123,10 @@ public class CredentialParserTests
     [Arguments("ID: test-id_123\nPassword: Test.Pass_456", "test-id_123", "Test.Pass_456")]
     public async Task TryParseSpecialCharactersHandlesCorrectly(string input, string expectedId, string expectedPassword)
     {
+        // Act
         var (id, password) = CredentialParser.TryParse(input);
 
+        // Assert
         await Assert.That(id).IsEqualTo(expectedId);
         await Assert.That(password).IsEqualTo(expectedPassword);
     }

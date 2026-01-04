@@ -9,11 +9,13 @@ public class ReaderWriterLockSlimExtensionsTests
     {
         var rwLock = new ReaderWriterLockSlim();
 
+        // Act
         using (rwLock.WriteLock())
         {
             await Assert.That(rwLock.IsWriteLockHeld).IsTrue();
         }
 
+        // Assert
         await Assert.That(rwLock.IsWriteLockHeld).IsFalse();
     }
 
@@ -22,11 +24,13 @@ public class ReaderWriterLockSlimExtensionsTests
     {
         var rwLock = new ReaderWriterLockSlim();
 
+        // Act
         using (rwLock.ReadLock())
         {
             await Assert.That(rwLock.IsReadLockHeld).IsTrue();
         }
 
+        // Assert
         await Assert.That(rwLock.IsReadLockHeld).IsFalse();
     }
 
@@ -35,11 +39,13 @@ public class ReaderWriterLockSlimExtensionsTests
     {
         var rwLock = new ReaderWriterLockSlim();
 
+        // Act
         using (rwLock.UpgradeableReadLock())
         {
             await Assert.That(rwLock.IsUpgradeableReadLockHeld).IsTrue();
         }
 
+        // Assert
         await Assert.That(rwLock.IsUpgradeableReadLockHeld).IsFalse();
     }
 
@@ -48,6 +54,7 @@ public class ReaderWriterLockSlimExtensionsTests
     {
         var rwLock = new ReaderWriterLockSlim();
 
+        // Act
         try
         {
             using (rwLock.WriteLock())
@@ -61,6 +68,7 @@ public class ReaderWriterLockSlimExtensionsTests
             // Expected
         }
 
+        // Assert
         await Assert.That(rwLock.IsWriteLockHeld).IsFalse();
     }
 
@@ -69,6 +77,7 @@ public class ReaderWriterLockSlimExtensionsTests
     {
         var rwLock = new ReaderWriterLockSlim();
 
+        // Act
         try
         {
             using (rwLock.ReadLock())
@@ -82,6 +91,7 @@ public class ReaderWriterLockSlimExtensionsTests
             // Expected
         }
 
+        // Assert
         await Assert.That(rwLock.IsReadLockHeld).IsFalse();
     }
 
@@ -90,6 +100,7 @@ public class ReaderWriterLockSlimExtensionsTests
     {
         var rwLock = new ReaderWriterLockSlim();
 
+        // Act
         using (rwLock.ReadLock())
         {
             await Assert.That(rwLock.CurrentReadCount).IsEqualTo(1);
@@ -100,6 +111,7 @@ public class ReaderWriterLockSlimExtensionsTests
             // But we can verify the count is as expected
         }
 
+        // Assert
         await Assert.That(rwLock.CurrentReadCount).IsEqualTo(0);
     }
 
@@ -126,7 +138,7 @@ public class ReaderWriterLockSlimExtensionsTests
         await Task.Delay(50);
         await Assert.That(writeLockAcquired).IsTrue();
 
-        // Second writer tries to acquire
+        // Act - Second writer tries to acquire
         var secondWriter = Task.Run(() =>
         {
             // This should block until first writer releases
@@ -135,9 +147,11 @@ public class ReaderWriterLockSlimExtensionsTests
         });
 
         var wasBlocked = await secondWriterBlocked.Task;
+
+        // Assert
         await Assert.That(wasBlocked).IsTrue();
 
-        // Release first writer
+        // Cleanup - Release first writer
         Volatile.Write(ref canRelease, true);
         await firstWriter;
     }
