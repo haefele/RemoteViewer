@@ -6,6 +6,8 @@ namespace RemoteViewer.Client.Services.VideoCodec;
 
 public interface IFrameEncoder : IDisposable
 {
+    int Quality { get; set; }
+
     (FrameCodec Codec, EncodedRegion[] Regions) ProcessFrame(
         GrabResult grabResult,
         int width,

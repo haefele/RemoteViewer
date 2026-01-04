@@ -47,8 +47,8 @@ public sealed class PresenterCaptureService : IDisposable
         get;
         set
         {
-            if (value <= 10 || value > 120)
-                throw new ArgumentOutOfRangeException(nameof(value), "FPS must be between 1 and 120");
+            if (value is < 1 or > 60)
+                throw new ArgumentOutOfRangeException(nameof(value), "FPS must be between 1 and 60");
 
             field = value;
         }

@@ -10,6 +10,7 @@ using RemoteViewer.Client.Controls.Dialogs;
 using RemoteViewer.Client.Controls.Toasts;
 using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.HubClient;
+using RemoteViewer.Client.Services.VideoCodec;
 using RemoteViewer.Client.Services.ViewModels;
 using RemoteViewer.Server.SharedAPI;
 
@@ -19,6 +20,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 {
     private readonly Connection _connection;
     private readonly ConnectionHubClient _hubClient;
+    private readonly IFrameEncoder _frameEncoder;
     private readonly ILogger<PresenterViewModel> _logger;
 
     public ToastsViewModel Toasts { get; }
@@ -34,16 +36,44 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 
     public ObservableCollection<PresenterViewerDisplay> Viewers { get; } = [];
 
+    public int TargetFps
+    {
+        get => this._connection.PresenterCapture?.TargetFps ?? 15;
+        set
+        {
+            if (this._connection.PresenterCapture is { } capture && capture.TargetFps != value)
+            {
+                capture.TargetFps = value;
+                this.OnPropertyChanged();
+            }
+        }
+    }
+
+    public int Quality
+    {
+        get => this._frameEncoder.Quality;
+        set
+        {
+            if (this._frameEncoder.Quality != value)
+            {
+                this._frameEncoder.Quality = value;
+                this.OnPropertyChanged();
+            }
+        }
+    }
+
     public event EventHandler? CloseRequested;
 
     public PresenterViewModel(
         Connection connection,
         ConnectionHubClient hubClient,
+        IFrameEncoder frameEncoder,
         IViewModelFactory viewModelFactory,
         ILoggerFactory loggerFactory)
     {
         this._connection = connection;
         this._hubClient = hubClient;
+        this._frameEncoder = frameEncoder;
         this._logger = loggerFactory.CreateLogger<PresenterViewModel>();
         this.Toasts = viewModelFactory.CreateToastsViewModel();
         this.Chat = new ChatViewModel(this._connection.Chat, loggerFactory.CreateLogger<ChatViewModel>());
