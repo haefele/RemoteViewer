@@ -12,7 +12,7 @@ public class ProtocolMessagesTests
         [InlineData(0, 0, 2560, 1440, 2560, 1440)]
         [InlineData(-1920, 0, 0, 1080, 1920, 1080)]
         [InlineData(1920, 0, 3840, 1080, 1920, 1080)]
-        public void DisplayInfo_WidthAndHeight_CalculatedCorrectly(
+        public void DisplayInfoWidthAndHeightCalculatedCorrectly(
             int left, int top, int right, int bottom,
             int expectedWidth, int expectedHeight)
         {
@@ -23,7 +23,7 @@ public class ProtocolMessagesTests
         }
 
         [Fact]
-        public void DisplayInfo_RecordEquality_WorksCorrectly()
+        public void DisplayInfoRecordEqualityWorksCorrectly()
         {
             var display1 = new DisplayInfo("id1", "Display 1", true, 0, 0, 1920, 1080);
             var display2 = new DisplayInfo("id1", "Display 1", true, 0, 0, 1920, 1080);
@@ -37,7 +37,7 @@ public class ProtocolMessagesTests
     public class ClientInfoTests
     {
         [Fact]
-        public void ClientInfo_Properties_SetCorrectly()
+        public void ClientInfoPropertiesSetCorrectly()
         {
             var clientInfo = new ClientInfo("client-123", "John Doe");
 
@@ -46,7 +46,7 @@ public class ProtocolMessagesTests
         }
 
         [Fact]
-        public void ClientInfo_WithEmptyDisplayName_AllowsEmpty()
+        public void ClientInfoWithEmptyDisplayNameAllowsEmpty()
         {
             var clientInfo = new ClientInfo("client-123", "");
 
@@ -57,7 +57,7 @@ public class ProtocolMessagesTests
     public class ConnectionPropertiesTests
     {
         [Fact]
-        public void ConnectionProperties_DefaultValues_SetCorrectly()
+        public void ConnectionPropertiesDefaultValuesSetCorrectly()
         {
             var props = new ConnectionProperties(
                 CanSendSecureAttentionSequence: false,
@@ -71,7 +71,7 @@ public class ProtocolMessagesTests
         }
 
         [Fact]
-        public void ConnectionProperties_WithValues_SetCorrectly()
+        public void ConnectionPropertiesWithValuesSetCorrectly()
         {
             var displays = new List<DisplayInfo>
             {
@@ -96,7 +96,7 @@ public class ProtocolMessagesTests
     public class ConnectionInfoTests
     {
         [Fact]
-        public void ConnectionInfo_AllProperties_SetCorrectly()
+        public void ConnectionInfoAllPropertiesSetCorrectly()
         {
             var presenter = new ClientInfo("presenter-1", "Presenter");
             var viewers = new List<ClientInfo>
@@ -118,7 +118,7 @@ public class ProtocolMessagesTests
     public class MouseMessagesTests
     {
         [Fact]
-        public void MouseMoveMessage_Properties_SetCorrectly()
+        public void MouseMoveMessagePropertiesSetCorrectly()
         {
             var msg = new MouseMoveMessage(100.5f, 200.75f);
 
@@ -127,7 +127,7 @@ public class ProtocolMessagesTests
         }
 
         [Fact]
-        public void MouseButtonMessage_AllButtons_ValidValues()
+        public void MouseButtonMessageAllButtonsValidValues()
         {
             var buttons = Enum.GetValues<MouseButton>();
             buttons.Should().Contain(MouseButton.Left);
@@ -141,7 +141,7 @@ public class ProtocolMessagesTests
         [InlineData(MouseButton.Left)]
         [InlineData(MouseButton.Right)]
         [InlineData(MouseButton.Middle)]
-        public void MouseButtonMessage_Properties_SetCorrectly(MouseButton button)
+        public void MouseButtonMessagePropertiesSetCorrectly(MouseButton button)
         {
             var msg = new MouseButtonMessage(button, 50.0f, 75.0f);
 
@@ -151,7 +151,7 @@ public class ProtocolMessagesTests
         }
 
         [Fact]
-        public void MouseWheelMessage_Properties_SetCorrectly()
+        public void MouseWheelMessagePropertiesSetCorrectly()
         {
             var msg = new MouseWheelMessage(0f, 120f, 100f, 200f);
 
@@ -162,7 +162,7 @@ public class ProtocolMessagesTests
         }
 
         [Fact]
-        public void MouseWheelMessage_NegativeDelta_Allowed()
+        public void MouseWheelMessageNegativeDeltaAllowed()
         {
             var msg = new MouseWheelMessage(-120f, -240f, 0f, 0f);
 
@@ -174,7 +174,7 @@ public class ProtocolMessagesTests
     public class KeyMessageTests
     {
         [Fact]
-        public void KeyMessage_Properties_SetCorrectly()
+        public void KeyMessagePropertiesSetCorrectly()
         {
             var msg = new KeyMessage(65, KeyModifiers.None); // 'A' key
 
@@ -183,7 +183,7 @@ public class ProtocolMessagesTests
         }
 
         [Fact]
-        public void KeyModifiers_Flags_CombineCorrectly()
+        public void KeyModifiersFlagsCombineCorrectly()
         {
             var ctrlShift = KeyModifiers.Control | KeyModifiers.Shift;
 
@@ -193,7 +193,7 @@ public class ProtocolMessagesTests
         }
 
         [Fact]
-        public void KeyModifiers_AllValues_DefinedCorrectly()
+        public void KeyModifiersAllValuesDefinedCorrectly()
         {
             KeyModifiers.None.Should().Be((KeyModifiers)0);
             KeyModifiers.Shift.Should().Be((KeyModifiers)1);
@@ -203,7 +203,7 @@ public class ProtocolMessagesTests
         }
 
         [Fact]
-        public void KeyMessage_WithAllModifiers_WorksCorrectly()
+        public void KeyMessageWithAllModifiersWorksCorrectly()
         {
             var allModifiers = KeyModifiers.Shift | KeyModifiers.Control | KeyModifiers.Alt | KeyModifiers.Win;
             var msg = new KeyMessage(65, allModifiers);
@@ -218,7 +218,7 @@ public class ProtocolMessagesTests
     public class ChatMessageTests
     {
         [Fact]
-        public void ChatMessage_Properties_SetCorrectly()
+        public void ChatMessagePropertiesSetCorrectly()
         {
             var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             var msg = new ChatMessage("sender-123", "John Doe", "Hello, world!", timestamp);
@@ -230,7 +230,7 @@ public class ProtocolMessagesTests
         }
 
         [Fact]
-        public void ChatMessage_EmptyText_Allowed()
+        public void ChatMessageEmptyTextAllowed()
         {
             var msg = new ChatMessage("sender", "Name", "", 0);
 
@@ -241,7 +241,7 @@ public class ProtocolMessagesTests
     public class FileTransferMessagesTests
     {
         [Fact]
-        public void FileSendRequestMessage_Properties_SetCorrectly()
+        public void FileSendRequestMessagePropertiesSetCorrectly()
         {
             var msg = new FileSendRequestMessage("transfer-123", "document.pdf", 1024 * 1024);
 
@@ -251,7 +251,7 @@ public class ProtocolMessagesTests
         }
 
         [Fact]
-        public void FileSendResponseMessage_Accepted_Properties()
+        public void FileSendResponseMessageAcceptedProperties()
         {
             var msg = new FileSendResponseMessage("transfer-123", true, null);
 
@@ -261,7 +261,7 @@ public class ProtocolMessagesTests
         }
 
         [Fact]
-        public void FileSendResponseMessage_Rejected_Properties()
+        public void FileSendResponseMessageRejectedProperties()
         {
             var msg = new FileSendResponseMessage("transfer-123", false, "File too large");
 
@@ -270,7 +270,7 @@ public class ProtocolMessagesTests
         }
 
         [Fact]
-        public void FileChunkMessage_Properties_SetCorrectly()
+        public void FileChunkMessagePropertiesSetCorrectly()
         {
             var data = new byte[] { 1, 2, 3, 4, 5 };
             var msg = new FileChunkMessage("transfer-123", 0, 10, data);
@@ -282,7 +282,7 @@ public class ProtocolMessagesTests
         }
 
         [Fact]
-        public void FileCompleteMessage_Properties_SetCorrectly()
+        public void FileCompleteMessagePropertiesSetCorrectly()
         {
             var msg = new FileCompleteMessage("transfer-123");
 
@@ -290,7 +290,7 @@ public class ProtocolMessagesTests
         }
 
         [Fact]
-        public void FileCancelMessage_Properties_SetCorrectly()
+        public void FileCancelMessagePropertiesSetCorrectly()
         {
             var msg = new FileCancelMessage("transfer-123", "User cancelled");
 
@@ -299,7 +299,7 @@ public class ProtocolMessagesTests
         }
 
         [Fact]
-        public void FileErrorMessage_Properties_SetCorrectly()
+        public void FileErrorMessagePropertiesSetCorrectly()
         {
             var msg = new FileErrorMessage("transfer-123", "Disk full");
 
@@ -311,7 +311,7 @@ public class ProtocolMessagesTests
     public class ClipboardMessagesTests
     {
         [Fact]
-        public void ClipboardTextMessage_Properties_SetCorrectly()
+        public void ClipboardTextMessagePropertiesSetCorrectly()
         {
             var msg = new ClipboardTextMessage("Hello, clipboard!");
 
@@ -319,7 +319,7 @@ public class ProtocolMessagesTests
         }
 
         [Fact]
-        public void ClipboardTextMessage_LargeText_Allowed()
+        public void ClipboardTextMessageLargeTextAllowed()
         {
             var largeText = new string('x', 100000);
             var msg = new ClipboardTextMessage(largeText);
@@ -328,12 +328,11 @@ public class ProtocolMessagesTests
         }
 
         [Fact]
-        public void ClipboardImageMessage_Properties_SetCorrectly()
+        public void ClipboardImageMessagePropertiesSetCorrectly()
         {
             var imageData = new byte[] { 0x89, 0x50, 0x4E, 0x47 }; // PNG magic bytes
-            var msg = new ClipboardImageMessage("image/png", imageData);
+            var msg = new ClipboardImageMessage(imageData);
 
-            msg.Format.Should().Be("image/png");
             msg.Data.ToArray().Should().Equal(imageData);
         }
     }
@@ -341,7 +340,7 @@ public class ProtocolMessagesTests
     public class FrameMessageTests
     {
         [Fact]
-        public void FrameMessage_Properties_SetCorrectly()
+        public void FrameMessagePropertiesSetCorrectly()
         {
             var regions = new[]
             {
@@ -357,7 +356,7 @@ public class ProtocolMessagesTests
         }
 
         [Fact]
-        public void FrameRegion_Properties_SetCorrectly()
+        public void FrameRegionPropertiesSetCorrectly()
         {
             var data = new byte[] { 0xFF, 0xD8, 0xFF }; // JPEG magic bytes
             var region = new FrameRegion(true, 100, 200, 800, 600, data);
@@ -371,7 +370,7 @@ public class ProtocolMessagesTests
         }
 
         [Fact]
-        public void FrameCodec_Jpeg90_HasCorrectValue()
+        public void FrameCodecJpeg90HasCorrectValue()
         {
             FrameCodec.Jpeg90.Should().Be((FrameCodec)0);
         }
@@ -380,20 +379,20 @@ public class ProtocolMessagesTests
     public class MessageTypesTests
     {
         [Fact]
-        public void Display_MessageTypes_DefinedCorrectly()
+        public void DisplayMessageTypesDefinedCorrectly()
         {
             MessageTypes.Display.Switch.Should().Be("display.switch");
             MessageTypes.Display.Select.Should().Be("display.select");
         }
 
         [Fact]
-        public void Screen_MessageTypes_DefinedCorrectly()
+        public void ScreenMessageTypesDefinedCorrectly()
         {
             MessageTypes.Screen.Frame.Should().Be("screen.frame");
         }
 
         [Fact]
-        public void Input_MessageTypes_DefinedCorrectly()
+        public void InputMessageTypesDefinedCorrectly()
         {
             MessageTypes.Input.KeyDown.Should().Be("input.key.down");
             MessageTypes.Input.KeyUp.Should().Be("input.key.up");
@@ -405,7 +404,7 @@ public class ProtocolMessagesTests
         }
 
         [Fact]
-        public void FileTransfer_MessageTypes_DefinedCorrectly()
+        public void FileTransferMessageTypesDefinedCorrectly()
         {
             MessageTypes.FileTransfer.SendRequest.Should().Be("file.send.request");
             MessageTypes.FileTransfer.SendResponse.Should().Be("file.send.response");
@@ -416,14 +415,14 @@ public class ProtocolMessagesTests
         }
 
         [Fact]
-        public void Clipboard_MessageTypes_DefinedCorrectly()
+        public void ClipboardMessageTypesDefinedCorrectly()
         {
             MessageTypes.Clipboard.Text.Should().Be("clipboard.text");
             MessageTypes.Clipboard.Image.Should().Be("clipboard.image");
         }
 
         [Fact]
-        public void Chat_MessageTypes_DefinedCorrectly()
+        public void ChatMessageTypesDefinedCorrectly()
         {
             MessageTypes.Chat.Message.Should().Be("chat.message");
         }
@@ -432,7 +431,7 @@ public class ProtocolMessagesTests
     public class TryConnectErrorTests
     {
         [Fact]
-        public void TryConnectError_AllValues_Defined()
+        public void TryConnectErrorAllValuesDefined()
         {
             var values = Enum.GetValues<TryConnectError>();
 
@@ -445,7 +444,7 @@ public class ProtocolMessagesTests
     public class MessageDestinationTests
     {
         [Fact]
-        public void MessageDestination_AllValues_Defined()
+        public void MessageDestinationAllValuesDefined()
         {
             var values = Enum.GetValues<MessageDestination>();
 
