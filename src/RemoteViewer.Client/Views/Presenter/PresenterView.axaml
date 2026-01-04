@@ -59,6 +59,54 @@
                     </Panel>
                 </Button>
 
+                <!-- Stream Settings flyout -->
+                <Button ToolTip.Tip="Stream settings"
+                        Background="Transparent"
+                        BorderThickness="0"
+                        Width="32" Height="32"
+                        Padding="0">
+                    <Button.Flyout>
+                        <Flyout Placement="Bottom">
+                            <StackPanel MinWidth="200" Spacing="12">
+                                <TextBlock Text="Stream Settings"
+                                           FontWeight="SemiBold"
+                                           Margin="0,0,0,4"/>
+
+                                <!-- FPS Setting -->
+                                <StackPanel Spacing="4">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="FPS" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding TargetFps}"
+                                                   FontWeight="SemiBold"/>
+                                    </Grid>
+                                    <Slider Minimum="1"
+                                            Maximum="60"
+                                            Value="{Binding TargetFps}"
+                                            TickFrequency="1"
+                                            IsSnapToTickEnabled="True"/>
+                                </StackPanel>
+
+                                <!-- Quality Setting -->
+                                <StackPanel Spacing="4">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Text="Quality" VerticalAlignment="Center"/>
+                                        <TextBlock Grid.Column="1"
+                                                   Text="{Binding Quality}"
+                                                   FontWeight="SemiBold"/>
+                                    </Grid>
+                                    <Slider Minimum="10"
+                                            Maximum="100"
+                                            Value="{Binding Quality}"
+                                            TickFrequency="5"
+                                            IsSnapToTickEnabled="True"/>
+                                </StackPanel>
+                            </StackPanel>
+                        </Flyout>
+                    </Button.Flyout>
+                    <mi:MaterialIcon Kind="Cog" Width="20" Height="20"/>
+                </Button>
+
                 <!-- Separator -->
                 <Border Width="1"
                         Margin="0,4"
@@ -79,57 +127,6 @@
 
         <!-- Main Content -->
         <StackPanel Grid.Row="1" Spacing="16" Margin="16">
-
-            <!-- Stream Settings -->
-            <Border Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                    CornerRadius="8"
-                    Padding="16">
-                <StackPanel Spacing="12">
-                    <TextBlock Text="Stream Settings"
-                               FontWeight="SemiBold"
-                               FontSize="16"/>
-
-                    <!-- FPS Setting -->
-                    <Grid ColumnDefinitions="Auto,*,Auto">
-                        <TextBlock Grid.Column="0"
-                                   Text="FPS"
-                                   VerticalAlignment="Center"
-                                   Width="50"/>
-                        <Slider Grid.Column="1"
-                                Minimum="1"
-                                Maximum="60"
-                                Value="{Binding TargetFps}"
-                                TickFrequency="1"
-                                IsSnapToTickEnabled="True"
-                                Margin="8,0"/>
-                        <TextBlock Grid.Column="2"
-                                   Text="{Binding TargetFps}"
-                                   VerticalAlignment="Center"
-                                   Width="30"
-                                   TextAlignment="Right"/>
-                    </Grid>
-
-                    <!-- Quality Setting -->
-                    <Grid ColumnDefinitions="Auto,*,Auto">
-                        <TextBlock Grid.Column="0"
-                                   Text="Quality"
-                                   VerticalAlignment="Center"
-                                   Width="50"/>
-                        <Slider Grid.Column="1"
-                                Minimum="10"
-                                Maximum="100"
-                                Value="{Binding Quality}"
-                                TickFrequency="5"
-                                IsSnapToTickEnabled="True"
-                                Margin="8,0"/>
-                        <TextBlock Grid.Column="2"
-                                   Text="{Binding Quality}"
-                                   VerticalAlignment="Center"
-                                   Width="30"
-                                   TextAlignment="Right"/>
-                    </Grid>
-                </StackPanel>
-            </Border>
 
             <!-- Your Credentials -->
             <Border Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
