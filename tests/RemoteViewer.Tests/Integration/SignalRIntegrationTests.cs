@@ -17,15 +17,15 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
 
     public SignalRIntegrationTests(TestServerFixture fixture)
     {
-        _fixture = fixture;
+        this._fixture = fixture;
     }
 
     [Fact]
-    public async Task Client_ConnectsToHub_ReceivesCredentials()
+    public async Task ClientConnectsToHubReceivesCredentials()
     {
         var credentials = new TaskCompletionSource<(string clientId, string username, string password)>();
 
-        await using var connection = await _fixture.CreateHubConnectionAsync(hub =>
+        await using var connection = await this._fixture.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (clientId, username, password) =>
             {
@@ -41,12 +41,12 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
     }
 
     [Fact]
-    public async Task TwoClients_Connect_GetDifferentCredentials()
+    public async Task TwoClientsConnectGetDifferentCredentials()
     {
         var credentials1 = new TaskCompletionSource<(string clientId, string username, string password)>();
         var credentials2 = new TaskCompletionSource<(string clientId, string username, string password)>();
 
-        await using var connection1 = await _fixture.CreateHubConnectionAsync(hub =>
+        await using var connection1 = await this._fixture.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (clientId, username, password) =>
             {
@@ -54,7 +54,7 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
             });
         });
 
-        await using var connection2 = await _fixture.CreateHubConnectionAsync(hub =>
+        await using var connection2 = await this._fixture.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (clientId, username, password) =>
             {
@@ -70,13 +70,13 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
     }
 
     [Fact]
-    public async Task Viewer_ConnectsToPresenter_BothReceiveConnectionStarted()
+    public async Task ViewerConnectsToPresenterBothReceiveConnectionStarted()
     {
         var presenterCredentials = new TaskCompletionSource<(string username, string password)>();
         var presenterConnectionStarted = new TaskCompletionSource<(string connectionId, bool isPresenter)>();
         var viewerConnectionStarted = new TaskCompletionSource<(string connectionId, bool isPresenter)>();
 
-        await using var presenter = await _fixture.CreateHubConnectionAsync(hub =>
+        await using var presenter = await this._fixture.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
             {
@@ -90,7 +90,7 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
 
         var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await using var viewer = await _fixture.CreateHubConnectionAsync(hub =>
+        await using var viewer = await this._fixture.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
             hub.On<string, bool>("ConnectionStarted", (connectionId, isPresenter) =>
@@ -112,11 +112,11 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
     }
 
     [Fact]
-    public async Task Viewer_ConnectsWithWrongPassword_ReturnsError()
+    public async Task ViewerConnectsWithWrongPasswordReturnsError()
     {
         var presenterCredentials = new TaskCompletionSource<(string username, string password)>();
 
-        await using var presenter = await _fixture.CreateHubConnectionAsync(hub =>
+        await using var presenter = await this._fixture.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
             {
@@ -126,7 +126,7 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
 
         var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await using var viewer = await _fixture.CreateHubConnectionAsync(hub =>
+        await using var viewer = await this._fixture.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
         });
@@ -137,13 +137,13 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
     }
 
     [Fact]
-    public async Task Client_GeneratesNewPassword_ReceivesNewCredentials()
+    public async Task ClientGeneratesNewPasswordReceivesNewCredentials()
     {
         var credentialsList = new List<string>();
         var credentialsReceived = new TaskCompletionSource();
         var secondCredentialsReceived = new TaskCompletionSource();
 
-        await using var connection = await _fixture.CreateHubConnectionAsync(hub =>
+        await using var connection = await this._fixture.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, password) =>
             {
@@ -166,13 +166,13 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
     }
 
     [Fact]
-    public async Task Presenter_SendsMessage_ViewerReceivesIt()
+    public async Task PresenterSendsMessageViewerReceivesIt()
     {
         var presenterCredentials = new TaskCompletionSource<(string username, string password)>();
         var presenterConnectionId = new TaskCompletionSource<string>();
         var viewerReceivedMessage = new TaskCompletionSource<(string connectionId, string senderId, string messageType, byte[] data)>();
 
-        await using var presenter = await _fixture.CreateHubConnectionAsync(hub =>
+        await using var presenter = await this._fixture.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
             {
@@ -186,7 +186,7 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
 
         var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await using var viewer = await _fixture.CreateHubConnectionAsync(hub =>
+        await using var viewer = await this._fixture.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
             hub.On<string, bool>("ConnectionStarted", (_, _) => { });
@@ -210,14 +210,14 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
     }
 
     [Fact]
-    public async Task Viewer_Disconnects_PresenterReceivesConnectionChanged()
+    public async Task ViewerDisconnectsPresenterReceivesConnectionChanged()
     {
         var presenterCredentials = new TaskCompletionSource<(string username, string password)>();
         var presenterConnectionId = new TaskCompletionSource<string>();
         var connectionChangedCount = 0;
         var viewerDisconnected = new TaskCompletionSource<ConnectionInfo>();
 
-        await using var presenter = await _fixture.CreateHubConnectionAsync(hub =>
+        await using var presenter = await this._fixture.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
             {
@@ -239,7 +239,7 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
 
         var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        var viewer = await _fixture.CreateHubConnectionAsync(hub =>
+        var viewer = await this._fixture.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
             hub.On<string, bool>("ConnectionStarted", (_, _) => { });
@@ -278,27 +278,27 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
                 })
                 .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider);
 
-            _app = builder.Build();
+            this._app = builder.Build();
 
-            _app.MapHub<ConnectionHub>("/connection");
+            this._app.MapHub<ConnectionHub>("/connection");
 
-            await _app.StartAsync();
+            await this._app.StartAsync();
 
-            _serverUrl = _app.Urls.First();
+            this._serverUrl = this._app.Urls.First();
         }
 
         public async Task DisposeAsync()
         {
-            if (_app != null)
+            if (this._app != null)
             {
-                await _app.StopAsync();
-                await _app.DisposeAsync();
+                await this._app.StopAsync();
+                await this._app.DisposeAsync();
             }
         }
 
         public async Task<HubConnection> CreateHubConnectionAsync(Action<HubConnection>? configure = null)
         {
-            var hubUrl = $"{_serverUrl}/connection";
+            var hubUrl = $"{this._serverUrl}/connection";
 
             var connection = new HubConnectionBuilder()
                 .WithUrl(hubUrl, options =>

@@ -9,7 +9,7 @@ public class CredentialParserTests
     [InlineData("")]
     [InlineData("   ")]
     [InlineData("\t\n")]
-    public void TryParse_NullOrWhitespace_ReturnsNullTuple(string? input)
+    public void TryParseNullOrWhitespaceReturnsNullTuple(string? input)
     {
         var (id, password) = CredentialParser.TryParse(input);
 
@@ -25,7 +25,7 @@ public class CredentialParserTests
     [InlineData("ID-1234567890\nPassword-abc123", "1234567890", "abc123")]
     [InlineData("id:1234567890\npass:abc123", "1234567890", "abc123")]
     [InlineData("id:1234567890\npwd:abc123", "1234567890", "abc123")]
-    public void TryParse_LabeledFormat_ExtractsCredentials(string input, string expectedId, string expectedPassword)
+    public void TryParseLabeledFormatExtractsCredentials(string input, string expectedId, string expectedPassword)
     {
         var (id, password) = CredentialParser.TryParse(input);
 
@@ -37,7 +37,7 @@ public class CredentialParserTests
     [InlineData("1234567890 abc123", "1234567890", "abc123")]
     [InlineData("1 234 567 890 abc123", "1 234 567 890", "abc123")]
     [InlineData("  1234567890 abc123  ", "1234567890", "abc123")]
-    public void TryParse_UnlabeledFormat_ExtractsCredentials(string input, string expectedId, string expectedPassword)
+    public void TryParseUnlabeledFormatExtractsCredentials(string input, string expectedId, string expectedPassword)
     {
         var (id, password) = CredentialParser.TryParse(input);
 
@@ -49,7 +49,7 @@ public class CredentialParserTests
     [InlineData("1234567890\nabc123", "1234567890", "abc123")]
     [InlineData("1234567890\r\nabc123", "1234567890", "abc123")]
     [InlineData("  1234567890  \n  abc123  ", "1234567890", "abc123")]
-    public void TryParse_TwoLineFormat_ExtractsCredentials(string input, string expectedId, string expectedPassword)
+    public void TryParseTwoLineFormatExtractsCredentials(string input, string expectedId, string expectedPassword)
     {
         var (id, password) = CredentialParser.TryParse(input);
 
@@ -60,7 +60,7 @@ public class CredentialParserTests
     [Theory]
     [InlineData("ID: 1 234 567 890\nPassword: mypass123", "1 234 567 890", "mypass123")]
     [InlineData("ID:  spaced id  \nPassword:  spaced pass  ", "spaced id", "spaced pass")]
-    public void TryParse_LabeledWithSpaces_TrimsValues(string input, string expectedId, string expectedPassword)
+    public void TryParseLabeledWithSpacesTrimsValues(string input, string expectedId, string expectedPassword)
     {
         var (id, password) = CredentialParser.TryParse(input);
 
@@ -72,7 +72,7 @@ public class CredentialParserTests
     [InlineData("onlyoneline")]
     [InlineData("no password here")]
     [InlineData("abc def ghi")]
-    public void TryParse_InvalidFormat_ReturnsNullTuple(string input)
+    public void TryParseInvalidFormatReturnsNullTuple(string input)
     {
         var (id, password) = CredentialParser.TryParse(input);
 
@@ -81,7 +81,7 @@ public class CredentialParserTests
     }
 
     [Fact]
-    public void TryParse_ThreeLines_ReturnsNullTuple()
+    public void TryParseThreeLinesReturnsNullTuple()
     {
         var input = "line1\nline2\nline3";
 
@@ -92,7 +92,7 @@ public class CredentialParserTests
     }
 
     [Fact]
-    public void TryParse_LabeledWithExtraWhitespace_HandlesCorrectly()
+    public void TryParseLabeledWithExtraWhitespaceHandlesCorrectly()
     {
         var input = "  ID:   1234567890   \n   Password:   abc123   ";
 
@@ -105,7 +105,7 @@ public class CredentialParserTests
     [Theory]
     [InlineData("ID: user@example.com\nPassword: p@ss!word#123", "user@example.com", "p@ss!word#123")]
     [InlineData("ID: test-id_123\nPassword: Test.Pass_456", "test-id_123", "Test.Pass_456")]
-    public void TryParse_SpecialCharacters_HandlesCorrectly(string input, string expectedId, string expectedPassword)
+    public void TryParseSpecialCharactersHandlesCorrectly(string input, string expectedId, string expectedPassword)
     {
         var (id, password) = CredentialParser.TryParse(input);
 
