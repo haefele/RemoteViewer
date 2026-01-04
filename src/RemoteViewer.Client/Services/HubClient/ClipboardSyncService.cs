@@ -1,12 +1,12 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Common;
-using RemoteViewer.Server.SharedAPI;
-using RemoteViewer.Server.SharedAPI.Protocol;
+using RemoteViewer.Shared;
+using RemoteViewer.Shared.Protocol;
 
 namespace RemoteViewer.Client.Services.HubClient;
 

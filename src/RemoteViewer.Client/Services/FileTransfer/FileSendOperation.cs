@@ -1,8 +1,8 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using RemoteViewer.Client.Common;
 using RemoteViewer.Client.Services.HubClient;
-using RemoteViewer.Server.SharedAPI.Protocol;
+using RemoteViewer.Shared.Protocol;
 
 namespace RemoteViewer.Client.Services.FileTransfer;
 

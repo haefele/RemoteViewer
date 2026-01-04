@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 using Nerdbank.MessagePack.SignalR;
 using Server::RemoteViewer.Server.Hubs;
 using Server::RemoteViewer.Server.Services;
-using Server::RemoteViewer.Server.SharedAPI;
+using RemoteViewer.Shared;
 
 namespace RemoteViewer.IntegrationTests;
 

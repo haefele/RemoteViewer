@@ -1,4 +1,4 @@
-﻿namespace RemoteViewer.Server.SharedAPI.Protocol;
+namespace RemoteViewer.Shared.Protocol;
 
 public sealed record KeyMessage(
     ushort KeyCode,

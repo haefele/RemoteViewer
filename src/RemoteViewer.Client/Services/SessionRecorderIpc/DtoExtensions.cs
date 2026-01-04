@@ -1,5 +1,5 @@
 using RemoteViewer.Client.Services.Screenshot;
-using RemoteViewer.Server.SharedAPI;
+using RemoteViewer.Shared;
 
 namespace RemoteViewer.Client.Services.SessionRecorderIpc;
 

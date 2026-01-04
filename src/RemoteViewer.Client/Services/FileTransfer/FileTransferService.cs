@@ -1,11 +1,11 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using Avalonia.Threading;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Controls.Dialogs;
 using RemoteViewer.Client.Controls.Toasts;
 using RemoteViewer.Client.Services.HubClient;
-using RemoteViewer.Server.SharedAPI.Protocol;
+using RemoteViewer.Shared.Protocol;
 
 namespace RemoteViewer.Client.Services.FileTransfer;
 

@@ -3,7 +3,7 @@ using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.ScreenCapture;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.VideoCodec;
-using RemoteViewer.Server.SharedAPI;
+using RemoteViewer.Shared;
 
 namespace RemoteViewer.Client.Services.HubClient;
 

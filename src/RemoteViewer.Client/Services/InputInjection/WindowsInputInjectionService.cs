@@ -3,12 +3,12 @@ using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.SessionRecorderIpc;
 using RemoteViewer.Client.Services.WindowsSession;
-using RemoteViewer.Server.SharedAPI;
-using RemoteViewer.Server.SharedAPI.Protocol;
+using RemoteViewer.Shared;
+using RemoteViewer.Shared.Protocol;
 using Windows.Win32;
 using WindowsInput;
 
-using ProtocolMouseButton = RemoteViewer.Server.SharedAPI.Protocol.MouseButton;
+using ProtocolMouseButton = RemoteViewer.Shared.Protocol.MouseButton;
 
 namespace RemoteViewer.Client.Services.InputInjection;
 

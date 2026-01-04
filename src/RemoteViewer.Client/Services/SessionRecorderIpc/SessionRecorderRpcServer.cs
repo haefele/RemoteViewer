@@ -6,8 +6,8 @@ using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.WindowsSession;
-using RemoteViewer.Server.SharedAPI;
-using RemoteViewer.Server.SharedAPI.Protocol;
+using RemoteViewer.Shared;
+using RemoteViewer.Shared.Protocol;
 
 namespace RemoteViewer.Client.Services.SessionRecorderIpc;
 

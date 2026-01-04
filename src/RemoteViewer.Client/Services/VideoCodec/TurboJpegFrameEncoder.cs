@@ -1,8 +1,8 @@
-﻿using System.Buffers;
+using System.Buffers;
 using System.Collections.Concurrent;
 using RemoteViewer.Client.Common;
 using RemoteViewer.Client.Services.Screenshot;
-using RemoteViewer.Server.SharedAPI.Protocol;
+using RemoteViewer.Shared.Protocol;
 using TurboJpegWrapper;
 
 namespace RemoteViewer.Client.Services.VideoCodec;

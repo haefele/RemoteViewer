@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.SignalR;
 using RemoteViewer.Server.Services;
-using RemoteViewer.Server.SharedAPI;
-using ConnectionInfo = RemoteViewer.Server.SharedAPI.ConnectionInfo;
+using RemoteViewer.Shared;
+using ConnectionInfo = RemoteViewer.Shared.ConnectionInfo;
 
 namespace RemoteViewer.Server.Hubs;
 

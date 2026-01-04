@@ -1,11 +1,11 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.Client.Services.LocalInputMonitor;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.WinServiceIpc;
-using RemoteViewer.Server.SharedAPI;
-using RemoteViewer.Server.SharedAPI.Protocol;
+using RemoteViewer.Shared;
+using RemoteViewer.Shared.Protocol;
 
 namespace RemoteViewer.Client.Services.HubClient;
 

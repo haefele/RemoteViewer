@@ -1,7 +1,7 @@
-﻿using System.Buffers;
+using System.Buffers;
 using Nerdbank.MessagePack;
 using PolyType;
-using RemoteViewer.Server.SharedAPI;
+using RemoteViewer.Shared;
 
 namespace RemoteViewer.Client.Services.HubClient;
 

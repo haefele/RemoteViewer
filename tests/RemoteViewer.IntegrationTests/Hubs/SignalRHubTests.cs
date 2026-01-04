@@ -3,10 +3,7 @@ extern alias Server;
 using Microsoft.AspNetCore.SignalR.Client;
 using Nerdbank.MessagePack.SignalR;
 
-using TryConnectError = Server::RemoteViewer.Server.SharedAPI.TryConnectError;
-using ConnectionInfo = Server::RemoteViewer.Server.SharedAPI.ConnectionInfo;
-using MessageDestination = Server::RemoteViewer.Server.SharedAPI.MessageDestination;
-using Witness = Server::RemoteViewer.Server.SharedAPI.Witness;
+using RemoteViewer.Shared;
 
 namespace RemoteViewer.IntegrationTests.Hubs;
 

@@ -1,7 +1,7 @@
 ﻿using Nerdbank.MessagePack.SignalR;
 using RemoteViewer.Server.Hubs;
 using RemoteViewer.Server.Services;
-using RemoteViewer.Server.SharedAPI;
+using RemoteViewer.Shared;
 using Serilog;
 
 try

@@ -1,5 +1,5 @@
-﻿using RemoteViewer.Client.Common;
-using RemoteViewer.Server.SharedAPI;
+using RemoteViewer.Client.Common;
+using RemoteViewer.Shared;
 
 namespace RemoteViewer.Client.Services.Screenshot;
 

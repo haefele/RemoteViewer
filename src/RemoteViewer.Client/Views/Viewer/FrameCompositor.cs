@@ -2,7 +2,7 @@ using Avalonia;
 using Avalonia.Media.Imaging;
 using Avalonia.Platform;
 using RemoteViewer.Client.Common;
-using RemoteViewer.Server.SharedAPI.Protocol;
+using RemoteViewer.Shared.Protocol;
 using TurboJpegWrapper;
 
 namespace RemoteViewer.Client.Views.Viewer;

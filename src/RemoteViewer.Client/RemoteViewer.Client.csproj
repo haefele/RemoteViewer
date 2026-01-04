@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Compile Include="..\RemoteViewer.Server\SharedAPI\**\*" LinkBase="\SharedApi\" />
+    <ProjectReference Include="..\RemoteViewer.Shared\RemoteViewer.Shared.csproj" />
   </ItemGroup>
 
 

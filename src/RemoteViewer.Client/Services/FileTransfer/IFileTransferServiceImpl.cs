@@ -1,4 +1,4 @@
-﻿using RemoteViewer.Server.SharedAPI.Protocol;
+using RemoteViewer.Shared.Protocol;
 
 namespace RemoteViewer.Client.Services.FileTransfer;
 
