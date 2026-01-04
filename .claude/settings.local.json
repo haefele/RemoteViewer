@@ -33,7 +33,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "~/.claude/session-start-dotnet-install.sh"
+            "command": ".claude/session-start-dotnet-install.sh"
           }
         ]
       }

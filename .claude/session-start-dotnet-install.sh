@@ -21,7 +21,7 @@ if ! command -v dotnet &> /dev/null; then
   chmod +x /tmp/dotnet-install.sh
 
   # Install to /opt/dotnet for cloud environment
-  /tmp/dotnet-install.sh --install-dir /opt/dotnet --version latest --channel 10.0
+  /tmp/dotnet-install.sh --install-dir /opt/dotnet --channel 10.0
 
   # Persist environment variables for the session
   echo 'export DOTNET_ROOT=/opt/dotnet' >> "$CLAUDE_ENV_FILE"
