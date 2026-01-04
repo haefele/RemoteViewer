@@ -17,7 +17,13 @@
       "WebFetch(domain:docs.avaloniaui.net)",
       "WebFetch(domain:aarnott.github.io)",
       "WebFetch(domain:eiriktsarpalis.github.io)",
-      "WebFetch(domain:blog.nerdbank.net)"
+      "WebFetch(domain:blog.nerdbank.net)",
+      "WebFetch(domain:tunit.dev)",
+      "Bash(Remove-Item -Recurse -Force \"C:\\\\Users\\\\haefe\\\\source\\\\repos\\\\RemoteViewer\\\\tests\\\\RemoteViewer.Tests\")",
+      "Bash(Remove-Item -Recurse -Force \"C:\\\\Users\\\\haefe\\\\source\\\\repos\\\\RemoteViewer\\\\tests\\\\RemoteViewer.IntegrationTests\\\\Client\")",
+      "Bash(taskkill:*)",
+      "Bash(taskkill /F /PID 3132)",
+      "Bash(tree:*)"
     ],
     "deny": [],
     "ask": []

@@ -15,7 +15,7 @@ public enum ApplicationMode
     SessionRecorder,
 }
 
-sealed class Program
+public sealed class Program
 {
     // Main must remain synchronous - async Main breaks [STAThread] and OLE initialization,
     // which disables drag-and-drop functionality in Avalonia on Windows.

@@ -20,13 +20,21 @@ namespace RemoteViewer.Client.Services;
 
 public static class ServiceRegistration
 {
-    public static IServiceCollection AddRemoteViewerServices(this IServiceCollection services, ApplicationMode mode, App? app = null) => mode switch
+    public static IServiceCollection AddRemoteViewerServices(this IServiceCollection services, ApplicationMode mode, App? app = null)
     {
-        ApplicationMode.Desktop => services.AddDesktopModeServices(app!),
-        ApplicationMode.WindowsService => services.AddWindowsServiceModeServices(),
-        ApplicationMode.SessionRecorder => services.AddSessionRecorderModeServices(),
-        _ => throw new ArgumentOutOfRangeException(nameof(mode))
-    };
+        var result = mode switch
+        {
+            ApplicationMode.Desktop => services.AddDesktopModeServices(app!),
+            ApplicationMode.WindowsService => services.AddWindowsServiceModeServices(),
+            ApplicationMode.SessionRecorder => services.AddSessionRecorderModeServices(),
+            _ => throw new ArgumentOutOfRangeException(nameof(mode))
+        };
+
+        if (CustomizeServices is { } custom)
+            custom(result);
+
+        return result;
+    }
 
     private static IServiceCollection AddDesktopModeServices(this IServiceCollection services, App app)
     {
@@ -148,4 +156,6 @@ public static class ServiceRegistration
         services.AddSingleton<IScreenshotService, ScreenshotService>();
         return services;
     }
+
+    public static Action<IServiceCollection>? CustomizeServices { get; set; }
 }

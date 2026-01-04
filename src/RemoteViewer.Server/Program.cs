@@ -27,8 +27,6 @@ try
     var app = builder.Build();
 
     app.UseStaticFiles();
-
-    app.MapControllers();
     app.MapHub<ConnectionHub>("/connection");
 
     app.MapGet("/", () => Results.Content("""
