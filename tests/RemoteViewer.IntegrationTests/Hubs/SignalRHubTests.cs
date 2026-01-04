@@ -1,6 +1,4 @@
-extern alias Server;
-
-using Microsoft.AspNetCore.SignalR.Client;
+﻿using Microsoft.AspNetCore.SignalR.Client;
 using Nerdbank.MessagePack.SignalR;
 
 using RemoteViewer.Shared;
@@ -14,11 +12,10 @@ public class SignalRHubTests
 
     private async Task<HubConnection> CreateHubConnectionAsync(Action<HubConnection>? configure = null)
     {
-        var hubUrl = $"{this.Server.ServerUrl}/connection";
-
         var connection = new HubConnectionBuilder()
-            .WithUrl(hubUrl, options =>
+            .WithUrl("http://localhost/connection", options =>
             {
+                options.HttpMessageHandlerFactory = _ => this.Server.TestServer.CreateHandler();
                 options.Headers.Add("X-Client-Version", ThisAssembly.AssemblyInformationalVersion);
             })
             .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
@@ -445,11 +442,10 @@ public class SignalRHubTests
     {
         var versionMismatch = new TaskCompletionSource<(string serverVersion, string clientVersion)>();
 
-        var hubUrl = $"{this.Server.ServerUrl}/connection";
-
         var connection = new HubConnectionBuilder()
-            .WithUrl(hubUrl, options =>
+            .WithUrl("http://localhost/connection", options =>
             {
+                options.HttpMessageHandlerFactory = _ => this.Server.TestServer.CreateHandler();
                 options.Headers.Add("X-Client-Version", "0.0.0-invalid");
             })
             .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
@@ -507,10 +503,10 @@ public class SignalRHubTests
         // Now connect with the IPC token
         var ipcValidated = new TaskCompletionSource<string?>();
 
-        var hubUrl = $"{this.Server.ServerUrl}/connection";
         var ipcConnection = new HubConnectionBuilder()
-            .WithUrl(hubUrl, options =>
+            .WithUrl("http://localhost/connection", options =>
             {
+                options.HttpMessageHandlerFactory = _ => this.Server.TestServer.CreateHandler();
                 options.Headers.Add("X-Ipc-Token", ipcToken!);
             })
             .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
@@ -535,10 +531,10 @@ public class SignalRHubTests
     {
         var ipcValidated = new TaskCompletionSource<string?>();
 
-        var hubUrl = $"{this.Server.ServerUrl}/connection";
         var ipcConnection = new HubConnectionBuilder()
-            .WithUrl(hubUrl, options =>
+            .WithUrl("http://localhost/connection", options =>
             {
+                options.HttpMessageHandlerFactory = _ => this.Server.TestServer.CreateHandler();
                 options.Headers.Add("X-Ipc-Token", "invalid-token");
             })
             .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)

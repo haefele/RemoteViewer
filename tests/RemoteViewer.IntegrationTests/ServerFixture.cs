@@ -1,69 +1,32 @@
-extern alias Server;
-
-using System.Net;
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Hosting.Server;
-using Microsoft.AspNetCore.Hosting.Server.Features;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Logging;
-using Nerdbank.MessagePack.SignalR;
-using Server::RemoteViewer.Server.Hubs;
-using Server::RemoteViewer.Server.Services;
-using RemoteViewer.Shared;
 using TUnit.Core.Interfaces;
 
 namespace RemoteViewer.IntegrationTests;
 
-public class ServerFixture : IAsyncInitializer, IAsyncDisposable
+public class ServerFixture : WebApplicationFactory<Program>, IAsyncInitializer
 {
-    private WebApplication? _app;
+    public TestServer TestServer => this.Server;
 
-    public string ServerUrl { get; private set; } = null!;
-
-    public async Task InitializeAsync()
+    public Task InitializeAsync()
     {
-        var builder = WebApplication.CreateBuilder();
-
-        builder.WebHost.UseKestrel(options =>
-        {
-            options.Listen(IPAddress.Loopback, 0); // Random available port
-        });
-
-        builder.Services.AddSingleton(TimeProvider.System);
-        builder.Services.AddSingleton<IConnectionsService, ConnectionsService>();
-        builder.Services.AddSingleton<IIpcTokenService, IpcTokenService>();
-        builder.Services.AddControllers();
-        builder.Services
-            .AddSignalR(f => f.MaximumReceiveMessageSize = null)
-            .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider);
-
-        builder.Services.AddLogging(b =>
-        {
-            b.ClearProviders();
-            b.AddConsole();
-            b.SetMinimumLevel(LogLevel.Warning);
-        });
-
-        this._app = builder.Build();
-
-        this._app.MapControllers();
-        this._app.MapHub<ConnectionHub>("/connection");
-
-        await this._app.StartAsync();
-
-        // Get the actual bound address
-        var server = this._app.Services.GetRequiredService<IServer>();
-        var addresses = server.Features.Get<IServerAddressesFeature>();
-        this.ServerUrl = addresses!.Addresses.First();
+        // Eagerly initialize the server before tests run
+        // This ensures the server is ready when parallel tests start
+        // When parallel tests access this.Server for the first time, it may cause race conditions
+        // This call forces the server to start during initialization once
+        _ = this.Server;
+        return Task.CompletedTask;
     }
 
-    public async ValueTask DisposeAsync()
+    protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        if (this._app is not null)
+        builder.ConfigureLogging(logging =>
         {
-            await this._app.StopAsync();
-            await this._app.DisposeAsync();
-        }
+            logging.ClearProviders();
+            logging.AddConsole();
+            logging.SetMinimumLevel(LogLevel.Warning);
+        });
     }
 }

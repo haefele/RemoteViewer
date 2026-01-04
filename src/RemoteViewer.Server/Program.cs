@@ -16,7 +16,6 @@ try
     builder.Services.AddSingleton(TimeProvider.System);
     builder.Services.AddSingleton<IConnectionsService, ConnectionsService>();
     builder.Services.AddSingleton<IIpcTokenService, IpcTokenService>();
-    builder.Services.AddControllers();
     builder.Services
         .AddSignalR(f =>
         {

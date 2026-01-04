@@ -14,9 +14,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\RemoteViewer.Server\RemoteViewer.Server.csproj">
-      <Aliases>global,Server</Aliases>
-    </ProjectReference>
+    <ProjectReference Include="..\..\src\RemoteViewer.Server\RemoteViewer.Server.csproj" />
     <ProjectReference Include="..\..\src\RemoteViewer.Client\RemoteViewer.Client.csproj" />
     <ProjectReference Include="..\..\src\RemoteViewer.Shared\RemoteViewer.Shared.csproj" />
   </ItemGroup>
