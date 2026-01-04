@@ -38,7 +38,7 @@ public sealed class TurboJpegFrameEncoder : IFrameEncoder
             // Keyframe: encode full frame
             if (grabResult.FullFramePixels is not null)
             {
-                var jpegData = EncodeJpeg(compressor, grabResult.FullFramePixels.Span, width, height);
+                var jpegData = this.EncodeJpeg(compressor, grabResult.FullFramePixels.Span, width, height);
 
                 return (FrameCodec.Jpeg90, [new EncodedRegion(true, 0, 0, width, height, jpegData)]);
             }
@@ -48,7 +48,7 @@ public sealed class TurboJpegFrameEncoder : IFrameEncoder
             for (var i = 0; i < grabResult.DirtyRegions.Length; i++)
             {
                 var dirty = grabResult.DirtyRegions[i];
-                var jpegData = EncodeJpeg(compressor, dirty.Pixels.Span, dirty.Width, dirty.Height);
+                var jpegData = this.EncodeJpeg(compressor, dirty.Pixels.Span, dirty.Width, dirty.Height);
 
                 regions[i] = new EncodedRegion(false, dirty.X, dirty.Y, dirty.Width, dirty.Height, jpegData);
             }
