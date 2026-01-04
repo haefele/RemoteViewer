@@ -9,11 +9,23 @@ namespace RemoteViewer.Client.Services.VideoCodec;
 
 public sealed class TurboJpegFrameEncoder : IFrameEncoder
 {
-    private const int JpegQuality = 90;
     private const int MaxPoolSize = 4;
 
     private readonly ConcurrentBag<TJCompressor> _compressorPool = new();
     private bool _disposed;
+    private int _quality = 80;
+
+    public int Quality
+    {
+        get => this._quality;
+        set
+        {
+            if (value is < 10 or > 100)
+                throw new ArgumentOutOfRangeException(nameof(value), "Quality must be between 10 and 100");
+
+            this._quality = value;
+        }
+    }
 
     public (FrameCodec Codec, EncodedRegion[] Regions) ProcessFrame(
         GrabResult grabResult,
@@ -70,7 +82,7 @@ public sealed class TurboJpegFrameEncoder : IFrameEncoder
         this._compressorPool.Add(compressor);
     }
 
-    private static RefCountedMemoryOwner EncodeJpeg(TJCompressor compressor, Span<byte> pixels, int width, int height)
+    private RefCountedMemoryOwner EncodeJpeg(TJCompressor compressor, Span<byte> pixels, int width, int height)
     {
         // Get max possible JPEG size for this resolution
         var maxSize = compressor.GetBufferSize(width, height, TJSubsamplingOption.Chrominance420);
@@ -86,7 +98,7 @@ public sealed class TurboJpegFrameEncoder : IFrameEncoder
             height,
             TJPixelFormat.BGRA,
             TJSubsamplingOption.Chrominance420,
-            JpegQuality,
+            this._quality,
             TJFlags.None);
 
         // Update to actual compressed size (no extra copy needed)
