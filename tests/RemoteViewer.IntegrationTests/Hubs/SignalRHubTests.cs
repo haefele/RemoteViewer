@@ -278,4 +278,295 @@ public class SignalRHubTests
 
         await Assert.That(finalInfo.Viewers).IsEmpty();
     }
+
+    [Test]
+    public async Task SetDisplayNameUpdatesAndBroadcasts()
+    {
+        var presenterCredentials = new TaskCompletionSource<(string username, string password)>();
+        var presenterConnectionId = new TaskCompletionSource<string>();
+        var connectionChanged = new TaskCompletionSource<ConnectionInfo>();
+
+        await using var presenter = await CreateHubConnectionAsync(hub =>
+        {
+            hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
+            {
+                presenterCredentials.TrySetResult((username.Replace(" ", ""), password));
+            });
+            hub.On<string, bool>("ConnectionStarted", (connectionId, _) =>
+            {
+                presenterConnectionId.TrySetResult(connectionId);
+            });
+            hub.On<ConnectionInfo>("ConnectionChanged", info =>
+            {
+                if (info.Presenter.DisplayName == "New Display Name")
+                {
+                    connectionChanged.TrySetResult(info);
+                }
+            });
+        });
+
+        var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await using var viewer = await CreateHubConnectionAsync(hub =>
+        {
+            hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
+            hub.On<string, bool>("ConnectionStarted", (_, _) => { });
+        });
+
+        await viewer.InvokeAsync<TryConnectError?>("ConnectTo", creds.username, creds.password);
+        await presenterConnectionId.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await presenter.InvokeAsync("SetDisplayName", "New Display Name");
+
+        var info = await connectionChanged.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await Assert.That(info.Presenter.DisplayName).IsEqualTo("New Display Name");
+    }
+
+    [Test]
+    public async Task SetConnectionPropertiesPresenterUpdatesProperties()
+    {
+        var presenterCredentials = new TaskCompletionSource<(string username, string password)>();
+        var presenterConnectionId = new TaskCompletionSource<string>();
+        var connectionChanged = new TaskCompletionSource<ConnectionInfo>();
+
+        await using var presenter = await CreateHubConnectionAsync(hub =>
+        {
+            hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
+            {
+                presenterCredentials.TrySetResult((username.Replace(" ", ""), password));
+            });
+            hub.On<string, bool>("ConnectionStarted", (connectionId, _) =>
+            {
+                presenterConnectionId.TrySetResult(connectionId);
+            });
+            hub.On<ConnectionInfo>("ConnectionChanged", info =>
+            {
+                if (info.Properties.CanSendSecureAttentionSequence)
+                {
+                    connectionChanged.TrySetResult(info);
+                }
+            });
+        });
+
+        var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await using var viewer = await CreateHubConnectionAsync(hub =>
+        {
+            hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
+            hub.On<string, bool>("ConnectionStarted", (_, _) => { });
+        });
+
+        await viewer.InvokeAsync<TryConnectError?>("ConnectTo", creds.username, creds.password);
+        var connId = await presenterConnectionId.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var displays = new List<DisplayInfo>
+        {
+            new("display-1", "Primary Monitor", true, 0, 0, 1920, 1080)
+        };
+        var properties = new ConnectionProperties(
+            CanSendSecureAttentionSequence: true,
+            InputBlockedViewerIds: [],
+            AvailableDisplays: displays
+        );
+
+        await presenter.InvokeAsync("SetConnectionProperties", connId, properties);
+
+        var info = await connectionChanged.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await Assert.That(info.Properties.CanSendSecureAttentionSequence).IsTrue();
+        await Assert.That(info.Properties.AvailableDisplays).Count().IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task GenerateIpcAuthTokenPresenterReceivesToken()
+    {
+        var presenterCredentials = new TaskCompletionSource<(string username, string password)>();
+        var presenterConnectionId = new TaskCompletionSource<string>();
+
+        await using var presenter = await CreateHubConnectionAsync(hub =>
+        {
+            hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
+            {
+                presenterCredentials.TrySetResult((username.Replace(" ", ""), password));
+            });
+            hub.On<string, bool>("ConnectionStarted", (connectionId, _) =>
+            {
+                presenterConnectionId.TrySetResult(connectionId);
+            });
+        });
+
+        var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await using var viewer = await CreateHubConnectionAsync(hub =>
+        {
+            hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
+            hub.On<string, bool>("ConnectionStarted", (_, _) => { });
+        });
+
+        await viewer.InvokeAsync<TryConnectError?>("ConnectTo", creds.username, creds.password);
+        var connId = await presenterConnectionId.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var token = await presenter.InvokeAsync<string?>("GenerateIpcAuthToken", connId);
+
+        await Assert.That(token).IsNotNull().And.IsNotEmpty();
+    }
+
+    [Test]
+    public async Task GenerateIpcAuthTokenViewerReceivesNull()
+    {
+        var presenterCredentials = new TaskCompletionSource<(string username, string password)>();
+        var presenterConnectionId = new TaskCompletionSource<string>();
+        var viewerConnectionStarted = new TaskCompletionSource();
+
+        await using var presenter = await CreateHubConnectionAsync(hub =>
+        {
+            hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
+            {
+                presenterCredentials.TrySetResult((username.Replace(" ", ""), password));
+            });
+            hub.On<string, bool>("ConnectionStarted", (connectionId, _) =>
+            {
+                presenterConnectionId.TrySetResult(connectionId);
+            });
+        });
+
+        var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await using var viewer = await CreateHubConnectionAsync(hub =>
+        {
+            hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
+            hub.On<string, bool>("ConnectionStarted", (_, _) =>
+            {
+                viewerConnectionStarted.TrySetResult();
+            });
+        });
+
+        await viewer.InvokeAsync<TryConnectError?>("ConnectTo", creds.username, creds.password);
+        var connId = await presenterConnectionId.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await viewerConnectionStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Viewer tries to generate token - should fail
+        var token = await viewer.InvokeAsync<string?>("GenerateIpcAuthToken", connId);
+
+        await Assert.That(token).IsNull();
+    }
+
+    [Test]
+    public async Task ConnectWithVersionMismatchReceivesVersionMismatch()
+    {
+        var versionMismatch = new TaskCompletionSource<(string serverVersion, string clientVersion)>();
+
+        var hubUrl = $"{_server.ServerUrl}/connection";
+
+        var connection = new HubConnectionBuilder()
+            .WithUrl(hubUrl, options =>
+            {
+                options.Headers.Add("X-Client-Version", "0.0.0-invalid");
+            })
+            .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
+            .Build();
+
+        connection.On<string, string>("VersionMismatch", (serverVersion, clientVersion) =>
+        {
+            versionMismatch.TrySetResult((serverVersion, clientVersion));
+        });
+
+        await connection.StartAsync();
+
+        var result = await versionMismatch.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await Assert.That(result.clientVersion).IsEqualTo("0.0.0-invalid");
+        await Assert.That(result.serverVersion).IsEqualTo(ThisAssembly.AssemblyInformationalVersion);
+
+        await connection.DisposeAsync();
+    }
+
+    [Test]
+    public async Task ConnectWithIpcTokenValidatesAndReturnsConnectionId()
+    {
+        var presenterCredentials = new TaskCompletionSource<(string username, string password)>();
+        var presenterConnectionId = new TaskCompletionSource<string>();
+
+        // First, create a presenter and viewer connection to get an IPC token
+        await using var presenter = await CreateHubConnectionAsync(hub =>
+        {
+            hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
+            {
+                presenterCredentials.TrySetResult((username.Replace(" ", ""), password));
+            });
+            hub.On<string, bool>("ConnectionStarted", (connectionId, _) =>
+            {
+                presenterConnectionId.TrySetResult(connectionId);
+            });
+        });
+
+        var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await using var viewer = await CreateHubConnectionAsync(hub =>
+        {
+            hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
+            hub.On<string, bool>("ConnectionStarted", (_, _) => { });
+        });
+
+        await viewer.InvokeAsync<TryConnectError?>("ConnectTo", creds.username, creds.password);
+        var connId = await presenterConnectionId.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Generate IPC token
+        var ipcToken = await presenter.InvokeAsync<string?>("GenerateIpcAuthToken", connId);
+        await Assert.That(ipcToken).IsNotNull();
+
+        // Now connect with the IPC token
+        var ipcValidated = new TaskCompletionSource<string?>();
+
+        var hubUrl = $"{_server.ServerUrl}/connection";
+        var ipcConnection = new HubConnectionBuilder()
+            .WithUrl(hubUrl, options =>
+            {
+                options.Headers.Add("X-Ipc-Token", ipcToken!);
+            })
+            .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
+            .Build();
+
+        ipcConnection.On<string?>("IpcTokenValidated", connectionId =>
+        {
+            ipcValidated.TrySetResult(connectionId);
+        });
+
+        await ipcConnection.StartAsync();
+
+        var validatedConnectionId = await ipcValidated.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await Assert.That(validatedConnectionId).IsEqualTo(connId);
+
+        await ipcConnection.DisposeAsync();
+    }
+
+    [Test]
+    public async Task ConnectWithInvalidIpcTokenReceivesNull()
+    {
+        var ipcValidated = new TaskCompletionSource<string?>();
+
+        var hubUrl = $"{_server.ServerUrl}/connection";
+        var ipcConnection = new HubConnectionBuilder()
+            .WithUrl(hubUrl, options =>
+            {
+                options.Headers.Add("X-Ipc-Token", "invalid-token");
+            })
+            .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
+            .Build();
+
+        ipcConnection.On<string?>("IpcTokenValidated", connectionId =>
+        {
+            ipcValidated.TrySetResult(connectionId);
+        });
+
+        await ipcConnection.StartAsync();
+
+        var validatedConnectionId = await ipcValidated.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await Assert.That(validatedConnectionId).IsNull();
+
+        await ipcConnection.DisposeAsync();
+    }
 }
