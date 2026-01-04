@@ -5,6 +5,7 @@
   <Folder Name="/.github/" />
   <Folder Name="/.github/workflows/">
     <File Path=".github/workflows/build-and-publish.yml" />
+    <File Path=".github/workflows/build.yml" />
   </Folder>
   <Folder Name="/solution items/">
     <File Path=".editorconfig" />
