@@ -569,4 +569,237 @@ public class SignalRHubTests
 
         await ipcConnection.DisposeAsync();
     }
+
+    [Test]
+    public async Task ViewerSendsMessagePresenterReceivesIt()
+    {
+        var presenterCredentials = new TaskCompletionSource<(string username, string password)>();
+        var presenterConnectionId = new TaskCompletionSource<string>();
+        var presenterReceivedMessage = new TaskCompletionSource<(string connectionId, string senderId, string messageType, byte[] data)>();
+
+        await using var presenter = await CreateHubConnectionAsync(hub =>
+        {
+            hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
+            {
+                presenterCredentials.TrySetResult((username.Replace(" ", ""), password));
+            });
+            hub.On<string, bool>("ConnectionStarted", (connectionId, _) =>
+            {
+                presenterConnectionId.TrySetResult(connectionId);
+            });
+            hub.On<string, string, string, byte[]>("MessageReceived", (connectionId, senderId, messageType, data) =>
+            {
+                presenterReceivedMessage.TrySetResult((connectionId, senderId, messageType, data));
+            });
+        });
+
+        var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await using var viewer = await CreateHubConnectionAsync(hub =>
+        {
+            hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
+            hub.On<string, bool>("ConnectionStarted", (_, _) => { });
+        });
+
+        await viewer.InvokeAsync<TryConnectError?>("ConnectTo", creds.username, creds.password);
+        var connId = await presenterConnectionId.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var testData = new byte[] { 1, 2, 3, 4, 5 };
+        await viewer.InvokeAsync("SendMessage", connId, "viewer.message", testData, MessageDestination.PresenterOnly, (List<string>?)null);
+
+        var received = await presenterReceivedMessage.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await Assert.That(received.connectionId).IsEqualTo(connId);
+        await Assert.That(received.messageType).IsEqualTo("viewer.message");
+        await Assert.That(received.data).IsEquivalentTo(testData);
+    }
+
+    [Test]
+    public async Task PresenterSendsMessageAllReceiveIt()
+    {
+        var presenterCredentials = new TaskCompletionSource<(string username, string password)>();
+        var presenterConnectionId = new TaskCompletionSource<string>();
+        var presenterReceivedMessage = new TaskCompletionSource<(string connectionId, string senderId, string messageType, byte[] data)>();
+        var viewerReceivedMessage = new TaskCompletionSource<(string connectionId, string senderId, string messageType, byte[] data)>();
+
+        await using var presenter = await CreateHubConnectionAsync(hub =>
+        {
+            hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
+            {
+                presenterCredentials.TrySetResult((username.Replace(" ", ""), password));
+            });
+            hub.On<string, bool>("ConnectionStarted", (connectionId, _) =>
+            {
+                presenterConnectionId.TrySetResult(connectionId);
+            });
+            hub.On<string, string, string, byte[]>("MessageReceived", (connectionId, senderId, messageType, data) =>
+            {
+                presenterReceivedMessage.TrySetResult((connectionId, senderId, messageType, data));
+            });
+        });
+
+        var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await using var viewer = await CreateHubConnectionAsync(hub =>
+        {
+            hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
+            hub.On<string, bool>("ConnectionStarted", (_, _) => { });
+            hub.On<string, string, string, byte[]>("MessageReceived", (connectionId, senderId, messageType, data) =>
+            {
+                viewerReceivedMessage.TrySetResult((connectionId, senderId, messageType, data));
+            });
+        });
+
+        await viewer.InvokeAsync<TryConnectError?>("ConnectTo", creds.username, creds.password);
+        var connId = await presenterConnectionId.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var testData = new byte[] { 10, 20, 30 };
+        await presenter.InvokeAsync("SendMessage", connId, "broadcast.all", testData, MessageDestination.All, (List<string>?)null);
+
+        var presenterReceived = await presenterReceivedMessage.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var viewerReceived = await viewerReceivedMessage.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await Assert.That(presenterReceived.messageType).IsEqualTo("broadcast.all");
+        await Assert.That(viewerReceived.messageType).IsEqualTo("broadcast.all");
+        await Assert.That(presenterReceived.data).IsEquivalentTo(testData);
+        await Assert.That(viewerReceived.data).IsEquivalentTo(testData);
+    }
+
+    [Test]
+    public async Task ViewerSendsMessageAllExceptSenderReceiveIt()
+    {
+        var presenterCredentials = new TaskCompletionSource<(string username, string password)>();
+        var presenterConnectionId = new TaskCompletionSource<string>();
+        var presenterReceivedMessage = new TaskCompletionSource<(string connectionId, string senderId, string messageType, byte[] data)>();
+        var viewer1ReceivedMessage = new TaskCompletionSource<(string connectionId, string senderId, string messageType, byte[] data)>();
+        var viewer2ReceivedMessage = new TaskCompletionSource<(string connectionId, string senderId, string messageType, byte[] data)>();
+
+        await using var presenter = await CreateHubConnectionAsync(hub =>
+        {
+            hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
+            {
+                presenterCredentials.TrySetResult((username.Replace(" ", ""), password));
+            });
+            hub.On<string, bool>("ConnectionStarted", (connectionId, _) =>
+            {
+                presenterConnectionId.TrySetResult(connectionId);
+            });
+            hub.On<string, string, string, byte[]>("MessageReceived", (connectionId, senderId, messageType, data) =>
+            {
+                presenterReceivedMessage.TrySetResult((connectionId, senderId, messageType, data));
+            });
+        });
+
+        var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await using var viewer1 = await CreateHubConnectionAsync(hub =>
+        {
+            hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
+            hub.On<string, bool>("ConnectionStarted", (_, _) => { });
+            hub.On<string, string, string, byte[]>("MessageReceived", (connectionId, senderId, messageType, data) =>
+            {
+                viewer1ReceivedMessage.TrySetResult((connectionId, senderId, messageType, data));
+            });
+        });
+
+        await using var viewer2 = await CreateHubConnectionAsync(hub =>
+        {
+            hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
+            hub.On<string, bool>("ConnectionStarted", (_, _) => { });
+            hub.On<string, string, string, byte[]>("MessageReceived", (connectionId, senderId, messageType, data) =>
+            {
+                viewer2ReceivedMessage.TrySetResult((connectionId, senderId, messageType, data));
+            });
+        });
+
+        await viewer1.InvokeAsync<TryConnectError?>("ConnectTo", creds.username, creds.password);
+        await viewer2.InvokeAsync<TryConnectError?>("ConnectTo", creds.username, creds.password);
+        var connId = await presenterConnectionId.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        var testData = new byte[] { 42, 43, 44 };
+        // viewer1 sends - should NOT receive it back, but presenter and viewer2 should
+        await viewer1.InvokeAsync("SendMessage", connId, "except.sender", testData, MessageDestination.AllExceptSender, (List<string>?)null);
+
+        var presenterReceived = await presenterReceivedMessage.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var viewer2Received = await viewer2ReceivedMessage.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await Assert.That(presenterReceived.messageType).IsEqualTo("except.sender");
+        await Assert.That(viewer2Received.messageType).IsEqualTo("except.sender");
+
+        // viewer1 should NOT have received the message
+        await Task.Delay(100);
+        await Assert.That(viewer1ReceivedMessage.Task.IsCompleted).IsFalse();
+    }
+
+    [Test]
+    public async Task PresenterSendsMessageToSpecificViewersOnly()
+    {
+        var presenterCredentials = new TaskCompletionSource<(string username, string password)>();
+        var presenterConnectionId = new TaskCompletionSource<string>();
+        var connectionInfo = new TaskCompletionSource<ConnectionInfo>();
+        var viewer1ReceivedMessage = new TaskCompletionSource<(string connectionId, string senderId, string messageType, byte[] data)>();
+        var viewer2ReceivedMessage = new TaskCompletionSource<(string connectionId, string senderId, string messageType, byte[] data)>();
+
+        await using var presenter = await CreateHubConnectionAsync(hub =>
+        {
+            hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
+            {
+                presenterCredentials.TrySetResult((username.Replace(" ", ""), password));
+            });
+            hub.On<string, bool>("ConnectionStarted", (connectionId, _) =>
+            {
+                presenterConnectionId.TrySetResult(connectionId);
+            });
+            hub.On<ConnectionInfo>("ConnectionChanged", info =>
+            {
+                if (info.Viewers.Count >= 2)
+                {
+                    connectionInfo.TrySetResult(info);
+                }
+            });
+        });
+
+        var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await using var viewer1 = await CreateHubConnectionAsync(hub =>
+        {
+            hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
+            hub.On<string, bool>("ConnectionStarted", (_, _) => { });
+            hub.On<string, string, string, byte[]>("MessageReceived", (connectionId, senderId, messageType, data) =>
+            {
+                viewer1ReceivedMessage.TrySetResult((connectionId, senderId, messageType, data));
+            });
+        });
+
+        await using var viewer2 = await CreateHubConnectionAsync(hub =>
+        {
+            hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
+            hub.On<string, bool>("ConnectionStarted", (_, _) => { });
+            hub.On<string, string, string, byte[]>("MessageReceived", (connectionId, senderId, messageType, data) =>
+            {
+                viewer2ReceivedMessage.TrySetResult((connectionId, senderId, messageType, data));
+            });
+        });
+
+        await viewer1.InvokeAsync<TryConnectError?>("ConnectTo", creds.username, creds.password);
+        await viewer2.InvokeAsync<TryConnectError?>("ConnectTo", creds.username, creds.password);
+        var connId = await presenterConnectionId.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        // Wait for both viewers to be connected and get their IDs
+        var info = await connectionInfo.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var viewer1Id = info.Viewers[0].ClientId;
+
+        var testData = new byte[] { 100, 101, 102 };
+        // Send to only viewer1
+        await presenter.InvokeAsync("SendMessage", connId, "specific.target", testData, MessageDestination.SpecificClients, new List<string> { viewer1Id });
+
+        var viewer1Received = await viewer1ReceivedMessage.Task.WaitAsync(TimeSpan.FromSeconds(5));
+
+        await Assert.That(viewer1Received.messageType).IsEqualTo("specific.target");
+        await Assert.That(viewer1Received.data).IsEquivalentTo(testData);
+
+        // viewer2 should NOT have received the message
+        await Task.Delay(100);
+        await Assert.That(viewer2ReceivedMessage.Task.IsCompleted).IsFalse();
+    }
 }
