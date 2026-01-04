@@ -1,6 +1,7 @@
-using System.Security.Cryptography;
+﻿using System.Security.Cryptography;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
+using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Common;
@@ -77,17 +78,17 @@ public sealed class ClipboardSyncService : IClipboardSyncServiceImpl, IDisposabl
         {
             var clipboard = this.GetClipboard();
             if (clipboard is null)
-                return (Text: (string?)null, ImageData: ((string, byte[])?)null);
+                return (Text: null, ImageData: null);
 
             // Check for text first
             var text = await clipboard.TryGetTextAsync();
             if (!string.IsNullOrEmpty(text) && text.Length <= MaxClipboardSize)
-                return (Text: text, ImageData: ((string, byte[])?)null);
+                return (Text: text, ImageData: null);
 
             // Skip files - user should use file transfer
             var formats = await clipboard.GetDataFormatsAsync();
             if (formats.Contains(DataFormat.File))
-                return (Text: (string?)null, ImageData: ((string, byte[])?)null);
+                return (Text: null, ImageData: null);
 
             // Try to get image data
             var imageData = await this.TryGetClipboardImageAsync(clipboard);
@@ -102,36 +103,31 @@ public sealed class ClipboardSyncService : IClipboardSyncServiceImpl, IDisposabl
                 this._logger.SentClipboardText(text.Length);
             }
         }
-        else if (clipboardData.ImageData is var (format, data) && data.Length <= MaxClipboardSize)
+        else if (clipboardData.ImageData is { } data && data.Length <= MaxClipboardSize)
         {
             if (this.TryMarkAsChanged(ComputeHash(data)))
             {
-                await this.SendAsync(MessageTypes.Clipboard.Image, new ClipboardImageMessage(format, data), data.Length + 256);
-                this._logger.SentClipboardImage(format, data.Length);
+                await this.SendAsync(MessageTypes.Clipboard.Image, new ClipboardImageMessage(data), data.Length + 256);
+                this._logger.SentClipboardImage(data.Length);
             }
         }
     }
 
-    private async Task<(string Format, byte[] Data)?> TryGetClipboardImageAsync(IClipboard clipboard)
+    private async Task<byte[]?> TryGetClipboardImageAsync(IClipboard clipboard)
     {
         try
         {
             var formats = await clipboard.GetDataFormatsAsync();
-
-            // Check for PNG first
-            if (formats.Contains("image/png") || formats.Contains("PNG"))
+            if (formats.Contains(DataFormat.Bitmap))
             {
-                var data = await clipboard.TryGetDataAsync("image/png") ?? await clipboard.TryGetDataAsync("PNG");
-                if (data is byte[] pngBytes)
-                    return ("png", pngBytes);
-            }
+                var bitmap = await clipboard.TryGetBitmapAsync();
+                if (bitmap is not null)
+                {
+                    using var ms = new MemoryStream();
+                    bitmap.Save(ms);
 
-            // Check for JPEG
-            if (formats.Contains("image/jpeg") || formats.Contains("JFIF"))
-            {
-                var data = await clipboard.TryGetDataAsync("image/jpeg") ?? await clipboard.TryGetDataAsync("JFIF");
-                if (data is byte[] jpegBytes)
-                    return ("jpeg", jpegBytes);
+                    return ms.ToArray();
+                }
             }
         }
         catch (Exception ex)
@@ -192,16 +188,17 @@ public sealed class ClipboardSyncService : IClipboardSyncServiceImpl, IDisposabl
             ComputeHash(message.Data.Span),
             async clipboard =>
             {
+                using var stream = new MemoryStream();
+                stream.Write(message.Data.Span);
+
+                var item = new DataTransferItem();
+                item.SetBitmap(new Bitmap(stream));
+
                 var dataTransfer = new DataTransfer();
-                var formatKey = message.Format.ToLowerInvariant() switch
-                {
-                    "png" => "image/png",
-                    "jpeg" or "jpg" => "image/jpeg",
-                    _ => $"image/{message.Format}"
-                };
-                dataTransfer.Set(formatKey, message.Data.ToArray());
+                dataTransfer.Add(item);
                 await clipboard.SetDataAsync(dataTransfer);
-                this._logger.ReceivedClipboardImage(message.Format, message.Data.Length);
+
+                this._logger.ReceivedClipboardImage(message.Data.Length);
             },
             ex => this._logger.FailedToSetClipboardImage(ex));
     }
