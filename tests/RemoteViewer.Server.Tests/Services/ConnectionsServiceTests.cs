@@ -574,4 +574,452 @@ public class ConnectionsServiceTests : IDisposable
             testData
         );
     }
+
+    [Test]
+    public async Task SendMessageSpecificClientsNullTargetIdsSendsNoMessages()
+    {
+        const string presenterConnectionId = "presenter-conn";
+        const string viewerConnectionId = "viewer-conn";
+        string? presenterUsername = null;
+        string? presenterPassword = null;
+        string? connectionId = null;
+
+        await this._mockClient.CredentialsAssigned(
+            Arg.Any<string>(),
+            Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
+            Arg.Do<string>(p => presenterPassword ??= p)
+        );
+
+        await this._mockClient.ConnectionStarted(
+            Arg.Do<string>(cid => connectionId ??= cid),
+            Arg.Any<bool>()
+        );
+
+        await this._service.Register(presenterConnectionId, null);
+        await this._service.Register(viewerConnectionId, null);
+        await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
+
+        this._mockClient.ClearReceivedCalls();
+
+        var testData = new byte[] { 1, 2, 3 };
+        await this._service.SendMessage(presenterConnectionId, connectionId!, "test.message", testData, MessageDestination.SpecificClients, targetClientIds: null);
+
+        await this._mockClient.DidNotReceive().MessageReceived(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<byte[]>()
+        );
+    }
+
+    [Test]
+    public async Task SendMessageSpecificClientsEmptyTargetIdsSendsNoMessages()
+    {
+        const string presenterConnectionId = "presenter-conn";
+        const string viewerConnectionId = "viewer-conn";
+        string? presenterUsername = null;
+        string? presenterPassword = null;
+        string? connectionId = null;
+
+        await this._mockClient.CredentialsAssigned(
+            Arg.Any<string>(),
+            Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
+            Arg.Do<string>(p => presenterPassword ??= p)
+        );
+
+        await this._mockClient.ConnectionStarted(
+            Arg.Do<string>(cid => connectionId ??= cid),
+            Arg.Any<bool>()
+        );
+
+        await this._service.Register(presenterConnectionId, null);
+        await this._service.Register(viewerConnectionId, null);
+        await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
+
+        this._mockClient.ClearReceivedCalls();
+
+        var testData = new byte[] { 1, 2, 3 };
+        await this._service.SendMessage(presenterConnectionId, connectionId!, "test.message", testData, MessageDestination.SpecificClients, targetClientIds: []);
+
+        await this._mockClient.DidNotReceive().MessageReceived(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<byte[]>()
+        );
+    }
+
+    [Test]
+    public async Task SendMessageSpecificClientsInvalidClientIdsSendsNoMessages()
+    {
+        const string presenterConnectionId = "presenter-conn";
+        const string viewerConnectionId = "viewer-conn";
+        string? presenterUsername = null;
+        string? presenterPassword = null;
+        string? connectionId = null;
+
+        await this._mockClient.CredentialsAssigned(
+            Arg.Any<string>(),
+            Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
+            Arg.Do<string>(p => presenterPassword ??= p)
+        );
+
+        await this._mockClient.ConnectionStarted(
+            Arg.Do<string>(cid => connectionId ??= cid),
+            Arg.Any<bool>()
+        );
+
+        await this._service.Register(presenterConnectionId, null);
+        await this._service.Register(viewerConnectionId, null);
+        await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
+
+        this._mockClient.ClearReceivedCalls();
+
+        var testData = new byte[] { 1, 2, 3 };
+        await this._service.SendMessage(presenterConnectionId, connectionId!, "test.message", testData, MessageDestination.SpecificClients, targetClientIds: ["invalid-id-1", "invalid-id-2"]);
+
+        await this._mockClient.DidNotReceive().MessageReceived(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<byte[]>()
+        );
+    }
+
+    [Test]
+    public async Task SendMessageSpecificClientsMixedValidInvalidIdsSendsOnlyToValid()
+    {
+        const string presenterConnectionId = "presenter-conn";
+        const string viewer1ConnectionId = "viewer1-conn";
+        const string viewer2ConnectionId = "viewer2-conn";
+        string? presenterUsername = null;
+        string? presenterPassword = null;
+        string? connectionId = null;
+        string? clientId = null;
+
+        await this._mockClient.CredentialsAssigned(
+            Arg.Do<string>(id => clientId = id),
+            Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
+            Arg.Do<string>(p => presenterPassword ??= p)
+        );
+
+        await this._mockClient.ConnectionStarted(
+            Arg.Do<string>(cid => connectionId ??= cid),
+            Arg.Any<bool>()
+        );
+
+        await this._service.Register(presenterConnectionId, null);
+        var presenterId = clientId;
+
+        await this._service.Register(viewer1ConnectionId, null);
+        var viewer1Id = clientId;
+
+        await this._service.Register(viewer2ConnectionId, null);
+        var viewer2Id = clientId;
+
+        await this._service.TryConnectTo(viewer1ConnectionId, presenterUsername!, presenterPassword!);
+        await this._service.TryConnectTo(viewer2ConnectionId, presenterUsername!, presenterPassword!);
+
+        this._mockClient.ClearReceivedCalls();
+
+        var testData = new byte[] { 1, 2, 3 };
+        // Send to presenter (valid) and invalid ID - should only send to presenter
+        await this._service.SendMessage(viewer1ConnectionId, connectionId!, "test.message", testData, MessageDestination.SpecificClients, targetClientIds: [presenterId!, "invalid-id"]);
+
+        await this._mockClient.Received(1).MessageReceived(
+            connectionId!,
+            Arg.Any<string>(),
+            "test.message",
+            testData
+        );
+    }
+
+    [Test]
+    public async Task SendMessageNonExistentSenderReturnsEarly()
+    {
+        const string presenterConnectionId = "presenter-conn";
+        const string viewerConnectionId = "viewer-conn";
+        string? presenterUsername = null;
+        string? presenterPassword = null;
+        string? connectionId = null;
+
+        await this._mockClient.CredentialsAssigned(
+            Arg.Any<string>(),
+            Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
+            Arg.Do<string>(p => presenterPassword ??= p)
+        );
+
+        await this._mockClient.ConnectionStarted(
+            Arg.Do<string>(cid => connectionId ??= cid),
+            Arg.Any<bool>()
+        );
+
+        await this._service.Register(presenterConnectionId, null);
+        await this._service.Register(viewerConnectionId, null);
+        await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
+
+        this._mockClient.ClearReceivedCalls();
+
+        var testData = new byte[] { 1, 2, 3 };
+        await this._service.SendMessage("non-existent-sender", connectionId!, "test.message", testData, MessageDestination.AllViewers);
+
+        await this._mockClient.DidNotReceive().MessageReceived(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<byte[]>()
+        );
+    }
+
+    [Test]
+    public async Task SendMessageNonExistentConnectionReturnsEarly()
+    {
+        const string presenterConnectionId = "presenter-conn";
+
+        await this._service.Register(presenterConnectionId, null);
+
+        this._mockClient.ClearReceivedCalls();
+
+        var testData = new byte[] { 1, 2, 3 };
+        await this._service.SendMessage(presenterConnectionId, "non-existent-connection", "test.message", testData, MessageDestination.AllViewers);
+
+        await this._mockClient.DidNotReceive().MessageReceived(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<byte[]>()
+        );
+    }
+
+    [Test]
+    public async Task SendMessageSenderNotInConnectionReturnsEarly()
+    {
+        const string presenterConnectionId = "presenter-conn";
+        const string viewerConnectionId = "viewer-conn";
+        const string outsiderConnectionId = "outsider-conn";
+        string? presenterUsername = null;
+        string? presenterPassword = null;
+        string? connectionId = null;
+
+        await this._mockClient.CredentialsAssigned(
+            Arg.Any<string>(),
+            Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
+            Arg.Do<string>(p => presenterPassword ??= p)
+        );
+
+        await this._mockClient.ConnectionStarted(
+            Arg.Do<string>(cid => connectionId ??= cid),
+            Arg.Any<bool>()
+        );
+
+        await this._service.Register(presenterConnectionId, null);
+        await this._service.Register(viewerConnectionId, null);
+        await this._service.Register(outsiderConnectionId, null);
+        await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
+
+        this._mockClient.ClearReceivedCalls();
+
+        var testData = new byte[] { 1, 2, 3 };
+        // Outsider tries to send message to a connection they're not part of
+        await this._service.SendMessage(outsiderConnectionId, connectionId!, "test.message", testData, MessageDestination.AllViewers);
+
+        await this._mockClient.DidNotReceive().MessageReceived(
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<string>(),
+            Arg.Any<byte[]>()
+        );
+    }
+
+    [Test]
+    public async Task SetConnectionPropertiesNonExistentSenderReturnsEarly()
+    {
+        const string presenterConnectionId = "presenter-conn";
+        const string viewerConnectionId = "viewer-conn";
+        string? presenterUsername = null;
+        string? presenterPassword = null;
+        string? connectionId = null;
+
+        await this._mockClient.CredentialsAssigned(
+            Arg.Any<string>(),
+            Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
+            Arg.Do<string>(p => presenterPassword ??= p)
+        );
+
+        await this._mockClient.ConnectionStarted(
+            Arg.Do<string>(cid => connectionId ??= cid),
+            Arg.Any<bool>()
+        );
+
+        await this._service.Register(presenterConnectionId, null);
+        await this._service.Register(viewerConnectionId, null);
+        await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
+
+        this._mockClient.ClearReceivedCalls();
+
+        var properties = new ConnectionProperties(
+            CanSendSecureAttentionSequence: true,
+            InputBlockedViewerIds: [],
+            AvailableDisplays: []
+        );
+
+        await this._service.SetConnectionProperties("non-existent-sender", connectionId!, properties);
+
+        await this._mockClient.DidNotReceive().ConnectionChanged(Arg.Any<ConnectionInfo>());
+    }
+
+    [Test]
+    public async Task SetConnectionPropertiesNonExistentConnectionReturnsEarly()
+    {
+        const string presenterConnectionId = "presenter-conn";
+
+        await this._service.Register(presenterConnectionId, null);
+
+        this._mockClient.ClearReceivedCalls();
+
+        var properties = new ConnectionProperties(
+            CanSendSecureAttentionSequence: true,
+            InputBlockedViewerIds: [],
+            AvailableDisplays: []
+        );
+
+        await this._service.SetConnectionProperties(presenterConnectionId, "non-existent-connection", properties);
+
+        await this._mockClient.DidNotReceive().ConnectionChanged(Arg.Any<ConnectionInfo>());
+    }
+
+    [Test]
+    public async Task SetConnectionPropertiesViewerNotPresenterReturnsEarly()
+    {
+        const string presenterConnectionId = "presenter-conn";
+        const string viewerConnectionId = "viewer-conn";
+        string? presenterUsername = null;
+        string? presenterPassword = null;
+        string? connectionId = null;
+
+        await this._mockClient.CredentialsAssigned(
+            Arg.Any<string>(),
+            Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
+            Arg.Do<string>(p => presenterPassword ??= p)
+        );
+
+        await this._mockClient.ConnectionStarted(
+            Arg.Do<string>(cid => connectionId ??= cid),
+            Arg.Any<bool>()
+        );
+
+        await this._service.Register(presenterConnectionId, null);
+        await this._service.Register(viewerConnectionId, null);
+        await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
+
+        this._mockClient.ClearReceivedCalls();
+
+        var properties = new ConnectionProperties(
+            CanSendSecureAttentionSequence: true,
+            InputBlockedViewerIds: [],
+            AvailableDisplays: []
+        );
+
+        // Viewer tries to set connection properties (only presenter should be allowed)
+        await this._service.SetConnectionProperties(viewerConnectionId, connectionId!, properties);
+
+        await this._mockClient.DidNotReceive().ConnectionChanged(Arg.Any<ConnectionInfo>());
+    }
+
+    [Test]
+    public async Task SetConnectionPropertiesInvalidBlockedViewerIdsNormalizesToValidOnly()
+    {
+        const string presenterConnectionId = "presenter-conn";
+        const string viewerConnectionId = "viewer-conn";
+        string? presenterUsername = null;
+        string? presenterPassword = null;
+        string? connectionId = null;
+        string? viewerId = null;
+
+        await this._mockClient.CredentialsAssigned(
+            Arg.Do<string>(id => viewerId = id),
+            Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
+            Arg.Do<string>(p => presenterPassword ??= p)
+        );
+
+        await this._mockClient.ConnectionStarted(
+            Arg.Do<string>(cid => connectionId ??= cid),
+            Arg.Any<bool>()
+        );
+
+        await this._service.Register(presenterConnectionId, null);
+        var presenterId = viewerId;
+
+        await this._service.Register(viewerConnectionId, null);
+        var actualViewerId = viewerId;
+
+        await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
+
+        this._mockClient.ClearReceivedCalls();
+
+        var properties = new ConnectionProperties(
+            CanSendSecureAttentionSequence: false,
+            InputBlockedViewerIds: [actualViewerId!, "invalid-viewer-id", "another-invalid-id"],
+            AvailableDisplays: []
+        );
+
+        ConnectionInfo? capturedInfo = null;
+        await this._mockClient.ConnectionChanged(Arg.Do<ConnectionInfo>(ci => capturedInfo = ci));
+
+        await this._service.SetConnectionProperties(presenterConnectionId, connectionId!, properties);
+
+        await Assert.That(capturedInfo).IsNotNull();
+        // Should only contain the valid viewer ID, invalid IDs should be filtered out
+        await Assert.That(capturedInfo!.Properties.InputBlockedViewerIds).Count().IsEqualTo(1);
+        await Assert.That(capturedInfo.Properties.InputBlockedViewerIds[0]).IsEqualTo(actualViewerId);
+    }
+
+    [Test]
+    public async Task SetConnectionPropertiesDuplicateBlockedViewerIdsDeduplicates()
+    {
+        const string presenterConnectionId = "presenter-conn";
+        const string viewerConnectionId = "viewer-conn";
+        string? presenterUsername = null;
+        string? presenterPassword = null;
+        string? connectionId = null;
+        string? viewerId = null;
+
+        await this._mockClient.CredentialsAssigned(
+            Arg.Do<string>(id => viewerId = id),
+            Arg.Do<string>(u => presenterUsername ??= u.Replace(" ", "")),
+            Arg.Do<string>(p => presenterPassword ??= p)
+        );
+
+        await this._mockClient.ConnectionStarted(
+            Arg.Do<string>(cid => connectionId ??= cid),
+            Arg.Any<bool>()
+        );
+
+        await this._service.Register(presenterConnectionId, null);
+        var presenterId = viewerId;
+
+        await this._service.Register(viewerConnectionId, null);
+        var actualViewerId = viewerId;
+
+        await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
+
+        this._mockClient.ClearReceivedCalls();
+
+        // Pass the same viewer ID multiple times
+        var properties = new ConnectionProperties(
+            CanSendSecureAttentionSequence: false,
+            InputBlockedViewerIds: [actualViewerId!, actualViewerId!, actualViewerId!],
+            AvailableDisplays: []
+        );
+
+        ConnectionInfo? capturedInfo = null;
+        await this._mockClient.ConnectionChanged(Arg.Do<ConnectionInfo>(ci => capturedInfo = ci));
+
+        await this._service.SetConnectionProperties(presenterConnectionId, connectionId!, properties);
+
+        await Assert.That(capturedInfo).IsNotNull();
+        // Duplicates should be removed
+        await Assert.That(capturedInfo!.Properties.InputBlockedViewerIds).Count().IsEqualTo(1);
+        await Assert.That(capturedInfo.Properties.InputBlockedViewerIds[0]).IsEqualTo(actualViewerId);
+    }
 }

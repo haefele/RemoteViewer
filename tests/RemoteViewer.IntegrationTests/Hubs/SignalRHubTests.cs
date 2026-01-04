@@ -9,24 +9,12 @@ namespace RemoteViewer.IntegrationTests.Hubs;
 
 public class SignalRHubTests
 {
-    private static ServerFixture _server = null!;
+    [ClassDataSource<ServerFixture>(Shared = SharedType.PerAssembly)]
+    public required ServerFixture Server { get; init; }
 
-    [Before(Class)]
-    public static async Task SetupServer()
+    private async Task<HubConnection> CreateHubConnectionAsync(Action<HubConnection>? configure = null)
     {
-        _server = new ServerFixture();
-        await _server.StartAsync();
-    }
-
-    [After(Class)]
-    public static async Task TeardownServer()
-    {
-        await _server.DisposeAsync();
-    }
-
-    private static async Task<HubConnection> CreateHubConnectionAsync(Action<HubConnection>? configure = null)
-    {
-        var hubUrl = $"{_server.ServerUrl}/connection";
+        var hubUrl = $"{this.Server.ServerUrl}/connection";
 
         var connection = new HubConnectionBuilder()
             .WithUrl(hubUrl, options =>
@@ -48,7 +36,7 @@ public class SignalRHubTests
     {
         var credentials = new TaskCompletionSource<(string clientId, string username, string password)>();
 
-        await using var connection = await CreateHubConnectionAsync(hub =>
+        await using var connection = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (clientId, username, password) =>
             {
@@ -69,7 +57,7 @@ public class SignalRHubTests
         var credentials1 = new TaskCompletionSource<(string clientId, string username, string password)>();
         var credentials2 = new TaskCompletionSource<(string clientId, string username, string password)>();
 
-        await using var connection1 = await CreateHubConnectionAsync(hub =>
+        await using var connection1 = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (clientId, username, password) =>
             {
@@ -77,7 +65,7 @@ public class SignalRHubTests
             });
         });
 
-        await using var connection2 = await CreateHubConnectionAsync(hub =>
+        await using var connection2 = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (clientId, username, password) =>
             {
@@ -99,7 +87,7 @@ public class SignalRHubTests
         var presenterConnectionStarted = new TaskCompletionSource<(string connectionId, bool isPresenter)>();
         var viewerConnectionStarted = new TaskCompletionSource<(string connectionId, bool isPresenter)>();
 
-        await using var presenter = await CreateHubConnectionAsync(hub =>
+        await using var presenter = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
             {
@@ -113,7 +101,7 @@ public class SignalRHubTests
 
         var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await using var viewer = await CreateHubConnectionAsync(hub =>
+        await using var viewer = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
             hub.On<string, bool>("ConnectionStarted", (connectionId, isPresenter) =>
@@ -139,7 +127,7 @@ public class SignalRHubTests
     {
         var presenterCredentials = new TaskCompletionSource<(string username, string password)>();
 
-        await using var presenter = await CreateHubConnectionAsync(hub =>
+        await using var presenter = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
             {
@@ -149,7 +137,7 @@ public class SignalRHubTests
 
         var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await using var viewer = await CreateHubConnectionAsync(hub =>
+        await using var viewer = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
         });
@@ -166,7 +154,7 @@ public class SignalRHubTests
         var credentialsReceived = new TaskCompletionSource();
         var secondCredentialsReceived = new TaskCompletionSource();
 
-        await using var connection = await CreateHubConnectionAsync(hub =>
+        await using var connection = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, password) =>
             {
@@ -195,7 +183,7 @@ public class SignalRHubTests
         var presenterConnectionId = new TaskCompletionSource<string>();
         var viewerReceivedMessage = new TaskCompletionSource<(string connectionId, string senderId, string messageType, byte[] data)>();
 
-        await using var presenter = await CreateHubConnectionAsync(hub =>
+        await using var presenter = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
             {
@@ -209,7 +197,7 @@ public class SignalRHubTests
 
         var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await using var viewer = await CreateHubConnectionAsync(hub =>
+        await using var viewer = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
             hub.On<string, bool>("ConnectionStarted", (_, _) => { });
@@ -240,7 +228,7 @@ public class SignalRHubTests
         var connectionChangedCount = 0;
         var viewerDisconnected = new TaskCompletionSource<ConnectionInfo>();
 
-        await using var presenter = await CreateHubConnectionAsync(hub =>
+        await using var presenter = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
             {
@@ -262,7 +250,7 @@ public class SignalRHubTests
 
         var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        var viewer = await CreateHubConnectionAsync(hub =>
+        var viewer = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
             hub.On<string, bool>("ConnectionStarted", (_, _) => { });
@@ -286,7 +274,7 @@ public class SignalRHubTests
         var presenterConnectionId = new TaskCompletionSource<string>();
         var connectionChanged = new TaskCompletionSource<ConnectionInfo>();
 
-        await using var presenter = await CreateHubConnectionAsync(hub =>
+        await using var presenter = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
             {
@@ -307,7 +295,7 @@ public class SignalRHubTests
 
         var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await using var viewer = await CreateHubConnectionAsync(hub =>
+        await using var viewer = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
             hub.On<string, bool>("ConnectionStarted", (_, _) => { });
@@ -330,7 +318,7 @@ public class SignalRHubTests
         var presenterConnectionId = new TaskCompletionSource<string>();
         var connectionChanged = new TaskCompletionSource<ConnectionInfo>();
 
-        await using var presenter = await CreateHubConnectionAsync(hub =>
+        await using var presenter = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
             {
@@ -351,7 +339,7 @@ public class SignalRHubTests
 
         var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await using var viewer = await CreateHubConnectionAsync(hub =>
+        await using var viewer = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
             hub.On<string, bool>("ConnectionStarted", (_, _) => { });
@@ -384,7 +372,7 @@ public class SignalRHubTests
         var presenterCredentials = new TaskCompletionSource<(string username, string password)>();
         var presenterConnectionId = new TaskCompletionSource<string>();
 
-        await using var presenter = await CreateHubConnectionAsync(hub =>
+        await using var presenter = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
             {
@@ -398,7 +386,7 @@ public class SignalRHubTests
 
         var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await using var viewer = await CreateHubConnectionAsync(hub =>
+        await using var viewer = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
             hub.On<string, bool>("ConnectionStarted", (_, _) => { });
@@ -419,7 +407,7 @@ public class SignalRHubTests
         var presenterConnectionId = new TaskCompletionSource<string>();
         var viewerConnectionStarted = new TaskCompletionSource();
 
-        await using var presenter = await CreateHubConnectionAsync(hub =>
+        await using var presenter = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
             {
@@ -433,7 +421,7 @@ public class SignalRHubTests
 
         var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await using var viewer = await CreateHubConnectionAsync(hub =>
+        await using var viewer = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
             hub.On<string, bool>("ConnectionStarted", (_, _) =>
@@ -457,7 +445,7 @@ public class SignalRHubTests
     {
         var versionMismatch = new TaskCompletionSource<(string serverVersion, string clientVersion)>();
 
-        var hubUrl = $"{_server.ServerUrl}/connection";
+        var hubUrl = $"{this.Server.ServerUrl}/connection";
 
         var connection = new HubConnectionBuilder()
             .WithUrl(hubUrl, options =>
@@ -489,7 +477,7 @@ public class SignalRHubTests
         var presenterConnectionId = new TaskCompletionSource<string>();
 
         // First, create a presenter and viewer connection to get an IPC token
-        await using var presenter = await CreateHubConnectionAsync(hub =>
+        await using var presenter = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
             {
@@ -503,7 +491,7 @@ public class SignalRHubTests
 
         var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await using var viewer = await CreateHubConnectionAsync(hub =>
+        await using var viewer = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
             hub.On<string, bool>("ConnectionStarted", (_, _) => { });
@@ -519,7 +507,7 @@ public class SignalRHubTests
         // Now connect with the IPC token
         var ipcValidated = new TaskCompletionSource<string?>();
 
-        var hubUrl = $"{_server.ServerUrl}/connection";
+        var hubUrl = $"{this.Server.ServerUrl}/connection";
         var ipcConnection = new HubConnectionBuilder()
             .WithUrl(hubUrl, options =>
             {
@@ -547,7 +535,7 @@ public class SignalRHubTests
     {
         var ipcValidated = new TaskCompletionSource<string?>();
 
-        var hubUrl = $"{_server.ServerUrl}/connection";
+        var hubUrl = $"{this.Server.ServerUrl}/connection";
         var ipcConnection = new HubConnectionBuilder()
             .WithUrl(hubUrl, options =>
             {
@@ -577,7 +565,7 @@ public class SignalRHubTests
         var presenterConnectionId = new TaskCompletionSource<string>();
         var presenterReceivedMessage = new TaskCompletionSource<(string connectionId, string senderId, string messageType, byte[] data)>();
 
-        await using var presenter = await CreateHubConnectionAsync(hub =>
+        await using var presenter = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
             {
@@ -595,7 +583,7 @@ public class SignalRHubTests
 
         var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await using var viewer = await CreateHubConnectionAsync(hub =>
+        await using var viewer = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
             hub.On<string, bool>("ConnectionStarted", (_, _) => { });
@@ -622,7 +610,7 @@ public class SignalRHubTests
         var presenterReceivedMessage = new TaskCompletionSource<(string connectionId, string senderId, string messageType, byte[] data)>();
         var viewerReceivedMessage = new TaskCompletionSource<(string connectionId, string senderId, string messageType, byte[] data)>();
 
-        await using var presenter = await CreateHubConnectionAsync(hub =>
+        await using var presenter = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
             {
@@ -640,7 +628,7 @@ public class SignalRHubTests
 
         var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await using var viewer = await CreateHubConnectionAsync(hub =>
+        await using var viewer = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
             hub.On<string, bool>("ConnectionStarted", (_, _) => { });
@@ -674,7 +662,7 @@ public class SignalRHubTests
         var viewer1ReceivedMessage = new TaskCompletionSource<(string connectionId, string senderId, string messageType, byte[] data)>();
         var viewer2ReceivedMessage = new TaskCompletionSource<(string connectionId, string senderId, string messageType, byte[] data)>();
 
-        await using var presenter = await CreateHubConnectionAsync(hub =>
+        await using var presenter = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
             {
@@ -692,7 +680,7 @@ public class SignalRHubTests
 
         var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await using var viewer1 = await CreateHubConnectionAsync(hub =>
+        await using var viewer1 = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
             hub.On<string, bool>("ConnectionStarted", (_, _) => { });
@@ -702,7 +690,7 @@ public class SignalRHubTests
             });
         });
 
-        await using var viewer2 = await CreateHubConnectionAsync(hub =>
+        await using var viewer2 = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
             hub.On<string, bool>("ConnectionStarted", (_, _) => { });
@@ -740,7 +728,7 @@ public class SignalRHubTests
         var viewer1ReceivedMessage = new TaskCompletionSource<(string connectionId, string senderId, string messageType, byte[] data)>();
         var viewer2ReceivedMessage = new TaskCompletionSource<(string connectionId, string senderId, string messageType, byte[] data)>();
 
-        await using var presenter = await CreateHubConnectionAsync(hub =>
+        await using var presenter = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
             {
@@ -761,7 +749,7 @@ public class SignalRHubTests
 
         var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await using var viewer1 = await CreateHubConnectionAsync(hub =>
+        await using var viewer1 = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
             hub.On<string, bool>("ConnectionStarted", (_, _) => { });
@@ -771,7 +759,7 @@ public class SignalRHubTests
             });
         });
 
-        await using var viewer2 = await CreateHubConnectionAsync(hub =>
+        await using var viewer2 = await this.CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
             hub.On<string, bool>("ConnectionStarted", (_, _) => { });

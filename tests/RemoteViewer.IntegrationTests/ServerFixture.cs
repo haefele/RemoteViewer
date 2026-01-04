@@ -11,16 +11,17 @@ using Nerdbank.MessagePack.SignalR;
 using Server::RemoteViewer.Server.Hubs;
 using Server::RemoteViewer.Server.Services;
 using RemoteViewer.Shared;
+using TUnit.Core.Interfaces;
 
 namespace RemoteViewer.IntegrationTests;
 
-public class ServerFixture : IAsyncDisposable
+public class ServerFixture : IAsyncInitializer, IAsyncDisposable
 {
     private WebApplication? _app;
 
     public string ServerUrl { get; private set; } = null!;
 
-    public async Task StartAsync()
+    public async Task InitializeAsync()
     {
         var builder = WebApplication.CreateBuilder();
 
