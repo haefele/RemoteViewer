@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.InputInjection;
@@ -15,6 +16,7 @@ public class SessionRecorderRpcServer(
     IDisplayService displayService,
     IScreenshotService screenshotService,
     IInputInjectionService inputInjectionService,
+    IOptions<ConnectionHubClientOptions> hubClientOptions,
     ILogger<SessionRecorderRpcServer> logger) : ISessionRecorderRpc, IDisposable
 {
     // Per-display shared memory buffers
@@ -31,7 +33,7 @@ public class SessionRecorderRpcServer(
         {
             // Connect to SignalR with token header - server validates and returns connectionId
             var connection = new HubConnectionBuilder()
-                .WithUrl($"{ConnectionHubClient.BaseUrl}/connection", options =>
+                .WithUrl($"{hubClientOptions.Value.BaseUrl}/connection", options =>
                 {
                     options.Headers.Add("X-Ipc-Token", token);
                 })

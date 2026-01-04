@@ -1,60 +1,35 @@
-using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
+extern alias Server;
+
 using Microsoft.AspNetCore.SignalR.Client;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
 using Nerdbank.MessagePack.SignalR;
-using RemoteViewer.Server.Hubs;
-using RemoteViewer.Server.Services;
-using RemoteViewer.Server.SharedAPI;
 
-namespace RemoteViewer.IntegrationTests;
+using TryConnectError = Server::RemoteViewer.Server.SharedAPI.TryConnectError;
+using ConnectionInfo = Server::RemoteViewer.Server.SharedAPI.ConnectionInfo;
+using MessageDestination = Server::RemoteViewer.Server.SharedAPI.MessageDestination;
+using Witness = Server::RemoteViewer.Server.SharedAPI.Witness;
 
-public class SignalRIntegrationTests
+namespace RemoteViewer.IntegrationTests.Hubs;
+
+public class SignalRHubTests
 {
-    private static WebApplication? _app;
-    private static string? _serverUrl;
+    private static ServerFixture _server = null!;
 
     [Before(Class)]
     public static async Task SetupServer()
     {
-        var builder = WebApplication.CreateBuilder();
-
-        builder.WebHost.UseUrls("http://127.0.0.1:0"); // Use random available port
-
-        builder.Services.AddSingleton(TimeProvider.System);
-        builder.Services.AddSingleton<IConnectionsService, ConnectionsService>();
-        builder.Services.AddSingleton<IIpcTokenService, IpcTokenService>();
-        builder.Services.AddLogging(b => b.AddConsole().SetMinimumLevel(LogLevel.Warning));
-        builder.Services
-            .AddSignalR(f =>
-            {
-                f.MaximumReceiveMessageSize = null;
-            })
-            .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider);
-
-        _app = builder.Build();
-
-        _app.MapHub<ConnectionHub>("/connection");
-
-        await _app.StartAsync();
-
-        _serverUrl = _app.Urls.First();
+        _server = new ServerFixture();
+        await _server.StartAsync();
     }
 
     [After(Class)]
     public static async Task TeardownServer()
     {
-        if (_app != null)
-        {
-            await _app.StopAsync();
-            await _app.DisposeAsync();
-        }
+        await _server.DisposeAsync();
     }
 
     private static async Task<HubConnection> CreateHubConnectionAsync(Action<HubConnection>? configure = null)
     {
-        var hubUrl = $"{_serverUrl}/connection";
+        var hubUrl = $"{_server.ServerUrl}/connection";
 
         var connection = new HubConnectionBuilder()
             .WithUrl(hubUrl, options =>

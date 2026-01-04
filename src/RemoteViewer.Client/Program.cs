@@ -8,7 +8,7 @@ using Serilog.Events;
 
 namespace RemoteViewer.Client;
 
-enum ApplicationMode
+public enum ApplicationMode
 {
     Desktop,
     WindowsService,
