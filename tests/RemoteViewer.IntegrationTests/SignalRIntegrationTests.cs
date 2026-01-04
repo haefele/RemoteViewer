@@ -1,6 +1,5 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -9,23 +8,75 @@ using RemoteViewer.Server.Hubs;
 using RemoteViewer.Server.Services;
 using RemoteViewer.Server.SharedAPI;
 
-namespace RemoteViewer.Tests.Integration;
+namespace RemoteViewer.IntegrationTests;
 
-public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.TestServerFixture>
+public class SignalRIntegrationTests
 {
-    private readonly TestServerFixture _fixture;
+    private static WebApplication? _app;
+    private static string? _serverUrl;
 
-    public SignalRIntegrationTests(TestServerFixture fixture)
+    [Before(Class)]
+    public static async Task SetupServer()
     {
-        this._fixture = fixture;
+        var builder = WebApplication.CreateBuilder();
+
+        builder.WebHost.UseUrls("http://127.0.0.1:0"); // Use random available port
+
+        builder.Services.AddSingleton(TimeProvider.System);
+        builder.Services.AddSingleton<IConnectionsService, ConnectionsService>();
+        builder.Services.AddSingleton<IIpcTokenService, IpcTokenService>();
+        builder.Services.AddLogging(b => b.AddConsole().SetMinimumLevel(LogLevel.Warning));
+        builder.Services
+            .AddSignalR(f =>
+            {
+                f.MaximumReceiveMessageSize = null;
+            })
+            .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider);
+
+        _app = builder.Build();
+
+        _app.MapHub<ConnectionHub>("/connection");
+
+        await _app.StartAsync();
+
+        _serverUrl = _app.Urls.First();
     }
 
-    [Fact]
+    [After(Class)]
+    public static async Task TeardownServer()
+    {
+        if (_app != null)
+        {
+            await _app.StopAsync();
+            await _app.DisposeAsync();
+        }
+    }
+
+    private static async Task<HubConnection> CreateHubConnectionAsync(Action<HubConnection>? configure = null)
+    {
+        var hubUrl = $"{_serverUrl}/connection";
+
+        var connection = new HubConnectionBuilder()
+            .WithUrl(hubUrl, options =>
+            {
+                options.Headers.Add("X-Client-Version", ThisAssembly.AssemblyInformationalVersion);
+            })
+            .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
+            .Build();
+
+        configure?.Invoke(connection);
+
+        await connection.StartAsync();
+
+        return connection;
+    }
+
+    [Test]
     public async Task ClientConnectsToHubReceivesCredentials()
     {
         var credentials = new TaskCompletionSource<(string clientId, string username, string password)>();
 
-        await using var connection = await this._fixture.CreateHubConnectionAsync(hub =>
+        await using var connection = await CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (clientId, username, password) =>
             {
@@ -35,18 +86,18 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
 
         var result = await credentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        result.clientId.Should().NotBeNullOrEmpty();
-        result.username.Replace(" ", "").Should().HaveLength(10);
-        result.password.Should().HaveLength(8);
+        await Assert.That(result.clientId).IsNotNull().And.IsNotEmpty();
+        await Assert.That(result.username.Replace(" ", "")).Length().IsEqualTo(10);
+        await Assert.That(result.password).Length().IsEqualTo(8);
     }
 
-    [Fact]
+    [Test]
     public async Task TwoClientsConnectGetDifferentCredentials()
     {
         var credentials1 = new TaskCompletionSource<(string clientId, string username, string password)>();
         var credentials2 = new TaskCompletionSource<(string clientId, string username, string password)>();
 
-        await using var connection1 = await this._fixture.CreateHubConnectionAsync(hub =>
+        await using var connection1 = await CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (clientId, username, password) =>
             {
@@ -54,7 +105,7 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
             });
         });
 
-        await using var connection2 = await this._fixture.CreateHubConnectionAsync(hub =>
+        await using var connection2 = await CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (clientId, username, password) =>
             {
@@ -65,18 +116,18 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
         var result1 = await credentials1.Task.WaitAsync(TimeSpan.FromSeconds(5));
         var result2 = await credentials2.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        result1.clientId.Should().NotBe(result2.clientId);
-        result1.username.Should().NotBe(result2.username);
+        await Assert.That(result1.clientId).IsNotEqualTo(result2.clientId);
+        await Assert.That(result1.username).IsNotEqualTo(result2.username);
     }
 
-    [Fact]
+    [Test]
     public async Task ViewerConnectsToPresenterBothReceiveConnectionStarted()
     {
         var presenterCredentials = new TaskCompletionSource<(string username, string password)>();
         var presenterConnectionStarted = new TaskCompletionSource<(string connectionId, bool isPresenter)>();
         var viewerConnectionStarted = new TaskCompletionSource<(string connectionId, bool isPresenter)>();
 
-        await using var presenter = await this._fixture.CreateHubConnectionAsync(hub =>
+        await using var presenter = await CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
             {
@@ -90,7 +141,7 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
 
         var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await using var viewer = await this._fixture.CreateHubConnectionAsync(hub =>
+        await using var viewer = await CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
             hub.On<string, bool>("ConnectionStarted", (connectionId, isPresenter) =>
@@ -101,22 +152,22 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
 
         var connectResult = await viewer.InvokeAsync<TryConnectError?>("ConnectTo", creds.username, creds.password);
 
-        connectResult.Should().BeNull();
+        await Assert.That(connectResult).IsNull();
 
         var presenterResult = await presenterConnectionStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
         var viewerResult = await viewerConnectionStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        presenterResult.isPresenter.Should().BeTrue();
-        viewerResult.isPresenter.Should().BeFalse();
-        presenterResult.connectionId.Should().Be(viewerResult.connectionId);
+        await Assert.That(presenterResult.isPresenter).IsTrue();
+        await Assert.That(viewerResult.isPresenter).IsFalse();
+        await Assert.That(presenterResult.connectionId).IsEqualTo(viewerResult.connectionId);
     }
 
-    [Fact]
+    [Test]
     public async Task ViewerConnectsWithWrongPasswordReturnsError()
     {
         var presenterCredentials = new TaskCompletionSource<(string username, string password)>();
 
-        await using var presenter = await this._fixture.CreateHubConnectionAsync(hub =>
+        await using var presenter = await CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
             {
@@ -126,24 +177,24 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
 
         var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await using var viewer = await this._fixture.CreateHubConnectionAsync(hub =>
+        await using var viewer = await CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
         });
 
         var connectResult = await viewer.InvokeAsync<TryConnectError?>("ConnectTo", creds.username, "wrongpassword");
 
-        connectResult.Should().Be(TryConnectError.IncorrectUsernameOrPassword);
+        await Assert.That(connectResult).IsEqualTo(TryConnectError.IncorrectUsernameOrPassword);
     }
 
-    [Fact]
+    [Test]
     public async Task ClientGeneratesNewPasswordReceivesNewCredentials()
     {
         var credentialsList = new List<string>();
         var credentialsReceived = new TaskCompletionSource();
         var secondCredentialsReceived = new TaskCompletionSource();
 
-        await using var connection = await this._fixture.CreateHubConnectionAsync(hub =>
+        await using var connection = await CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, password) =>
             {
@@ -161,18 +212,18 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
 
         await secondCredentialsReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        credentialsList.Should().HaveCount(2);
-        credentialsList[0].Should().NotBe(credentialsList[1]);
+        await Assert.That(credentialsList).Count().IsEqualTo(2);
+        await Assert.That(credentialsList[0]).IsNotEqualTo(credentialsList[1]);
     }
 
-    [Fact]
+    [Test]
     public async Task PresenterSendsMessageViewerReceivesIt()
     {
         var presenterCredentials = new TaskCompletionSource<(string username, string password)>();
         var presenterConnectionId = new TaskCompletionSource<string>();
         var viewerReceivedMessage = new TaskCompletionSource<(string connectionId, string senderId, string messageType, byte[] data)>();
 
-        await using var presenter = await this._fixture.CreateHubConnectionAsync(hub =>
+        await using var presenter = await CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
             {
@@ -186,7 +237,7 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
 
         var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        await using var viewer = await this._fixture.CreateHubConnectionAsync(hub =>
+        await using var viewer = await CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
             hub.On<string, bool>("ConnectionStarted", (_, _) => { });
@@ -204,12 +255,12 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
 
         var received = await viewerReceivedMessage.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        received.connectionId.Should().Be(connId);
-        received.messageType.Should().Be("test.message");
-        received.data.Should().Equal(testData);
+        await Assert.That(received.connectionId).IsEqualTo(connId);
+        await Assert.That(received.messageType).IsEqualTo("test.message");
+        await Assert.That(received.data).IsEquivalentTo(testData);
     }
 
-    [Fact]
+    [Test]
     public async Task ViewerDisconnectsPresenterReceivesConnectionChanged()
     {
         var presenterCredentials = new TaskCompletionSource<(string username, string password)>();
@@ -217,7 +268,7 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
         var connectionChangedCount = 0;
         var viewerDisconnected = new TaskCompletionSource<ConnectionInfo>();
 
-        await using var presenter = await this._fixture.CreateHubConnectionAsync(hub =>
+        await using var presenter = await CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, username, password) =>
             {
@@ -239,80 +290,20 @@ public class SignalRIntegrationTests : IClassFixture<SignalRIntegrationTests.Tes
 
         var creds = await presenterCredentials.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        var viewer = await this._fixture.CreateHubConnectionAsync(hub =>
+        var viewer = await CreateHubConnectionAsync(hub =>
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
             hub.On<string, bool>("ConnectionStarted", (_, _) => { });
         });
 
         await viewer.InvokeAsync<TryConnectError?>("ConnectTo", creds.username, creds.password);
-        var connId = await presenterConnectionId.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        await presenterConnectionId.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         // Disconnect viewer
         await viewer.DisposeAsync();
 
         var finalInfo = await viewerDisconnected.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
-        finalInfo.Viewers.Should().BeEmpty();
-    }
-
-    public class TestServerFixture : IAsyncLifetime
-    {
-        private WebApplication? _app;
-        private string? _serverUrl;
-
-        public async Task InitializeAsync()
-        {
-            var builder = WebApplication.CreateBuilder();
-
-            builder.WebHost.UseUrls("http://127.0.0.1:0"); // Use random available port
-
-            builder.Services.AddSingleton(TimeProvider.System);
-            builder.Services.AddSingleton<IConnectionsService, ConnectionsService>();
-            builder.Services.AddSingleton<IIpcTokenService, IpcTokenService>();
-            builder.Services.AddLogging(b => b.AddConsole().SetMinimumLevel(LogLevel.Warning));
-            builder.Services
-                .AddSignalR(f =>
-                {
-                    f.MaximumReceiveMessageSize = null;
-                })
-                .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider);
-
-            this._app = builder.Build();
-
-            this._app.MapHub<ConnectionHub>("/connection");
-
-            await this._app.StartAsync();
-
-            this._serverUrl = this._app.Urls.First();
-        }
-
-        public async Task DisposeAsync()
-        {
-            if (this._app != null)
-            {
-                await this._app.StopAsync();
-                await this._app.DisposeAsync();
-            }
-        }
-
-        public async Task<HubConnection> CreateHubConnectionAsync(Action<HubConnection>? configure = null)
-        {
-            var hubUrl = $"{this._serverUrl}/connection";
-
-            var connection = new HubConnectionBuilder()
-                .WithUrl(hubUrl, options =>
-                {
-                    options.Headers.Add("X-Client-Version", ThisAssembly.AssemblyInformationalVersion);
-                })
-                .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
-                .Build();
-
-            configure?.Invoke(connection);
-
-            await connection.StartAsync();
-
-            return connection;
-        }
+        await Assert.That(finalInfo.Viewers).IsEmpty();
     }
 }
