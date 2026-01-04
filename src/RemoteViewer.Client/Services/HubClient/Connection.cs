@@ -1,11 +1,11 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Common;
 using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.SessionRecorderIpc;
 using RemoteViewer.Client.Services.WinServiceIpc;
-using RemoteViewer.Server.SharedAPI;
-using RemoteViewer.Server.SharedAPI.Protocol;
+using RemoteViewer.Shared;
+using RemoteViewer.Shared.Protocol;
 
 namespace RemoteViewer.Client.Services.HubClient;
 

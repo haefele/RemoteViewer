@@ -1,10 +1,10 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nerdbank.MessagePack.SignalR;
-using RemoteViewer.Server.SharedAPI;
+using RemoteViewer.Shared;
 
 namespace RemoteViewer.Client.Services.HubClient;
 

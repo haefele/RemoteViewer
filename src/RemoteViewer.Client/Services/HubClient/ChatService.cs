@@ -1,8 +1,8 @@
 using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Common;
-using RemoteViewer.Server.SharedAPI;
-using RemoteViewer.Server.SharedAPI.Protocol;
+using RemoteViewer.Shared;
+using RemoteViewer.Shared.Protocol;
 
 namespace RemoteViewer.Client.Services.HubClient;
 

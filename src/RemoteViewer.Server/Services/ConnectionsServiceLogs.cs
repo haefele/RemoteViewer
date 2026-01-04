@@ -1,4 +1,4 @@
-﻿using RemoteViewer.Server.SharedAPI;
+﻿using RemoteViewer.Shared;
 
 namespace RemoteViewer.Server.Services;
 

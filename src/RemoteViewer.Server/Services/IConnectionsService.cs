@@ -1,12 +1,12 @@
 ﻿using Microsoft.AspNetCore.SignalR;
 using RemoteViewer.Server.Common;
 using RemoteViewer.Server.Hubs;
-using RemoteViewer.Server.SharedAPI;
+using RemoteViewer.Shared;
 using System.Collections.ObjectModel;
 using System.Text;
 
 using ConnectionHubBatchedActions = RemoteViewer.Server.Common.BatchedHubActions<RemoteViewer.Server.Hubs.ConnectionHub, RemoteViewer.Server.Hubs.IConnectionHubClient>;
-using ConnectionInfo = RemoteViewer.Server.SharedAPI.ConnectionInfo;
+using ConnectionInfo = RemoteViewer.Shared.ConnectionInfo;
 
 namespace RemoteViewer.Server.Services;
 

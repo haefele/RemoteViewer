@@ -1,7 +1,7 @@
-﻿using PolyType;
-using RemoteViewer.Server.SharedAPI.Protocol;
+using PolyType;
+using RemoteViewer.Shared.Protocol;
 
-namespace RemoteViewer.Server.SharedAPI;
+namespace RemoteViewer.Shared;
 
 // Primitives used in hub methods
 [GenerateShapeFor<string>]

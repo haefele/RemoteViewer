@@ -3,7 +3,7 @@ using Microsoft.Extensions.Logging;
 using NSubstitute;
 using RemoteViewer.Server.Hubs;
 using RemoteViewer.Server.Services;
-using RemoteViewer.Server.SharedAPI;
+using RemoteViewer.Shared;
 
 namespace RemoteViewer.Server.Tests.Services;
 

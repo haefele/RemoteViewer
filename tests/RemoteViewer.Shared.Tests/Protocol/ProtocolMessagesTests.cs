@@ -1,7 +1,7 @@
-using RemoteViewer.Server.SharedAPI;
-using RemoteViewer.Server.SharedAPI.Protocol;
+using RemoteViewer.Shared;
+using RemoteViewer.Shared.Protocol;
 
-namespace RemoteViewer.Server.Tests.SharedAPI.Protocol;
+namespace RemoteViewer.Shared.Tests.Protocol;
 
 public class DisplayInfoTests
 {

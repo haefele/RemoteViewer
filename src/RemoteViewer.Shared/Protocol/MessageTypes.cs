@@ -1,4 +1,4 @@
-﻿namespace RemoteViewer.Server.SharedAPI.Protocol;
+namespace RemoteViewer.Shared.Protocol;
 
 /// <summary>
 /// Protocol message type identifiers used with SendMessage.

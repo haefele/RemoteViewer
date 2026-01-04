@@ -1,4 +1,4 @@
-﻿#if WINDOWS
+#if WINDOWS
 using System.Collections.Immutable;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
@@ -6,7 +6,7 @@ using Windows.Win32;
 using Windows.Win32.Graphics.Gdi;
 using Windows.Win32.Foundation;
 using RemoteViewer.Client.Services.SessionRecorderIpc;
-using RemoteViewer.Server.SharedAPI;
+using RemoteViewer.Shared;
 using ZiggyCreatures.Caching.Fusion;
 
 namespace RemoteViewer.Client.Services.Displays;

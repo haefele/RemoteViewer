@@ -1,9 +1,9 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using Avalonia;
 using Avalonia.Controls;
 using Material.Icons;
 using Material.Icons.Avalonia;
-using RemoteViewer.Server.SharedAPI;
+using RemoteViewer.Shared;
 
 namespace RemoteViewer.Client.Controls;
 
@@ -133,7 +133,7 @@ public partial class DisplayMiniMap : UserControl
             {
                 icon,
                 new TextBlock { Text = display.FriendlyName },
-                new TextBlock { Text = $"{display.Width} × {display.Height}", Classes = { "dimensions" } }
+                new TextBlock { Text = $"{display.Width} � {display.Height}", Classes = { "dimensions" } }
             }
         };
     }

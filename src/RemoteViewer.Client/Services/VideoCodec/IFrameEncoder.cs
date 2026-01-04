@@ -1,6 +1,6 @@
-﻿using RemoteViewer.Client.Common;
+using RemoteViewer.Client.Common;
 using RemoteViewer.Client.Services.Screenshot;
-using RemoteViewer.Server.SharedAPI.Protocol;
+using RemoteViewer.Shared.Protocol;
 
 namespace RemoteViewer.Client.Services.VideoCodec;
 

@@ -13,8 +13,8 @@ using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.Viewer;
 using RemoteViewer.Client.Common;
 using System.ComponentModel;
-using ProtocolMouseButton = RemoteViewer.Server.SharedAPI.Protocol.MouseButton;
-using ProtocolKeyModifiers = RemoteViewer.Server.SharedAPI.Protocol.KeyModifiers;
+using ProtocolMouseButton = RemoteViewer.Shared.Protocol.MouseButton;
+using ProtocolKeyModifiers = RemoteViewer.Shared.Protocol.KeyModifiers;
 
 namespace RemoteViewer.Client.Views.Viewer;
 
@@ -173,7 +173,7 @@ public partial class ViewerView : Window
     #endregion
 
     #region UI Event Handlers
-    private async void DisplayMiniMap_DisplaySelected(object? sender, Server.SharedAPI.DisplayInfo display)
+    private async void DisplayMiniMap_DisplaySelected(object? sender, Shared.DisplayInfo display)
     {
         if (this._viewModel is null)
             return;

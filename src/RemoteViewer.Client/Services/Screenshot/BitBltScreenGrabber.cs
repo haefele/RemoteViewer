@@ -1,10 +1,10 @@
-﻿#if WINDOWS
+#if WINDOWS
 using System.Collections.Concurrent;
 using System.Drawing;
 using System.Runtime.InteropServices;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Common;
-using RemoteViewer.Server.SharedAPI;
+using RemoteViewer.Shared;
 using Windows.Win32;
 using Windows.Win32.Foundation;
 using Windows.Win32.Graphics.Gdi;

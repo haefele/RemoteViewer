@@ -1,6 +1,6 @@
-﻿using PolyType;
+using PolyType;
 
-namespace RemoteViewer.Server.SharedAPI;
+namespace RemoteViewer.Shared;
 
 public record ClientInfo(string ClientId, string DisplayName);
 

@@ -1,4 +1,4 @@
-﻿using System.Collections.ObjectModel;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
@@ -11,7 +11,7 @@ using RemoteViewer.Client.Controls.Toasts;
 using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.ViewModels;
-using RemoteViewer.Server.SharedAPI;
+using RemoteViewer.Shared;
 
 namespace RemoteViewer.Client.Views.Presenter;
 

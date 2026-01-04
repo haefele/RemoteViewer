@@ -1,4 +1,4 @@
-﻿namespace RemoteViewer.Server.SharedAPI;
+namespace RemoteViewer.Shared;
 
 public enum MessageDestination
 {

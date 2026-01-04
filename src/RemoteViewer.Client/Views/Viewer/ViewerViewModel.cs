@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
@@ -9,7 +9,7 @@ using RemoteViewer.Client.Views.Chat;
 using RemoteViewer.Client.Controls.Toasts;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.ViewModels;
-using RemoteViewer.Server.SharedAPI;
+using RemoteViewer.Shared;
 
 namespace RemoteViewer.Client.Views.Viewer;
 

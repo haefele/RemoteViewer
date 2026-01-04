@@ -20,10 +20,12 @@
   <Folder Name="/src/">
     <Project Path="src/RemoteViewer.Client/RemoteViewer.Client.csproj" />
     <Project Path="src/RemoteViewer.Server/RemoteViewer.Server.csproj" />
+    <Project Path="src/RemoteViewer.Shared/RemoteViewer.Shared.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/RemoteViewer.Client.Tests/RemoteViewer.Client.Tests.csproj" />
     <Project Path="tests/RemoteViewer.Server.Tests/RemoteViewer.Server.Tests.csproj" />
+    <Project Path="tests/RemoteViewer.Shared.Tests/RemoteViewer.Shared.Tests.csproj" />
     <Project Path="tests/RemoteViewer.IntegrationTests/RemoteViewer.IntegrationTests.csproj" />
   </Folder>
 </Solution>

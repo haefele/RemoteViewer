@@ -1,5 +1,5 @@
-﻿using System.Collections.Immutable;
-using RemoteViewer.Server.SharedAPI;
+using System.Collections.Immutable;
+using RemoteViewer.Shared;
 
 namespace RemoteViewer.Client.Services.Displays;
 
