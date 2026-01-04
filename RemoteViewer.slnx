@@ -22,8 +22,8 @@
     <Project Path="src/RemoteViewer.Server/RemoteViewer.Server.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/RemoteViewer.DesktopDupTest/RemoteViewer.DesktopDupTest.csproj" Id="5211042e-a9bc-40aa-8514-965eaff1b791" />
-    <Project Path="tests/RemoteViewer.HubClientTest/RemoteViewer.HubClientTest.csproj" />
-    <Project Path="tests/RemoteViewer.Tests/RemoteViewer.Tests.csproj" />
+    <Project Path="tests/RemoteViewer.Client.Tests/RemoteViewer.Client.Tests.csproj" />
+    <Project Path="tests/RemoteViewer.Server.Tests/RemoteViewer.Server.Tests.csproj" />
+    <Project Path="tests/RemoteViewer.IntegrationTests/RemoteViewer.IntegrationTests.csproj" />
   </Folder>
 </Solution>

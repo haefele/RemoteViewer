@@ -18,15 +18,15 @@ dotnet run --project src/RemoteViewer.WinServ     # Run Windows service
 
 # Testing
 
-No traditional unit test framework. Instead, two manual test utilities exist:
+Uses TUnit testing framework. Three test projects exist:
 
 ```bash
-# Test SignalR hub connections and message routing
-dotnet run --project tests/RemoteViewer.HubClientTest
-
-# Test screen capture (DXGI/BitBlt) and Windows session management
-dotnet run --project tests/RemoteViewer.DesktopDupTest
+dotnet test                            # Run all tests
 ```
+
+- **RemoteViewer.Client.Tests**: Unit tests for client-side logic (e.g., CredentialParser)
+- **RemoteViewer.Server.Tests**: Unit tests for server services and protocol messages
+- **RemoteViewer.IntegrationTests**: End-to-end SignalR hub integration tests
 
 # Code Conventions
 

@@ -1,20 +1,22 @@
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Logging;
+using NSubstitute;
 using RemoteViewer.Server.Hubs;
 using RemoteViewer.Server.Services;
 using RemoteViewer.Server.SharedAPI;
 
-namespace RemoteViewer.Tests.Unit;
+namespace RemoteViewer.Server.Tests.Services;
 
 public class ConnectionsServiceTests : IDisposable
 {
-    private readonly IHubContext<ConnectionHub, IConnectionHubClient> _hubContext;
-    private readonly ILoggerFactory _loggerFactory;
-    private readonly ConnectionsService _service;
-    private readonly IConnectionHubClient _mockClient;
-    private readonly IHubClients<IConnectionHubClient> _mockClients;
+    private IHubContext<ConnectionHub, IConnectionHubClient> _hubContext = null!;
+    private ILoggerFactory _loggerFactory = null!;
+    private ConnectionsService _service = null!;
+    private IConnectionHubClient _mockClient = null!;
+    private IHubClients<IConnectionHubClient> _mockClients = null!;
 
-    public ConnectionsServiceTests()
+    [Before(Test)]
+    public void Setup()
     {
         this._hubContext = Substitute.For<IHubContext<ConnectionHub, IConnectionHubClient>>();
         this._loggerFactory = Substitute.For<ILoggerFactory>();
@@ -35,11 +37,11 @@ public class ConnectionsServiceTests : IDisposable
 
     public void Dispose()
     {
-        this._service.Dispose();
+        this._service?.Dispose();
         GC.SuppressFinalize(this);
     }
 
-    [Fact]
+    [Test]
     public async Task RegisterNewClientAssignsCredentials()
     {
         const string signalrConnectionId = "conn-123";
@@ -53,7 +55,7 @@ public class ConnectionsServiceTests : IDisposable
         );
     }
 
-    [Fact]
+    [Test]
     public async Task RegisterWithDisplayNameSetsDisplayName()
     {
         const string signalrConnectionId = "conn-123";
@@ -68,7 +70,7 @@ public class ConnectionsServiceTests : IDisposable
         );
     }
 
-    [Fact]
+    [Test]
     public async Task RegisterMultipleClientsAssignsUniqueUsernames()
     {
         var capturedUsernames = new List<string>();
@@ -82,11 +84,11 @@ public class ConnectionsServiceTests : IDisposable
         await this._service.Register("conn-2", null);
         await this._service.Register("conn-3", null);
 
-        capturedUsernames.Should().HaveCount(3);
-        capturedUsernames.Distinct().Should().HaveCount(3);
+        await Assert.That(capturedUsernames).Count().IsEqualTo(3);
+        await Assert.That(capturedUsernames.Distinct().Count()).IsEqualTo(3);
     }
 
-    [Fact]
+    [Test]
     public async Task UnregisterExistingClientRemovesClient()
     {
         const string signalrConnectionId = "conn-123";
@@ -97,7 +99,7 @@ public class ConnectionsServiceTests : IDisposable
         // No exception should be thrown - client should be removed successfully
     }
 
-    [Fact]
+    [Test]
     public async Task UnregisterNonExistentClientDoesNotThrow()
     {
         await this._service.Unregister("non-existent-connection");
@@ -105,7 +107,7 @@ public class ConnectionsServiceTests : IDisposable
         // Should not throw
     }
 
-    [Fact]
+    [Test]
     public async Task GenerateNewPasswordExistingClientUpdatesPassword()
     {
         const string signalrConnectionId = "conn-123";
@@ -120,11 +122,11 @@ public class ConnectionsServiceTests : IDisposable
         await this._service.Register(signalrConnectionId, null);
         await this._service.GenerateNewPassword(signalrConnectionId);
 
-        capturedPasswords.Should().HaveCount(2);
-        capturedPasswords[0].Should().NotBe(capturedPasswords[1]);
+        await Assert.That(capturedPasswords).Count().IsEqualTo(2);
+        await Assert.That(capturedPasswords[0]).IsNotEqualTo(capturedPasswords[1]);
     }
 
-    [Fact]
+    [Test]
     public async Task GenerateNewPasswordNonExistentClientDoesNothing()
     {
         await this._service.GenerateNewPassword("non-existent-connection");
@@ -136,7 +138,7 @@ public class ConnectionsServiceTests : IDisposable
         );
     }
 
-    [Fact]
+    [Test]
     public async Task TryConnectToInvalidCredentialsReturnsIncorrectUsernameOrPassword()
     {
         const string viewerConnectionId = "viewer-conn";
@@ -144,18 +146,18 @@ public class ConnectionsServiceTests : IDisposable
 
         var result = await this._service.TryConnectTo(viewerConnectionId, "wrong-username", "wrong-password");
 
-        result.Should().Be(TryConnectError.IncorrectUsernameOrPassword);
+        await Assert.That(result).IsEqualTo(TryConnectError.IncorrectUsernameOrPassword);
     }
 
-    [Fact]
+    [Test]
     public async Task TryConnectToViewerNotRegisteredReturnsViewerNotFound()
     {
         var result = await this._service.TryConnectTo("non-existent", "username", "password");
 
-        result.Should().Be(TryConnectError.ViewerNotFound);
+        await Assert.That(result).IsEqualTo(TryConnectError.ViewerNotFound);
     }
 
-    [Fact]
+    [Test]
     public async Task TryConnectToConnectToSelfReturnsCannotConnectToYourself()
     {
         const string connectionId = "conn-123";
@@ -172,10 +174,10 @@ public class ConnectionsServiceTests : IDisposable
 
         var result = await this._service.TryConnectTo(connectionId, capturedUsername!, capturedPassword!);
 
-        result.Should().Be(TryConnectError.CannotConnectToYourself);
+        await Assert.That(result).IsEqualTo(TryConnectError.CannotConnectToYourself);
     }
 
-    [Fact]
+    [Test]
     public async Task TryConnectToValidCredentialsReturnsNullAndStartsConnection()
     {
         const string presenterConnectionId = "presenter-conn";
@@ -194,12 +196,12 @@ public class ConnectionsServiceTests : IDisposable
 
         var result = await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
 
-        result.Should().BeNull();
+        await Assert.That(result).IsNull();
         await this._mockClient.Received().ConnectionStarted(Arg.Any<string>(), isPresenter: true);
         await this._mockClient.Received().ConnectionStarted(Arg.Any<string>(), isPresenter: false);
     }
 
-    [Fact]
+    [Test]
     public async Task TryConnectToWithSpacesInUsernameNormalizesAndConnects()
     {
         const string presenterConnectionId = "presenter-conn";
@@ -219,10 +221,10 @@ public class ConnectionsServiceTests : IDisposable
         // Username comes with spaces from CredentialsAssigned, but should still work
         var result = await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
 
-        result.Should().BeNull();
+        await Assert.That(result).IsNull();
     }
 
-    [Fact]
+    [Test]
     public async Task TryConnectToCaseInsensitivePasswordConnects()
     {
         const string presenterConnectionId = "presenter-conn";
@@ -242,10 +244,10 @@ public class ConnectionsServiceTests : IDisposable
         // Use uppercase password
         var result = await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!.ToUpperInvariant());
 
-        result.Should().BeNull();
+        await Assert.That(result).IsNull();
     }
 
-    [Fact]
+    [Test]
     public async Task DisconnectFromConnectionViewerDisconnectsNotifiesViewer()
     {
         const string presenterConnectionId = "presenter-conn";
@@ -274,7 +276,7 @@ public class ConnectionsServiceTests : IDisposable
         await this._mockClient.Received().ConnectionStopped(connectionId!);
     }
 
-    [Fact]
+    [Test]
     public async Task DisconnectFromConnectionPresenterDisconnectsNotifiesAllViewers()
     {
         const string presenterConnectionId = "presenter-conn";
@@ -308,7 +310,7 @@ public class ConnectionsServiceTests : IDisposable
         await this._mockClient.Received(3).ConnectionStopped(connectionId!);
     }
 
-    [Fact]
+    [Test]
     public async Task SendMessageToPresenterOnlySendsToPresenter()
     {
         const string presenterConnectionId = "presenter-conn";
@@ -343,7 +345,7 @@ public class ConnectionsServiceTests : IDisposable
         );
     }
 
-    [Fact]
+    [Test]
     public async Task SendMessageToAllViewersSendsToAllViewers()
     {
         const string presenterConnectionId = "presenter-conn";
@@ -382,7 +384,7 @@ public class ConnectionsServiceTests : IDisposable
         );
     }
 
-    [Fact]
+    [Test]
     public async Task IsPresenterOfConnectionPresenterClientReturnsTrue()
     {
         const string presenterConnectionId = "presenter-conn";
@@ -408,10 +410,10 @@ public class ConnectionsServiceTests : IDisposable
 
         var result = this._service.IsPresenterOfConnection(presenterConnectionId, connectionId!);
 
-        result.Should().BeTrue();
+        await Assert.That(result).IsTrue();
     }
 
-    [Fact]
+    [Test]
     public async Task IsPresenterOfConnectionViewerClientReturnsFalse()
     {
         const string presenterConnectionId = "presenter-conn";
@@ -437,10 +439,10 @@ public class ConnectionsServiceTests : IDisposable
 
         var result = this._service.IsPresenterOfConnection(viewerConnectionId, connectionId!);
 
-        result.Should().BeFalse();
+        await Assert.That(result).IsFalse();
     }
 
-    [Fact]
+    [Test]
     public async Task SetConnectionPropertiesValidPresenterUpdatesProperties()
     {
         const string presenterConnectionId = "presenter-conn";
@@ -478,7 +480,7 @@ public class ConnectionsServiceTests : IDisposable
         ));
     }
 
-    [Fact]
+    [Test]
     public async Task SetDisplayNameChangesDisplayNameBroadcastsToConnections()
     {
         const string presenterConnectionId = "presenter-conn";
@@ -503,7 +505,7 @@ public class ConnectionsServiceTests : IDisposable
         ));
     }
 
-    [Fact]
+    [Test]
     public async Task MultipleViewersConnectSamePresenterAllReceiveConnectionChanged()
     {
         const string presenterConnectionId = "presenter-conn";
@@ -531,7 +533,7 @@ public class ConnectionsServiceTests : IDisposable
         await this._mockClient.Received(3).ConnectionChanged(Arg.Any<ConnectionInfo>());
     }
 
-    [Fact]
+    [Test]
     public async Task SendMessageAllExceptSenderExcludesSender()
     {
         const string presenterConnectionId = "presenter-conn";
