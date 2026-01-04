@@ -2,34 +2,32 @@
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using Nerdbank.MessagePack.SignalR;
 using RemoteViewer.Server.SharedAPI;
 
 namespace RemoteViewer.Client.Services.HubClient;
 
-public sealed class ConnectionHubClient : IAsyncDisposable
+public class ConnectionHubClient : IAsyncDisposable
 {
     private readonly ILogger<ConnectionHubClient> _logger;
     private readonly IServiceProvider _serviceProvider;
     private readonly HubConnection _connection;
     private readonly ConcurrentDictionary<string, Connection> _connections = new();
 
-#if DEBUG
-    public static readonly string BaseUrl = "http://localhost:8080";
-#else
-    public static readonly string BaseUrl = "https://rdp.xemio.net";
-#endif
-
-    public ConnectionHubClient(ILogger<ConnectionHubClient> logger, IServiceProvider serviceProvider)
+    public ConnectionHubClient(
+        ILogger<ConnectionHubClient> logger,
+        IServiceProvider serviceProvider,
+        IOptions<ConnectionHubClientOptions> options)
     {
         this._logger = logger;
         this._serviceProvider = serviceProvider;
 
         this._connection = new HubConnectionBuilder()
-            .WithUrl($"{BaseUrl}/connection", options =>
+            .WithUrl($"{options.Value.BaseUrl}/connection", httpOptions =>
             {
-                options.Headers.Add("X-Client-Version", ThisAssembly.AssemblyInformationalVersion);
-                options.Headers.Add("X-Display-Name", this.DisplayName);
+                httpOptions.Headers.Add("X-Client-Version", ThisAssembly.AssemblyInformationalVersion);
+                httpOptions.Headers.Add("X-Display-Name", this.DisplayName);
             })
             .WithAutomaticReconnect()
             .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)

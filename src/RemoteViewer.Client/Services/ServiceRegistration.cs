@@ -18,7 +18,7 @@ using ZiggyCreatures.Caching.Fusion;
 
 namespace RemoteViewer.Client.Services;
 
-static class ServiceRegistration
+public static class ServiceRegistration
 {
     public static IServiceCollection AddRemoteViewerServices(this IServiceCollection services, ApplicationMode mode, App? app = null) => mode switch
     {
@@ -39,6 +39,7 @@ static class ServiceRegistration
         services.AddSingleton<IViewModelFactory, ViewModelFactory>();
 
         // Hub Connection
+        services.AddOptions<ConnectionHubClientOptions>();
         services.AddSingleton<ConnectionHubClient>();
 
         // Screen Encoding
@@ -81,6 +82,9 @@ static class ServiceRegistration
         // Core Services
         services.AddCoreServices();
 
+        // Hub Client Options (for IPC token validation)
+        services.AddOptions<ConnectionHubClientOptions>();
+
         // Session Management
         services.AddSingleton<IWin32SessionService, Win32SessionService>();
 
@@ -102,6 +106,9 @@ static class ServiceRegistration
     {
         // Core Services
         services.AddCoreServices();
+
+        // Hub Client Options (for IPC token validation)
+        services.AddOptions<ConnectionHubClientOptions>();
 
         // Session Management
         services.AddSingleton<IWin32SessionService, Win32SessionService>();

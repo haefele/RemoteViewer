@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.WindowsSession;
 
@@ -7,6 +8,7 @@ namespace RemoteViewer.Client.Services.WinServiceIpc;
 
 public partial class WinServiceRpcServer(
     IWin32SessionService sessionService,
+    IOptions<ConnectionHubClientOptions> hubClientOptions,
     ILogger<WinServiceRpcServer> logger) : IWinServiceRpc
 {
     private readonly HashSet<string> _authenticatedConnections = [];
@@ -17,7 +19,7 @@ public partial class WinServiceRpcServer(
         try
         {
             var connection = new HubConnectionBuilder()
-                .WithUrl($"{ConnectionHubClient.BaseUrl}/connection", options =>
+                .WithUrl($"{hubClientOptions.Value.BaseUrl}/connection", options =>
                 {
                     options.Headers.Add("X-Ipc-Token", token);
                 })
