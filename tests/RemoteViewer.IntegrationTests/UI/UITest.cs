@@ -16,20 +16,19 @@ namespace RemoteViewer.IntegrationTests.UI;
 
 public class UITest
 {
-
-    [ClassDataSource<ServerFixture>(Shared = SharedType.PerAssembly)]
-    public required ServerFixture Server { get; init; }
+    // TODO: This test needs to be rewritten to use actual server processes
+    // instead of WebApplicationFactory (which is now in Server.Tests)
 
     //[Test]
     public async Task Test()
     {
-        ServiceRegistration.CustomizeServices = services =>
-        {
-            services.Configure<ConnectionHubClientOptions>(options =>
-            {
-                options.HttpMessageHandlerFactory = () => this.Server.Server.CreateHandler();
-            });
-        };
+        // ServiceRegistration.CustomizeServices = services =>
+        // {
+        //     services.Configure<ConnectionHubClientOptions>(options =>
+        //     {
+        //         options.HttpMessageHandlerFactory = () => ???;
+        //     });
+        // };
 
         var taskComplSource = new TaskCompletionSource();
         var uiThread = new Thread(_ =>
