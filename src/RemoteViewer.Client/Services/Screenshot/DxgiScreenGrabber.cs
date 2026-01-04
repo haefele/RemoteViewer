@@ -387,7 +387,7 @@ public class DxgiScreenGrabber(ILogger<DxgiScreenGrabber> logger) : IScreenGrabb
                     featureLevels,
                     PInvoke.D3D11_SDK_VERSION,
                     out var device,
-                    null,
+                    out _,
                     out var deviceContext);
 
                 if (result.Failed)

@@ -1,5 +1,6 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using RemoteViewer.Client.Services;
 
@@ -55,7 +56,7 @@ public partial class MainView : Window
         if (clipboard is null || this._viewModel is null)
             return;
 
-        var text = await clipboard.GetTextAsync();
+        var text = await clipboard.TryGetTextAsync();
         var (id, password) = CredentialParser.TryParse(text);
 
         if (id is not null && password is not null)

@@ -26,9 +26,9 @@ public static class CommonExtensions
     extension(DragEventArgs self)
     {
         public bool IsSingleFileDrag
-            => self.Data.GetFiles()?.Take(2).Count() == 1;
+            => self.DataTransfer.GetFiles()?.Take(2).Count() == 1;
 
         public IStorageFile? SingleFile
-            => self.Data.GetFiles()?.OfType<IStorageFile>().FirstOrDefault();
+            => self.DataTransfer.GetFiles()?.OfType<IStorageFile>().FirstOrDefault();
     }
 }

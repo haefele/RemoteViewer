@@ -80,13 +80,13 @@ public sealed class ClipboardSyncService : IClipboardSyncServiceImpl, IDisposabl
                 return (Text: (string?)null, ImageData: ((string, byte[])?)null);
 
             // Check for text first
-            var text = await clipboard.GetTextAsync();
+            var text = await clipboard.TryGetTextAsync();
             if (!string.IsNullOrEmpty(text) && text.Length <= MaxClipboardSize)
                 return (Text: text, ImageData: ((string, byte[])?)null);
 
             // Skip files - user should use file transfer
-            var formats = await clipboard.GetFormatsAsync();
-            if (formats.Contains(DataFormats.Files))
+            var formats = await clipboard.GetDataFormatsAsync();
+            if (formats.Contains(DataFormat.File))
                 return (Text: (string?)null, ImageData: ((string, byte[])?)null);
 
             // Try to get image data
@@ -116,12 +116,12 @@ public sealed class ClipboardSyncService : IClipboardSyncServiceImpl, IDisposabl
     {
         try
         {
-            var formats = await clipboard.GetFormatsAsync();
+            var formats = await clipboard.GetDataFormatsAsync();
 
             // Check for PNG first
             if (formats.Contains("image/png") || formats.Contains("PNG"))
             {
-                var data = await clipboard.GetDataAsync("image/png") ?? await clipboard.GetDataAsync("PNG");
+                var data = await clipboard.TryGetDataAsync("image/png") ?? await clipboard.TryGetDataAsync("PNG");
                 if (data is byte[] pngBytes)
                     return ("png", pngBytes);
             }
@@ -129,7 +129,7 @@ public sealed class ClipboardSyncService : IClipboardSyncServiceImpl, IDisposabl
             // Check for JPEG
             if (formats.Contains("image/jpeg") || formats.Contains("JFIF"))
             {
-                var data = await clipboard.GetDataAsync("image/jpeg") ?? await clipboard.GetDataAsync("JFIF");
+                var data = await clipboard.TryGetDataAsync("image/jpeg") ?? await clipboard.TryGetDataAsync("JFIF");
                 if (data is byte[] jpegBytes)
                     return ("jpeg", jpegBytes);
             }
@@ -192,15 +192,15 @@ public sealed class ClipboardSyncService : IClipboardSyncServiceImpl, IDisposabl
             ComputeHash(message.Data.Span),
             async clipboard =>
             {
-                var dataObject = new DataObject();
+                var dataTransfer = new DataTransfer();
                 var formatKey = message.Format.ToLowerInvariant() switch
                 {
                     "png" => "image/png",
                     "jpeg" or "jpg" => "image/jpeg",
                     _ => $"image/{message.Format}"
                 };
-                dataObject.Set(formatKey, message.Data.ToArray());
-                await clipboard.SetDataObjectAsync(dataObject);
+                dataTransfer.Set(formatKey, message.Data.ToArray());
+                await clipboard.SetDataAsync(dataTransfer);
                 this._logger.ReceivedClipboardImage(message.Format, message.Data.Length);
             },
             ex => this._logger.FailedToSetClipboardImage(ex));
