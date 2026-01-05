@@ -4,6 +4,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Services.Clipboard;
 using RemoteViewer.Client.Services.Dialogs;
+using RemoteViewer.Client.Services.Dispatching;
+using IDispatcher = RemoteViewer.Client.Services.Dispatching.IDispatcher;
 using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.InputInjection;
@@ -26,7 +28,7 @@ public static class ServiceRegistration
     {
         var result = mode switch
         {
-            ApplicationMode.Desktop => services.AddDesktopModeServices(app!),
+            ApplicationMode.Desktop => services.AddDesktopModeServices(app),
             ApplicationMode.WindowsService => services.AddWindowsServiceModeServices(),
             ApplicationMode.SessionRecorder => services.AddSessionRecorderModeServices(),
             _ => throw new ArgumentOutOfRangeException(nameof(mode))
@@ -38,13 +40,14 @@ public static class ServiceRegistration
         return result;
     }
 
-    private static IServiceCollection AddDesktopModeServices(this IServiceCollection services, App app)
+    private static IServiceCollection AddDesktopModeServices(this IServiceCollection services, App? app)
     {
         // Core Services
         services.AddCoreServices();
 
         // UI & View Models
-        services.AddSingleton(app);
+        if (app != null)
+            services.AddSingleton(app);
         services.AddSingleton(Dispatcher.UIThread);
         services.AddSingleton<IClipboardService, AvaloniaClipboardService>();
         services.AddSingleton<IDialogService, AvaloniaDialogService>();

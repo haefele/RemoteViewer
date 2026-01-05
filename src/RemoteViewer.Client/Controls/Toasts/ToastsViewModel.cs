@@ -2,7 +2,7 @@
 using System.Diagnostics;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Material.Icons;
-using RemoteViewer.Client.Services;
+using RemoteViewer.Client.Services.Dispatching;
 using RemoteViewer.Client.Services.FileTransfer;
 
 namespace RemoteViewer.Client.Controls.Toasts;
