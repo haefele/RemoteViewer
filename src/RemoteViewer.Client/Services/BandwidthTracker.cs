@@ -1,5 +1,4 @@
 using System.Collections.Concurrent;
-using System.Diagnostics;
 
 namespace RemoteViewer.Client.Services;
 
@@ -7,19 +6,29 @@ public class BandwidthTracker
 {
     private readonly record struct Sample(long Timestamp, int Bytes);
     private readonly ConcurrentQueue<Sample> _samples = new();
-
-    public void AddBytes(int count)
-    {
-        var now = Stopwatch.GetTimestamp();
-        this._samples.Enqueue(new Sample(now, count));
-    }
+    private readonly TimeProvider _timeProvider;
 
     private const int WindowSeconds = 5;
 
+    public BandwidthTracker() : this(TimeProvider.System)
+    {
+    }
+
+    public BandwidthTracker(TimeProvider timeProvider)
+    {
+        this._timeProvider = timeProvider;
+    }
+
+    public void AddBytes(int count)
+    {
+        var now = this._timeProvider.GetTimestamp();
+        this._samples.Enqueue(new Sample(now, count));
+    }
+
     public double GetBytesPerSecond()
     {
-        var now = Stopwatch.GetTimestamp();
-        var cutoff = now - Stopwatch.Frequency * WindowSeconds;
+        var now = this._timeProvider.GetTimestamp();
+        var cutoff = now - this._timeProvider.TimestampFrequency * WindowSeconds;
 
         // Prune old samples
         while (this._samples.TryPeek(out var oldest) && oldest.Timestamp < cutoff)
