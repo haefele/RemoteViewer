@@ -1,6 +1,6 @@
 using Avalonia.Threading;
 
-namespace RemoteViewer.Client.Services;
+namespace RemoteViewer.Client.Services.Dispatching;
 
 public sealed class AvaloniaDispatcher : IDispatcher
 {

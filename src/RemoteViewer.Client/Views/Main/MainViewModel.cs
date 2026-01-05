@@ -2,7 +2,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Controls.Toasts;
-using RemoteViewer.Client.Services;
+using RemoteViewer.Client.Services.Dispatching;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.ViewModels;
 using RemoteViewer.Client.Views.Presenter;

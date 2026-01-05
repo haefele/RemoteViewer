@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Controls.Toasts;
 using RemoteViewer.Client.Services.Dialogs;
+using RemoteViewer.Client.Services.Dispatching;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Shared.Protocol;
 

@@ -1,6 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
-using RemoteViewer.Client.Services;
+using RemoteViewer.Client.Services.Dispatching;
 using RemoteViewer.Client.Services.FileTransfer;
 
 namespace RemoteViewer.Client.Controls.Toasts;

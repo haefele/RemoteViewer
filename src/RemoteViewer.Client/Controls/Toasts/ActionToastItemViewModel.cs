@@ -1,7 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Material.Icons;
-using RemoteViewer.Client.Services;
+using RemoteViewer.Client.Services.Dispatching;
 
 namespace RemoteViewer.Client.Controls.Toasts;
 
