@@ -835,14 +835,26 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
         await presenterConnTask;
         await viewerConnTask;
 
-        // Advance time to trigger clipboard poll (500ms + some margin)
-        viewer.TimeProvider.Advance(TimeSpan.FromMilliseconds(600));
+        // Poll with time advances until clipboard syncs or timeout
+        var timeout = DateTime.UtcNow.AddSeconds(10);
+        while (DateTime.UtcNow < timeout)
+        {
+            await Task.Delay(50);
+            viewer.TimeProvider.Advance(TimeSpan.FromMilliseconds(600));
+            await Task.Delay(200);
 
-        // Allow async work to process (needs time for SignalR propagation)
-        await Task.Delay(1000);
+            var calls = presenter.ClipboardService.ReceivedCalls()
+                .Where(c => c.GetMethodInfo().Name == "SetTextAsync")
+                .ToList();
+            if (calls.Count > 0)
+            {
+                var text = calls[0].GetArguments()[0] as string;
+                await Assert.That(text).IsEqualTo("Clipboard text from viewer");
+                return;
+            }
+        }
 
-        // Verify presenter's clipboard was set with the text
-        await presenter.ClipboardService.Received().SetTextAsync("Clipboard text from viewer");
+        Assert.Fail("Clipboard was not synced within timeout");
     }
 
     [Test]
@@ -869,14 +881,35 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
         await presenterConnTask;
         await viewerConnTask;
 
-        // Advance time to trigger clipboard poll (500ms + some margin)
-        presenter.TimeProvider.Advance(TimeSpan.FromMilliseconds(600));
+        // Poll with time advances until clipboard syncs or timeout
+        // This is more robust than fixed delays because:
+        // 1. The poll loop runs in Task.Run, so there's a race with timer registration
+        // 2. FakeTimeProvider only triggers timers that are already registered
+        var timeout = DateTime.UtcNow.AddSeconds(10);
+        while (DateTime.UtcNow < timeout)
+        {
+            // Allow poll loop to register timer
+            await Task.Delay(50);
 
-        // Allow async work to process (needs time for SignalR propagation)
-        await Task.Delay(1000);
+            // Advance fake time to trigger poll
+            presenter.TimeProvider.Advance(TimeSpan.FromMilliseconds(600));
 
-        // Verify viewer's clipboard was set with the text
-        await viewer.ClipboardService.Received().SetTextAsync("Clipboard text from presenter");
+            // Allow SignalR message propagation
+            await Task.Delay(200);
+
+            // Check if clipboard was set
+            var calls = viewer.ClipboardService.ReceivedCalls()
+                .Where(c => c.GetMethodInfo().Name == "SetTextAsync")
+                .ToList();
+            if (calls.Count > 0)
+            {
+                var text = calls[0].GetArguments()[0] as string;
+                await Assert.That(text).IsEqualTo("Clipboard text from presenter");
+                return;
+            }
+        }
+
+        Assert.Fail("Clipboard was not synced within timeout");
     }
 
     #endregion

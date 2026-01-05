@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
@@ -61,29 +62,30 @@ public class ClientFixture : IAsyncDisposable
         var services = new ServiceCollection();
         services.AddRemoteViewerServices(ApplicationMode.Desktop, app: null);
 
-        // Override services AFTER registration - last registration wins, no lock needed
+        // Configure hub client to use test server
         services.Configure<ConnectionHubClientOptions>(options =>
         {
             options.BaseUrl = serverFixture.TestServer.BaseAddress.ToString().TrimEnd('/');
             options.HttpMessageHandlerFactory = () => serverFixture.TestServer.CreateHandler();
         });
 
-        // Replace Avalonia-specific services with NSubstitute mocks
-        services.AddSingleton<IDispatcher, TestDispatcher>();
-        services.AddSingleton(this.InputInjectionService);
-        services.AddSingleton(this.DialogService);
-        services.AddSingleton(this.ClipboardService);
-        services.AddSingleton(this.DisplayService);
-        services.AddSingleton(this.ScreenshotService);
-        services.AddSingleton(this.LocalInputMonitorService);
-        services.AddSingleton<TimeProvider>(this.TimeProvider);
+        // Replace Avalonia-specific services with test implementations
+        // Using Replace() to explicitly remove existing registrations (not just "last wins")
+        services.Replace(ServiceDescriptor.Singleton<IDispatcher, TestDispatcher>());
+        services.Replace(ServiceDescriptor.Singleton(this.InputInjectionService));
+        services.Replace(ServiceDescriptor.Singleton(this.DialogService));
+        services.Replace(ServiceDescriptor.Singleton(this.ClipboardService));
+        services.Replace(ServiceDescriptor.Singleton(this.DisplayService));
+        services.Replace(ServiceDescriptor.Singleton(this.ScreenshotService));
+        services.Replace(ServiceDescriptor.Singleton(this.LocalInputMonitorService));
+        services.Replace(ServiceDescriptor.Singleton<TimeProvider>(this.TimeProvider));
 
-        // Create real RPC client instances with null loggers
+        // Replace RPC client instances with ones using null loggers
         // (they'll fail to connect to non-existent pipes, which is fine for tests)
         var nullSessionLogger = Substitute.For<ILogger<SessionRecorderRpcClient>>();
         var nullWinServiceLogger = Substitute.For<ILogger<WinServiceRpcClient>>();
-        services.AddSingleton(new SessionRecorderRpcClient(nullSessionLogger));
-        services.AddSingleton(new WinServiceRpcClient(nullWinServiceLogger));
+        services.Replace(ServiceDescriptor.Singleton(new SessionRecorderRpcClient(nullSessionLogger)));
+        services.Replace(ServiceDescriptor.Singleton(new WinServiceRpcClient(nullWinServiceLogger)));
 
         this._serviceProvider = services.BuildServiceProvider();
         this.HubClient = this._serviceProvider.GetRequiredService<ConnectionHubClient>();
