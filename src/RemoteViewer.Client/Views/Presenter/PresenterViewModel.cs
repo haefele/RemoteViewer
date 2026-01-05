@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using Avalonia.Platform.Storage;
+using DispatcherTimer = Avalonia.Threading.DispatcherTimer;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
@@ -10,6 +11,8 @@ using RemoteViewer.Client.Services.Dialogs;
 using RemoteViewer.Client.Services.Dispatching;
 using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.HubClient;
+using RemoteViewer.Client.Services;
+using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.VideoCodec;
 using RemoteViewer.Client.Services.ViewModels;
 using RemoteViewer.Shared;
@@ -21,9 +24,13 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
     private readonly Connection _connection;
     private readonly ConnectionHubClient _hubClient;
     private readonly IFrameEncoder _frameEncoder;
+    private readonly IDisplayService _displayService;
     private readonly IDialogService _dialogService;
     private readonly IDispatcher _dispatcher;
     private readonly ILogger<PresenterViewModel> _logger;
+    private readonly DispatcherTimer _bandwidthTimer;
+
+    private (int Width, int Height)? _biggestScreen;
 
     public ToastsViewModel Toasts { get; }
     public ChatViewModel Chat { get; }
@@ -47,6 +54,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
             {
                 capture.TargetFps = value;
                 this.OnPropertyChanged();
+                this.OnPropertyChanged(nameof(this.EstimatedBandwidth));
             }
         }
     }
@@ -60,9 +68,21 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
             {
                 this._frameEncoder.Quality = value;
                 this.OnPropertyChanged();
+                this.OnPropertyChanged(nameof(this.EstimatedBandwidth));
             }
         }
     }
+
+    public string EstimatedBandwidth
+    {
+        get
+        {
+            var (width, height) = this._biggestScreen ?? (1920, 1080);
+            return BandwidthEstimator.Calculate(width, height, this.TargetFps, this.Quality);
+        }
+    }
+
+    public string ActualBandwidth => this._connection.BandwidthTracker.GetFormatted();
 
     public event EventHandler? CloseRequested;
 
@@ -70,6 +90,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         Connection connection,
         ConnectionHubClient hubClient,
         IFrameEncoder frameEncoder,
+        IDisplayService displayService,
         IDialogService dialogService,
         IDispatcher dispatcher,
         IViewModelFactory viewModelFactory,
@@ -78,9 +99,16 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         this._connection = connection;
         this._hubClient = hubClient;
         this._frameEncoder = frameEncoder;
+        this._displayService = displayService;
         this._dialogService = dialogService;
         this._dispatcher = dispatcher;
         this._logger = loggerFactory.CreateLogger<PresenterViewModel>();
+
+        this._bandwidthTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+        this._bandwidthTimer.Tick += (_, _) => this.OnPropertyChanged(nameof(this.ActualBandwidth));
+        this._bandwidthTimer.Start();
+
+        _ = this.UpdateBiggestScreenAsync();
         this.Toasts = viewModelFactory.CreateToastsViewModel();
         this.Chat = new ChatViewModel(this._connection.Chat, dispatcher, loggerFactory.CreateLogger<ChatViewModel>());
         this._connection.FileTransfers.Toasts = this.Toasts;
@@ -92,6 +120,17 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 
         // Subscribe to credentials changes
         this._hubClient.CredentialsAssigned += this.OnCredentialsAssigned;
+    }
+
+    private async Task UpdateBiggestScreenAsync()
+    {
+        var displays = await this._displayService.GetDisplays(this._connection.ConnectionId, CancellationToken.None);
+        var largest = displays.MaxBy(d => d.Width * d.Height);
+        if (largest is not null)
+        {
+            this._biggestScreen = (largest.Width, largest.Height);
+            this.OnPropertyChanged(nameof(this.EstimatedBandwidth));
+        }
     }
 
     private void OnCredentialsAssigned(object? sender, CredentialsAssignedEventArgs e)
@@ -309,6 +348,8 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
             return;
 
         this._disposed = true;
+
+        this._bandwidthTimer.Stop();
 
         await this._connection.FileTransfers.CancelAllAsync();
         await this._connection.DisconnectAsync();

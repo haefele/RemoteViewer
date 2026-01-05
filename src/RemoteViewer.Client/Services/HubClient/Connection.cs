@@ -96,6 +96,7 @@ public sealed class Connection : IConnectionImpl
     public PresenterCaptureService? PresenterCapture { get; }
     public ClipboardSyncService ClipboardSync { get; }
     public ChatService Chat { get; }
+    public BandwidthTracker BandwidthTracker { get; } = new();
 
     public event EventHandler? Closed;
 
@@ -209,6 +210,7 @@ public sealed class Connection : IConnectionImpl
 
         using var buffer = PooledBufferWriter.Rent();
         ProtocolSerializer.Serialize(buffer, message);
+        this.BandwidthTracker.AddBytes(buffer.WrittenCount);
         await this.Owner.SendMessageAsync(this.ConnectionId, MessageTypes.Screen.Frame, buffer.WrittenMemory, MessageDestination.SpecificClients, targetViewerIds);
     }
 

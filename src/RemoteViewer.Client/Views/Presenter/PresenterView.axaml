@@ -101,6 +101,17 @@
                                             TickFrequency="5"
                                             IsSnapToTickEnabled="True"/>
                                 </StackPanel>
+
+                                <!-- Bandwidth Estimate -->
+                                <TextBlock Text="{Binding EstimatedBandwidth}"
+                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                           FontSize="12"
+                                           Margin="0,8,0,0"/>
+
+                                <!-- Actual Bandwidth -->
+                                <TextBlock Text="{Binding ActualBandwidth}"
+                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                           FontSize="12"/>
                             </StackPanel>
                         </Flyout>
                     </Button.Flyout>
