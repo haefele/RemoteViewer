@@ -17,6 +17,7 @@ public sealed class ClipboardSyncService : IClipboardSyncServiceImpl, IDisposabl
     private readonly IClipboardService _clipboardService;
     private readonly Connection _connection;
     private readonly ILogger<ClipboardSyncService> _logger;
+    private readonly TimeProvider _timeProvider;
 
     private readonly CancellationTokenSource _cts = new();
     private readonly Lock _stateLock = new();
@@ -30,11 +31,13 @@ public sealed class ClipboardSyncService : IClipboardSyncServiceImpl, IDisposabl
     public ClipboardSyncService(
         IClipboardService clipboardService,
         Connection connection,
-        ILogger<ClipboardSyncService> logger)
+        ILogger<ClipboardSyncService> logger,
+        TimeProvider timeProvider)
     {
         this._clipboardService = clipboardService;
         this._connection = connection;
         this._logger = logger;
+        this._timeProvider = timeProvider;
 
         this._pollTask = Task.Run(() => this.PollLoopAsync(this._cts.Token));
         this._logger.ClipboardSyncStarted();
@@ -46,7 +49,7 @@ public sealed class ClipboardSyncService : IClipboardSyncServiceImpl, IDisposabl
         {
             try
             {
-                await Task.Delay(PollIntervalMs, ct);
+                await Task.Delay(TimeSpan.FromMilliseconds(PollIntervalMs), this._timeProvider, ct);
             }
             catch (OperationCanceledException)
             {

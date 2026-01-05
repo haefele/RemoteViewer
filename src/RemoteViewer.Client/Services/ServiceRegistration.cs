@@ -154,6 +154,7 @@ public static class ServiceRegistration
         services.AddFusionCache();
         services.AddLogging(builder => builder.AddSerilog());
         services.AddSerilog();
+        services.AddSingleton(TimeProvider.System);
         return services;
     }
 

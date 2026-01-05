@@ -1,5 +1,7 @@
+using System.Collections.Immutable;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using RemoteViewer.Client;
 using RemoteViewer.Client.Services;
@@ -13,23 +15,49 @@ using RemoteViewer.Client.Services.LocalInputMonitor;
 using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.SessionRecorderIpc;
 using RemoteViewer.Client.Services.WinServiceIpc;
+using RemoteViewer.Client.Views.Presenter;
 using RemoteViewer.IntegrationTests.Mocks;
 using RemoteViewer.Server.Tests;
+using RemoteViewer.Shared;
+using RemoteViewer.Shared.Protocol;
 
 namespace RemoteViewer.IntegrationTests.Fixtures;
 
 public class ClientFixture : IAsyncDisposable
 {
     private static readonly Lock ServiceRegistrationLock = new();
+    private static readonly DisplayInfo FakeDisplay = new(
+        Id: "DISPLAY1",
+        FriendlyName: "Test Display",
+        IsPrimary: true,
+        Left: 0,
+        Top: 0,
+        Right: 1920,
+        Bottom: 1080);
+
     private readonly IServiceProvider _serviceProvider;
 
     public ConnectionHubClient HubClient { get; }
-    public NullInputInjectionService InputInjectionService { get; }
+
+    // NSubstitute mocks exposed for test configuration/verification
+    public IInputInjectionService InputInjectionService { get; }
+    public IDialogService DialogService { get; }
+    public IClipboardService ClipboardService { get; }
+    public IDisplayService DisplayService { get; }
+    public IScreenshotService ScreenshotService { get; }
+    public ILocalInputMonitorService LocalInputMonitorService { get; }
+    public FakeTimeProvider TimeProvider { get; }
 
     public ClientFixture(ServerFixture serverFixture, string? displayName = null)
     {
-        this.InputInjectionService = new NullInputInjectionService();
-        var inputService = this.InputInjectionService;
+        // Create NSubstitute mocks with default behaviors
+        this.InputInjectionService = CreateInputInjectionServiceMock();
+        this.DialogService = CreateDialogServiceMock();
+        this.ClipboardService = CreateClipboardServiceMock();
+        this.DisplayService = CreateDisplayServiceMock();
+        this.ScreenshotService = CreateScreenshotServiceMock();
+        this.LocalInputMonitorService = CreateLocalInputMonitorServiceMock();
+        this.TimeProvider = new FakeTimeProvider();
 
         // Lock to prevent race conditions with parallel tests
         using (ServiceRegistrationLock.EnterScope())
@@ -44,14 +72,15 @@ public class ClientFixture : IAsyncDisposable
                     options.HttpMessageHandlerFactory = () => serverFixture.TestServer.CreateHandler();
                 });
 
-                // Replace Avalonia-specific services with test implementations
+                // Replace Avalonia-specific services with NSubstitute mocks
                 services.AddSingleton<IDispatcher, TestDispatcher>();
-                services.AddSingleton<IClipboardService, NullClipboardService>();
-                services.AddSingleton<IDialogService, NullDialogService>();
-                services.AddSingleton<IDisplayService, NullDisplayService>();
-                services.AddSingleton<IScreenshotService, NullScreenshotService>();
-                services.AddSingleton<IInputInjectionService>(inputService);
-                services.AddSingleton<ILocalInputMonitorService, NullLocalInputMonitorService>();
+                services.AddSingleton(this.InputInjectionService);
+                services.AddSingleton(this.DialogService);
+                services.AddSingleton(this.ClipboardService);
+                services.AddSingleton(this.DisplayService);
+                services.AddSingleton(this.ScreenshotService);
+                services.AddSingleton(this.LocalInputMonitorService);
+                services.AddSingleton<TimeProvider>(this.TimeProvider);
 
                 // Create real RPC client instances with null loggers
                 // (they'll fail to connect to non-existent pipes, which is fine for tests)
@@ -73,6 +102,68 @@ public class ClientFixture : IAsyncDisposable
 
         if (displayName != null)
             _ = this.HubClient.SetDisplayName(displayName);
+    }
+
+    private static IInputInjectionService CreateInputInjectionServiceMock()
+    {
+        var mock = Substitute.For<IInputInjectionService>();
+        mock.InjectMouseMove(Arg.Any<DisplayInfo>(), Arg.Any<float>(), Arg.Any<float>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+        mock.InjectMouseButton(Arg.Any<DisplayInfo>(), Arg.Any<MouseButton>(), Arg.Any<bool>(), Arg.Any<float>(), Arg.Any<float>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+        mock.InjectMouseWheel(Arg.Any<DisplayInfo>(), Arg.Any<float>(), Arg.Any<float>(), Arg.Any<float>(), Arg.Any<float>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+        mock.InjectKey(Arg.Any<ushort>(), Arg.Any<bool>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+        mock.ReleaseAllModifiers(Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+        return mock;
+    }
+
+    private static IDialogService CreateDialogServiceMock()
+    {
+        var mock = Substitute.For<IDialogService>();
+        mock.ShowFileTransferConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(Task.FromResult(false));
+        mock.ShowViewerSelectionAsync(Arg.Any<IReadOnlyList<PresenterViewerDisplay>>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(Task.FromResult<IReadOnlyList<string>?>(null));
+        return mock;
+    }
+
+    private static IClipboardService CreateClipboardServiceMock()
+    {
+        var mock = Substitute.For<IClipboardService>();
+        mock.TryGetTextAsync().Returns(Task.FromResult<string?>(null));
+        mock.GetDataFormatsAsync().Returns(Task.FromResult<IReadOnlyList<Avalonia.Input.DataFormat>>([]));
+        mock.TryGetBitmapAsync().Returns(Task.FromResult<Avalonia.Media.Imaging.Bitmap?>(null));
+        mock.SetTextAsync(Arg.Any<string>()).Returns(Task.CompletedTask);
+        mock.SetDataAsync(Arg.Any<Avalonia.Input.IAsyncDataTransfer?>()).Returns(Task.CompletedTask);
+        return mock;
+    }
+
+    private static IDisplayService CreateDisplayServiceMock()
+    {
+        var mock = Substitute.For<IDisplayService>();
+        mock.GetDisplays(Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(ImmutableList.Create(FakeDisplay)));
+        return mock;
+    }
+
+    private static IScreenshotService CreateScreenshotServiceMock()
+    {
+        var mock = Substitute.For<IScreenshotService>();
+        mock.CaptureDisplay(Arg.Any<DisplayInfo>(), Arg.Any<string?>(), Arg.Any<CancellationToken>())
+            .Returns(Task.FromResult(new GrabResult(GrabStatus.NoChanges, null, null, null)));
+        mock.ForceKeyframe(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(Task.CompletedTask);
+        return mock;
+    }
+
+    private static ILocalInputMonitorService CreateLocalInputMonitorServiceMock()
+    {
+        var mock = Substitute.For<ILocalInputMonitorService>();
+        mock.ShouldSuppressViewerInput().Returns(false);
+        return mock;
     }
 
     public async Task<(string Username, string Password)> WaitForCredentialsAsync(TimeSpan? timeout = null)
