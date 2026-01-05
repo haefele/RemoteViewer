@@ -1,21 +1,28 @@
 ﻿using System.Collections.ObjectModel;
 using System.Diagnostics;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Material.Icons;
+using RemoteViewer.Client.Services;
 using RemoteViewer.Client.Services.FileTransfer;
 
 namespace RemoteViewer.Client.Controls.Toasts;
 
 public partial class ToastsViewModel : ObservableObject
 {
+    private readonly IDispatcher _dispatcher;
+
     public ObservableCollection<object> Items { get; } = new();
+
+    public ToastsViewModel(IDispatcher dispatcher)
+    {
+        this._dispatcher = dispatcher;
+    }
 
     public void Show(string message, ToastType type = ToastType.Info, int durationMs = 4000)
     {
-        Dispatcher.UIThread.Post(() =>
+        this._dispatcher.Post(() =>
         {
-            var toast = new ToastItemViewModel(message, type, durationMs, this.RemoveToast);
+            var toast = new ToastItemViewModel(message, type, durationMs, this._dispatcher, this.RemoveToast);
             this.Items.Add(toast);
         });
     }
@@ -31,14 +38,14 @@ public partial class ToastsViewModel : ObservableObject
 
     public TransferToastItemViewModel AddTransfer(IFileTransfer transfer, bool isUpload)
     {
-        var toast = new TransferToastItemViewModel(transfer, isUpload, this.OnTransferCompleted);
-        Dispatcher.UIThread.Post(() => this.Items.Add(toast));
+        var toast = new TransferToastItemViewModel(transfer, isUpload, this._dispatcher, this.OnTransferCompleted);
+        this._dispatcher.Post(() => this.Items.Add(toast));
         return toast;
     }
 
     private void OnTransferCompleted(TransferToastItemViewModel toast, bool success, string? error)
     {
-        Dispatcher.UIThread.Post(() =>
+        this._dispatcher.Post(() =>
         {
             this.Items.Remove(toast);
             toast.Dispose();
@@ -68,18 +75,18 @@ public partial class ToastsViewModel : ObservableObject
 
     public void SuccessWithAction(string message, string actionText, MaterialIconKind actionIcon, Action action, int durationMs = 4000)
     {
-        Dispatcher.UIThread.Post(() =>
+        this._dispatcher.Post(() =>
         {
-            var toast = new ActionToastItemViewModel(message, ToastType.Success, actionText, actionIcon, action, durationMs, this.RemoveToast);
+            var toast = new ActionToastItemViewModel(message, ToastType.Success, actionText, actionIcon, action, durationMs, this._dispatcher, this.RemoveToast);
             this.Items.Add(toast);
         });
     }
 
     public void InfoWithAction(string message, string actionText, MaterialIconKind actionIcon, Action action, int durationMs = 4000)
     {
-        Dispatcher.UIThread.Post(() =>
+        this._dispatcher.Post(() =>
         {
-            var toast = new ActionToastItemViewModel(message, ToastType.Info, actionText, actionIcon, action, durationMs, this.RemoveToast);
+            var toast = new ActionToastItemViewModel(message, ToastType.Info, actionText, actionIcon, action, durationMs, this._dispatcher, this.RemoveToast);
             this.Items.Add(toast);
         });
     }
@@ -96,6 +103,6 @@ public partial class ToastsViewModel : ObservableObject
 
     private void RemoveToast(object toast)
     {
-        Dispatcher.UIThread.Post(() => this.Items.Remove(toast));
+        this._dispatcher.Post(() => this.Items.Remove(toast));
     }
 }

@@ -1,11 +1,12 @@
-﻿using Avalonia.Threading;
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using RemoteViewer.Client.Services;
 
 namespace RemoteViewer.Client.Controls.Toasts;
 
 public partial class ToastItemViewModel : ObservableObject, IDisposable
 {
+    private readonly IDispatcher _dispatcher;
     private readonly Action<ToastItemViewModel> _removeCallback;
     private readonly CancellationTokenSource _dismissCts = new();
     private bool _disposed;
@@ -16,10 +17,11 @@ public partial class ToastItemViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private ToastType _type;
 
-    public ToastItemViewModel(string message, ToastType type, int durationMs, Action<ToastItemViewModel> removeCallback)
+    public ToastItemViewModel(string message, ToastType type, int durationMs, IDispatcher dispatcher, Action<ToastItemViewModel> removeCallback)
     {
         this._message = message;
         this._type = type;
+        this._dispatcher = dispatcher;
         this._removeCallback = removeCallback;
 
         this.StartDismissTimer(durationMs);
@@ -30,7 +32,7 @@ public partial class ToastItemViewModel : ObservableObject, IDisposable
         try
         {
             await Task.Delay(durationMs, this._dismissCts.Token);
-            await Dispatcher.UIThread.InvokeAsync(() => this._removeCallback(this));
+            await this._dispatcher.InvokeAsync(() => this._removeCallback(this));
         }
         catch (TaskCanceledException)
         {

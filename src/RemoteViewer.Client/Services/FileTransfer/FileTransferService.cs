@@ -1,6 +1,5 @@
 using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
-using Avalonia.Threading;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Controls.Toasts;
 using RemoteViewer.Client.Services.Dialogs;
@@ -12,6 +11,7 @@ namespace RemoteViewer.Client.Services.FileTransfer;
 public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
 {
     private readonly IDialogService _dialogService;
+    private readonly IDispatcher _dispatcher;
     private readonly Connection _connection;
     private readonly ILogger<FileTransferService> _logger;
     private readonly ConcurrentDictionary<string, byte> _cancelledTransfers = new();
@@ -19,9 +19,10 @@ public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
 
     public ToastsViewModel? Toasts { get; set; }
 
-    public FileTransferService(IDialogService dialogService, Connection connection, ILogger<FileTransferService> logger)
+    public FileTransferService(IDialogService dialogService, IDispatcher dispatcher, Connection connection, ILogger<FileTransferService> logger)
     {
         this._dialogService = dialogService;
+        this._dispatcher = dispatcher;
         this._connection = connection;
         this._logger = logger;
     }
@@ -89,7 +90,7 @@ public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
         transfer.Completed += this.OnTransferCompleted;
         transfer.Failed += this.OnTransferFailed;
 
-        Dispatcher.UIThread.Post(() => this.ActiveSends.Add(transfer));
+        this._dispatcher.Post(() => this.ActiveSends.Add(transfer));
     }
 
     private void TrackReceive(FileReceiveOperation transfer)
@@ -97,7 +98,7 @@ public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
         transfer.Completed += this.OnTransferCompleted;
         transfer.Failed += this.OnTransferFailed;
 
-        Dispatcher.UIThread.Post(() => this.ActiveReceives.Add(transfer));
+        this._dispatcher.Post(() => this.ActiveReceives.Add(transfer));
     }
 
     private void OnTransferCompleted(object? sender, EventArgs e)
@@ -105,7 +106,7 @@ public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
         if (sender is not IFileTransfer transfer)
             return;
 
-        Dispatcher.UIThread.Post(() =>
+        this._dispatcher.Post(() =>
         {
             this.ActiveSends.Remove(transfer);
             this.ActiveReceives.Remove(transfer);
@@ -120,7 +121,7 @@ public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
         if (sender is not IFileTransfer transfer)
             return;
 
-        Dispatcher.UIThread.Post(() =>
+        this._dispatcher.Post(() =>
         {
             this.ActiveSends.Remove(transfer);
             this.ActiveReceives.Remove(transfer);

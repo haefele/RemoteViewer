@@ -1,9 +1,9 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
+using RemoteViewer.Client.Services;
 using RemoteViewer.Client.Services.HubClient;
 
 namespace RemoteViewer.Client.Views.Chat;
@@ -11,6 +11,7 @@ namespace RemoteViewer.Client.Views.Chat;
 public partial class ChatViewModel : ObservableObject, IDisposable
 {
     private readonly ChatService _chatService;
+    private readonly IDispatcher _dispatcher;
     private readonly ILogger<ChatViewModel> _logger;
 
     [ObservableProperty]
@@ -36,9 +37,10 @@ public partial class ChatViewModel : ObservableObject, IDisposable
 
     private int _disposed;
 
-    public ChatViewModel(ChatService chatService, ILogger<ChatViewModel> logger)
+    public ChatViewModel(ChatService chatService, IDispatcher dispatcher, ILogger<ChatViewModel> logger)
     {
         this._chatService = chatService;
+        this._dispatcher = dispatcher;
         this._logger = logger;
         this._chatService.MessageReceived += this.OnMessageReceived;
 
@@ -62,7 +64,7 @@ public partial class ChatViewModel : ObservableObject, IDisposable
 
     private void OnMessageReceived(object? sender, ChatMessageDisplay message)
     {
-        Dispatcher.UIThread.Post(() =>
+        this._dispatcher.Post(() =>
         {
             this.Messages.Add(message);
 

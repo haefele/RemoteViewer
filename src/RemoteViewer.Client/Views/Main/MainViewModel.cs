@@ -1,8 +1,8 @@
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Controls.Toasts;
+using RemoteViewer.Client.Services;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.ViewModels;
 using RemoteViewer.Client.Views.Presenter;
@@ -14,6 +14,7 @@ namespace RemoteViewer.Client.Views.Main;
 public partial class MainViewModel : ViewModelBase
 {
     private readonly ConnectionHubClient _hubClient;
+    private readonly IDispatcher _dispatcher;
     private readonly IViewModelFactory _viewModelFactory;
     private readonly ILogger<MainViewModel> _logger;
 
@@ -46,16 +47,17 @@ public partial class MainViewModel : ViewModelBase
     public event EventHandler? RequestHideMainView;
     public event EventHandler? RequestShowMainView;
 
-    public MainViewModel(ConnectionHubClient hubClient, IViewModelFactory viewModelFactory, ILogger<MainViewModel> logger)
+    public MainViewModel(ConnectionHubClient hubClient, IDispatcher dispatcher, IViewModelFactory viewModelFactory, ILogger<MainViewModel> logger)
     {
         this._hubClient = hubClient;
+        this._dispatcher = dispatcher;
         this._viewModelFactory = viewModelFactory;
         this._logger = logger;
         this.Toasts = viewModelFactory.CreateToastsViewModel();
 
         this._hubClient.HubConnectionStatusChanged += (_, _) =>
         {
-            Dispatcher.UIThread.Post(() =>
+            this._dispatcher.Post(() =>
             {
                 this.IsConnected = this._hubClient.IsConnected;
                 this.HasVersionMismatch = this._hubClient.HasVersionMismatch;
@@ -80,7 +82,7 @@ public partial class MainViewModel : ViewModelBase
 
         this._hubClient.CredentialsAssigned += (_, e) =>
         {
-            Dispatcher.UIThread.Post(() =>
+            this._dispatcher.Post(() =>
             {
                 this._logger.CredentialsAssigned(e.Username);
                 this.YourUsername = e.Username;
@@ -96,7 +98,7 @@ public partial class MainViewModel : ViewModelBase
 
     private void OnConnectionStarted(object? sender, ConnectionStartedEventArgs e)
     {
-        Dispatcher.UIThread.Post(() =>
+        this._dispatcher.Post(() =>
         {
             if (e.Connection.IsPresenter)
             {
