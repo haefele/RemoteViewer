@@ -30,7 +30,7 @@ jobs:
         run: dotnet build -c Release --no-restore
 
       - name: Test
-        run: dotnet test -c Release --no-build -- --report-trx --report-trx-filename test-results.trx --results-directory ./test-results
+        run: dotnet test -c Release --no-build --results-directory ./test-results -- --report-trx --report-trx-filename test-results.trx
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
