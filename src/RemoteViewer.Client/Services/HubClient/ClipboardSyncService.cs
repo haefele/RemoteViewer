@@ -1,10 +1,9 @@
 using System.Security.Cryptography;
 using Avalonia.Input;
-using Avalonia.Input.Platform;
 using Avalonia.Media.Imaging;
-using Avalonia.Threading;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Common;
+using RemoteViewer.Client.Services.Clipboard;
 using RemoteViewer.Shared;
 using RemoteViewer.Shared.Protocol;
 
@@ -15,7 +14,7 @@ public sealed class ClipboardSyncService : IClipboardSyncServiceImpl, IDisposabl
     private const int MaxClipboardSize = 1 * 1024 * 1024; // 1MB
     private const int PollIntervalMs = 500;
 
-    private readonly App _app;
+    private readonly IClipboardService _clipboardService;
     private readonly Connection _connection;
     private readonly ILogger<ClipboardSyncService> _logger;
 
@@ -29,11 +28,11 @@ public sealed class ClipboardSyncService : IClipboardSyncServiceImpl, IDisposabl
     private int _disposed;
 
     public ClipboardSyncService(
-        App app,
+        IClipboardService clipboardService,
         Connection connection,
         ILogger<ClipboardSyncService> logger)
     {
-        this._app = app;
+        this._clipboardService = clipboardService;
         this._connection = connection;
         this._logger = logger;
 
@@ -73,37 +72,26 @@ public sealed class ClipboardSyncService : IClipboardSyncServiceImpl, IDisposabl
         if (this._connection.IsClosed)
             return;
 
-        // Must access clipboard on UI thread
-        var clipboardData = await Dispatcher.UIThread.InvokeAsync(async () =>
-        {
-            var clipboard = this.GetClipboard();
-            if (clipboard is null)
-                return (Text: null, ImageData: null);
-
-            // Check for text first
-            var text = await clipboard.TryGetTextAsync();
-            if (!string.IsNullOrEmpty(text) && text.Length <= MaxClipboardSize)
-                return (Text: text, ImageData: null);
-
-            // Skip files - user should use file transfer
-            var formats = await clipboard.GetDataFormatsAsync();
-            if (formats.Contains(DataFormat.File))
-                return (Text: null, ImageData: null);
-
-            // Try to get image data
-            var imageData = await this.TryGetClipboardImageAsync(clipboard);
-            return (Text: (string?)null, ImageData: imageData);
-        });
-
-        if (clipboardData.Text is { } text)
+        // Check for text first
+        var text = await this._clipboardService.TryGetTextAsync();
+        if (!string.IsNullOrEmpty(text) && text.Length <= MaxClipboardSize)
         {
             if (this.TryMarkAsChanged(ComputeHash(text)))
             {
                 await this.SendAsync(MessageTypes.Clipboard.Text, new ClipboardTextMessage(text));
                 this._logger.SentClipboardText(text.Length);
             }
+            return;
         }
-        else if (clipboardData.ImageData is { } data && data.Length <= MaxClipboardSize)
+
+        // Skip files - user should use file transfer
+        var formats = await this._clipboardService.GetDataFormatsAsync();
+        if (formats.Contains(DataFormat.File))
+            return;
+
+        // Try to get image data
+        var imageData = await this.TryGetClipboardImageAsync(formats);
+        if (imageData is { } data && data.Length <= MaxClipboardSize)
         {
             if (this.TryMarkAsChanged(ComputeHash(data)))
             {
@@ -113,14 +101,13 @@ public sealed class ClipboardSyncService : IClipboardSyncServiceImpl, IDisposabl
         }
     }
 
-    private async Task<byte[]?> TryGetClipboardImageAsync(IClipboard clipboard)
+    private async Task<byte[]?> TryGetClipboardImageAsync(IReadOnlyList<DataFormat> formats)
     {
         try
         {
-            var formats = await clipboard.GetDataFormatsAsync();
             if (formats.Contains(DataFormat.Bitmap))
             {
-                var bitmap = await clipboard.TryGetBitmapAsync();
+                var bitmap = await this._clipboardService.TryGetBitmapAsync();
                 if (bitmap is not null)
                 {
                     using var ms = new MemoryStream();
@@ -170,70 +157,49 @@ public sealed class ClipboardSyncService : IClipboardSyncServiceImpl, IDisposabl
             null);
     }
 
-    void IClipboardSyncServiceImpl.HandleTextMessage(ClipboardTextMessage message)
-    {
-        this.HandleIncoming(
-            ComputeHash(message.Text),
-            async clipboard =>
-            {
-                await clipboard.SetTextAsync(message.Text);
-                this._logger.ReceivedClipboardText(message.Text.Length);
-            },
-            ex => this._logger.FailedToSetClipboardText(ex));
-    }
-
-    void IClipboardSyncServiceImpl.HandleImageMessage(ClipboardImageMessage message)
-    {
-        this.HandleIncoming(
-            ComputeHash(message.Data.Span),
-            async clipboard =>
-            {
-                using var stream = new MemoryStream();
-                stream.Write(message.Data.Span);
-
-                var item = new DataTransferItem();
-                item.SetBitmap(new Bitmap(stream));
-
-                var dataTransfer = new DataTransfer();
-                dataTransfer.Add(item);
-                await clipboard.SetDataAsync(dataTransfer);
-
-                this._logger.ReceivedClipboardImage(message.Data.Length);
-            },
-            ex => this._logger.FailedToSetClipboardImage(ex));
-    }
-
-    private void HandleIncoming(byte[] hash, Func<IClipboard, Task> setClipboard, Action<Exception> onError)
+    async Task IClipboardSyncServiceImpl.HandleTextMessageAsync(ClipboardTextMessage message)
     {
         using (this._stateLock.EnterScope())
         {
-            this._lastReceivedHash = hash;
+            this._lastReceivedHash = ComputeHash(message.Text);
         }
 
-        Dispatcher.UIThread.Post(async () =>
-        {
-            try
-            {
-                var clipboard = this.GetClipboard();
-                if (clipboard is not null)
-                    await setClipboard(clipboard);
-            }
-            catch (Exception ex)
-            {
-                onError(ex);
-            }
-        });
-    }
-
-    private IClipboard? GetClipboard()
-    {
         try
         {
-            return this._app.ActiveWindow?.Clipboard;
+            await this._clipboardService.SetTextAsync(message.Text);
+            this._logger.ReceivedClipboardText(message.Text.Length);
         }
-        catch
+        catch (Exception ex)
         {
-            return null;
+            this._logger.FailedToSetClipboardText(ex);
+        }
+    }
+
+    async Task IClipboardSyncServiceImpl.HandleImageMessageAsync(ClipboardImageMessage message)
+    {
+        using (this._stateLock.EnterScope())
+        {
+            this._lastReceivedHash = ComputeHash(message.Data.Span);
+        }
+
+        try
+        {
+            using var stream = new MemoryStream();
+            stream.Write(message.Data.Span);
+            stream.Position = 0;
+
+            var item = new DataTransferItem();
+            item.SetBitmap(new Bitmap(stream));
+
+            var dataTransfer = new DataTransfer();
+            dataTransfer.Add(item);
+            await this._clipboardService.SetDataAsync(dataTransfer);
+
+            this._logger.ReceivedClipboardImage(message.Data.Length);
+        }
+        catch (Exception ex)
+        {
+            this._logger.FailedToSetClipboardImage(ex);
         }
     }
 
