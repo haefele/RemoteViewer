@@ -16,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\RemoteViewer.Client\RemoteViewer.Client.csproj" />
+    <ProjectReference Include="..\RemoteViewer.Server.Tests\RemoteViewer.Server.Tests.csproj" />
   </ItemGroup>
 
 </Project>
