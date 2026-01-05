@@ -6,8 +6,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Views.Chat;
-using RemoteViewer.Client.Controls.Dialogs;
 using RemoteViewer.Client.Controls.Toasts;
+using RemoteViewer.Client.Services.Dialogs;
 using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.VideoCodec;
@@ -21,6 +21,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
     private readonly Connection _connection;
     private readonly ConnectionHubClient _hubClient;
     private readonly IFrameEncoder _frameEncoder;
+    private readonly IDialogService _dialogService;
     private readonly ILogger<PresenterViewModel> _logger;
 
     public ToastsViewModel Toasts { get; }
@@ -68,12 +69,14 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         Connection connection,
         ConnectionHubClient hubClient,
         IFrameEncoder frameEncoder,
+        IDialogService dialogService,
         IViewModelFactory viewModelFactory,
         ILoggerFactory loggerFactory)
     {
         this._connection = connection;
         this._hubClient = hubClient;
         this._frameEncoder = frameEncoder;
+        this._dialogService = dialogService;
         this._logger = loggerFactory.CreateLogger<PresenterViewModel>();
         this.Toasts = viewModelFactory.CreateToastsViewModel();
         this.Chat = new ChatViewModel(this._connection.Chat, loggerFactory.CreateLogger<ChatViewModel>());
@@ -267,12 +270,11 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         else
         {
             var fileInfo = new FileInfo(path);
-            var dialog = ViewerSelectionDialog.Create(
+            var selected = await this._dialogService.ShowViewerSelectionAsync(
                 this.Viewers,
                 fileInfo.Name,
                 FileTransferHelpers.FormatFileSize(fileInfo.Length));
 
-            var selected = await dialog.ShowDialog<IReadOnlyList<string>?>(App.Current.ActiveWindow);
             if (selected is null or { Count: 0 })
                 return;
 
