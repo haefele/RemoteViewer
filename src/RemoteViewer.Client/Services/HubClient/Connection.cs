@@ -467,7 +467,7 @@ public sealed class Connection : IConnectionImpl
                 case MessageTypes.FileTransfer.SendRequest:
                     {
                         var message = ProtocolSerializer.Deserialize<FileSendRequestMessage>(data);
-                        ((IFileTransferServiceImpl)this.FileTransfers).HandleFileSendRequest(senderClientId, message.TransferId, message.FileName, message.FileSize);
+                        await ((IFileTransferServiceImpl)this.FileTransfers).HandleFileSendRequestAsync(senderClientId, message.TransferId, message.FileName, message.FileSize);
                         break;
                     }
 
@@ -509,14 +509,14 @@ public sealed class Connection : IConnectionImpl
                 case MessageTypes.Clipboard.Text:
                     {
                         var message = ProtocolSerializer.Deserialize<ClipboardTextMessage>(data);
-                        ((IClipboardSyncServiceImpl)this.ClipboardSync).HandleTextMessage(message);
+                        await ((IClipboardSyncServiceImpl)this.ClipboardSync).HandleTextMessageAsync(message);
                         break;
                     }
 
                 case MessageTypes.Clipboard.Image:
                     {
                         var message = ProtocolSerializer.Deserialize<ClipboardImageMessage>(data);
-                        ((IClipboardSyncServiceImpl)this.ClipboardSync).HandleImageMessage(message);
+                        await ((IClipboardSyncServiceImpl)this.ClipboardSync).HandleImageMessageAsync(message);
                         break;
                     }
 

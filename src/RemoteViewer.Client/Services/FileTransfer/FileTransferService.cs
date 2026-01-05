@@ -2,8 +2,8 @@ using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using Avalonia.Threading;
 using Microsoft.Extensions.Logging;
-using RemoteViewer.Client.Controls.Dialogs;
 using RemoteViewer.Client.Controls.Toasts;
+using RemoteViewer.Client.Services.Dialogs;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Shared.Protocol;
 
@@ -11,7 +11,7 @@ namespace RemoteViewer.Client.Services.FileTransfer;
 
 public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
 {
-    private readonly App _app;
+    private readonly IDialogService _dialogService;
     private readonly Connection _connection;
     private readonly ILogger<FileTransferService> _logger;
     private readonly ConcurrentDictionary<string, byte> _cancelledTransfers = new();
@@ -19,9 +19,9 @@ public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
 
     public ToastsViewModel? Toasts { get; set; }
 
-    public FileTransferService(App app, Connection connection, ILogger<FileTransferService> logger)
+    public FileTransferService(IDialogService dialogService, Connection connection, ILogger<FileTransferService> logger)
     {
-        this._app = app;
+        this._dialogService = dialogService;
         this._connection = connection;
         this._logger = logger;
     }
@@ -134,47 +134,43 @@ public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
 
     #region IFileTransferServiceImpl Implementation
 
-    void IFileTransferServiceImpl.HandleFileSendRequest(string senderClientId, string transferId, string fileName, long fileSize)
+    async Task IFileTransferServiceImpl.HandleFileSendRequestAsync(string senderClientId, string transferId, string fileName, long fileSize)
     {
-        Dispatcher.UIThread.Post(async () =>
+        var targetClientId = this._connection.IsPresenter ? senderClientId : null;
+
+        var displayName = this._connection.IsPresenter
+            ? this._connection.Viewers.FirstOrDefault(v => v.ClientId == senderClientId)?.DisplayName ?? "Unknown Viewer"
+            : this._connection.Presenter?.DisplayName ?? "Presenter";
+        var fileSizeFormatted = FileTransferHelpers.FormatFileSize(fileSize);
+
+        if (await this._dialogService.ShowFileTransferConfirmationAsync(displayName, fileName, fileSizeFormatted))
         {
-            var targetClientId = this._connection.IsPresenter ? senderClientId : null;
+            var transfer = new FileReceiveOperation(
+                transferId,
+                fileName,
+                fileSize,
+                this,
+                this._logger,
+                sendCancel: (tid, reason) => ((IConnectionImpl)this._connection).SendFileCancelAsync(tid, reason, targetClientId));
 
-            var displayName = this._connection.IsPresenter
-                ? this._connection.Viewers.FirstOrDefault(v => v.ClientId == senderClientId)?.DisplayName ?? "Unknown Viewer"
-                : this._connection.Presenter?.DisplayName ?? "Presenter";
-            var fileSizeFormatted = FileTransferHelpers.FormatFileSize(fileSize);
-
-            var dialog = FileTransferConfirmationDialog.Create(displayName, fileName, fileSizeFormatted);
-            if (await dialog.ShowDialog<bool?>(this._app.ActiveWindow) ?? false)
+            if (this._cancelledTransfers.TryRemove(transferId, out _))
             {
-                var transfer = new FileReceiveOperation(
-                    transferId,
-                    fileName,
-                    fileSize,
-                    this,
-                    this._logger,
-                    sendCancel: (tid, reason) => ((IConnectionImpl)this._connection).SendFileCancelAsync(tid, reason, targetClientId));
-
-                if (this._cancelledTransfers.TryRemove(transferId, out _))
-                {
-                    transfer.Dispose();
-                    return;
-                }
-
-                this.TrackReceive(transfer);
-                await transfer.AcceptAsync();
-                this.Toasts?.AddTransfer(transfer, isUpload: false);
-                await ((IConnectionImpl)this._connection).SendFileSendResponseAsync(transferId, true, null, targetClientId);
-                this._logger.LogInformation("Accepted file upload: {TransferId} -> {DestinationPath}", transferId, transfer.DestinationPath);
+                transfer.Dispose();
+                return;
             }
-            else
-            {
-                this._cancelledTransfers.TryRemove(transferId, out _);
-                await ((IConnectionImpl)this._connection).SendFileSendResponseAsync(transferId, false, "The recipient declined the file transfer.", targetClientId);
-                this._logger.LogInformation("Rejected file upload: {TransferId}", transferId);
-            }
-        });
+
+            this.TrackReceive(transfer);
+            await transfer.AcceptAsync();
+            this.Toasts?.AddTransfer(transfer, isUpload: false);
+            await ((IConnectionImpl)this._connection).SendFileSendResponseAsync(transferId, true, null, targetClientId);
+            this._logger.LogInformation("Accepted file upload: {TransferId} -> {DestinationPath}", transferId, transfer.DestinationPath);
+        }
+        else
+        {
+            this._cancelledTransfers.TryRemove(transferId, out _);
+            await ((IConnectionImpl)this._connection).SendFileSendResponseAsync(transferId, false, "The recipient declined the file transfer.", targetClientId);
+            this._logger.LogInformation("Rejected file upload: {TransferId}", transferId);
+        }
     }
 
     void IFileTransferServiceImpl.HandleFileSendResponse(string transferId, bool accepted, string? errorMessage)

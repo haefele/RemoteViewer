@@ -2,6 +2,8 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using RemoteViewer.Client.Services.Clipboard;
+using RemoteViewer.Client.Services.Dialogs;
 using RemoteViewer.Client.Services.Displays;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.InputInjection;
@@ -44,6 +46,8 @@ public static class ServiceRegistration
         // UI & View Models
         services.AddSingleton(app);
         services.AddSingleton(Dispatcher.UIThread);
+        services.AddSingleton<IClipboardService, AvaloniaClipboardService>();
+        services.AddSingleton<IDialogService, AvaloniaDialogService>();
         services.AddSingleton<IViewModelFactory, ViewModelFactory>();
 
         // Hub Connection
