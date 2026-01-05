@@ -25,7 +25,6 @@ namespace RemoteViewer.IntegrationTests.Fixtures;
 
 public class ClientFixture : IAsyncDisposable
 {
-    private static readonly Lock ServiceRegistrationLock = new();
     private static readonly DisplayInfo FakeDisplay = new(
         Id: "DISPLAY1",
         FriendlyName: "Test Display",
@@ -59,46 +58,35 @@ public class ClientFixture : IAsyncDisposable
         this.LocalInputMonitorService = CreateLocalInputMonitorServiceMock();
         this.TimeProvider = new FakeTimeProvider();
 
-        // Lock to prevent race conditions with parallel tests
-        using (ServiceRegistrationLock.EnterScope())
+        var services = new ServiceCollection();
+        services.AddRemoteViewerServices(ApplicationMode.Desktop, app: null);
+
+        // Override services AFTER registration - last registration wins, no lock needed
+        services.Configure<ConnectionHubClientOptions>(options =>
         {
-            // Use ServiceRegistration.CustomizeServices to override dependencies
-            ServiceRegistration.CustomizeServices = services =>
-            {
-                // Configure options with TestServer's handler
-                services.Configure<ConnectionHubClientOptions>(options =>
-                {
-                    options.BaseUrl = serverFixture.TestServer.BaseAddress.ToString().TrimEnd('/');
-                    options.HttpMessageHandlerFactory = () => serverFixture.TestServer.CreateHandler();
-                });
+            options.BaseUrl = serverFixture.TestServer.BaseAddress.ToString().TrimEnd('/');
+            options.HttpMessageHandlerFactory = () => serverFixture.TestServer.CreateHandler();
+        });
 
-                // Replace Avalonia-specific services with NSubstitute mocks
-                services.AddSingleton<IDispatcher, TestDispatcher>();
-                services.AddSingleton(this.InputInjectionService);
-                services.AddSingleton(this.DialogService);
-                services.AddSingleton(this.ClipboardService);
-                services.AddSingleton(this.DisplayService);
-                services.AddSingleton(this.ScreenshotService);
-                services.AddSingleton(this.LocalInputMonitorService);
-                services.AddSingleton<TimeProvider>(this.TimeProvider);
+        // Replace Avalonia-specific services with NSubstitute mocks
+        services.AddSingleton<IDispatcher, TestDispatcher>();
+        services.AddSingleton(this.InputInjectionService);
+        services.AddSingleton(this.DialogService);
+        services.AddSingleton(this.ClipboardService);
+        services.AddSingleton(this.DisplayService);
+        services.AddSingleton(this.ScreenshotService);
+        services.AddSingleton(this.LocalInputMonitorService);
+        services.AddSingleton<TimeProvider>(this.TimeProvider);
 
-                // Create real RPC client instances with null loggers
-                // (they'll fail to connect to non-existent pipes, which is fine for tests)
-                var nullSessionLogger = Substitute.For<ILogger<SessionRecorderRpcClient>>();
-                var nullWinServiceLogger = Substitute.For<ILogger<WinServiceRpcClient>>();
-                services.AddSingleton(new SessionRecorderRpcClient(nullSessionLogger));
-                services.AddSingleton(new WinServiceRpcClient(nullWinServiceLogger));
-            };
+        // Create real RPC client instances with null loggers
+        // (they'll fail to connect to non-existent pipes, which is fine for tests)
+        var nullSessionLogger = Substitute.For<ILogger<SessionRecorderRpcClient>>();
+        var nullWinServiceLogger = Substitute.For<ILogger<WinServiceRpcClient>>();
+        services.AddSingleton(new SessionRecorderRpcClient(nullSessionLogger));
+        services.AddSingleton(new WinServiceRpcClient(nullWinServiceLogger));
 
-            var services = new ServiceCollection();
-            services.AddRemoteViewerServices(ApplicationMode.Desktop, app: null!);
-
-            this._serviceProvider = services.BuildServiceProvider();
-            this.HubClient = this._serviceProvider.GetRequiredService<ConnectionHubClient>();
-
-            // Clear CustomizeServices after building to avoid affecting other tests
-            ServiceRegistration.CustomizeServices = null;
-        }
+        this._serviceProvider = services.BuildServiceProvider();
+        this.HubClient = this._serviceProvider.GetRequiredService<ConnectionHubClient>();
 
         if (displayName != null)
             _ = this.HubClient.SetDisplayName(displayName);
