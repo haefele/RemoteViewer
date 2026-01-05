@@ -1,12 +1,12 @@
 using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using Avalonia.Platform.Storage;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Views.Chat;
 using RemoteViewer.Client.Controls.Toasts;
+using RemoteViewer.Client.Services;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.ViewModels;
 using RemoteViewer.Shared;
@@ -17,6 +17,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 {
     #region Core State & Constructor
     public Connection Connection { get; }
+    private readonly IDispatcher _dispatcher;
     private readonly ILogger<ViewerViewModel> _logger;
 
     public ToastsViewModel Toasts { get; }
@@ -26,13 +27,15 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     public ViewerViewModel(
         Connection connection,
+        IDispatcher dispatcher,
         IViewModelFactory viewModelFactory,
         ILoggerFactory loggerFactory)
     {
         this.Connection = connection;
+        this._dispatcher = dispatcher;
         this._logger = loggerFactory.CreateLogger<ViewerViewModel>();
         this.Toasts = viewModelFactory.CreateToastsViewModel();
-        this.Chat = new ChatViewModel(this.Connection.Chat, loggerFactory.CreateLogger<ChatViewModel>());
+        this.Chat = new ChatViewModel(this.Connection.Chat, dispatcher, loggerFactory.CreateLogger<ChatViewModel>());
         this.Connection.FileTransfers.Toasts = this.Toasts;
 
         this.Connection.ParticipantsChanged += this.Connection_ParticipantsChanged;
@@ -51,7 +54,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     private void Connection_ParticipantsChanged(object? sender, EventArgs e)
     {
-        Dispatcher.UIThread.Post(this.UpdateParticipants);
+        this._dispatcher.Post(this.UpdateParticipants);
     }
 
     private void UpdateParticipants()
@@ -74,7 +77,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     private void Connection_ConnectionPropertiesChanged(object? sender, EventArgs e)
     {
-        Dispatcher.UIThread.Post(this.UpdateConnectionProperties);
+        this._dispatcher.Post(this.UpdateConnectionProperties);
     }
 
     private void UpdateConnectionProperties()
@@ -88,7 +91,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     private void Connection_Closed(object? sender, EventArgs e)
     {
-        Dispatcher.UIThread.Post(() => this.CloseRequested?.Invoke(this, EventArgs.Empty));
+        this._dispatcher.Post(() => this.CloseRequested?.Invoke(this, EventArgs.Empty));
     }
 
     [RelayCommand]
@@ -194,12 +197,12 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     private void ViewerService_AvailableDisplaysChanged(object? sender, EventArgs e)
     {
-        Dispatcher.UIThread.Post(this.UpdateDisplayState);
+        this._dispatcher.Post(this.UpdateDisplayState);
     }
 
     private void ViewerService_CurrentDisplayChanged(object? sender, EventArgs e)
     {
-        Dispatcher.UIThread.Post(this.UpdateDisplayState);
+        this._dispatcher.Post(this.UpdateDisplayState);
     }
 
     private void UpdateDisplayState()

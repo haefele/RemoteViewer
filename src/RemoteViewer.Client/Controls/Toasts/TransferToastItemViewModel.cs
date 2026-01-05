@@ -1,6 +1,6 @@
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using RemoteViewer.Client.Services;
 using RemoteViewer.Client.Services.FileTransfer;
 
 namespace RemoteViewer.Client.Controls.Toasts;
@@ -8,16 +8,19 @@ namespace RemoteViewer.Client.Controls.Toasts;
 public partial class TransferToastItemViewModel : ObservableObject, IDisposable
 {
     private readonly IFileTransfer _transfer;
+    private readonly IDispatcher _dispatcher;
     private readonly Action<TransferToastItemViewModel, bool, string?> _completionCallback;
     private bool _disposed;
 
     public TransferToastItemViewModel(
         IFileTransfer transfer,
         bool isUpload,
+        IDispatcher dispatcher,
         Action<TransferToastItemViewModel, bool, string?> completionCallback)
     {
         this._transfer = transfer;
         this.IsUpload = isUpload;
+        this._dispatcher = dispatcher;
         this._completionCallback = completionCallback;
 
         this._transfer.Completed += this.OnTransferCompleted;
@@ -29,7 +32,7 @@ public partial class TransferToastItemViewModel : ObservableObject, IDisposable
 
     private void OnTransferCompleted(object? sender, EventArgs e)
     {
-        Dispatcher.UIThread.Post(() =>
+        this._dispatcher.Post(() =>
         {
             this._completionCallback(this, true, null);
         });
@@ -37,7 +40,7 @@ public partial class TransferToastItemViewModel : ObservableObject, IDisposable
 
     private void OnTransferFailed(object? sender, EventArgs e)
     {
-        Dispatcher.UIThread.Post(() =>
+        this._dispatcher.Post(() =>
         {
             this._completionCallback(this, false, this._transfer.ErrorMessage);
         });

@@ -23,5 +23,5 @@ public class ViewModelFactory(IServiceProvider serviceProvider) : IViewModelFact
     public PresenterViewModel CreatePresenterViewModel(Connection connection) => ActivatorUtilities.CreateInstance<PresenterViewModel>(serviceProvider, connection);
     public ViewerViewModel CreateViewerViewModel(Connection connection) => ActivatorUtilities.CreateInstance<ViewerViewModel>(serviceProvider, connection);
 
-    public ToastsViewModel CreateToastsViewModel() => new();
+    public ToastsViewModel CreateToastsViewModel() => ActivatorUtilities.CreateInstance<ToastsViewModel>(serviceProvider);
 }

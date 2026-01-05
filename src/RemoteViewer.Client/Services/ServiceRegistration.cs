@@ -48,6 +48,7 @@ public static class ServiceRegistration
         services.AddSingleton(Dispatcher.UIThread);
         services.AddSingleton<IClipboardService, AvaloniaClipboardService>();
         services.AddSingleton<IDialogService, AvaloniaDialogService>();
+        services.AddSingleton<IDispatcher, AvaloniaDispatcher>();
         services.AddSingleton<IViewModelFactory, ViewModelFactory>();
 
         // Hub Connection

@@ -1,12 +1,12 @@
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using Avalonia.Platform.Storage;
-using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Views.Chat;
 using RemoteViewer.Client.Controls.Toasts;
+using RemoteViewer.Client.Services;
 using RemoteViewer.Client.Services.Dialogs;
 using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.HubClient;
@@ -22,6 +22,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
     private readonly ConnectionHubClient _hubClient;
     private readonly IFrameEncoder _frameEncoder;
     private readonly IDialogService _dialogService;
+    private readonly IDispatcher _dispatcher;
     private readonly ILogger<PresenterViewModel> _logger;
 
     public ToastsViewModel Toasts { get; }
@@ -70,6 +71,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         ConnectionHubClient hubClient,
         IFrameEncoder frameEncoder,
         IDialogService dialogService,
+        IDispatcher dispatcher,
         IViewModelFactory viewModelFactory,
         ILoggerFactory loggerFactory)
     {
@@ -77,9 +79,10 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         this._hubClient = hubClient;
         this._frameEncoder = frameEncoder;
         this._dialogService = dialogService;
+        this._dispatcher = dispatcher;
         this._logger = loggerFactory.CreateLogger<PresenterViewModel>();
         this.Toasts = viewModelFactory.CreateToastsViewModel();
-        this.Chat = new ChatViewModel(this._connection.Chat, loggerFactory.CreateLogger<ChatViewModel>());
+        this.Chat = new ChatViewModel(this._connection.Chat, dispatcher, loggerFactory.CreateLogger<ChatViewModel>());
         this._connection.FileTransfers.Toasts = this.Toasts;
 
         // Subscribe to Connection events
@@ -93,7 +96,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 
     private void OnCredentialsAssigned(object? sender, CredentialsAssignedEventArgs e)
     {
-        Dispatcher.UIThread.Post(() =>
+        this._dispatcher.Post(() =>
         {
             this.YourId = e.Username;
             this.YourPassword = e.Password;
@@ -108,7 +111,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         this._logger.LogInformation("Viewer list changed: {ViewerCount} viewer(s)", viewers.Count);
 
         // Update UI
-        Dispatcher.UIThread.Post(() =>
+        this._dispatcher.Post(() =>
         {
             this.UpdateViewers(viewers);
         });
@@ -116,7 +119,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 
     private void OnConnectionPropertiesChanged(object? sender, EventArgs e)
     {
-        Dispatcher.UIThread.Post(this.UpdateBlockedViewerStates);
+        this._dispatcher.Post(this.UpdateBlockedViewerStates);
     }
 
     private void UpdateViewers(IReadOnlyList<ClientInfo> viewers)
@@ -192,7 +195,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 
     private void OnConnectionClosed(object? sender, EventArgs e)
     {
-        Dispatcher.UIThread.Post(() =>
+        this._dispatcher.Post(() =>
         {
             CloseRequested?.Invoke(this, EventArgs.Empty);
         });
