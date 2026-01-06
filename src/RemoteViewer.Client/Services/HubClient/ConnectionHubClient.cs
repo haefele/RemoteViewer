@@ -32,6 +32,9 @@ public class ConnectionHubClient : IAsyncDisposable
 
                 if (options.Value.HttpMessageHandlerFactory is not null)
                     httpOptions.HttpMessageHandlerFactory = (f) => options.Value.HttpMessageHandlerFactory();
+
+                if (options.Value.Transports is not null)
+                    httpOptions.Transports = options.Value.Transports.Value;
             })
             .WithAutomaticReconnect()
             .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)

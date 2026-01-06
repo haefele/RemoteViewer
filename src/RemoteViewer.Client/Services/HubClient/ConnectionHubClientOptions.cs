@@ -1,4 +1,6 @@
-﻿namespace RemoteViewer.Client.Services.HubClient;
+﻿using Microsoft.AspNetCore.Http.Connections;
+
+namespace RemoteViewer.Client.Services.HubClient;
 
 public class ConnectionHubClientOptions
 {
@@ -9,4 +11,10 @@ public class ConnectionHubClientOptions
 #endif
 
     public Func<HttpMessageHandler>? HttpMessageHandlerFactory { get; set; }
+
+    /// <summary>
+    /// Configures which transports SignalR should use. Default is all transports.
+    /// In tests, set to LongPolling to avoid WebSocket timeout delays.
+    /// </summary>
+    public HttpTransportType? Transports { get; set; }
 }

@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -68,6 +68,7 @@ public class ClientFixture : IAsyncDisposable
         {
             options.BaseUrl = serverFixture.TestServer.BaseAddress.ToString().TrimEnd('/');
             options.HttpMessageHandlerFactory = () => serverFixture.TestServer.CreateHandler();
+            options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling; // LongPolling speeds up our test execution by A LOT!
         });
 
         // Replace Avalonia-specific services with test implementations

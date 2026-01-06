@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.SignalR.Client;
+﻿using Microsoft.AspNetCore.Http.Connections;
+using Microsoft.AspNetCore.SignalR.Client;
 using Nerdbank.MessagePack.SignalR;
 using RemoteViewer.IntegrationTests.Fixtures;
 using RemoteViewer.Shared;
 
 namespace RemoteViewer.Server.Tests.Hubs;
 
+[NotInParallel]
 public class SignalRHubTests
 {
     [ClassDataSource<ServerFixture>(Shared = SharedType.None)]
@@ -17,6 +19,8 @@ public class SignalRHubTests
             {
                 options.HttpMessageHandlerFactory = _ => this.Server.TestServer.CreateHandler();
                 options.Headers.Add("X-Client-Version", ThisAssembly.AssemblyInformationalVersion);
+                // Use LongPolling to avoid WebSocket timeout delays (TestServer doesn't support WebSockets)
+                options.Transports = HttpTransportType.LongPolling;
             })
             .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
             .Build();
@@ -463,6 +467,7 @@ public class SignalRHubTests
             {
                 options.HttpMessageHandlerFactory = _ => this.Server.TestServer.CreateHandler();
                 options.Headers.Add("X-Client-Version", "0.0.0-invalid");
+                options.Transports = HttpTransportType.LongPolling;
             })
             .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
             .Build();
@@ -525,6 +530,7 @@ public class SignalRHubTests
             {
                 options.HttpMessageHandlerFactory = _ => this.Server.TestServer.CreateHandler();
                 options.Headers.Add("X-Ipc-Token", ipcToken!);
+                options.Transports = HttpTransportType.LongPolling;
             })
             .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
             .Build();
@@ -554,6 +560,7 @@ public class SignalRHubTests
             {
                 options.HttpMessageHandlerFactory = _ => this.Server.TestServer.CreateHandler();
                 options.Headers.Add("X-Ipc-Token", "invalid-token");
+                options.Transports = HttpTransportType.LongPolling;
             })
             .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
             .Build();
