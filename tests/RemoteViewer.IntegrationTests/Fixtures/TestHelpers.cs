@@ -31,11 +31,15 @@ public static class TestHelpers
         TimeSpan? timeout = null)
     {
         var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(5));
+
         while (DateTime.UtcNow < deadline)
         {
             if (checkReceived())
                 return;
             await Task.Delay(50);
         }
+
+        // Throw on timeout instead of silently returning
+        throw new TimeoutException("WaitForReceivedCallAsync timed out");
     }
 }

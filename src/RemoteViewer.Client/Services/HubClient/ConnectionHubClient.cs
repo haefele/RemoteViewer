@@ -14,6 +14,7 @@ public class ConnectionHubClient : IAsyncDisposable
     private readonly IServiceProvider _serviceProvider;
     private readonly HubConnection _connection;
     private readonly ConcurrentDictionary<string, Connection> _connections = new();
+    private bool _disposed;
 
     public ConnectionHubClient(
         ILogger<ConnectionHubClient> logger,
@@ -105,6 +106,12 @@ public class ConnectionHubClient : IAsyncDisposable
 
             this.CloseAllConnections();
             this._hubConnectionStatusChanged?.Invoke(this, EventArgs.Empty);
+
+            if (this._disposed)
+            {
+                this._logger.LogDebug("Not reconnecting - client is disposed");
+                return Task.CompletedTask;
+            }
 
             if (this.HasVersionMismatch)
             {
@@ -282,6 +289,7 @@ public class ConnectionHubClient : IAsyncDisposable
 
     public async ValueTask DisposeAsync()
     {
+        this._disposed = true;
         this._logger.LogDebug("Disposing HubClient");
         await this._connection.DisposeAsync();
     }

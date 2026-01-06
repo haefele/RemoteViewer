@@ -1,15 +1,16 @@
-using NSubstitute;
+﻿using NSubstitute;
 using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.IntegrationTests.Fixtures;
 using RemoteViewer.Shared;
 using RemoteViewer.Shared.Protocol;
+using TUnit.Core;
 using DataFormat = Avalonia.Input.DataFormat;
 
 namespace RemoteViewer.IntegrationTests;
 
-[ClassDataSource<ServerFixture>(Shared = SharedType.PerAssembly)]
+[ClassDataSource<ServerFixture>(Shared = SharedType.None)]
 public class ConnectionHubClientTests(ServerFixture serverFixture)
 {
     [Test]
@@ -87,9 +88,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
 
         // Subscribe to property change before updating
         var propertyChangedTask = TestHelpers.WaitForEventAsync(
-            onComplete => viewerConn.ConnectionPropertiesChanged += (s, e) =>
+            onComplete => presenterConn.ConnectionPropertiesChanged += (s, e) =>
             {
-                if (viewerConn.ConnectionProperties.InputBlockedViewerIds.Contains(viewerClientId))
+                if (presenterConn.ConnectionProperties.InputBlockedViewerIds.Contains(viewerClientId))
                     onComplete();
             });
 
@@ -245,15 +246,19 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
 
         var presenterConn = await presenterConnTask;
 
-        // Wait for viewer connect to complete
-        await viewerConnectTask;
-
-        await TestHelpers.WaitForEventAsync(
+        // Subscribe BEFORE waiting for viewer connect to avoid race condition
+        var viewersChangedTask = TestHelpers.WaitForEventAsync(
             onComplete => presenterConn.ViewersChanged += (s, e) =>
             {
                 if (presenterConn.Viewers.Count > 0)
                     onComplete();
             });
+
+        // Wait for viewer connect to complete
+        await viewerConnectTask;
+
+        // Wait for the event
+        await viewersChangedTask;
 
         await Assert.That(presenterConn.Viewers.Count).IsGreaterThan(0);
     }
@@ -269,16 +274,20 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
 
         var viewerClientId = viewer.HubClient.ClientId!;
 
-        // Block viewer input (this changes connection properties)
-        await presenterConn.UpdateConnectionPropertiesAndSend(props =>
-            props with { InputBlockedViewerIds = [viewerClientId] });
-
-        await TestHelpers.WaitForEventAsync(
+        // Subscribe BEFORE triggering the property change to avoid race condition
+        var propertyChangedTask = TestHelpers.WaitForEventAsync(
             onComplete => viewerConn.ConnectionPropertiesChanged += (s, e) =>
             {
                 if (viewerConn.ConnectionProperties.InputBlockedViewerIds.Contains(viewerClientId))
                     onComplete();
             });
+
+        // Block viewer input (this changes connection properties)
+        await presenterConn.UpdateConnectionPropertiesAndSend(props =>
+            props with { InputBlockedViewerIds = [viewerClientId] });
+
+        // Wait for the event
+        await propertyChangedTask;
 
         await Assert.That(viewerConn.ConnectionProperties.InputBlockedViewerIds).Contains(viewerClientId);
     }
@@ -731,11 +740,18 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
 
         await serverFixture.CreateConnectionAsync(presenter, viewer);
 
+        // Give the clipboard sync poll loop time to start and register its timer
+        // This is necessary because Task.Run() in ClipboardSyncService may not have executed yet
+        await Task.Delay(100);
+
         // Poll with time advances until clipboard syncs
         for (var i = 0; i < 50; i++)
         {
+            // Advance time by more than the poll interval (500ms) to trigger the timer
             viewer.TimeProvider.Advance(TimeSpan.FromMilliseconds(600));
-            await Task.Delay(50); // Allow SignalR message delivery
+
+            // Allow SignalR message delivery and give async operations time to complete
+            await Task.Delay(100);
 
             var calls = presenter.ClipboardService.ReceivedCalls()
                 .Where(c => c.GetMethodInfo().Name == "SetTextAsync")
@@ -762,11 +778,18 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
 
         await serverFixture.CreateConnectionAsync(presenter, viewer);
 
+        // Give the clipboard sync poll loop time to start and register its timer
+        // This is necessary because Task.Run() in ClipboardSyncService may not have executed yet
+        await Task.Delay(100);
+
         // Poll with time advances until clipboard syncs
         for (var i = 0; i < 50; i++)
         {
+            // Advance time by more than the poll interval (500ms) to trigger the timer
             presenter.TimeProvider.Advance(TimeSpan.FromMilliseconds(600));
-            await Task.Delay(50); // Allow SignalR message delivery
+
+            // Allow SignalR message delivery and give async operations time to complete
+            await Task.Delay(100);
 
             var calls = viewer.ClipboardService.ReceivedCalls()
                 .Where(c => c.GetMethodInfo().Name == "SetTextAsync")
