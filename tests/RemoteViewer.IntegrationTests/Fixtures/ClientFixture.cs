@@ -18,7 +18,6 @@ using RemoteViewer.Client.Services.SessionRecorderIpc;
 using RemoteViewer.Client.Services.WinServiceIpc;
 using RemoteViewer.Client.Views.Presenter;
 using RemoteViewer.IntegrationTests.Mocks;
-using RemoteViewer.Server.Tests;
 using RemoteViewer.Shared;
 using RemoteViewer.Shared.Protocol;
 
@@ -38,6 +37,7 @@ public class ClientFixture : IAsyncDisposable
     private readonly IServiceProvider _serviceProvider;
 
     public ConnectionHubClient HubClient { get; }
+    public Connection? CurrentConnection => this.HubClient.Connections.FirstOrDefault();
 
     // NSubstitute mocks exposed for test configuration/verification
     public IInputInjectionService InputInjectionService { get; }
@@ -162,11 +162,15 @@ public class ClientFixture : IAsyncDisposable
         this.HubClient.CredentialsAssigned += (s, e) => tcs.TrySetResult((e.Username, e.Password));
 
         if (this.HubClient.Username != null)
-            return (this.HubClient.Username, this.HubClient.Password!);
+        {
+            // Strip spaces - usernames are formatted with spaces for display but ConnectTo expects them stripped
+            return (this.HubClient.Username.Replace(" ", ""), this.HubClient.Password!);
+        }
 
         using var cts = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(5));
         cts.Token.Register(() => tcs.TrySetCanceled());
-        return await tcs.Task;
+        var (username, password) = await tcs.Task;
+        return (username.Replace(" ", ""), password);
     }
 
     public async Task<Connection> WaitForConnectionAsync(TimeSpan? timeout = null)

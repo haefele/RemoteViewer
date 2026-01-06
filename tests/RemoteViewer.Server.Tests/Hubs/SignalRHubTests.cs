@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.SignalR.Client;
 using Nerdbank.MessagePack.SignalR;
-
+using RemoteViewer.IntegrationTests.Fixtures;
 using RemoteViewer.Shared;
 
 namespace RemoteViewer.Server.Tests.Hubs;

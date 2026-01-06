@@ -157,6 +157,8 @@ public class ConnectionHubClient : IAsyncDisposable
     public string? Password { get; private set; }
     public string DisplayName { get; private set; } = Environment.UserName;
 
+    public IReadOnlyCollection<Connection> Connections => this._connections.Values.ToList();
+
     public string? ServerVersion { get; private set; }
     public bool HasVersionMismatch { get; private set; }
 
