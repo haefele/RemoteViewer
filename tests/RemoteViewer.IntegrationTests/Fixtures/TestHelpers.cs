@@ -30,16 +30,23 @@ public static class TestHelpers
         Func<bool> checkReceived,
         TimeSpan? timeout = null)
     {
+        await WaitForConditionAsync(checkReceived, timeout, "WaitForReceivedCallAsync timed out");
+    }
+
+    public static async Task WaitForConditionAsync(
+        Func<bool> condition,
+        TimeSpan? timeout = null,
+        string? timeoutMessage = null)
+    {
         var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(5));
 
         while (DateTime.UtcNow < deadline)
         {
-            if (checkReceived())
+            if (condition())
                 return;
             await Task.Delay(50);
         }
 
-        // Throw on timeout instead of silently returning
-        throw new TimeoutException("WaitForReceivedCallAsync timed out");
+        throw new TimeoutException(timeoutMessage ?? "WaitForConditionAsync timed out");
     }
 }

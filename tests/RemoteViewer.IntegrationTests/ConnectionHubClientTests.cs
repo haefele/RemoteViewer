@@ -86,22 +86,16 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
 
         var viewerClientId = viewer.HubClient.ClientId!;
 
-        // Subscribe to property change before updating
-        var propertyChangedTask = TestHelpers.WaitForEventAsync(
-            onComplete => presenterConn.ConnectionPropertiesChanged += (s, e) =>
-            {
-                if (presenterConn.ConnectionProperties.InputBlockedViewerIds.Contains(viewerClientId))
-                    onComplete();
-            });
-
         // Block viewer input
         await presenterConn.UpdateConnectionPropertiesAndSend(props =>
             props with { InputBlockedViewerIds = [viewerClientId] });
 
-        // Wait for property to propagate to viewer (confirms round-trip)
-        await propertyChangedTask;
+        // Wait for property to propagate to the VIEWER (confirms server round-trip)
+        // The viewer receiving the update confirms the server has processed and broadcast it
+        await TestHelpers.WaitForConditionAsync(
+            () => viewerConn.ConnectionProperties.InputBlockedViewerIds.Contains(viewerClientId));
 
-        await Assert.That(presenterConn.ConnectionProperties.InputBlockedViewerIds)
+        await Assert.That(viewerConn.ConnectionProperties.InputBlockedViewerIds)
             .Contains(viewerClientId);
     }
 
