@@ -2,7 +2,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Logging;
-using RemoteViewer.Client.Services.HubClient;
 using TUnit.Core.Interfaces;
 
 namespace RemoteViewer.IntegrationTests.Fixtures;

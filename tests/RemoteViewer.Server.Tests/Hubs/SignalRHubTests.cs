@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.SignalR.Client;
+﻿using Microsoft.AspNetCore.SignalR.Client;
 using Nerdbank.MessagePack.SignalR;
 using RemoteViewer.IntegrationTests.Fixtures;
 using RemoteViewer.Shared;
@@ -7,7 +7,7 @@ namespace RemoteViewer.Server.Tests.Hubs;
 
 public class SignalRHubTests
 {
-    [ClassDataSource<ServerFixture>(Shared = SharedType.PerAssembly)]
+    [ClassDataSource<ServerFixture>(Shared = SharedType.None)]
     public required ServerFixture Server { get; init; }
 
     private async Task<HubConnection> CreateHubConnectionAsync(Action<HubConnection>? configure = null)

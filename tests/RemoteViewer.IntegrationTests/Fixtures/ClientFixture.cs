@@ -20,6 +20,7 @@ using RemoteViewer.Client.Views.Presenter;
 using RemoteViewer.IntegrationTests.Mocks;
 using RemoteViewer.Shared;
 using RemoteViewer.Shared.Protocol;
+using TUnit.Core;
 
 namespace RemoteViewer.IntegrationTests.Fixtures;
 
