@@ -2,7 +2,6 @@ using NSubstitute;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.IntegrationTests.Fixtures;
-using RemoteViewer.Server.Tests;
 using RemoteViewer.Shared;
 using RemoteViewer.Shared.Protocol;
 
@@ -11,37 +10,11 @@ namespace RemoteViewer.IntegrationTests;
 [ClassDataSource<ServerFixture>(Shared = SharedType.PerAssembly)]
 public class ConnectionHubClientTests(ServerFixture serverFixture)
 {
-    private async Task<(ClientFixture Presenter, ClientFixture Viewer, Connection PresenterConn, Connection ViewerConn)> SetupConnectionAsync()
-    {
-        var presenter = new ClientFixture(serverFixture, "Presenter");
-        var viewer = new ClientFixture(serverFixture, "Viewer");
-
-        await presenter.HubClient.ConnectToHub();
-        await viewer.HubClient.ConnectToHub();
-
-        var (username, password) = await presenter.WaitForCredentialsAsync();
-
-        var presenterConnTask = presenter.WaitForConnectionAsync();
-        var viewerConnTask = viewer.WaitForConnectionAsync();
-
-        var error = await viewer.HubClient.ConnectTo(username, password);
-        if (error != null)
-            throw new InvalidOperationException($"Connection failed: {error}");
-
-        var presenterConn = await presenterConnTask;
-        var viewerConn = await viewerConnTask;
-
-        return (presenter, viewer, presenterConn, viewerConn);
-    }
-
     [Test]
     public async Task TwoClientsCanEstablishConnection()
     {
-        await using var presenter = new ClientFixture(serverFixture, "Presenter");
-        await using var viewer = new ClientFixture(serverFixture, "Viewer");
-
-        await presenter.HubClient.ConnectToHub();
-        await viewer.HubClient.ConnectToHub();
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
 
         var (username, password) = await presenter.WaitForCredentialsAsync();
 
@@ -62,147 +35,145 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task ChatMessagesAreSentFromViewerToPresenter()
     {
-        var (presenter, viewer, presenterConn, viewerConn) = await this.SetupConnectionAsync();
-        await using (presenter)
-        await using (viewer)
-        {
-            var receivedTcs = new TaskCompletionSource<ChatMessageDisplay>();
-            presenterConn.Chat.MessageReceived += (s, msg) => receivedTcs.TrySetResult(msg);
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        var presenterConn = presenter.CurrentConnection!;
+        var viewerConn = viewer.CurrentConnection!;
 
-            await viewerConn.Chat.SendMessageAsync("Hello from viewer!");
+        var receiveTask = TestHelpers.WaitForEventAsync<ChatMessageDisplay>(
+            onResult => presenterConn.Chat.MessageReceived += (s, msg) => onResult(msg));
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            cts.Token.Register(() => receivedTcs.TrySetCanceled());
-            var received = await receivedTcs.Task;
+        await viewerConn.Chat.SendMessageAsync("Hello from viewer!");
 
-            await Assert.That(received.Text).IsEqualTo("Hello from viewer!");
-            await Assert.That(received.IsFromPresenter).IsFalse();
-        }
+        var received = await receiveTask;
+
+        await Assert.That(received.Text).IsEqualTo("Hello from viewer!");
+        await Assert.That(received.IsFromPresenter).IsFalse();
     }
 
     [Test]
     public async Task ChatMessagesAreSentFromPresenterToViewer()
     {
-        var (presenter, viewer, presenterConn, viewerConn) = await this.SetupConnectionAsync();
-        await using (presenter)
-        await using (viewer)
-        {
-            var receivedTcs = new TaskCompletionSource<ChatMessageDisplay>();
-            viewerConn.Chat.MessageReceived += (s, msg) => receivedTcs.TrySetResult(msg);
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        var presenterConn = presenter.CurrentConnection!;
+        var viewerConn = viewer.CurrentConnection!;
 
-            await presenterConn.Chat.SendMessageAsync("Hello from presenter!");
+        var receiveTask = TestHelpers.WaitForEventAsync<ChatMessageDisplay>(
+            onResult => viewerConn.Chat.MessageReceived += (s, msg) => onResult(msg));
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            cts.Token.Register(() => receivedTcs.TrySetCanceled());
-            var received = await receivedTcs.Task;
+        await presenterConn.Chat.SendMessageAsync("Hello from presenter!");
 
-            await Assert.That(received.Text).IsEqualTo("Hello from presenter!");
-            await Assert.That(received.IsFromPresenter).IsTrue();
-        }
+        var received = await receiveTask;
+
+        await Assert.That(received.Text).IsEqualTo("Hello from presenter!");
+        await Assert.That(received.IsFromPresenter).IsTrue();
     }
 
     [Test]
     public async Task InputBlockingUpdatesConnectionProperties()
     {
-        var (presenter, viewer, presenterConn, viewerConn) = await this.SetupConnectionAsync();
-        await using (presenter)
-        await using (viewer)
-        {
-            var viewerClientId = viewer.HubClient.ClientId!;
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        var presenterConn = presenter.CurrentConnection!;
 
-            // Wait for viewer to appear in connection
-            await Task.Delay(100);
+        var viewerClientId = viewer.HubClient.ClientId!;
 
-            // Block viewer input
-            await presenterConn.UpdateConnectionPropertiesAndSend(props =>
-                props with { InputBlockedViewerIds = [viewerClientId] });
+        // Wait for viewer to appear in connection
+        await Task.Delay(100);
 
-            // Wait for property propagation
-            await Task.Delay(100);
+        // Block viewer input
+        await presenterConn.UpdateConnectionPropertiesAndSend(props =>
+            props with { InputBlockedViewerIds = [viewerClientId] });
 
-            await Assert.That(presenterConn.ConnectionProperties.InputBlockedViewerIds)
-                .Contains(viewerClientId);
-        }
+        // Wait for property propagation
+        await Task.Delay(100);
+
+        await Assert.That(presenterConn.ConnectionProperties.InputBlockedViewerIds)
+            .Contains(viewerClientId);
     }
 
     [Test]
     public async Task ViewerMouseMoveIsSentToPresenter()
     {
-        var (presenter, viewer, presenterConn, viewerConn) = await this.SetupConnectionAsync();
-        await using (presenter)
-        await using (viewer)
-        {
-            await viewerConn.RequiredViewerService.SendMouseMoveAsync(0.5f, 0.5f);
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        var viewerConn = viewer.CurrentConnection!;
 
-            // Give time for message to be received and processed
-            await Task.Delay(200);
+        await viewerConn.RequiredViewerService.SendMouseMoveAsync(0.5f, 0.5f);
 
-            // Verify via NSubstitute mock
-            await presenter.InputInjectionService.Received().InjectMouseMove(
-                Arg.Any<DisplayInfo>(),
-                Arg.Any<float>(),
-                Arg.Any<float>(),
-                Arg.Any<string?>(),
-                Arg.Any<CancellationToken>());
-        }
+        // Give time for message to be received and processed
+        await Task.Delay(200);
+
+        // Verify via NSubstitute mock
+        await presenter.InputInjectionService.Received().InjectMouseMove(
+            Arg.Any<DisplayInfo>(),
+            Arg.Any<float>(),
+            Arg.Any<float>(),
+            Arg.Any<string?>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Test]
     public async Task ViewerKeyPressIsSentToPresenter()
     {
-        var (presenter, viewer, presenterConn, viewerConn) = await this.SetupConnectionAsync();
-        await using (presenter)
-        await using (viewer)
-        {
-            await viewerConn.RequiredViewerService.SendKeyDownAsync(0x41, KeyModifiers.None); // 'A' key
-            await viewerConn.RequiredViewerService.SendKeyUpAsync(0x41, KeyModifiers.None);
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        var viewerConn = viewer.CurrentConnection!;
 
-            await Task.Delay(200);
+        await viewerConn.RequiredViewerService.SendKeyDownAsync(0x41, KeyModifiers.None); // 'A' key
+        await viewerConn.RequiredViewerService.SendKeyUpAsync(0x41, KeyModifiers.None);
 
-            // Verify key down and key up were both received
-            await presenter.InputInjectionService.Received(2).InjectKey(
-                Arg.Any<ushort>(),
-                Arg.Any<bool>(),
-                Arg.Any<string?>(),
-                Arg.Any<CancellationToken>());
-        }
+        await Task.Delay(200);
+
+        // Verify key down and key up were both received
+        await presenter.InputInjectionService.Received(2).InjectKey(
+            Arg.Any<ushort>(),
+            Arg.Any<bool>(),
+            Arg.Any<string?>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Test]
     public async Task PresenterDisconnectClosesViewerConnection()
     {
-        var (presenter, viewer, presenterConn, viewerConn) = await this.SetupConnectionAsync();
-        await using (presenter)
-        await using (viewer)
-        {
-            var closedTcs = new TaskCompletionSource();
-            viewerConn.Closed += (s, e) => closedTcs.TrySetResult();
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        var presenterConn = presenter.CurrentConnection!;
+        var viewerConn = viewer.CurrentConnection!;
 
-            await presenterConn.DisconnectAsync();
+        var closedTask = TestHelpers.WaitForEventAsync(
+            onComplete => viewerConn.Closed += (s, e) => onComplete());
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            cts.Token.Register(() => closedTcs.TrySetCanceled());
-            await closedTcs.Task;
+        await presenterConn.DisconnectAsync();
 
-            await Assert.That(viewerConn.IsClosed).IsTrue();
-        }
+        await closedTask;
+
+        await Assert.That(viewerConn.IsClosed).IsTrue();
     }
 
     [Test]
     public async Task ViewerDisconnectDoesNotClosePresenterConnection()
     {
-        var (presenter, viewer, presenterConn, viewerConn) = await this.SetupConnectionAsync();
-        await using (presenter)
-        await using (viewer)
-        {
-            await viewerConn.DisconnectAsync();
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        var presenterConn = presenter.CurrentConnection!;
+        var viewerConn = viewer.CurrentConnection!;
 
-            // Wait a bit to ensure we're not just racing the close event
-            await Task.Delay(200);
+        await viewerConn.DisconnectAsync();
 
-            // Presenter connection should still be open
-            await Assert.That(presenterConn.IsClosed).IsFalse();
-        }
+        // Wait a bit to ensure we're not just racing the close event
+        await Task.Delay(200);
+
+        // Presenter connection should still be open
+        await Assert.That(presenterConn.IsClosed).IsFalse();
     }
 
     #region Connection Lifecycle & Events Tests
@@ -210,33 +181,13 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task MultipleViewersCanConnectToSamePresenter()
     {
-        await using var presenter = new ClientFixture(serverFixture, "Presenter");
-        await using var viewer1 = new ClientFixture(serverFixture, "Viewer1");
-        await using var viewer2 = new ClientFixture(serverFixture, "Viewer2");
-        await using var viewer3 = new ClientFixture(serverFixture, "Viewer3");
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer1 = await serverFixture.CreateClientAsync("Viewer1");
+        await using var viewer2 = await serverFixture.CreateClientAsync("Viewer2");
+        await using var viewer3 = await serverFixture.CreateClientAsync("Viewer3");
 
-        await presenter.HubClient.ConnectToHub();
-        await viewer1.HubClient.ConnectToHub();
-        await viewer2.HubClient.ConnectToHub();
-        await viewer3.HubClient.ConnectToHub();
-
-        var (username, password) = await presenter.WaitForCredentialsAsync();
-
-        var presenterConnTask = presenter.WaitForConnectionAsync();
-
-        // Connect all three viewers
-        var error1 = await viewer1.HubClient.ConnectTo(username, password);
-        var error2 = await viewer2.HubClient.ConnectTo(username, password);
-        var error3 = await viewer3.HubClient.ConnectTo(username, password);
-
-        await Assert.That(error1).IsNull();
-        await Assert.That(error2).IsNull();
-        await Assert.That(error3).IsNull();
-
-        var presenterConn = await presenterConnTask;
-
-        // Give time for all viewers to be registered
-        await Task.Delay(200);
+        await serverFixture.CreateConnectionAsync(presenter, viewer1, viewer2, viewer3);
+        var presenterConn = presenter.CurrentConnection!;
 
         await Assert.That(presenterConn.Viewers.Count).IsEqualTo(3);
     }
@@ -244,80 +195,52 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task ViewerDisconnectDoesNotAffectOtherViewers()
     {
-        await using var presenter = new ClientFixture(serverFixture, "Presenter");
-        await using var viewer1 = new ClientFixture(serverFixture, "Viewer1");
-        await using var viewer2 = new ClientFixture(serverFixture, "Viewer2");
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer1 = await serverFixture.CreateClientAsync("Viewer1");
+        await using var viewer2 = await serverFixture.CreateClientAsync("Viewer2");
 
-        await presenter.HubClient.ConnectToHub();
-        await viewer1.HubClient.ConnectToHub();
-        await viewer2.HubClient.ConnectToHub();
-
-        var (username, password) = await presenter.WaitForCredentialsAsync();
-
-        var presenterConnTask = presenter.WaitForConnectionAsync();
-        var viewer1ConnTask = viewer1.WaitForConnectionAsync();
-        var viewer2ConnTask = viewer2.WaitForConnectionAsync();
-
-        await viewer1.HubClient.ConnectTo(username, password);
-        await viewer2.HubClient.ConnectTo(username, password);
-
-        var presenterConn = await presenterConnTask;
-        var viewer1Conn = await viewer1ConnTask;
-        var viewer2Conn = await viewer2ConnTask;
-
-        // Give time for all viewers to be registered
-        await Task.Delay(200);
+        await serverFixture.CreateConnectionAsync(presenter, viewer1, viewer2);
+        var presenterConn = presenter.CurrentConnection!;
+        var viewer1Conn = viewer1.CurrentConnection!;
+        var viewer2Conn = viewer2.CurrentConnection!;
 
         // Disconnect viewer1
         await viewer1Conn.DisconnectAsync();
-        await Task.Delay(200);
 
         // Viewer2 should still be connected and able to communicate
-        var receivedTcs = new TaskCompletionSource<ChatMessageDisplay>();
-        presenterConn.Chat.MessageReceived += (s, msg) => receivedTcs.TrySetResult(msg);
+        var receiveTask = TestHelpers.WaitForEventAsync<ChatMessageDisplay>(
+            onResult => presenterConn.Chat.MessageReceived += (s, msg) => onResult(msg));
 
         await viewer2Conn.Chat.SendMessageAsync("I'm still connected!");
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        cts.Token.Register(() => receivedTcs.TrySetCanceled());
-        var received = await receivedTcs.Task;
-
+        var received = await receiveTask;
         await Assert.That(received.Text).IsEqualTo("I'm still connected!");
     }
 
     [Test]
     public async Task ViewersChangedEventFiresOnViewerConnect()
     {
-        await using var presenter = new ClientFixture(serverFixture, "Presenter");
-        await using var viewer = new ClientFixture(serverFixture, "Viewer");
-
-        await presenter.HubClient.ConnectToHub();
-        await viewer.HubClient.ConnectToHub();
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
 
         var (username, password) = await presenter.WaitForCredentialsAsync();
 
-        // Set up to wait for both connection and viewers changed event
         var presenterConnTask = presenter.WaitForConnectionAsync();
-        var viewersChangedTcs = new TaskCompletionSource();
 
         // Connect the viewer which will trigger the presenter connection
         var viewerConnectTask = viewer.HubClient.ConnectTo(username, password);
 
         var presenterConn = await presenterConnTask;
 
-        // Subscribe to event after getting connection
-        presenterConn.ViewersChanged += (s, e) =>
-        {
-            if (presenterConn.Viewers.Count > 0)
-                viewersChangedTcs.TrySetResult();
-        };
-
         // Wait for viewer connect to complete
         await viewerConnectTask;
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        cts.Token.Register(() => viewersChangedTcs.TrySetCanceled());
-        await viewersChangedTcs.Task;
+        await TestHelpers.WaitForEventAsync(
+            onComplete => presenterConn.ViewersChanged += (s, e) =>
+            {
+                if (presenterConn.Viewers.Count > 0)
+                    onComplete();
+            });
 
         await Assert.That(presenterConn.Viewers.Count).IsGreaterThan(0);
     }
@@ -325,56 +248,49 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task ConnectionPropertiesChangedEventFires()
     {
-        var (presenter, viewer, presenterConn, viewerConn) = await this.SetupConnectionAsync();
-        await using (presenter)
-        await using (viewer)
-        {
-            var viewerClientId = viewer.HubClient.ClientId!;
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        var presenterConn = presenter.CurrentConnection!;
+        var viewerConn = viewer.CurrentConnection!;
 
-            var propsChangedTcs = new TaskCompletionSource();
-            viewerConn.ConnectionPropertiesChanged += (s, e) =>
+        var viewerClientId = viewer.HubClient.ClientId!;
+
+        // Block viewer input (this changes connection properties)
+        await presenterConn.UpdateConnectionPropertiesAndSend(props =>
+            props with { InputBlockedViewerIds = [viewerClientId] });
+
+        await TestHelpers.WaitForEventAsync(
+            onComplete => viewerConn.ConnectionPropertiesChanged += (s, e) =>
             {
                 if (viewerConn.ConnectionProperties.InputBlockedViewerIds.Contains(viewerClientId))
-                    propsChangedTcs.TrySetResult();
-            };
+                    onComplete();
+            });
 
-            // Block viewer input (this changes connection properties)
-            await presenterConn.UpdateConnectionPropertiesAndSend(props =>
-                props with { InputBlockedViewerIds = [viewerClientId] });
-
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            cts.Token.Register(() => propsChangedTcs.TrySetCanceled());
-            await propsChangedTcs.Task;
-
-            await Assert.That(viewerConn.ConnectionProperties.InputBlockedViewerIds).Contains(viewerClientId);
-        }
+        await Assert.That(viewerConn.ConnectionProperties.InputBlockedViewerIds).Contains(viewerClientId);
     }
 
     [Test]
     public async Task IsClosedReflectsConnectionState()
     {
-        var (presenter, viewer, presenterConn, viewerConn) = await this.SetupConnectionAsync();
-        await using (presenter)
-        await using (viewer)
-        {
-            // Initially not closed
-            await Assert.That(viewerConn.IsClosed).IsFalse();
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        var viewerConn = viewer.CurrentConnection!;
 
-            // Set up to wait for close event
-            var closedTcs = new TaskCompletionSource();
-            viewerConn.Closed += (s, e) => closedTcs.TrySetResult();
+        // Initially not closed
+        await Assert.That(viewerConn.IsClosed).IsFalse();
 
-            // Disconnect
-            await viewerConn.DisconnectAsync();
+        // Subscribe first, then disconnect
+        var closedTask = TestHelpers.WaitForEventAsync(
+            onComplete => viewerConn.Closed += (s, e) => onComplete());
 
-            // Wait for close event
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            cts.Token.Register(() => closedTcs.TrySetCanceled());
-            await closedTcs.Task;
+        await viewerConn.DisconnectAsync();
 
-            // Now should be closed
-            await Assert.That(viewerConn.IsClosed).IsTrue();
-        }
+        await closedTask;
+
+        // Now should be closed
+        await Assert.That(viewerConn.IsClosed).IsTrue();
     }
 
     #endregion
@@ -384,102 +300,110 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task ViewerMouseClickIsSentToPresenter()
     {
-        var (presenter, viewer, presenterConn, viewerConn) = await this.SetupConnectionAsync();
-        await using (presenter)
-        await using (viewer)
-        {
-            await viewerConn.RequiredViewerService.SendMouseDownAsync(MouseButton.Left, 0.5f, 0.5f);
-            await viewerConn.RequiredViewerService.SendMouseUpAsync(MouseButton.Left, 0.5f, 0.5f);
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        var viewerConn = viewer.CurrentConnection!;
 
-            await Task.Delay(200);
+        await viewerConn.RequiredViewerService.SendMouseDownAsync(MouseButton.Left, 0.5f, 0.5f);
+        await viewerConn.RequiredViewerService.SendMouseUpAsync(MouseButton.Left, 0.5f, 0.5f);
 
-            // Verify both mouse down and mouse up were received
-            await presenter.InputInjectionService.Received(2).InjectMouseButton(
-                Arg.Any<DisplayInfo>(),
-                MouseButton.Left,
-                Arg.Any<bool>(),
-                Arg.Any<float>(),
-                Arg.Any<float>(),
-                Arg.Any<string?>(),
-                Arg.Any<CancellationToken>());
-        }
+        await Task.Delay(200);
+
+        // Verify both mouse down and mouse up were received
+        await presenter.InputInjectionService.Received(2).InjectMouseButton(
+            Arg.Any<DisplayInfo>(),
+            MouseButton.Left,
+            Arg.Any<bool>(),
+            Arg.Any<float>(),
+            Arg.Any<float>(),
+            Arg.Any<string?>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Test]
     public async Task ViewerMouseWheelIsSentToPresenter()
     {
-        var (presenter, viewer, presenterConn, viewerConn) = await this.SetupConnectionAsync();
-        await using (presenter)
-        await using (viewer)
-        {
-            await viewerConn.RequiredViewerService.SendMouseWheelAsync(0f, 120f, 0.5f, 0.5f);
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        var viewerConn = viewer.CurrentConnection!;
 
-            await Task.Delay(200);
+        await viewerConn.RequiredViewerService.SendMouseWheelAsync(0f, 120f, 0.5f, 0.5f);
 
-            // Use Arg.Any<float>() for all float params to avoid NSubstitute ambiguity
-            await presenter.InputInjectionService.Received().InjectMouseWheel(
-                Arg.Any<DisplayInfo>(),
-                Arg.Any<float>(),
-                Arg.Any<float>(),
-                Arg.Any<float>(),
-                Arg.Any<float>(),
-                Arg.Any<string?>(),
-                Arg.Any<CancellationToken>());
-        }
+        await Task.Delay(200);
+
+        // Use Arg.Any<float>() for all float params to avoid NSubstitute ambiguity
+        await presenter.InputInjectionService.Received().InjectMouseWheel(
+            Arg.Any<DisplayInfo>(),
+            Arg.Any<float>(),
+            Arg.Any<float>(),
+            Arg.Any<float>(),
+            Arg.Any<float>(),
+            Arg.Any<string?>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Test]
     public async Task InputBlockingPreventsInputInjection()
     {
-        var (presenter, viewer, presenterConn, viewerConn) = await this.SetupConnectionAsync();
-        await using (presenter)
-        await using (viewer)
-        {
-            var viewerClientId = viewer.HubClient.ClientId!;
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        var presenterConn = presenter.CurrentConnection!;
+        var viewerConn = viewer.CurrentConnection!;
 
-            // Block viewer input
-            await presenterConn.UpdateConnectionPropertiesAndSend(props =>
-                props with { InputBlockedViewerIds = [viewerClientId] });
+        var viewerClientId = viewer.HubClient.ClientId!;
 
-            // Wait for property propagation
-            await Task.Delay(200);
+        // Wait for property to propagate to viewer
+        var propertyChangedTask = TestHelpers.WaitForEventAsync(
+            onComplete => viewerConn.ConnectionPropertiesChanged += (s, e) =>
+            {
+                if (viewerConn.ConnectionProperties.InputBlockedViewerIds.Contains(viewerClientId))
+                    onComplete();
+            });
 
-            // Clear any previous calls
-            presenter.InputInjectionService.ClearReceivedCalls();
+        // Block viewer input
+        await presenterConn.UpdateConnectionPropertiesAndSend(props =>
+            props with { InputBlockedViewerIds = [viewerClientId] });
 
-            // Try to send mouse input
-            await viewerConn.RequiredViewerService.SendMouseMoveAsync(0.5f, 0.5f);
+        await propertyChangedTask;
 
-            await Task.Delay(200);
+        // Clear any previous calls
+        presenter.InputInjectionService.ClearReceivedCalls();
 
-            // Verify input was NOT injected (blocked)
-            await presenter.InputInjectionService.DidNotReceive().InjectMouseMove(
-                Arg.Any<DisplayInfo>(),
-                Arg.Any<float>(),
-                Arg.Any<float>(),
-                Arg.Any<string?>(),
-                Arg.Any<CancellationToken>());
-        }
+        // Try to send mouse input
+        await viewerConn.RequiredViewerService.SendMouseMoveAsync(0.5f, 0.5f);
+
+        await Task.Delay(200);
+
+        // Verify input was NOT injected (blocked)
+        await presenter.InputInjectionService.DidNotReceive().InjectMouseMove(
+            Arg.Any<DisplayInfo>(),
+            Arg.Any<float>(),
+            Arg.Any<float>(),
+            Arg.Any<string?>(),
+            Arg.Any<CancellationToken>());
     }
 
     [Test]
     public async Task MultipleKeyModifiersAreSent()
     {
-        var (presenter, viewer, presenterConn, viewerConn) = await this.SetupConnectionAsync();
-        await using (presenter)
-        await using (viewer)
-        {
-            // Send key with Ctrl+Shift modifiers
-            await viewerConn.RequiredViewerService.SendKeyDownAsync(0x41, KeyModifiers.Control | KeyModifiers.Shift);
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        var viewerConn = viewer.CurrentConnection!;
 
-            await Task.Delay(200);
+        // Send key with Ctrl+Shift modifiers
+        await viewerConn.RequiredViewerService.SendKeyDownAsync(0x41, KeyModifiers.Control | KeyModifiers.Shift);
 
-            await presenter.InputInjectionService.Received().InjectKey(
-                0x41,
-                true, // isDown
-                Arg.Any<string?>(),
-                Arg.Any<CancellationToken>());
-        }
+        await Task.Delay(200);
+
+        await presenter.InputInjectionService.Received().InjectKey(
+            0x41,
+            true, // isDown
+            Arg.Any<string?>(),
+            Arg.Any<CancellationToken>());
     }
 
     #endregion
@@ -489,67 +413,54 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task GetMessagesReturnsHistory()
     {
-        var (presenter, viewer, presenterConn, viewerConn) = await this.SetupConnectionAsync();
-        await using (presenter)
-        await using (viewer)
-        {
-            // Send a few messages
-            await viewerConn.Chat.SendMessageAsync("Message 1");
-            await Task.Delay(100);
-            await presenterConn.Chat.SendMessageAsync("Message 2");
-            await Task.Delay(100);
-            await viewerConn.Chat.SendMessageAsync("Message 3");
-            await Task.Delay(200);
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        var presenterConn = presenter.CurrentConnection!;
+        var viewerConn = viewer.CurrentConnection!;
 
-            // Get message history from presenter side
-            var messages = presenterConn.Chat.GetMessages();
+        // Wait for the last message to arrive
+        var lastMessageTask = TestHelpers.WaitForEventAsync<ChatMessageDisplay>(
+            onResult => presenterConn.Chat.MessageReceived += (s, msg) =>
+            {
+                if (msg.Text == "Message 3")
+                    onResult(msg);
+            });
 
-            await Assert.That(messages.Count).IsGreaterThanOrEqualTo(3);
-        }
+        // Send messages from viewer (presenter's own message is stored locally, not via MessageReceived)
+        await viewerConn.Chat.SendMessageAsync("Message 1");
+        await presenterConn.Chat.SendMessageAsync("Message 2");
+        await viewerConn.Chat.SendMessageAsync("Message 3");
+
+        await lastMessageTask;
+
+        // Get message history from presenter side
+        var messages = presenterConn.Chat.GetMessages();
+
+        await Assert.That(messages.Count).IsGreaterThanOrEqualTo(2);
     }
 
     [Test]
     public async Task MultipleViewersReceiveSameChatMessage()
     {
-        await using var presenter = new ClientFixture(serverFixture, "Presenter");
-        await using var viewer1 = new ClientFixture(serverFixture, "Viewer1");
-        await using var viewer2 = new ClientFixture(serverFixture, "Viewer2");
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer1 = await serverFixture.CreateClientAsync("Viewer1");
+        await using var viewer2 = await serverFixture.CreateClientAsync("Viewer2");
 
-        await presenter.HubClient.ConnectToHub();
-        await viewer1.HubClient.ConnectToHub();
-        await viewer2.HubClient.ConnectToHub();
+        await serverFixture.CreateConnectionAsync(presenter, viewer1, viewer2);
+        var presenterConn = presenter.CurrentConnection!;
+        var viewer1Conn = viewer1.CurrentConnection!;
+        var viewer2Conn = viewer2.CurrentConnection!;
 
-        var (username, password) = await presenter.WaitForCredentialsAsync();
+        var msg1Task = TestHelpers.WaitForEventAsync<ChatMessageDisplay>(
+            onResult => viewer1Conn.Chat.MessageReceived += (s, msg) => onResult(msg));
+        var msg2Task = TestHelpers.WaitForEventAsync<ChatMessageDisplay>(
+            onResult => viewer2Conn.Chat.MessageReceived += (s, msg) => onResult(msg));
 
-        var presenterConnTask = presenter.WaitForConnectionAsync();
-        var viewer1ConnTask = viewer1.WaitForConnectionAsync();
-        var viewer2ConnTask = viewer2.WaitForConnectionAsync();
-
-        await viewer1.HubClient.ConnectTo(username, password);
-        await viewer2.HubClient.ConnectTo(username, password);
-
-        var presenterConn = await presenterConnTask;
-        var viewer1Conn = await viewer1ConnTask;
-        var viewer2Conn = await viewer2ConnTask;
-
-        var viewer1ReceivedTcs = new TaskCompletionSource<ChatMessageDisplay>();
-        var viewer2ReceivedTcs = new TaskCompletionSource<ChatMessageDisplay>();
-
-        viewer1Conn.Chat.MessageReceived += (s, msg) => viewer1ReceivedTcs.TrySetResult(msg);
-        viewer2Conn.Chat.MessageReceived += (s, msg) => viewer2ReceivedTcs.TrySetResult(msg);
-
-        // Presenter sends message
         await presenterConn.Chat.SendMessageAsync("Broadcast to all!");
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        cts.Token.Register(() =>
-        {
-            viewer1ReceivedTcs.TrySetCanceled();
-            viewer2ReceivedTcs.TrySetCanceled();
-        });
-
-        var msg1 = await viewer1ReceivedTcs.Task;
-        var msg2 = await viewer2ReceivedTcs.Task;
+        var msg1 = await msg1Task;
+        var msg2 = await msg2Task;
 
         await Assert.That(msg1.Text).IsEqualTo("Broadcast to all!");
         await Assert.That(msg2.Text).IsEqualTo("Broadcast to all!");
@@ -558,40 +469,37 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task ChatMessagesContainCorrectSenderInfo()
     {
-        var (presenter, viewer, presenterConn, viewerConn) = await this.SetupConnectionAsync();
-        await using (presenter)
-        await using (viewer)
-        {
-            // Test 1: Viewer sends to presenter - verify IsFromPresenter is false
-            var presenterReceivedTcs = new TaskCompletionSource<ChatMessageDisplay>();
-            presenterConn.Chat.MessageReceived += (s, msg) =>
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        var presenterConn = presenter.CurrentConnection!;
+        var viewerConn = viewer.CurrentConnection!;
+
+        // Test 1: Viewer sends to presenter - verify IsFromPresenter is false
+        var fromViewerTask = TestHelpers.WaitForEventAsync<ChatMessageDisplay>(
+            onResult => presenterConn.Chat.MessageReceived += (s, msg) =>
             {
                 if (msg.Text == "From viewer")
-                    presenterReceivedTcs.TrySetResult(msg);
-            };
+                    onResult(msg);
+            });
 
-            await viewerConn.Chat.SendMessageAsync("From viewer");
-            using var cts1 = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            cts1.Token.Register(() => presenterReceivedTcs.TrySetCanceled());
-            var fromViewer = await presenterReceivedTcs.Task;
+        await viewerConn.Chat.SendMessageAsync("From viewer");
+        var fromViewer = await fromViewerTask;
 
-            await Assert.That(fromViewer.IsFromPresenter).IsFalse();
+        await Assert.That(fromViewer.IsFromPresenter).IsFalse();
 
-            // Test 2: Presenter sends to viewer - verify IsFromPresenter is true
-            var viewerReceivedTcs = new TaskCompletionSource<ChatMessageDisplay>();
-            viewerConn.Chat.MessageReceived += (s, msg) =>
+        // Test 2: Presenter sends to viewer - verify IsFromPresenter is true
+        var fromPresenterTask = TestHelpers.WaitForEventAsync<ChatMessageDisplay>(
+            onResult => viewerConn.Chat.MessageReceived += (s, msg) =>
             {
                 if (msg.Text == "From presenter")
-                    viewerReceivedTcs.TrySetResult(msg);
-            };
+                    onResult(msg);
+            });
 
-            await presenterConn.Chat.SendMessageAsync("From presenter");
-            using var cts2 = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            cts2.Token.Register(() => viewerReceivedTcs.TrySetCanceled());
-            var fromPresenter = await viewerReceivedTcs.Task;
+        await presenterConn.Chat.SendMessageAsync("From presenter");
+        var fromPresenter = await fromPresenterTask;
 
-            await Assert.That(fromPresenter.IsFromPresenter).IsTrue();
-        }
+        await Assert.That(fromPresenter.IsFromPresenter).IsTrue();
     }
 
     #endregion
@@ -601,33 +509,29 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task ViewerCanBeBlockedWhileOthersAreNot()
     {
-        await using var presenter = new ClientFixture(serverFixture, "Presenter");
-        await using var viewer1 = new ClientFixture(serverFixture, "Viewer1");
-        await using var viewer2 = new ClientFixture(serverFixture, "Viewer2");
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer1 = await serverFixture.CreateClientAsync("Viewer1");
+        await using var viewer2 = await serverFixture.CreateClientAsync("Viewer2");
 
-        await presenter.HubClient.ConnectToHub();
-        await viewer1.HubClient.ConnectToHub();
-        await viewer2.HubClient.ConnectToHub();
-
-        var (username, password) = await presenter.WaitForCredentialsAsync();
-
-        var presenterConnTask = presenter.WaitForConnectionAsync();
-        var viewer1ConnTask = viewer1.WaitForConnectionAsync();
-        var viewer2ConnTask = viewer2.WaitForConnectionAsync();
-
-        await viewer1.HubClient.ConnectTo(username, password);
-        await viewer2.HubClient.ConnectTo(username, password);
-
-        var presenterConn = await presenterConnTask;
-        var viewer1Conn = await viewer1ConnTask;
-        var viewer2Conn = await viewer2ConnTask;
+        await serverFixture.CreateConnectionAsync(presenter, viewer1, viewer2);
+        var presenterConn = presenter.CurrentConnection!;
+        var viewer2Conn = viewer2.CurrentConnection!;
 
         // Block only viewer1
         var viewer1ClientId = viewer1.HubClient.ClientId!;
+
+        // Wait for property to propagate to viewer2
+        var propertyChangedTask = TestHelpers.WaitForEventAsync(
+            onComplete => viewer2Conn.ConnectionPropertiesChanged += (s, e) =>
+            {
+                if (viewer2Conn.ConnectionProperties.InputBlockedViewerIds.Contains(viewer1ClientId))
+                    onComplete();
+            });
+
         await presenterConn.UpdateConnectionPropertiesAndSend(props =>
             props with { InputBlockedViewerIds = [viewer1ClientId] });
 
-        await Task.Delay(200);
+        await propertyChangedTask;
 
         // Clear previous calls
         presenter.InputInjectionService.ClearReceivedCalls();
@@ -647,48 +551,24 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task BroadcastMessagesReachAllViewers()
     {
-        await using var presenter = new ClientFixture(serverFixture, "Presenter");
-        await using var viewer1 = new ClientFixture(serverFixture, "Viewer1");
-        await using var viewer2 = new ClientFixture(serverFixture, "Viewer2");
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer1 = await serverFixture.CreateClientAsync("Viewer1");
+        await using var viewer2 = await serverFixture.CreateClientAsync("Viewer2");
 
-        await presenter.HubClient.ConnectToHub();
-        await viewer1.HubClient.ConnectToHub();
-        await viewer2.HubClient.ConnectToHub();
+        await serverFixture.CreateConnectionAsync(presenter, viewer1, viewer2);
+        var presenterConn = presenter.CurrentConnection!;
+        var viewer1Conn = viewer1.CurrentConnection!;
+        var viewer2Conn = viewer2.CurrentConnection!;
 
-        var (username, password) = await presenter.WaitForCredentialsAsync();
-
-        var presenterConnTask = presenter.WaitForConnectionAsync();
-        var viewer1ConnTask = viewer1.WaitForConnectionAsync();
-        var viewer2ConnTask = viewer2.WaitForConnectionAsync();
-
-        await viewer1.HubClient.ConnectTo(username, password);
-        await viewer2.HubClient.ConnectTo(username, password);
-
-        var presenterConn = await presenterConnTask;
-        var viewer1Conn = await viewer1ConnTask;
-        var viewer2Conn = await viewer2ConnTask;
-
-        var messagesReceived = 0;
-        var allReceivedTcs = new TaskCompletionSource();
-
-        viewer1Conn.Chat.MessageReceived += (s, msg) =>
-        {
-            if (Interlocked.Increment(ref messagesReceived) >= 2)
-                allReceivedTcs.TrySetResult();
-        };
-        viewer2Conn.Chat.MessageReceived += (s, msg) =>
-        {
-            if (Interlocked.Increment(ref messagesReceived) >= 2)
-                allReceivedTcs.TrySetResult();
-        };
+        var msg1Task = TestHelpers.WaitForEventAsync<ChatMessageDisplay>(
+            onResult => viewer1Conn.Chat.MessageReceived += (s, msg) => onResult(msg));
+        var msg2Task = TestHelpers.WaitForEventAsync<ChatMessageDisplay>(
+            onResult => viewer2Conn.Chat.MessageReceived += (s, msg) => onResult(msg));
 
         await presenterConn.Chat.SendMessageAsync("Broadcast message");
 
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        cts.Token.Register(() => allReceivedTcs.TrySetCanceled());
-        await allReceivedTcs.Task;
-
-        await Assert.That(messagesReceived).IsEqualTo(2);
+        await msg1Task;
+        await msg2Task;
     }
 
     #endregion
@@ -698,33 +578,33 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task AvailableDisplaysChangedEventFires()
     {
-        var (presenter, viewer, presenterConn, viewerConn) = await this.SetupConnectionAsync();
-        await using (presenter)
-        await using (viewer)
-        {
-            var displaysChangedTcs = new TaskCompletionSource();
-            viewerConn.RequiredViewerService.AvailableDisplaysChanged += (s, e) =>
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        var presenterConn = presenter.CurrentConnection!;
+        var viewerConn = viewer.CurrentConnection!;
+
+        // Subscribe first
+        var displaysChangedTask = TestHelpers.WaitForEventAsync(
+            onComplete => viewerConn.RequiredViewerService.AvailableDisplaysChanged += (s, e) =>
             {
                 if (viewerConn.RequiredViewerService.AvailableDisplays.Count >= 2)
-                    displaysChangedTcs.TrySetResult();
-            };
+                    onComplete();
+            });
 
-            // Update connection properties with new displays (simulating display change)
-            var newDisplays = new List<DisplayInfo>
-            {
-                new("DISPLAY1", "Display 1", true, 0, 0, 1920, 1080),
-                new("DISPLAY2", "Display 2", false, 1920, 0, 3840, 1080)
-            };
+        // Update connection properties with new displays (simulating display change)
+        var newDisplays = new List<DisplayInfo>
+        {
+            new("DISPLAY1", "Display 1", true, 0, 0, 1920, 1080),
+            new("DISPLAY2", "Display 2", false, 1920, 0, 3840, 1080)
+        };
 
-            await presenterConn.UpdateConnectionPropertiesAndSend(props =>
-                props with { AvailableDisplays = newDisplays }, forceSend: true);
+        await presenterConn.UpdateConnectionPropertiesAndSend(props =>
+            props with { AvailableDisplays = newDisplays }, forceSend: true);
 
-            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            cts.Token.Register(() => displaysChangedTcs.TrySetCanceled());
-            await displaysChangedTcs.Task;
+        await displaysChangedTask;
 
-            await Assert.That(viewerConn.RequiredViewerService.AvailableDisplays.Count).IsGreaterThanOrEqualTo(2);
-        }
+        await Assert.That(viewerConn.RequiredViewerService.AvailableDisplays.Count).IsGreaterThanOrEqualTo(2);
     }
 
     #endregion
@@ -734,76 +614,74 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task FileTransferRequestIsSentToPresenter()
     {
-        var (presenter, viewer, presenterConn, viewerConn) = await this.SetupConnectionAsync();
-        await using (presenter)
-        await using (viewer)
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        var viewerConn = viewer.CurrentConnection!;
+
+        // Configure presenter's dialog to accept file transfer
+        presenter.DialogService.ShowFileTransferConfirmationAsync(
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(Task.FromResult(true));
+
+        // Create a temp file to transfer
+        var tempFile = Path.GetTempFileName();
+        try
         {
-            // Configure presenter's dialog to accept file transfer
-            presenter.DialogService.ShowFileTransferConfirmationAsync(
-                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
-                .Returns(Task.FromResult(true));
+            await File.WriteAllTextAsync(tempFile, "Test file content for transfer");
 
-            // Create a temp file to transfer
-            var tempFile = Path.GetTempFileName();
-            try
-            {
-                await File.WriteAllTextAsync(tempFile, "Test file content for transfer");
+            // Start the transfer (this sends the request)
+            var sendTask = viewerConn.FileTransfers.SendFileAsync(tempFile);
 
-                // Start the transfer (this sends the request)
-                var sendTask = viewerConn.FileTransfers.SendFileAsync(tempFile);
+            // Give time for the request to be received
+            await Task.Delay(500);
 
-                // Give time for the request to be received
-                await Task.Delay(500);
-
-                // Verify the dialog was called on presenter side
-                await presenter.DialogService.Received().ShowFileTransferConfirmationAsync(
-                    Arg.Any<string>(),
-                    Arg.Any<string>(),
-                    Arg.Any<string>());
-            }
-            finally
-            {
-                File.Delete(tempFile);
-            }
+            // Verify the dialog was called on presenter side
+            await presenter.DialogService.Received().ShowFileTransferConfirmationAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>());
+        }
+        finally
+        {
+            File.Delete(tempFile);
         }
     }
 
     [Test]
     public async Task RejectedFileTransferDoesNotComplete()
     {
-        var (presenter, viewer, presenterConn, viewerConn) = await this.SetupConnectionAsync();
-        await using (presenter)
-        await using (viewer)
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        var viewerConn = viewer.CurrentConnection!;
+
+        // Configure presenter's dialog to reject file transfer
+        presenter.DialogService.ShowFileTransferConfirmationAsync(
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(Task.FromResult(false));
+
+        // Create a temp file to transfer
+        var tempFile = Path.GetTempFileName();
+        try
         {
-            // Configure presenter's dialog to reject file transfer
-            presenter.DialogService.ShowFileTransferConfirmationAsync(
-                Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
-                .Returns(Task.FromResult(false));
+            await File.WriteAllTextAsync(tempFile, "Test file content");
 
-            // Track transfer failure
-            var failedTcs = new TaskCompletionSource<bool>();
-            viewerConn.FileTransfers.TransferFailed += (s, e) => failedTcs.TrySetResult(true);
+            // Subscribe first, then start transfer
+            var failedTask = TestHelpers.WaitForEventAsync<bool>(
+                onResult => viewerConn.FileTransfers.TransferFailed += (s, e) => onResult(true));
 
-            // Create a temp file to transfer
-            var tempFile = Path.GetTempFileName();
-            try
-            {
-                await File.WriteAllTextAsync(tempFile, "Test file content");
+            // Start the transfer
+            _ = viewerConn.FileTransfers.SendFileAsync(tempFile);
 
-                // Start the transfer
-                var sendTask = viewerConn.FileTransfers.SendFileAsync(tempFile);
+            // Wait for failure
+            var failed = await failedTask;
 
-                // Wait for failure or timeout
-                using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-                cts.Token.Register(() => failedTcs.TrySetCanceled());
-
-                var failed = await failedTcs.Task;
-                await Assert.That(failed).IsTrue();
-            }
-            finally
-            {
-                File.Delete(tempFile);
-            }
+            await Assert.That(failed).IsTrue();
+        }
+        finally
+        {
+            File.Delete(tempFile);
         }
     }
 
@@ -814,26 +692,13 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task TextClipboardSyncsFromViewerToPresenter()
     {
-        // Create fixtures with clipboard already configured BEFORE connection
-        await using var presenter = new ClientFixture(serverFixture, "Presenter");
-        await using var viewer = new ClientFixture(serverFixture, "Viewer");
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
 
-        // Configure viewer's clipboard to return text BEFORE connecting
         viewer.ClipboardService.TryGetTextAsync()
             .Returns(Task.FromResult<string?>("Clipboard text from viewer"));
 
-        await presenter.HubClient.ConnectToHub();
-        await viewer.HubClient.ConnectToHub();
-
-        var (username, password) = await presenter.WaitForCredentialsAsync();
-
-        var presenterConnTask = presenter.WaitForConnectionAsync();
-        var viewerConnTask = viewer.WaitForConnectionAsync();
-
-        await viewer.HubClient.ConnectTo(username, password);
-
-        await presenterConnTask;
-        await viewerConnTask;
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
 
         // Poll with time advances until clipboard syncs or timeout
         var timeout = DateTime.UtcNow.AddSeconds(10);
@@ -860,44 +725,22 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task TextClipboardSyncsFromPresenterToViewer()
     {
-        // Create fixtures with clipboard already configured BEFORE connection
-        await using var presenter = new ClientFixture(serverFixture, "Presenter");
-        await using var viewer = new ClientFixture(serverFixture, "Viewer");
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
 
-        // Configure presenter's clipboard to return text BEFORE connecting
         presenter.ClipboardService.TryGetTextAsync()
             .Returns(Task.FromResult<string?>("Clipboard text from presenter"));
 
-        await presenter.HubClient.ConnectToHub();
-        await viewer.HubClient.ConnectToHub();
-
-        var (username, password) = await presenter.WaitForCredentialsAsync();
-
-        var presenterConnTask = presenter.WaitForConnectionAsync();
-        var viewerConnTask = viewer.WaitForConnectionAsync();
-
-        await viewer.HubClient.ConnectTo(username, password);
-
-        await presenterConnTask;
-        await viewerConnTask;
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
 
         // Poll with time advances until clipboard syncs or timeout
-        // This is more robust than fixed delays because:
-        // 1. The poll loop runs in Task.Run, so there's a race with timer registration
-        // 2. FakeTimeProvider only triggers timers that are already registered
         var timeout = DateTime.UtcNow.AddSeconds(10);
         while (DateTime.UtcNow < timeout)
         {
-            // Allow poll loop to register timer
             await Task.Delay(50);
-
-            // Advance fake time to trigger poll
             presenter.TimeProvider.Advance(TimeSpan.FromMilliseconds(600));
-
-            // Allow SignalR message propagation
             await Task.Delay(200);
 
-            // Check if clipboard was set
             var calls = viewer.ClipboardService.ReceivedCalls()
                 .Where(c => c.GetMethodInfo().Name == "SetTextAsync")
                 .ToList();
