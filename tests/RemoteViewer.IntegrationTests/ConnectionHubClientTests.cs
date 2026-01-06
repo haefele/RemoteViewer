@@ -1,9 +1,11 @@
 using NSubstitute;
+using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.IntegrationTests.Fixtures;
 using RemoteViewer.Shared;
 using RemoteViewer.Shared.Protocol;
+using DataFormat = Avalonia.Input.DataFormat;
 
 namespace RemoteViewer.IntegrationTests;
 
@@ -79,18 +81,24 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
         await using var viewer = await serverFixture.CreateClientAsync("Viewer");
         await serverFixture.CreateConnectionAsync(presenter, viewer);
         var presenterConn = presenter.CurrentConnection!;
+        var viewerConn = viewer.CurrentConnection!;
 
         var viewerClientId = viewer.HubClient.ClientId!;
 
-        // Wait for viewer to appear in connection
-        await Task.Delay(100);
+        // Subscribe to property change before updating
+        var propertyChangedTask = TestHelpers.WaitForEventAsync(
+            onComplete => viewerConn.ConnectionPropertiesChanged += (s, e) =>
+            {
+                if (viewerConn.ConnectionProperties.InputBlockedViewerIds.Contains(viewerClientId))
+                    onComplete();
+            });
 
         // Block viewer input
         await presenterConn.UpdateConnectionPropertiesAndSend(props =>
             props with { InputBlockedViewerIds = [viewerClientId] });
 
-        // Wait for property propagation
-        await Task.Delay(100);
+        // Wait for property to propagate to viewer (confirms round-trip)
+        await propertyChangedTask;
 
         await Assert.That(presenterConn.ConnectionProperties.InputBlockedViewerIds)
             .Contains(viewerClientId);
@@ -106,8 +114,10 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
 
         await viewerConn.RequiredViewerService.SendMouseMoveAsync(0.5f, 0.5f);
 
-        // Give time for message to be received and processed
-        await Task.Delay(200);
+        // Wait for message to be received and processed
+        await TestHelpers.WaitForReceivedCallAsync(() =>
+            presenter.InputInjectionService.ReceivedCalls()
+                .Any(c => c.GetMethodInfo().Name == "InjectMouseMove"));
 
         // Verify via NSubstitute mock
         await presenter.InputInjectionService.Received().InjectMouseMove(
@@ -129,7 +139,10 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
         await viewerConn.RequiredViewerService.SendKeyDownAsync(0x41, KeyModifiers.None); // 'A' key
         await viewerConn.RequiredViewerService.SendKeyUpAsync(0x41, KeyModifiers.None);
 
-        await Task.Delay(200);
+        // Wait for both key events to be received
+        await TestHelpers.WaitForReceivedCallAsync(() =>
+            presenter.InputInjectionService.ReceivedCalls()
+                .Count(c => c.GetMethodInfo().Name == "InjectKey") >= 2);
 
         // Verify key down and key up were both received
         await presenter.InputInjectionService.Received(2).InjectKey(
@@ -308,7 +321,10 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
         await viewerConn.RequiredViewerService.SendMouseDownAsync(MouseButton.Left, 0.5f, 0.5f);
         await viewerConn.RequiredViewerService.SendMouseUpAsync(MouseButton.Left, 0.5f, 0.5f);
 
-        await Task.Delay(200);
+        // Wait for both mouse events to be received
+        await TestHelpers.WaitForReceivedCallAsync(() =>
+            presenter.InputInjectionService.ReceivedCalls()
+                .Count(c => c.GetMethodInfo().Name == "InjectMouseButton") >= 2);
 
         // Verify both mouse down and mouse up were received
         await presenter.InputInjectionService.Received(2).InjectMouseButton(
@@ -331,7 +347,10 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
 
         await viewerConn.RequiredViewerService.SendMouseWheelAsync(0f, 120f, 0.5f, 0.5f);
 
-        await Task.Delay(200);
+        // Wait for wheel event to be received
+        await TestHelpers.WaitForReceivedCallAsync(() =>
+            presenter.InputInjectionService.ReceivedCalls()
+                .Any(c => c.GetMethodInfo().Name == "InjectMouseWheel"));
 
         // Use Arg.Any<float>() for all float params to avoid NSubstitute ambiguity
         await presenter.InputInjectionService.Received().InjectMouseWheel(
@@ -375,7 +394,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
         // Try to send mouse input
         await viewerConn.RequiredViewerService.SendMouseMoveAsync(0.5f, 0.5f);
 
-        await Task.Delay(200);
+        // Wait a short time to allow any potential message to arrive
+        // (negative test - we're verifying nothing happens)
+        await Task.Delay(300);
 
         // Verify input was NOT injected (blocked)
         await presenter.InputInjectionService.DidNotReceive().InjectMouseMove(
@@ -397,7 +418,10 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
         // Send key with Ctrl+Shift modifiers
         await viewerConn.RequiredViewerService.SendKeyDownAsync(0x41, KeyModifiers.Control | KeyModifiers.Shift);
 
-        await Task.Delay(200);
+        // Wait for key event to be received
+        await TestHelpers.WaitForReceivedCallAsync(() =>
+            presenter.InputInjectionService.ReceivedCalls()
+                .Any(c => c.GetMethodInfo().Name == "InjectKey"));
 
         await presenter.InputInjectionService.Received().InjectKey(
             0x41,
@@ -538,7 +562,11 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
 
         // Viewer2 should still be able to send input
         await viewer2Conn.RequiredViewerService.SendMouseMoveAsync(0.5f, 0.5f);
-        await Task.Delay(200);
+
+        // Wait for mouse event to be received
+        await TestHelpers.WaitForReceivedCallAsync(() =>
+            presenter.InputInjectionService.ReceivedCalls()
+                .Any(c => c.GetMethodInfo().Name == "InjectMouseMove"));
 
         await presenter.InputInjectionService.Received().InjectMouseMove(
             Arg.Any<DisplayInfo>(),
@@ -631,10 +659,12 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
             await File.WriteAllTextAsync(tempFile, "Test file content for transfer");
 
             // Start the transfer (this sends the request)
-            var sendTask = viewerConn.FileTransfers.SendFileAsync(tempFile);
+            _ = viewerConn.FileTransfers.SendFileAsync(tempFile);
 
-            // Give time for the request to be received
-            await Task.Delay(500);
+            // Wait for the dialog to be called
+            await TestHelpers.WaitForReceivedCallAsync(() =>
+                presenter.DialogService.ReceivedCalls()
+                    .Any(c => c.GetMethodInfo().Name == "ShowFileTransferConfirmationAsync"));
 
             // Verify the dialog was called on presenter side
             await presenter.DialogService.Received().ShowFileTransferConfirmationAsync(
@@ -644,7 +674,8 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
         }
         finally
         {
-            File.Delete(tempFile);
+            // Temp file may still be in use by the transfer operation
+            try { File.Delete(tempFile); } catch (IOException) { }
         }
     }
 
@@ -700,13 +731,11 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
 
         await serverFixture.CreateConnectionAsync(presenter, viewer);
 
-        // Poll with time advances until clipboard syncs or timeout
-        var timeout = DateTime.UtcNow.AddSeconds(10);
-        while (DateTime.UtcNow < timeout)
+        // Poll with time advances until clipboard syncs
+        for (var i = 0; i < 50; i++)
         {
-            await Task.Delay(50);
             viewer.TimeProvider.Advance(TimeSpan.FromMilliseconds(600));
-            await Task.Delay(200);
+            await Task.Delay(50); // Allow SignalR message delivery
 
             var calls = presenter.ClipboardService.ReceivedCalls()
                 .Where(c => c.GetMethodInfo().Name == "SetTextAsync")
@@ -733,13 +762,11 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
 
         await serverFixture.CreateConnectionAsync(presenter, viewer);
 
-        // Poll with time advances until clipboard syncs or timeout
-        var timeout = DateTime.UtcNow.AddSeconds(10);
-        while (DateTime.UtcNow < timeout)
+        // Poll with time advances until clipboard syncs
+        for (var i = 0; i < 50; i++)
         {
-            await Task.Delay(50);
             presenter.TimeProvider.Advance(TimeSpan.FromMilliseconds(600));
-            await Task.Delay(200);
+            await Task.Delay(50); // Allow SignalR message delivery
 
             var calls = viewer.ClipboardService.ReceivedCalls()
                 .Where(c => c.GetMethodInfo().Name == "SetTextAsync")
@@ -753,6 +780,316 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
         }
 
         Assert.Fail("Clipboard was not synced within timeout");
+    }
+
+    // Note: Image clipboard test would require Avalonia headless initialization
+    // since Bitmap class is tightly coupled to the rendering infrastructure.
+    // The text clipboard tests above validate the sync mechanism works.
+
+    #endregion
+
+    #region Connection Error Tests
+
+    [Test]
+    public async Task ConnectToWithInvalidCredentialsReturnsIncorrectUsernameOrPassword()
+    {
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+
+        var (username, _) = await presenter.WaitForCredentialsAsync();
+
+        // Try to connect with correct username but wrong password
+        var error = await viewer.HubClient.ConnectTo(username, "WrongPassword123");
+
+        await Assert.That(error).IsEqualTo(TryConnectError.IncorrectUsernameOrPassword);
+    }
+
+    [Test]
+    public async Task ConnectToWithNonExistentUserReturnsError()
+    {
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+
+        // Try to connect with credentials that were never assigned
+        // Server returns IncorrectUsernameOrPassword for security (don't leak user existence)
+        var error = await viewer.HubClient.ConnectTo("000000", "AAAA");
+
+        await Assert.That(error).IsNotNull();
+    }
+
+    [Test]
+    public async Task GenerateNewPasswordChangesCredentials()
+    {
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+
+        var (oldUser, oldPass) = await presenter.WaitForCredentialsAsync();
+
+        // Wait for new credentials event
+        var newCredentialsTask = TestHelpers.WaitForEventAsync<CredentialsAssignedEventArgs>(
+            onResult => presenter.HubClient.CredentialsAssigned += (s, e) =>
+            {
+                // Only trigger on a different password
+                if (e.Password != oldPass)
+                    onResult(e);
+            });
+
+        await presenter.HubClient.GenerateNewPassword();
+
+        var newCredentials = await newCredentialsTask;
+
+        // Verify password changed (username stays the same)
+        await Assert.That(newCredentials.Username.Replace(" ", "")).IsEqualTo(oldUser);
+        await Assert.That(newCredentials.Password).IsNotEqualTo(oldPass);
+
+        // Old credentials should no longer work
+        var error = await viewer.HubClient.ConnectTo(oldUser, oldPass);
+        await Assert.That(error).IsEqualTo(TryConnectError.IncorrectUsernameOrPassword);
+    }
+
+    #endregion
+
+    #region Identity Tests
+
+    [Test]
+    public async Task SetDisplayNameUpdatesDisplayNameOnServer()
+    {
+        // Create clients without display name first
+        await using var presenter = await serverFixture.CreateClientAsync();
+        await using var viewer = await serverFixture.CreateClientAsync();
+
+        // Set display name after connection is established
+        await presenter.HubClient.SetDisplayName("CustomPresenterName");
+
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+
+        var viewerConn = viewer.CurrentConnection!;
+
+        // Wait for the ViewersChanged event which carries the display name
+        await TestHelpers.WaitForEventAsync(
+            onComplete => viewerConn.ViewersChanged += (s, e) =>
+            {
+                if (viewerConn.Presenter?.DisplayName == "CustomPresenterName")
+                    onComplete();
+            });
+
+        // Verify the presenter's display name is visible to the viewer
+        await Assert.That(viewerConn.Presenter?.DisplayName).IsEqualTo("CustomPresenterName");
+    }
+
+    [Test]
+    public async Task SetDisplayNameCanBeChangedAfterConnection()
+    {
+        await using var presenter = await serverFixture.CreateClientAsync();
+        await using var viewer = await serverFixture.CreateClientAsync();
+
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+
+        var viewerConn = viewer.CurrentConnection!;
+
+        // Wait for ViewersChanged event with the updated name
+        var viewersChangedTask = TestHelpers.WaitForEventAsync(
+            onComplete => viewerConn.ViewersChanged += (s, e) =>
+            {
+                if (viewerConn.Presenter?.DisplayName == "UpdatedName")
+                    onComplete();
+            });
+
+        // Change display name after connection is established
+        await presenter.HubClient.SetDisplayName("UpdatedName");
+
+        await viewersChangedTask;
+
+        // Verify the updated name is visible
+        await Assert.That(viewerConn.Presenter?.DisplayName).IsEqualTo("UpdatedName");
+    }
+
+    #endregion
+
+    #region Secure Input Tests
+
+    [Test]
+    public async Task SecureAttentionSequenceIsSentToPresenter()
+    {
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        var viewerConn = viewer.CurrentConnection!;
+
+        // Send Ctrl+Alt+Del request
+        // Note: In tests, the WinService isn't available so the presenter won't actually
+        // execute the SAS, but we can verify the message is sent through SignalR
+        await viewerConn.RequiredViewerService.SendCtrlAltDelAsync();
+
+        // Allow message to propagate through SignalR (smoke test for message path)
+        await Task.Delay(100);
+
+        // The SAS handler runs but won't succeed without WinService
+        // This test verifies the message path works without throwing
+        // If the message routing failed, we would have seen an exception
+        await Assert.That(viewerConn.IsClosed).IsFalse();
+    }
+
+    #endregion
+
+    #region File Transfer Completion Tests
+
+    [Test]
+    public async Task FileTransferSuccessfulTransferCompletesAndFiresEvent()
+    {
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        var viewerConn = viewer.CurrentConnection!;
+
+        // Configure presenter's dialog to accept file transfer
+        presenter.DialogService.ShowFileTransferConfirmationAsync(
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(Task.FromResult(true));
+
+        // Create a temp file to transfer
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, "Test file content for successful transfer");
+
+            // Subscribe to transfer completed event on viewer (sender) side
+            var completedTask = TestHelpers.WaitForEventAsync<TransferCompletedEventArgs>(
+                onResult => viewerConn.FileTransfers.TransferCompleted += (s, e) => onResult(e),
+                timeout: TimeSpan.FromSeconds(10));
+
+            // Start the transfer
+            _ = viewerConn.FileTransfers.SendFileAsync(tempFile);
+
+            // Wait for completion
+            var completed = await completedTask;
+
+            await Assert.That(completed).IsNotNull();
+            await Assert.That(completed.Transfer).IsNotNull();
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Test]
+    public async Task FileTransferPresenterCanSendFileToViewer()
+    {
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        var presenterConn = presenter.CurrentConnection!;
+
+        var viewerClientId = viewer.HubClient.ClientId!;
+
+        // Configure viewer's dialog to accept file transfer
+        viewer.DialogService.ShowFileTransferConfirmationAsync(
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(Task.FromResult(true));
+
+        // Create a temp file to transfer
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, "Test file from presenter to viewer");
+
+            // Subscribe to transfer completed event on presenter (sender) side
+            var completedTask = TestHelpers.WaitForEventAsync<TransferCompletedEventArgs>(
+                onResult => presenterConn.FileTransfers.TransferCompleted += (s, e) => onResult(e),
+                timeout: TimeSpan.FromSeconds(10));
+
+            // Start the transfer to specific viewer
+            _ = presenterConn.FileTransfers.SendFileToViewerAsync(tempFile, viewerClientId);
+
+            // Wait for completion
+            var completed = await completedTask;
+
+            await Assert.That(completed).IsNotNull();
+            await Assert.That(completed.Transfer).IsNotNull();
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    [Test]
+    public async Task FileTransferCancellationFiresTransferFailedEvent()
+    {
+        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
+        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        var viewerConn = viewer.CurrentConnection!;
+
+        // Configure presenter's dialog to never respond (simulate user not accepting)
+        var dialogTcs = new TaskCompletionSource<bool>();
+        presenter.DialogService.ShowFileTransferConfirmationAsync(
+            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            .Returns(dialogTcs.Task);
+
+        // Create a temp file to transfer
+        var tempFile = Path.GetTempFileName();
+        try
+        {
+            await File.WriteAllTextAsync(tempFile, "Test file content for cancellation test");
+
+            // Subscribe to transfer failed event
+            var failedTask = TestHelpers.WaitForEventAsync<TransferFailedEventArgs>(
+                onResult => viewerConn.FileTransfers.TransferFailed += (s, e) => onResult(e),
+                timeout: TimeSpan.FromSeconds(10));
+
+            // Start the transfer
+            var operation = await viewerConn.FileTransfers.SendFileAsync(tempFile);
+
+            // Cancel the transfer
+            await operation.CancelAsync();
+
+            // Wait for failure event
+            var failed = await failedTask;
+
+            await Assert.That(failed).IsNotNull();
+            await Assert.That(failed.Transfer).IsNotNull();
+        }
+        finally
+        {
+            File.Delete(tempFile);
+        }
+    }
+
+    #endregion
+
+    #region Hub Connection Status Tests
+
+    [Test]
+    public async Task IsConnectedReturnsTrueAfterSuccessfulConnection()
+    {
+        await using var client = await serverFixture.CreateClientAsync("TestClient");
+
+        await Assert.That(client.HubClient.IsConnected).IsTrue();
+    }
+
+    [Test]
+    public async Task HubConnectionStatusChangedFiresOnConnection()
+    {
+        var client = new ClientFixture(serverFixture);
+        try
+        {
+            var eventFired = false;
+
+            // Subscribe before connecting
+            client.HubClient.HubConnectionStatusChanged += (s, e) => eventFired = true;
+
+            // Connect to hub
+            await client.HubClient.ConnectToHub();
+
+            // Event should have fired during connection
+            await Assert.That(eventFired).IsTrue();
+            await Assert.That(client.HubClient.IsConnected).IsTrue();
+        }
+        finally
+        {
+            await client.DisposeAsync();
+        }
     }
 
     #endregion

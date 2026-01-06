@@ -25,4 +25,17 @@ public static class TestHelpers
         cts.Token.Register(() => tcs.TrySetCanceled());
         await tcs.Task;
     }
+
+    public static async Task WaitForReceivedCallAsync(
+        Func<bool> checkReceived,
+        TimeSpan? timeout = null)
+    {
+        var deadline = DateTime.UtcNow + (timeout ?? TimeSpan.FromSeconds(5));
+        while (DateTime.UtcNow < deadline)
+        {
+            if (checkReceived())
+                return;
+            await Task.Delay(50);
+        }
+    }
 }
