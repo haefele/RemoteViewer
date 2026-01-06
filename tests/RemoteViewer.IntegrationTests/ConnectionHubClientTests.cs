@@ -10,14 +10,18 @@ using DataFormat = Avalonia.Input.DataFormat;
 
 namespace RemoteViewer.IntegrationTests;
 
-[ClassDataSource<ServerFixture>(Shared = SharedType.None)]
-public class ConnectionHubClientTests(ServerFixture serverFixture)
+[NotInParallel]
+public class ConnectionHubClientTests()
 {
+
+    [ClassDataSource<ServerFixture>(Shared = SharedType.None)]
+    public required ServerFixture Server { get; init; }
+
     [Test]
     public async Task TwoClientsCanEstablishConnection()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
 
         var (username, password) = await presenter.WaitForCredentialsAsync();
 
@@ -38,9 +42,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task ChatMessagesAreSentFromViewerToPresenter()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
+        await this.Server.CreateConnectionAsync(presenter, viewer);
         var presenterConn = presenter.CurrentConnection!;
         var viewerConn = viewer.CurrentConnection!;
 
@@ -58,9 +62,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task ChatMessagesAreSentFromPresenterToViewer()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
+        await this.Server.CreateConnectionAsync(presenter, viewer);
         var presenterConn = presenter.CurrentConnection!;
         var viewerConn = viewer.CurrentConnection!;
 
@@ -78,9 +82,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task InputBlockingUpdatesConnectionProperties()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
+        await this.Server.CreateConnectionAsync(presenter, viewer);
         var presenterConn = presenter.CurrentConnection!;
         var viewerConn = viewer.CurrentConnection!;
 
@@ -102,9 +106,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task ViewerMouseMoveIsSentToPresenter()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
+        await this.Server.CreateConnectionAsync(presenter, viewer);
         var viewerConn = viewer.CurrentConnection!;
 
         await viewerConn.RequiredViewerService.SendMouseMoveAsync(0.5f, 0.5f);
@@ -126,9 +130,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task ViewerKeyPressIsSentToPresenter()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
+        await this.Server.CreateConnectionAsync(presenter, viewer);
         var viewerConn = viewer.CurrentConnection!;
 
         await viewerConn.RequiredViewerService.SendKeyDownAsync(0x41, KeyModifiers.None); // 'A' key
@@ -150,9 +154,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task PresenterDisconnectClosesViewerConnection()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
+        await this.Server.CreateConnectionAsync(presenter, viewer);
         var presenterConn = presenter.CurrentConnection!;
         var viewerConn = viewer.CurrentConnection!;
 
@@ -169,9 +173,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task ViewerDisconnectDoesNotClosePresenterConnection()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
+        await this.Server.CreateConnectionAsync(presenter, viewer);
         var presenterConn = presenter.CurrentConnection!;
         var viewerConn = viewer.CurrentConnection!;
 
@@ -189,13 +193,18 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task MultipleViewersCanConnectToSamePresenter()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer1 = await serverFixture.CreateClientAsync("Viewer1");
-        await using var viewer2 = await serverFixture.CreateClientAsync("Viewer2");
-        await using var viewer3 = await serverFixture.CreateClientAsync("Viewer3");
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer1 = await this.Server.CreateClientAsync("Viewer1");
+        await using var viewer2 = await this.Server.CreateClientAsync("Viewer2");
+        await using var viewer3 = await this.Server.CreateClientAsync("Viewer3");
 
-        await serverFixture.CreateConnectionAsync(presenter, viewer1, viewer2, viewer3);
+        await this.Server.CreateConnectionAsync(presenter, viewer1, viewer2, viewer3);
         var presenterConn = presenter.CurrentConnection!;
+
+        // Wait for all viewers to be registered (eventual consistency)
+        await TestHelpers.WaitForConditionAsync(
+            () => presenterConn.Viewers.Count == 3,
+            timeoutMessage: $"Expected 3 viewers but got {presenterConn.Viewers.Count}");
 
         await Assert.That(presenterConn.Viewers.Count).IsEqualTo(3);
     }
@@ -203,11 +212,11 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task ViewerDisconnectDoesNotAffectOtherViewers()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer1 = await serverFixture.CreateClientAsync("Viewer1");
-        await using var viewer2 = await serverFixture.CreateClientAsync("Viewer2");
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer1 = await this.Server.CreateClientAsync("Viewer1");
+        await using var viewer2 = await this.Server.CreateClientAsync("Viewer2");
 
-        await serverFixture.CreateConnectionAsync(presenter, viewer1, viewer2);
+        await this.Server.CreateConnectionAsync(presenter, viewer1, viewer2);
         var presenterConn = presenter.CurrentConnection!;
         var viewer1Conn = viewer1.CurrentConnection!;
         var viewer2Conn = viewer2.CurrentConnection!;
@@ -228,8 +237,8 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task ViewersChangedEventFiresOnViewerConnect()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
 
         var (username, password) = await presenter.WaitForCredentialsAsync();
 
@@ -260,9 +269,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task ConnectionPropertiesChangedEventFires()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
+        await this.Server.CreateConnectionAsync(presenter, viewer);
         var presenterConn = presenter.CurrentConnection!;
         var viewerConn = viewer.CurrentConnection!;
 
@@ -289,9 +298,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task IsClosedReflectsConnectionState()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
+        await this.Server.CreateConnectionAsync(presenter, viewer);
         var viewerConn = viewer.CurrentConnection!;
 
         // Initially not closed
@@ -316,9 +325,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task ViewerMouseClickIsSentToPresenter()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
+        await this.Server.CreateConnectionAsync(presenter, viewer);
         var viewerConn = viewer.CurrentConnection!;
 
         await viewerConn.RequiredViewerService.SendMouseDownAsync(MouseButton.Left, 0.5f, 0.5f);
@@ -343,9 +352,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task ViewerMouseWheelIsSentToPresenter()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
+        await this.Server.CreateConnectionAsync(presenter, viewer);
         var viewerConn = viewer.CurrentConnection!;
 
         await viewerConn.RequiredViewerService.SendMouseWheelAsync(0f, 120f, 0.5f, 0.5f);
@@ -369,9 +378,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task InputBlockingPreventsInputInjection()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
+        await this.Server.CreateConnectionAsync(presenter, viewer);
         var presenterConn = presenter.CurrentConnection!;
         var viewerConn = viewer.CurrentConnection!;
 
@@ -413,9 +422,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task MultipleKeyModifiersAreSent()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
+        await this.Server.CreateConnectionAsync(presenter, viewer);
         var viewerConn = viewer.CurrentConnection!;
 
         // Send key with Ctrl+Shift modifiers
@@ -440,9 +449,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task GetMessagesReturnsHistory()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
+        await this.Server.CreateConnectionAsync(presenter, viewer);
         var presenterConn = presenter.CurrentConnection!;
         var viewerConn = viewer.CurrentConnection!;
 
@@ -470,11 +479,11 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task MultipleViewersReceiveSameChatMessage()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer1 = await serverFixture.CreateClientAsync("Viewer1");
-        await using var viewer2 = await serverFixture.CreateClientAsync("Viewer2");
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer1 = await this.Server.CreateClientAsync("Viewer1");
+        await using var viewer2 = await this.Server.CreateClientAsync("Viewer2");
 
-        await serverFixture.CreateConnectionAsync(presenter, viewer1, viewer2);
+        await this.Server.CreateConnectionAsync(presenter, viewer1, viewer2);
         var presenterConn = presenter.CurrentConnection!;
         var viewer1Conn = viewer1.CurrentConnection!;
         var viewer2Conn = viewer2.CurrentConnection!;
@@ -496,9 +505,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task ChatMessagesContainCorrectSenderInfo()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
+        await this.Server.CreateConnectionAsync(presenter, viewer);
         var presenterConn = presenter.CurrentConnection!;
         var viewerConn = viewer.CurrentConnection!;
 
@@ -536,11 +545,11 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task ViewerCanBeBlockedWhileOthersAreNot()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer1 = await serverFixture.CreateClientAsync("Viewer1");
-        await using var viewer2 = await serverFixture.CreateClientAsync("Viewer2");
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer1 = await this.Server.CreateClientAsync("Viewer1");
+        await using var viewer2 = await this.Server.CreateClientAsync("Viewer2");
 
-        await serverFixture.CreateConnectionAsync(presenter, viewer1, viewer2);
+        await this.Server.CreateConnectionAsync(presenter, viewer1, viewer2);
         var presenterConn = presenter.CurrentConnection!;
         var viewer2Conn = viewer2.CurrentConnection!;
 
@@ -582,11 +591,11 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task BroadcastMessagesReachAllViewers()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer1 = await serverFixture.CreateClientAsync("Viewer1");
-        await using var viewer2 = await serverFixture.CreateClientAsync("Viewer2");
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer1 = await this.Server.CreateClientAsync("Viewer1");
+        await using var viewer2 = await this.Server.CreateClientAsync("Viewer2");
 
-        await serverFixture.CreateConnectionAsync(presenter, viewer1, viewer2);
+        await this.Server.CreateConnectionAsync(presenter, viewer1, viewer2);
         var presenterConn = presenter.CurrentConnection!;
         var viewer1Conn = viewer1.CurrentConnection!;
         var viewer2Conn = viewer2.CurrentConnection!;
@@ -609,9 +618,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task AvailableDisplaysChangedEventFires()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
+        await this.Server.CreateConnectionAsync(presenter, viewer);
         var presenterConn = presenter.CurrentConnection!;
         var viewerConn = viewer.CurrentConnection!;
 
@@ -645,9 +654,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task FileTransferRequestIsSentToPresenter()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
+        await this.Server.CreateConnectionAsync(presenter, viewer);
         var viewerConn = viewer.CurrentConnection!;
 
         // Configure presenter's dialog to accept file transfer
@@ -685,9 +694,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task RejectedFileTransferDoesNotComplete()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
+        await this.Server.CreateConnectionAsync(presenter, viewer);
         var viewerConn = viewer.CurrentConnection!;
 
         // Configure presenter's dialog to reject file transfer
@@ -726,13 +735,13 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task TextClipboardSyncsFromViewerToPresenter()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
 
         viewer.ClipboardService.TryGetTextAsync()
             .Returns(Task.FromResult<string?>("Clipboard text from viewer"));
 
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await this.Server.CreateConnectionAsync(presenter, viewer);
 
         // Give the clipboard sync poll loop time to start and register its timer
         // This is necessary because Task.Run() in ClipboardSyncService may not have executed yet
@@ -764,13 +773,13 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task TextClipboardSyncsFromPresenterToViewer()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
 
         presenter.ClipboardService.TryGetTextAsync()
             .Returns(Task.FromResult<string?>("Clipboard text from presenter"));
 
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await this.Server.CreateConnectionAsync(presenter, viewer);
 
         // Give the clipboard sync poll loop time to start and register its timer
         // This is necessary because Task.Run() in ClipboardSyncService may not have executed yet
@@ -810,8 +819,8 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task ConnectToWithInvalidCredentialsReturnsIncorrectUsernameOrPassword()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
 
         var (username, _) = await presenter.WaitForCredentialsAsync();
 
@@ -824,7 +833,7 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task ConnectToWithNonExistentUserReturnsError()
     {
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
 
         // Try to connect with credentials that were never assigned
         // Server returns IncorrectUsernameOrPassword for security (don't leak user existence)
@@ -836,8 +845,8 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task GenerateNewPasswordChangesCredentials()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
 
         var (oldUser, oldPass) = await presenter.WaitForCredentialsAsync();
 
@@ -871,13 +880,13 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     public async Task SetDisplayNameUpdatesDisplayNameOnServer()
     {
         // Create clients without display name first
-        await using var presenter = await serverFixture.CreateClientAsync();
-        await using var viewer = await serverFixture.CreateClientAsync();
+        await using var presenter = await this.Server.CreateClientAsync();
+        await using var viewer = await this.Server.CreateClientAsync();
 
         // Set display name after connection is established
         await presenter.HubClient.SetDisplayName("CustomPresenterName");
 
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await this.Server.CreateConnectionAsync(presenter, viewer);
 
         var viewerConn = viewer.CurrentConnection!;
 
@@ -896,10 +905,10 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task SetDisplayNameCanBeChangedAfterConnection()
     {
-        await using var presenter = await serverFixture.CreateClientAsync();
-        await using var viewer = await serverFixture.CreateClientAsync();
+        await using var presenter = await this.Server.CreateClientAsync();
+        await using var viewer = await this.Server.CreateClientAsync();
 
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await this.Server.CreateConnectionAsync(presenter, viewer);
 
         var viewerConn = viewer.CurrentConnection!;
 
@@ -927,9 +936,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task SecureAttentionSequenceIsSentToPresenter()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
+        await this.Server.CreateConnectionAsync(presenter, viewer);
         var viewerConn = viewer.CurrentConnection!;
 
         // Send Ctrl+Alt+Del request
@@ -953,9 +962,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task FileTransferSuccessfulTransferCompletesAndFiresEvent()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
+        await this.Server.CreateConnectionAsync(presenter, viewer);
         var viewerConn = viewer.CurrentConnection!;
 
         // Configure presenter's dialog to accept file transfer
@@ -992,9 +1001,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task FileTransferPresenterCanSendFileToViewer()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
+        await this.Server.CreateConnectionAsync(presenter, viewer);
         var presenterConn = presenter.CurrentConnection!;
 
         var viewerClientId = viewer.HubClient.ClientId!;
@@ -1033,9 +1042,9 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task FileTransferCancellationFiresTransferFailedEvent()
     {
-        await using var presenter = await serverFixture.CreateClientAsync("Presenter");
-        await using var viewer = await serverFixture.CreateClientAsync("Viewer");
-        await serverFixture.CreateConnectionAsync(presenter, viewer);
+        await using var presenter = await this.Server.CreateClientAsync("Presenter");
+        await using var viewer = await this.Server.CreateClientAsync("Viewer");
+        await this.Server.CreateConnectionAsync(presenter, viewer);
         var viewerConn = viewer.CurrentConnection!;
 
         // Configure presenter's dialog to never respond (simulate user not accepting)
@@ -1080,7 +1089,7 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task IsConnectedReturnsTrueAfterSuccessfulConnection()
     {
-        await using var client = await serverFixture.CreateClientAsync("TestClient");
+        await using var client = await this.Server.CreateClientAsync("TestClient");
 
         await Assert.That(client.HubClient.IsConnected).IsTrue();
     }
@@ -1088,7 +1097,7 @@ public class ConnectionHubClientTests(ServerFixture serverFixture)
     [Test]
     public async Task HubConnectionStatusChangedFiresOnConnection()
     {
-        var client = new ClientFixture(serverFixture);
+        var client = new ClientFixture(this.Server);
         try
         {
             var eventFired = false;
