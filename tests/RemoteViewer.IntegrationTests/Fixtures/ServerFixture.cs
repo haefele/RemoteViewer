@@ -8,14 +8,11 @@ namespace RemoteViewer.IntegrationTests.Fixtures;
 
 public class ServerFixture : WebApplicationFactory<Program>, IAsyncInitializer
 {
-    public TestServer TestServer => this.Server;
-
     public Task InitializeAsync()
     {
-        // This ensures the server is ready when parallel tests start
-        // When parallel tests access this.Server for the first time, it may cause race conditions
-        // This call forces the server to start during initialization once
+        this.UseKestrel();
         this.StartServer();
+
         return Task.CompletedTask;
     }
 
