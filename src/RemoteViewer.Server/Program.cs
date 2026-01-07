@@ -13,8 +13,14 @@ try
         .ReadFrom.Configuration(builder.Configuration)
         .CreateLogger();
 
+    builder.Host.UseOrleans(silo =>
+    {
+        silo.UseLocalhostClustering();
+        silo.AddMemoryGrainStorage("Default");
+    });
+
     builder.Services.AddSingleton(TimeProvider.System);
-    builder.Services.AddSingleton<IConnectionsService, ConnectionsService>();
+    builder.Services.AddSingleton<IConnectionsService, ConnectionsOrleansService>();
     builder.Services.AddSingleton<IIpcTokenService, IpcTokenService>();
     builder.Services
         .AddSignalR(options =>

@@ -7,6 +7,7 @@ using RemoteViewer.Shared.Protocol;
 
 namespace RemoteViewer.IntegrationTests;
 
+[NotInParallel]
 public class ConnectionHubClientTests()
 {
     [ClassDataSource<ServerFixture>(Shared = SharedType.PerTestSession)]

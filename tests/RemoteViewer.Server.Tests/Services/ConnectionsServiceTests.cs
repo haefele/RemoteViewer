@@ -412,7 +412,7 @@ public class ConnectionsServiceTests : IDisposable
         await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
 
         // Act
-        var result = this._service.IsPresenterOfConnection(presenterConnectionId, connectionId!);
+        var result = await this._service.IsPresenterOfConnection(presenterConnectionId, connectionId!);
 
         // Assert
         await Assert.That(result).IsTrue();
@@ -440,7 +440,7 @@ public class ConnectionsServiceTests : IDisposable
         await this._service.TryConnectTo(viewerConnectionId, presenterUsername!, presenterPassword!);
 
         // Act
-        var result = this._service.IsPresenterOfConnection(viewerConnectionId, connectionId!);
+        var result = await this._service.IsPresenterOfConnection(viewerConnectionId, connectionId!);
 
         // Assert
         await Assert.That(result).IsFalse();

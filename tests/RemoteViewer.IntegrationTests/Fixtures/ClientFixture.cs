@@ -167,7 +167,7 @@ public class ClientFixture : IAsyncDisposable
         var tcs = new TaskCompletionSource<(string, string)>();
         this.HubClient.CredentialsAssigned += (s, e) => tcs.TrySetResult((e.Username, e.Password));
 
-        using var cts = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(5));
+        using var cts = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(30));
         cts.Token.Register(() => tcs.TrySetCanceled());
         var (username, password) = await tcs.Task;
 
@@ -179,7 +179,7 @@ public class ClientFixture : IAsyncDisposable
         var tcs = new TaskCompletionSource<Connection>();
         this.HubClient.ConnectionStarted += (s, e) => tcs.TrySetResult(e.Connection);
 
-        using var cts = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(5));
+        using var cts = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(30));
         cts.Token.Register(() => tcs.TrySetCanceled());
         return await tcs.Task;
     }

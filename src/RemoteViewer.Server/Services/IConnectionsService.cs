@@ -22,7 +22,7 @@ public interface IConnectionsService
     Task SetConnectionProperties(string signalrConnectionId, string connectionId, ConnectionProperties properties);
     Task SendMessage(string signalrConnectionId, string connectionId, string messageType, byte[] data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null);
 
-    bool IsPresenterOfConnection(string signalrConnectionId, string connectionId);
+    Task<bool> IsPresenterOfConnection(string signalrConnectionId, string connectionId);
 }
 
 
@@ -324,15 +324,15 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
         this._logger.MessageSendCompleted(senderId, connectionId, messageType);
     }
 
-    public bool IsPresenterOfConnection(string signalrConnectionId, string connectionId)
+    public Task<bool> IsPresenterOfConnection(string signalrConnectionId, string connectionId)
     {
         using (this._lock.ReadLock())
         {
             var connection = this._connections.FirstOrDefault(c => c.Id == connectionId);
             if (connection is null)
-                return false;
+                return Task.FromResult(false);
 
-            return connection.Presenter.SignalrConnectionId == signalrConnectionId;
+            return Task.FromResult(connection.Presenter.SignalrConnectionId == signalrConnectionId);
         }
     }
 
