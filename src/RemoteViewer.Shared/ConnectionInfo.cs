@@ -2,13 +2,32 @@ using PolyType;
 
 namespace RemoteViewer.Shared;
 
-public record ClientInfo(string ClientId, string DisplayName);
+[GenerateSerializer]
+public record ClientInfo([property: Id(0)] string ClientId, [property: Id(1)] string DisplayName);
 
-public record DisplayInfo(string Id, string FriendlyName, bool IsPrimary, int Left, int Top, int Right, int Bottom)
+[GenerateSerializer]
+public record DisplayInfo(
+    [property: Id(0)] string Id,
+    [property: Id(1)] string FriendlyName,
+    [property: Id(2)] bool IsPrimary,
+    [property: Id(3)] int Left,
+    [property: Id(4)] int Top,
+    [property: Id(5)] int Right,
+    [property: Id(6)] int Bottom)
 {
     public int Width => this.Right - this.Left;
     public int Height => this.Bottom - this.Top;
 }
 
-public record ConnectionProperties(bool CanSendSecureAttentionSequence, List<string> InputBlockedViewerIds, List<DisplayInfo> AvailableDisplays);
-public record ConnectionInfo(string ConnectionId, ClientInfo Presenter, List<ClientInfo> Viewers, ConnectionProperties Properties);
+[GenerateSerializer]
+public record ConnectionProperties(
+    [property: Id(0)] bool CanSendSecureAttentionSequence,
+    [property: Id(1)] List<string> InputBlockedViewerIds,
+    [property: Id(2)] List<DisplayInfo> AvailableDisplays);
+
+[GenerateSerializer]
+public record ConnectionInfo(
+    [property: Id(0)] string ConnectionId,
+    [property: Id(1)] ClientInfo Presenter,
+    [property: Id(2)] List<ClientInfo> Viewers,
+    [property: Id(3)] ConnectionProperties Properties);

@@ -89,10 +89,10 @@ public class ConnectionHub(IConnectionsService clientsService, IIpcTokenService 
         await clientsService.DisconnectFromConnection(this.Context.ConnectionId, connectionId);
     }
 
-    public string? GenerateIpcAuthToken(string connectionId)
+    public async Task<string?> GenerateIpcAuthToken(string connectionId)
     {
         // Only the presenter of a connection can generate IPC tokens
-        if (clientsService.IsPresenterOfConnection(this.Context.ConnectionId, connectionId) is false)
+        if (await clientsService.IsPresenterOfConnection(this.Context.ConnectionId, connectionId) is false)
             return null;
 
         return ipcTokenService.GenerateToken(connectionId);

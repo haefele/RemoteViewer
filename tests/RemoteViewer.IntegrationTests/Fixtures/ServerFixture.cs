@@ -1,19 +1,50 @@
 ﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Orleans;
+using RemoteViewer.Server.Grains.Interfaces;
 using TUnit.Core.Interfaces;
 
 namespace RemoteViewer.IntegrationTests.Fixtures;
 
 public class ServerFixture : WebApplicationFactory<Program>, IAsyncInitializer
 {
-    public Task InitializeAsync()
+    public async Task InitializeAsync()
     {
-        this.UseKestrel(port: 0); // Dynamic port
+        this.UseKestrel(port: 0);
         this.StartServer();
+        await this.WaitForOrleansAsync();
+    }
 
-        return Task.CompletedTask;
+    private async Task WaitForOrleansAsync()
+    {
+        var grainFactory = this.Services.GetRequiredService<IGrainFactory>();
+
+        var maxAttempts = 60;
+        for (var i = 0; i < maxAttempts; i++)
+        {
+            try
+            {
+                // Warmup with UsernameGrain and ClientGrain activations
+                var usernameGrain = grainFactory.GetGrain<IUsernameGrain>("warmup-test");
+                await usernameGrain.GetSignalrConnectionIdAsync();
+
+                var warmupTasks = Enumerable.Range(0, 10)
+                    .Select(j => grainFactory.GetGrain<IClientGrain>($"warmup-{j}").IsInitializedAsync())
+                    .ToArray();
+                await Task.WhenAll(warmupTasks);
+
+                return;
+            }
+            catch
+            {
+                await Task.Delay(1000);
+            }
+        }
+
+        throw new TimeoutException("Orleans silo did not become ready within the timeout period");
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
