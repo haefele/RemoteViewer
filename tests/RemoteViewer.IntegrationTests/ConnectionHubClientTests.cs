@@ -1,20 +1,14 @@
 ﻿using NSubstitute;
 using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.HubClient;
-using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.IntegrationTests.Fixtures;
 using RemoteViewer.Shared;
 using RemoteViewer.Shared.Protocol;
-using TUnit.Core;
-using DataFormat = Avalonia.Input.DataFormat;
 
 namespace RemoteViewer.IntegrationTests;
 
-//[NotInParallel]
 public class ConnectionHubClientTests()
 {
-
-    //[ClassDataSource<ServerFixture>(Shared = SharedType.PerTestSession)]
     [ClassDataSource<ServerFixture>(Shared = SharedType.PerTestSession)]
     public required ServerFixture Server { get; init; }
 

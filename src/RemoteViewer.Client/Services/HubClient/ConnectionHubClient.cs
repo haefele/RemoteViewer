@@ -29,12 +29,6 @@ public class ConnectionHubClient : IAsyncDisposable
             {
                 httpOptions.Headers.Add("X-Client-Version", ThisAssembly.AssemblyInformationalVersion);
                 httpOptions.Headers.Add("X-Display-Name", this.DisplayName);
-
-                if (options.Value.HttpMessageHandlerFactory is not null)
-                    httpOptions.HttpMessageHandlerFactory = (f) => options.Value.HttpMessageHandlerFactory();
-
-                if (options.Value.Transports is not null)
-                    httpOptions.Transports = options.Value.Transports.Value;
             })
             .WithAutomaticReconnect()
             .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
@@ -98,14 +92,21 @@ public class ConnectionHubClient : IAsyncDisposable
 
         this._connection.Closed += (error) =>
         {
+            this.IsReconnecting = false;
+
             if (error is not null)
             {
-                this._logger.LogWarning(error, "Connection closed with error");
+                this._logger.LogWarning(error, "Connection closed with error - ClientId: {ClientId}, Username: {Username}", this.ClientId, this.Username);
             }
             else
             {
-                this._logger.LogInformation("Connection closed");
+                this._logger.LogInformation("Connection closed - ClientId: {ClientId}, Username: {Username}", this.ClientId, this.Username);
             }
+
+            // Clear stale credentials - server will assign new ones after reconnect
+            this.ClientId = null;
+            this.Username = null;
+            this.Password = null;
 
             this.CloseAllConnections();
             this._hubConnectionStatusChanged?.Invoke(this, EventArgs.Empty);
@@ -122,12 +123,21 @@ public class ConnectionHubClient : IAsyncDisposable
                 return Task.CompletedTask;
             }
 
+            this._logger.LogInformation("Attempting to reconnect after connection closed");
             return this.ConnectToHub();
         };
 
         this._connection.Reconnecting += (error) =>
         {
-            this._logger.LogWarning(error, "Connection reconnecting");
+            this.IsReconnecting = true;
+
+            this._logger.LogWarning(error, "Connection reconnecting - ClientId: {ClientId}, Username: {Username}", this.ClientId, this.Username);
+
+            // Clear stale credentials - server will assign new ones after reconnect
+            this.ClientId = null;
+            this.Username = null;
+            this.Password = null;
+
             this.CloseAllConnections();
             this._hubConnectionStatusChanged?.Invoke(this, EventArgs.Empty);
 
@@ -136,7 +146,9 @@ public class ConnectionHubClient : IAsyncDisposable
 
         this._connection.Reconnected += (connectionId) =>
         {
-            this._logger.LogInformation("Connection reconnected - ConnectionId: {ConnectionId}", connectionId);
+            this.IsReconnecting = false;
+
+            this._logger.LogInformation("Connection reconnected - NewConnectionId: {ConnectionId}", connectionId);
             this._hubConnectionStatusChanged?.Invoke(this, EventArgs.Empty);
             return Task.CompletedTask;
         };
@@ -191,6 +203,7 @@ public class ConnectionHubClient : IAsyncDisposable
     public event EventHandler<ConnectionStartedEventArgs>? ConnectionStarted;
 
     public bool IsConnected => this._connection.State == HubConnectionState.Connected;
+    public bool IsReconnecting { get; private set; }
 
     private EventHandler? _hubConnectionStatusChanged;
     public event EventHandler? HubConnectionStatusChanged
@@ -228,7 +241,7 @@ public class ConnectionHubClient : IAsyncDisposable
 
     public async Task<TryConnectError?> ConnectTo(string username, string password)
     {
-        if (!this.IsConnected)
+        if (!this.IsConnected || this.IsReconnecting)
             return null;
 
         try
@@ -256,7 +269,7 @@ public class ConnectionHubClient : IAsyncDisposable
 
     public async Task GenerateNewPassword()
     {
-        if (!this.IsConnected)
+        if (!this.IsConnected || this.IsReconnecting)
             return;
 
         try
@@ -275,7 +288,7 @@ public class ConnectionHubClient : IAsyncDisposable
     {
         this.DisplayName = displayName;
 
-        if (!this.IsConnected)
+        if (!this.IsConnected || this.IsReconnecting)
             return;
 
         try
@@ -299,7 +312,7 @@ public class ConnectionHubClient : IAsyncDisposable
 
     internal async Task SendMessageAsync(string connectionId, string messageType, ReadOnlyMemory<byte> data, MessageDestination destination, List<string>? targetClientIds = null)
     {
-        if (!this.IsConnected)
+        if (!this.IsConnected || this.IsReconnecting)
             return;
 
         try
@@ -316,7 +329,7 @@ public class ConnectionHubClient : IAsyncDisposable
 
     internal async Task DisconnectAsync(string connectionId)
     {
-        if (!this.IsConnected)
+        if (!this.IsConnected || this.IsReconnecting)
             return;
 
         try
@@ -333,7 +346,7 @@ public class ConnectionHubClient : IAsyncDisposable
 
     internal async Task SetConnectionPropertiesAsync(string connectionId, ConnectionProperties properties)
     {
-        if (!this.IsConnected)
+        if (!this.IsConnected || this.IsReconnecting)
             return;
 
         try
@@ -349,7 +362,7 @@ public class ConnectionHubClient : IAsyncDisposable
 
     internal async Task<string?> GenerateIpcAuthTokenAsync(string connectionId)
     {
-        if (!this.IsConnected)
+        if (!this.IsConnected || this.IsReconnecting)
             return null;
 
         try

@@ -17,9 +17,12 @@ try
     builder.Services.AddSingleton<IConnectionsService, ConnectionsService>();
     builder.Services.AddSingleton<IIpcTokenService, IpcTokenService>();
     builder.Services
-        .AddSignalR(f =>
+        .AddSignalR(options =>
         {
-            f.MaximumReceiveMessageSize = null;
+            options.MaximumReceiveMessageSize = null;
+
+            options.ClientTimeoutInterval = TimeSpan.FromMinutes(2);
+            options.KeepAliveInterval = TimeSpan.FromSeconds(30);
         })
         .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider);
     builder.Services.AddSerilog();
