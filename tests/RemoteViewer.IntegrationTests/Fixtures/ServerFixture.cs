@@ -10,7 +10,7 @@ public class ServerFixture : WebApplicationFactory<Program>, IAsyncInitializer
 {
     public Task InitializeAsync()
     {
-        this.UseKestrel();
+        this.UseKestrel(port: 0); // Dynamic port
         this.StartServer();
 
         return Task.CompletedTask;

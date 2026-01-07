@@ -6,21 +6,17 @@ using RemoteViewer.Shared;
 
 namespace RemoteViewer.Server.Tests.Hubs;
 
-[NotInParallel]
 public class SignalRHubTests
 {
-    [ClassDataSource<ServerFixture>(Shared = SharedType.None)]
+    [ClassDataSource<ServerFixture>(Shared = SharedType.PerTestSession)]
     public required ServerFixture Server { get; init; }
 
     private async Task<HubConnection> CreateHubConnectionAsync(Action<HubConnection>? configure = null)
     {
         var connection = new HubConnectionBuilder()
-            .WithUrl("http://localhost/connection", options =>
+            .WithUrl($"{this.Server.ClientOptions.BaseAddress.ToString()}connection", options =>
             {
-                options.HttpMessageHandlerFactory = _ => this.Server.TestServer.CreateHandler();
                 options.Headers.Add("X-Client-Version", ThisAssembly.AssemblyInformationalVersion);
-                // Use LongPolling to avoid WebSocket timeout delays (TestServer doesn't support WebSockets)
-                options.Transports = HttpTransportType.LongPolling;
             })
             .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
             .Build();
@@ -463,11 +459,9 @@ public class SignalRHubTests
         var versionMismatch = new TaskCompletionSource<(string serverVersion, string clientVersion)>();
 
         var connection = new HubConnectionBuilder()
-            .WithUrl("http://localhost/connection", options =>
+            .WithUrl($"{this.Server.ClientOptions.BaseAddress.ToString()}connection", options =>
             {
-                options.HttpMessageHandlerFactory = _ => this.Server.TestServer.CreateHandler();
                 options.Headers.Add("X-Client-Version", "0.0.0-invalid");
-                options.Transports = HttpTransportType.LongPolling;
             })
             .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
             .Build();
@@ -526,11 +520,9 @@ public class SignalRHubTests
         var ipcValidated = new TaskCompletionSource<string?>();
 
         var ipcConnection = new HubConnectionBuilder()
-            .WithUrl("http://localhost/connection", options =>
+            .WithUrl($"{this.Server.ClientOptions.BaseAddress.ToString()}connection", options =>
             {
-                options.HttpMessageHandlerFactory = _ => this.Server.TestServer.CreateHandler();
                 options.Headers.Add("X-Ipc-Token", ipcToken!);
-                options.Transports = HttpTransportType.LongPolling;
             })
             .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
             .Build();
@@ -556,11 +548,9 @@ public class SignalRHubTests
         var ipcValidated = new TaskCompletionSource<string?>();
 
         var ipcConnection = new HubConnectionBuilder()
-            .WithUrl("http://localhost/connection", options =>
+            .WithUrl($"{this.Server.ClientOptions.BaseAddress.ToString()}connection", options =>
             {
-                options.HttpMessageHandlerFactory = _ => this.Server.TestServer.CreateHandler();
                 options.Headers.Add("X-Ipc-Token", "invalid-token");
-                options.Transports = HttpTransportType.LongPolling;
             })
             .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
             .Build();
