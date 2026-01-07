@@ -15,7 +15,7 @@ public class ConnectionHubClientTests()
 {
 
     //[ClassDataSource<ServerFixture>(Shared = SharedType.PerTestSession)]
-    [ClassDataSource<ServerFixture>(Shared = SharedType.None)]
+    [ClassDataSource<ServerFixture>(Shared = SharedType.PerTestSession)]
     public required ServerFixture Server { get; init; }
 
     [Test]
@@ -859,6 +859,7 @@ public class ConnectionHubClientTests()
         await using var viewer = await this.Server.CreateClientAsync("Viewer");
 
         var (oldUser, oldPass) = await presenter.WaitForCredentialsAsync();
+        var oldId = presenter.HubClient.ClientId;
 
         // Wait for new credentials event
         var newCredentialsTask = TestHelpers.WaitForEventAsync<CredentialsAssignedEventArgs>(
@@ -876,6 +877,7 @@ public class ConnectionHubClientTests()
         // Verify password changed (username stays the same)
         await Assert.That(newCredentials.Username.Replace(" ", "")).IsEqualTo(oldUser);
         await Assert.That(newCredentials.Password).IsNotEqualTo(oldPass);
+        await Assert.That(presenter.HubClient.ClientId).IsEqualTo(oldId);
 
         // Old credentials should no longer work
         var error = await viewer.HubClient.ConnectTo(oldUser, oldPass);

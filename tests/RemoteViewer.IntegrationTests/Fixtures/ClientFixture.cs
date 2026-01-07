@@ -66,9 +66,9 @@ public class ClientFixture : IAsyncDisposable
         // Configure hub client to use test server
         services.Configure<ConnectionHubClientOptions>(options =>
         {
-            options.BaseUrl = serverFixture.TestServer.BaseAddress.ToString().TrimEnd('/');
-            options.HttpMessageHandlerFactory = () => serverFixture.TestServer.CreateHandler();
-            options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling; // LongPolling speeds up our test execution by A LOT!
+            options.BaseUrl = serverFixture.ClientOptions.BaseAddress.ToString().TrimEnd('/');
+            //options.HttpMessageHandlerFactory = () => serverFixture.TestServer.CreateHandler();
+            //options.Transports = Microsoft.AspNetCore.Http.Connections.HttpTransportType.LongPolling; // LongPolling speeds up our test execution by A LOT!
         });
 
         // Replace Avalonia-specific services with test implementations
