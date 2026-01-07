@@ -90,16 +90,23 @@ public class ConnectionHubClientTests()
 
         var viewerClientId = viewer.HubClient.ClientId!;
 
-        // Block viewer input
+        // Wait for presenter to receive server confirmation
+        // (presenter is now server-authoritative - no local optimistic update)
+        var presenterPropertyTask = TestHelpers.WaitForEventAsync(
+            onComplete => presenterConn.ConnectionPropertiesChanged += (s, e) =>
+            {
+                if (presenterConn.ConnectionProperties.InputBlockedViewerIds.Contains(viewerClientId))
+                    onComplete();
+            });
+
+        // Block viewer input (sends to server, doesn't update local state)
         await presenterConn.UpdateConnectionPropertiesAndSend(props =>
             props with { InputBlockedViewerIds = [viewerClientId] });
 
-        // Wait for property to propagate to the VIEWER (confirms server round-trip)
-        // The viewer receiving the update confirms the server has processed and broadcast it
-        await TestHelpers.WaitForConditionAsync(
-            () => viewerConn.ConnectionProperties.InputBlockedViewerIds.Contains(viewerClientId));
+        // Wait for server confirmation
+        await presenterPropertyTask;
 
-        await Assert.That(viewerConn.ConnectionProperties.InputBlockedViewerIds)
+        await Assert.That(presenterConn.ConnectionProperties.InputBlockedViewerIds)
             .Contains(viewerClientId);
     }
 
@@ -386,11 +393,12 @@ public class ConnectionHubClientTests()
 
         var viewerClientId = viewer.HubClient.ClientId!;
 
-        // Wait for property to propagate to viewer
-        var propertyChangedTask = TestHelpers.WaitForEventAsync(
-            onComplete => viewerConn.ConnectionPropertiesChanged += (s, e) =>
+        // Wait for PRESENTER to receive server confirmation
+        // (input blocking check happens on presenter, so we must wait for presenter's state)
+        var presenterPropertyTask = TestHelpers.WaitForEventAsync(
+            onComplete => presenterConn.ConnectionPropertiesChanged += (s, e) =>
             {
-                if (viewerConn.ConnectionProperties.InputBlockedViewerIds.Contains(viewerClientId))
+                if (presenterConn.ConnectionProperties.InputBlockedViewerIds.Contains(viewerClientId))
                     onComplete();
             });
 
@@ -398,7 +406,8 @@ public class ConnectionHubClientTests()
         await presenterConn.UpdateConnectionPropertiesAndSend(props =>
             props with { InputBlockedViewerIds = [viewerClientId] });
 
-        await propertyChangedTask;
+        // Wait for presenter to have the updated properties
+        await presenterPropertyTask;
 
         // Clear any previous calls
         presenter.InputInjectionService.ClearReceivedCalls();
@@ -640,7 +649,7 @@ public class ConnectionHubClientTests()
         };
 
         await presenterConn.UpdateConnectionPropertiesAndSend(props =>
-            props with { AvailableDisplays = newDisplays }, forceSend: true);
+            props with { AvailableDisplays = newDisplays });
 
         await displaysChangedTask;
 
