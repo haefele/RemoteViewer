@@ -1,5 +1,5 @@
 using Orleans;
-using RemoteViewer.Server.Grains.Interfaces;
+using RemoteViewer.Server.Grains;
 using RemoteViewer.Shared;
 
 namespace RemoteViewer.Server.Services;
