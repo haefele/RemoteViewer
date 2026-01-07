@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Orleans;
-using RemoteViewer.Server.Grains.Interfaces;
+using RemoteViewer.Server.Grains;
 using TUnit.Core.Interfaces;
 
 namespace RemoteViewer.IntegrationTests.Fixtures;
