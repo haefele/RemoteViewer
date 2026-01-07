@@ -10,10 +10,11 @@ using DataFormat = Avalonia.Input.DataFormat;
 
 namespace RemoteViewer.IntegrationTests;
 
-[NotInParallel]
+//[NotInParallel]
 public class ConnectionHubClientTests()
 {
 
+    //[ClassDataSource<ServerFixture>(Shared = SharedType.PerTestSession)]
     [ClassDataSource<ServerFixture>(Shared = SharedType.None)]
     public required ServerFixture Server { get; init; }
 

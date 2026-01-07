@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Hosting;
+﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Logging;
@@ -12,11 +12,10 @@ public class ServerFixture : WebApplicationFactory<Program>, IAsyncInitializer
 
     public Task InitializeAsync()
     {
-        // Eagerly initialize the server before tests run
         // This ensures the server is ready when parallel tests start
         // When parallel tests access this.Server for the first time, it may cause race conditions
         // This call forces the server to start during initialization once
-        _ = this.Server;
+        this.StartServer();
         return Task.CompletedTask;
     }
 
@@ -37,9 +36,7 @@ public class ServerFixture : WebApplicationFactory<Program>, IAsyncInitializer
         return client;
     }
 
-    public async Task CreateConnectionAsync(
-        ClientFixture presenter,
-        params ClientFixture[] viewers)
+    public async Task CreateConnectionAsync(ClientFixture presenter, params ClientFixture[] viewers)
     {
         var (username, password) = await presenter.WaitForCredentialsAsync();
 

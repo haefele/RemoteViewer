@@ -26,7 +26,7 @@ namespace RemoteViewer.IntegrationTests.Fixtures;
 
 public class ClientFixture : IAsyncDisposable
 {
-    private static readonly DisplayInfo FakeDisplay = new(
+    private static readonly DisplayInfo s_fakeDisplay = new(
         Id: "DISPLAY1",
         FriendlyName: "Test Display",
         IsPrimary: true,
@@ -137,7 +137,7 @@ public class ClientFixture : IAsyncDisposable
     {
         var mock = Substitute.For<IDisplayService>();
         mock.GetDisplays(Arg.Any<string?>(), Arg.Any<CancellationToken>())
-            .Returns(Task.FromResult(ImmutableList.Create(FakeDisplay)));
+            .Returns(Task.FromResult(ImmutableList.Create(s_fakeDisplay)));
         return mock;
     }
 
@@ -160,18 +160,19 @@ public class ClientFixture : IAsyncDisposable
 
     public async Task<(string Username, string Password)> WaitForCredentialsAsync(TimeSpan? timeout = null)
     {
-        var tcs = new TaskCompletionSource<(string, string)>();
-        this.HubClient.CredentialsAssigned += (s, e) => tcs.TrySetResult((e.Username, e.Password));
-
         if (this.HubClient.Username != null)
         {
             // Strip spaces - usernames are formatted with spaces for display but ConnectTo expects them stripped
             return (this.HubClient.Username.Replace(" ", ""), this.HubClient.Password!);
         }
 
+        var tcs = new TaskCompletionSource<(string, string)>();
+        this.HubClient.CredentialsAssigned += (s, e) => tcs.TrySetResult((e.Username, e.Password));
+
         using var cts = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(5));
         cts.Token.Register(() => tcs.TrySetCanceled());
         var (username, password) = await tcs.Task;
+
         return (username.Replace(" ", ""), password);
     }
 
