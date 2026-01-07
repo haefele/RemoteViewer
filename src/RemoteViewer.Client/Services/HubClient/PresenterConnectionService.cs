@@ -46,7 +46,8 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
         this._localInputMonitor.StartMonitoring();
 
         // Sync connection properties periodically (every 3 seconds) to ensure eventual consistency
-        this._propertiesSyncTimer = new Timer(this.SyncPropertiesCallback, null, TimeSpan.Zero, TimeSpan.FromSeconds(3));
+        // Delay the first callback to avoid racing with connection setup operations
+        this._propertiesSyncTimer = new Timer(this.SyncPropertiesCallback, null, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3));
     }
 
     private async void SyncPropertiesCallback(object? state)
@@ -64,8 +65,7 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
                 {
                     AvailableDisplays = displays.ToList(),
                     CanSendSecureAttentionSequence = canSendSas
-                },
-                forceSend: true);
+                });
         }
         catch (Exception ex)
         {

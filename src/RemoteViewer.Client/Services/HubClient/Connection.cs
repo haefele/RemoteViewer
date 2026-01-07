@@ -1,4 +1,4 @@
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Common;
 using RemoteViewer.Client.Services.FileTransfer;
@@ -553,32 +553,20 @@ public sealed class Connection : IConnectionImpl
         this.Closed?.Invoke(this, EventArgs.Empty);
     }
 
-    public async Task UpdateConnectionPropertiesAndSend(Func<ConnectionProperties, ConnectionProperties> update, bool forceSend = false)
+    public async Task UpdateConnectionPropertiesAndSend(Func<ConnectionProperties, ConnectionProperties> update)
     {
         ConnectionProperties properties;
-        var changed = false;
-        var shouldSend = false;
+        bool shouldSend;
 
         using (this._connectionPropertiesLock.EnterScope())
         {
             properties = update(this.ConnectionProperties);
 
-            if (!AreConnectionPropertiesEqual(this.ConnectionProperties, properties))
-            {
-                this.ConnectionProperties = properties;
-                changed = true;
-            }
-
-            if (forceSend || !AreConnectionPropertiesEqual(this._lastSentProperties, properties))
+            shouldSend = AreConnectionPropertiesEqual(this._lastSentProperties, properties) is false;
+            if (shouldSend)
             {
                 this._lastSentProperties = properties;
-                shouldSend = true;
             }
-        }
-
-        if (changed)
-        {
-            this._connectionPropertiesChanged?.Invoke(this, EventArgs.Empty);
         }
 
         if (shouldSend)
