@@ -149,7 +149,7 @@ public sealed partial class ConnectionGrain(ILogger<ConnectionGrain> logger, IHu
     }
     async Task IConnectionGrain.Internal_AddViewer(IClientGrain viewer)
     {
-        if (this._viewers.Any(v => v.GetGrainId() == viewer.GetGrainId()))
+        if (this._viewers.Contains(viewer))
         {
             this.LogViewerAlreadyInConnection(this.GetPrimaryKeyString(), viewer.GetPrimaryKeyString());
             return;
