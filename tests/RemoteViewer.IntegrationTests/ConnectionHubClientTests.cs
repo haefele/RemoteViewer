@@ -224,8 +224,19 @@ public class ConnectionHubClientTests()
         var viewer1Conn = viewer1.CurrentConnection!;
         var viewer2Conn = viewer2.CurrentConnection!;
 
+        // Subscribe BEFORE disconnect to wait for it to be fully processed
+        var viewer1DisconnectedTask = TestHelpers.WaitForEventAsync(
+            onComplete => presenterConn.ViewersChanged += (s, e) =>
+            {
+                if (presenterConn.Viewers.Count == 1)
+                    onComplete();
+            });
+
         // Disconnect viewer1
         await viewer1Conn.DisconnectAsync();
+
+        // Wait for disconnect to be fully processed by Orleans
+        await viewer1DisconnectedTask;
 
         // Viewer2 should still be connected and able to communicate
         var receiveTask = TestHelpers.WaitForEventAsync<ChatMessageDisplay>(
