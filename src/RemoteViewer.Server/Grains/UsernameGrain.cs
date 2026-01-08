@@ -1,4 +1,4 @@
-using Orleans;
+﻿using Orleans;
 using Orleans.Concurrency;
 
 namespace RemoteViewer.Server.Grains;
@@ -6,6 +6,7 @@ namespace RemoteViewer.Server.Grains;
 public interface IUsernameGrain : IGrainWithStringKey
 {
     Task<bool> TryClaimAsync(string signalrConnectionId);
+    [ReadOnly]
     Task<string?> GetSignalrConnectionIdAsync();
     Task ReleaseAsync(string signalrConnectionId);
 }
@@ -23,7 +24,6 @@ public sealed class UsernameGrain : Grain, IUsernameGrain
         return Task.FromResult(true);
     }
 
-    [ReadOnly]
     public Task<string?> GetSignalrConnectionIdAsync()
     {
         return Task.FromResult(this._ownerSignalrId);

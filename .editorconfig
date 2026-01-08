@@ -316,6 +316,9 @@ dotnet_diagnostic.CA1303.severity = none
 # CA1873: Avoid potentially expensive logging
 dotnet_diagnostic.CA1873.severity = none
 
+# CA1707: Identifiers should not contain underscores
+dotnet_diagnostic.CA1707.severity = none
+
 # Add other dotnet diagnostics here
 
 [src/{Compilers,ExpressionEvaluator,Scripting}/**Test**/*.{cs,vb}]

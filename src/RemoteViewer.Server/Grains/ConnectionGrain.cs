@@ -1,3 +1,5 @@
+﻿using System.Diagnostics.CodeAnalysis;
+using System.Linq;
 using Microsoft.AspNetCore.SignalR;
 using Orleans;
 using Orleans.Concurrency;
@@ -10,197 +12,88 @@ namespace RemoteViewer.Server.Grains;
 
 public interface IConnectionGrain : IGrainWithStringKey
 {
-    Task InitializeAsync(string presenterSignalrId);
-    Task<bool> AddViewerAsync(string viewerSignalrId);
-    Task<bool> RemoveClientAsync(string signalrId);
-    Task<bool> IsActiveAsync();
-    Task<string?> GetPresenterSignalrIdAsync();
-    Task<IReadOnlySet<string>> GetViewerSignalrIdsAsync();
-    Task<ConnectionProperties> GetPropertiesAsync();
-    Task<bool> UpdatePropertiesAsync(string requestingSignalrId, ConnectionProperties properties);
-    Task<bool> IsPresenterAsync(string signalrId);
-    Task<bool> SendMessageAsync(string senderSignalrId, string messageType, byte[] data, MessageDestination destination, IReadOnlyList<string>? targetClientIds);
+    Task UpdateProperties(string signalrConnectionId, ConnectionProperties properties);
+    Task SendMessage(string senderSignalrConnectionId, string messageType, byte[] data, MessageDestination destination, IReadOnlyList<string>? targetClientIds);
+    Task<bool> IsPresenter(string signalrConnectionId);
+
+    Task Internal_InitializePresenter(IClientGrain presenter);
+    Task Internal_AddViewer(IClientGrain viewer);
+    Task Internal_RemoveClient(IClientGrain client);
+    Task Internal_DisplayNameChanged();
 }
 
-public sealed class ConnectionGrain(
-    ILogger<ConnectionGrain> logger,
-    IHubContext<ConnectionHub, IConnectionHubClient> hubContext,
-    IGrainFactory grainFactory) : Grain, IConnectionGrain
+public sealed class ConnectionGrain(IHubContext<ConnectionHub, IConnectionHubClient> hubContext)
+    : Grain, IConnectionGrain
 {
-    private string? _presenterSignalrId;
-    private readonly HashSet<string> _viewerSignalrIds = [];
+    private IClientGrain? _presenter;
+    private readonly HashSet<IClientGrain> _viewers = new();
     private ConnectionProperties _properties = new(false, [], []);
-    private bool _isClosed;
 
-    private string ConnectionId => this.GetPrimaryKeyString();
-
-    public async Task InitializeAsync(string presenterSignalrId)
+    public async Task UpdateProperties(string signalrConnectionId, ConnectionProperties properties)
     {
-        if (this._presenterSignalrId is not null)
-        {
-            logger.LogWarning("ConnectionGrain {ConnectionId} already initialized", this.ConnectionId);
+        if (this._presenter?.GetPrimaryKeyString() != signalrConnectionId)
             return;
-        }
 
-        this._presenterSignalrId = presenterSignalrId;
-        this._isClosed = false;
-
-        logger.LogInformation("Connection initialized: ConnectionId={ConnectionId}, Presenter={PresenterSignalrId}", this.ConnectionId, presenterSignalrId);
-
-        await hubContext.Clients.Client(presenterSignalrId).ConnectionStarted(this.ConnectionId, isPresenter: true);
-    }
-
-    public async Task<bool> AddViewerAsync(string viewerSignalrId)
-    {
-        if (this._isClosed || this._presenterSignalrId is null)
-            return false;
-
-        if (this._viewerSignalrIds.Add(viewerSignalrId))
-        {
-            var viewerGrain = grainFactory.GetGrain<IClientGrain>(viewerSignalrId);
-            await viewerGrain.AddConnectionAsync(this.ConnectionId);
-
-            logger.LogInformation("Viewer added: ConnectionId={ConnectionId}, Viewer={ViewerSignalrId}, ViewerCount={Count}",
-                this.ConnectionId, viewerSignalrId, this._viewerSignalrIds.Count);
-
-            await hubContext.Clients.Client(viewerSignalrId).ConnectionStarted(this.ConnectionId, isPresenter: false);
-            await this.NotifyConnectionChangedAsync();
-
-            return true;
-        }
-
-        logger.LogWarning("Viewer already present: ConnectionId={ConnectionId}, Viewer={ViewerSignalrId}", this.ConnectionId, viewerSignalrId);
-        return false;
-    }
-
-    public async Task<bool> RemoveClientAsync(string signalrId)
-    {
-        if (this._presenterSignalrId == signalrId)
-        {
-            logger.LogInformation("Presenter disconnected: ConnectionId={ConnectionId}, ViewerCount={Count}", this.ConnectionId, this._viewerSignalrIds.Count);
-
-            // Clean up and notify all viewers that connection is closing
-            foreach (var viewerSignalrId in this._viewerSignalrIds)
-            {
-                var viewerGrain = grainFactory.GetGrain<IClientGrain>(viewerSignalrId);
-                await viewerGrain.RemoveConnectionAsync(this.ConnectionId);
-                await hubContext.Clients.Client(viewerSignalrId).ConnectionStopped(this.ConnectionId);
-            }
-
-            // Notify presenter
-            await hubContext.Clients.Client(signalrId).ConnectionStopped(this.ConnectionId);
-
-            this._isClosed = true;
-            this.DeactivateOnIdle();
-
-            return true;
-        }
-
-        if (this._viewerSignalrIds.Remove(signalrId))
-        {
-            logger.LogInformation("Viewer disconnected: ConnectionId={ConnectionId}, ViewerCount={Count}", this.ConnectionId, this._viewerSignalrIds.Count);
-
-            this._properties = await this.NormalizePropertiesAsync(this._properties);
-            await this.NotifyConnectionChangedAsync();
-
-            await hubContext.Clients.Client(signalrId).ConnectionStopped(this.ConnectionId);
-        }
-
-        return false;
-    }
-
-    [ReadOnly]
-    public Task<bool> IsActiveAsync()
-    {
-        return Task.FromResult(!this._isClosed && this._presenterSignalrId is not null);
-    }
-
-    [ReadOnly]
-    public Task<string?> GetPresenterSignalrIdAsync()
-    {
-        return Task.FromResult(this._presenterSignalrId);
-    }
-
-    [ReadOnly]
-    public Task<IReadOnlySet<string>> GetViewerSignalrIdsAsync()
-    {
-        return Task.FromResult<IReadOnlySet<string>>(this._viewerSignalrIds);
-    }
-
-    [ReadOnly]
-    public Task<ConnectionProperties> GetPropertiesAsync()
-    {
-        return Task.FromResult(this._properties);
-    }
-
-    public async Task<bool> UpdatePropertiesAsync(string requestingSignalrId, ConnectionProperties properties)
-    {
-        if (this._presenterSignalrId != requestingSignalrId)
-        {
-            logger.LogWarning("Non-presenter tried to update properties: ConnectionId={ConnectionId}, Requester={Requester}", this.ConnectionId, requestingSignalrId);
-            return false;
-        }
-
-        this._properties = await this.NormalizePropertiesAsync(properties);
+        this._properties = properties;
         await this.NotifyConnectionChangedAsync();
-
-        return true;
     }
-
-    [ReadOnly]
-    public Task<bool> IsPresenterAsync(string signalrId)
+    public async Task SendMessage(string senderSignalrConnectionId, string messageType, byte[] data, MessageDestination destination, IReadOnlyList<string>? targetClientIds)
     {
-        return Task.FromResult(this._presenterSignalrId == signalrId);
-    }
+        this.EnsureInitialized();
 
-    public async Task<bool> SendMessageAsync(string senderSignalrId, string messageType, byte[] data, MessageDestination destination, IReadOnlyList<string>? targetClientIds)
-    {
-        var isSenderPresenter = this._presenterSignalrId == senderSignalrId;
-        var isSenderViewer = this._viewerSignalrIds.Contains(senderSignalrId);
+        // Get sender's clientId from local state - no cross-grain calls
+        string? senderClientId = null;
+        if (this._presenter.GetPrimaryKeyString() == senderSignalrConnectionId)
+        {
+            senderClientId = await this._presenter.Internal_GetClientId();
+        }
+        else if (this._viewers.FirstOrDefault(f => f.GetPrimaryKeyString() == senderSignalrConnectionId) is { } viewer)
+        {
+            senderClientId = await viewer.Internal_GetClientId();
+        }
 
-        if (!isSenderPresenter && !isSenderViewer)
-            return false;
+        if (senderClientId is null)
+            return;
 
-        var senderGrain = grainFactory.GetGrain<IClientGrain>(senderSignalrId);
-        var senderClientId = await senderGrain.GetClientIdAsync();
+        var isSenderPresenter = this._presenter?.GetPrimaryKeyString() == senderSignalrConnectionId;
 
         switch (destination)
         {
             case MessageDestination.PresenterOnly:
-                if (isSenderViewer && this._presenterSignalrId is not null)
+                if (!isSenderPresenter && this._presenter is not null)
                 {
-                    await hubContext.Clients.Client(this._presenterSignalrId).MessageReceived(this.ConnectionId, senderClientId, messageType, data);
+                    await hubContext.Clients.Client(this._presenter.GetPrimaryKeyString()).MessageReceived(this.GetPrimaryKeyString(), senderClientId, messageType, data);
                 }
                 break;
 
             case MessageDestination.AllViewers:
-                foreach (var viewerSignalrId in this._viewerSignalrIds)
+                foreach (var viewer in this._viewers)
                 {
-                    await hubContext.Clients.Client(viewerSignalrId).MessageReceived(this.ConnectionId, senderClientId, messageType, data);
+                    await hubContext.Clients.Client(viewer.GetPrimaryKeyString()).MessageReceived(this.GetPrimaryKeyString(), senderClientId, messageType, data);
                 }
                 break;
 
             case MessageDestination.All:
-                if (this._presenterSignalrId is not null)
+                if (this._presenter is not null)
                 {
-                    await hubContext.Clients.Client(this._presenterSignalrId).MessageReceived(this.ConnectionId, senderClientId, messageType, data);
+                    await hubContext.Clients.Client(this._presenter.GetPrimaryKeyString()).MessageReceived(this.GetPrimaryKeyString(), senderClientId, messageType, data);
                 }
-                foreach (var viewerSignalrId in this._viewerSignalrIds)
+                foreach (var viewer in this._viewers)
                 {
-                    await hubContext.Clients.Client(viewerSignalrId).MessageReceived(this.ConnectionId, senderClientId, messageType, data);
+                    await hubContext.Clients.Client(viewer.GetPrimaryKeyString()).MessageReceived(this.GetPrimaryKeyString(), senderClientId, messageType, data);
                 }
                 break;
 
             case MessageDestination.AllExceptSender:
-                if (this._presenterSignalrId is not null && this._presenterSignalrId != senderSignalrId)
+                if (this._presenter is not null && this._presenter.GetPrimaryKeyString() != senderSignalrConnectionId)
                 {
-                    await hubContext.Clients.Client(this._presenterSignalrId).MessageReceived(this.ConnectionId, senderClientId, messageType, data);
+                    await hubContext.Clients.Client(this._presenter.GetPrimaryKeyString()).MessageReceived(this.GetPrimaryKeyString(), senderClientId, messageType, data);
                 }
-                foreach (var viewerSignalrId in this._viewerSignalrIds)
+                foreach (var viewer in this._viewers)
                 {
-                    if (viewerSignalrId != senderSignalrId)
+                    if (viewer.GetPrimaryKeyString() != senderSignalrConnectionId)
                     {
-                        await hubContext.Clients.Client(viewerSignalrId).MessageReceived(this.ConnectionId, senderClientId, messageType, data);
+                        await hubContext.Clients.Client(viewer.GetPrimaryKeyString()).MessageReceived(this.GetPrimaryKeyString(), senderClientId, messageType, data);
                     }
                 }
                 break;
@@ -211,71 +104,107 @@ public sealed class ConnectionGrain(
 
                 var targetClientIdSet = targetClientIds.ToHashSet(StringComparer.Ordinal);
 
-                if (this._presenterSignalrId is not null)
+                if (this._presenter is not null && targetClientIdSet.Contains(await this._presenter.Internal_GetClientId()))
                 {
-                    var presenterGrain = grainFactory.GetGrain<IClientGrain>(this._presenterSignalrId);
-                    var presenterClientId = await presenterGrain.GetClientIdAsync();
-                    if (targetClientIdSet.Contains(presenterClientId))
-                    {
-                        await hubContext.Clients.Client(this._presenterSignalrId).MessageReceived(this.ConnectionId, senderClientId, messageType, data);
-                    }
+                    await hubContext.Clients.Client(this._presenter.GetPrimaryKeyString()).MessageReceived(this.GetPrimaryKeyString(), senderClientId, messageType, data);
                 }
 
-                foreach (var viewerSignalrId in this._viewerSignalrIds)
+                foreach (var viewer in this._viewers)
                 {
-                    var viewerGrain = grainFactory.GetGrain<IClientGrain>(viewerSignalrId);
-                    var viewerClientId = await viewerGrain.GetClientIdAsync();
+                    var viewerClientId = await viewer.Internal_GetClientId();
                     if (targetClientIdSet.Contains(viewerClientId))
                     {
-                        await hubContext.Clients.Client(viewerSignalrId).MessageReceived(this.ConnectionId, senderClientId, messageType, data);
+                        await hubContext.Clients.Client(viewer.GetPrimaryKeyString()).MessageReceived(this.GetPrimaryKeyString(), senderClientId, messageType, data);
                     }
                 }
                 break;
         }
+    }
+    public Task<bool> IsPresenter(string signalrConnectionId)
+    {
+        var isPresenter = this._presenter?.GetPrimaryKeyString() == signalrConnectionId;
+        return Task.FromResult(isPresenter);
+    }
 
-        return true;
+    async Task IConnectionGrain.Internal_InitializePresenter(IClientGrain presenter)
+    {
+        if (this._presenter is not null)
+            throw new InvalidOperationException("Presenter already initialized for this connection.");
+
+        this._presenter = presenter;
+
+        await hubContext.Clients
+            .Client(presenter.GetPrimaryKeyString())
+            .ConnectionStarted(this.GetPrimaryKeyString(), isPresenter: true);
+
+        await this.NotifyConnectionChangedAsync();
+    }
+    async Task IConnectionGrain.Internal_AddViewer(IClientGrain viewer)
+    {
+        this._viewers.Add(viewer);
+
+        await hubContext.Clients
+            .Client(viewer.GetPrimaryKeyString())
+            .ConnectionStarted(this.GetPrimaryKeyString(), isPresenter: false);
+
+        await this.NotifyConnectionChangedAsync();
+    }
+    async Task IConnectionGrain.Internal_RemoveClient(IClientGrain client)
+    {
+        if (client.GetGrainId() == this._presenter?.GetGrainId())
+        {
+            foreach (var viewer in this._viewers)
+            {
+                await hubContext.Clients.Client(viewer.GetPrimaryKeyString()).ConnectionStopped(this.GetPrimaryKeyString());
+            }
+            await hubContext.Clients.Client(client.GetPrimaryKeyString()).ConnectionStopped(this.GetPrimaryKeyString());
+
+            this._presenter = null;
+            this._viewers.Clear();
+
+            this.DeactivateOnIdle();
+        }
+        else
+        {
+            this._viewers.RemoveWhere(f => f.GetGrainId() == client.GetGrainId());
+            await hubContext.Clients.Client(client.GetPrimaryKeyString()).ConnectionStopped(this.GetPrimaryKeyString());
+
+            await this.NotifyConnectionChangedAsync();
+        }
+    }
+    async Task IConnectionGrain.Internal_DisplayNameChanged()
+    {
+        await this.NotifyConnectionChangedAsync();
     }
 
     private async Task NotifyConnectionChangedAsync()
     {
-        if (this._presenterSignalrId is null)
-            return;
+        this.EnsureInitialized();
 
-        var presenterGrain = grainFactory.GetGrain<IClientGrain>(this._presenterSignalrId);
-        var presenterInfo = await presenterGrain.GetClientInfoAsync();
+        var presenterClientInfo = await this._presenter.Internal_GetClientInfo();
+        var presenterInfo = new ClientInfo(presenterClientInfo.ClientId, presenterClientInfo.DisplayName);
 
-        var viewerInfos = new List<ClientInfo>();
-        foreach (var viewerSignalrId in this._viewerSignalrIds)
+        var viewerInfo = new List<ClientInfo>();
+        foreach (var viewer in this._viewers)
         {
-            var viewerGrain = grainFactory.GetGrain<IClientGrain>(viewerSignalrId);
-            viewerInfos.Add(await viewerGrain.GetClientInfoAsync());
+            var viewerClientInfo = await viewer.Internal_GetClientInfo();
+            viewerInfo.Add(new ClientInfo(viewerClientInfo.ClientId, viewerClientInfo.DisplayName));
         }
 
-        var connectionInfo = new ConnectionInfo(this.ConnectionId, presenterInfo, viewerInfos, this._properties);
+        var connectionInfo = new ConnectionInfo(this.GetPrimaryKeyString(), presenterInfo, viewerInfo, this._properties);
 
-        await hubContext.Clients.Client(this._presenterSignalrId).ConnectionChanged(connectionInfo);
-        foreach (var viewerSignalrId in this._viewerSignalrIds)
+        await hubContext.Clients.Client(this._presenter.GetPrimaryKeyString()).ConnectionChanged(connectionInfo);
+        foreach (var viewer in this._viewers)
         {
-            await hubContext.Clients.Client(viewerSignalrId).ConnectionChanged(connectionInfo);
+            await hubContext.Clients.Client(viewer.GetPrimaryKeyString()).ConnectionChanged(connectionInfo);
         }
     }
 
-    private async Task<ConnectionProperties> NormalizePropertiesAsync(ConnectionProperties properties)
+    [MemberNotNull(nameof(_presenter))]
+    private void EnsureInitialized()
     {
-        var viewerClientIds = new HashSet<string>(StringComparer.Ordinal);
-        foreach (var viewerSignalrId in this._viewerSignalrIds)
-        {
-            var viewerGrain = grainFactory.GetGrain<IClientGrain>(viewerSignalrId);
-            var clientId = await viewerGrain.GetClientIdAsync();
-            if (!string.IsNullOrEmpty(clientId))
-                viewerClientIds.Add(clientId);
-        }
-
-        var blockedIds = properties.InputBlockedViewerIds
-            .Where(id => viewerClientIds.Contains(id))
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-
-        return properties with { InputBlockedViewerIds = blockedIds };
+        if (this._presenter is null)
+            throw new InvalidOperationException("Connection not initialized.");
     }
+
 }
