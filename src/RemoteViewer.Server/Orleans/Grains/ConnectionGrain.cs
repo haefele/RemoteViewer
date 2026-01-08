@@ -1,14 +1,11 @@
 ﻿using System.Diagnostics.CodeAnalysis;
-using System.Linq;
 using Microsoft.AspNetCore.SignalR;
-using Orleans;
-using Orleans.Concurrency;
 using RemoteViewer.Server.Hubs;
 using RemoteViewer.Shared;
 
 using ConnectionInfo = RemoteViewer.Shared.ConnectionInfo;
 
-namespace RemoteViewer.Server.Grains;
+namespace RemoteViewer.Server.Orleans.Grains;
 
 public interface IConnectionGrain : IGrainWithStringKey
 {
@@ -22,11 +19,11 @@ public interface IConnectionGrain : IGrainWithStringKey
     Task Internal_DisplayNameChanged();
 }
 
-public sealed class ConnectionGrain(IHubContext<ConnectionHub, IConnectionHubClient> hubContext)
+public sealed class ConnectionGrain(ILogger<ConnectionGrain> logger, IHubContext<ConnectionHub, IConnectionHubClient> hubContext)
     : Grain, IConnectionGrain
 {
     private IClientGrain? _presenter;
-    private readonly HashSet<IClientGrain> _viewers = new();
+    private readonly List<IClientGrain> _viewers = [];
     private ConnectionProperties _properties = new(false, [], []);
 
     public async Task UpdateProperties(string signalrConnectionId, ConnectionProperties properties)
@@ -133,6 +130,10 @@ public sealed class ConnectionGrain(IHubContext<ConnectionHub, IConnectionHubCli
 
         this._presenter = presenter;
 
+        logger.LogInformation(
+            "Connection initialized: ConnectionId={ConnectionId}, PresenterSignalrId={PresenterSignalrId}",
+            this.GetPrimaryKeyString(), presenter.GetPrimaryKeyString());
+
         await hubContext.Clients
             .Client(presenter.GetPrimaryKeyString())
             .ConnectionStarted(this.GetPrimaryKeyString(), isPresenter: true);
@@ -141,7 +142,19 @@ public sealed class ConnectionGrain(IHubContext<ConnectionHub, IConnectionHubCli
     }
     async Task IConnectionGrain.Internal_AddViewer(IClientGrain viewer)
     {
+        if (this._viewers.Any(v => v.GetGrainId() == viewer.GetGrainId()))
+        {
+            logger.LogWarning(
+                "Viewer already in connection: ConnectionId={ConnectionId}, ViewerSignalrId={ViewerSignalrId}",
+                this.GetPrimaryKeyString(), viewer.GetPrimaryKeyString());
+            return;
+        }
+
         this._viewers.Add(viewer);
+
+        logger.LogInformation(
+            "Viewer added: ConnectionId={ConnectionId}, ViewerSignalrId={ViewerSignalrId}, ViewerCount={ViewerCount}",
+            this.GetPrimaryKeyString(), viewer.GetPrimaryKeyString(), this._viewers.Count);
 
         await hubContext.Clients
             .Client(viewer.GetPrimaryKeyString())
@@ -151,8 +164,12 @@ public sealed class ConnectionGrain(IHubContext<ConnectionHub, IConnectionHubCli
     }
     async Task IConnectionGrain.Internal_RemoveClient(IClientGrain client)
     {
-        if (client.GetGrainId() == this._presenter?.GetGrainId())
+        if (object.Equals(client, this._presenter))
         {
+            logger.LogInformation(
+                "Presenter disconnected: ConnectionId={ConnectionId}, ViewerCount={ViewerCount}",
+                this.GetPrimaryKeyString(), this._viewers.Count);
+
             foreach (var viewer in this._viewers)
             {
                 await hubContext.Clients.Client(viewer.GetPrimaryKeyString()).ConnectionStopped(this.GetPrimaryKeyString());
@@ -166,7 +183,12 @@ public sealed class ConnectionGrain(IHubContext<ConnectionHub, IConnectionHubCli
         }
         else
         {
-            this._viewers.RemoveWhere(f => f.GetGrainId() == client.GetGrainId());
+            this._viewers.Remove(client);
+
+            logger.LogInformation(
+                "Viewer disconnected: ConnectionId={ConnectionId}, ViewerCount={ViewerCount}",
+                this.GetPrimaryKeyString(), this._viewers.Count);
+
             await hubContext.Clients.Client(client.GetPrimaryKeyString()).ConnectionStopped(this.GetPrimaryKeyString());
 
             await this.NotifyConnectionChangedAsync();
@@ -204,7 +226,7 @@ public sealed class ConnectionGrain(IHubContext<ConnectionHub, IConnectionHubCli
     private void EnsureInitialized()
     {
         if (this._presenter is null)
-            throw new InvalidOperationException("Connection not initialized.");
+            throw new InvalidOperationException($"ConnectionGrain not initialized: ConnectionId={this.GetPrimaryKeyString()}, presenter=null");
     }
 
 }

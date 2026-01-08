@@ -7,7 +7,6 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Orleans.Sdk" Version="9.*" />
     <PackageReference Include="PolyType" Version="1.0.0" />
   </ItemGroup>
 

@@ -1,7 +1,7 @@
 ﻿using Orleans;
 using Orleans.Concurrency;
 
-namespace RemoteViewer.Server.Grains;
+namespace RemoteViewer.Server.Orleans.Grains;
 
 public interface IUsernameGrain : IGrainWithStringKey
 {
