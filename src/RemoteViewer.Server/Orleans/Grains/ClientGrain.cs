@@ -150,10 +150,10 @@ public sealed partial class ClientGrain(ILogger<ClientGrain> logger, IHubContext
     {
         this.EnsureInitialized();
 
-        if (connectionGrain.GetGrainId() == this._presenterConnectionGrain?.GetGrainId())
+        if (object.Equals(connectionGrain, this._presenterConnectionGrain))
             return;
 
-        if (this._viewerConnectionGrains.Any(g => g.GetGrainId() == connectionGrain.GetGrainId()))
+        if (this._viewerConnectionGrains.Contains(connectionGrain))
             return;
 
         this._viewerConnectionGrains.Add(connectionGrain);
