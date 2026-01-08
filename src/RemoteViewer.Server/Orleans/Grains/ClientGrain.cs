@@ -1,15 +1,10 @@
-﻿using Microsoft;
-using Microsoft.AspNetCore.SignalR;
-using Orleans;
+﻿using Microsoft.AspNetCore.SignalR;
 using Orleans.Concurrency;
 using RemoteViewer.Server.Hubs;
-using RemoteViewer.Shared;
 using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
-using ConnectionInfo = RemoteViewer.Shared.ConnectionInfo;
-
-namespace RemoteViewer.Server.Grains;
+namespace RemoteViewer.Server.Orleans.Grains;
 
 public interface IClientGrain : IGrainWithStringKey
 {
@@ -41,7 +36,7 @@ public sealed class ClientGrain(ILogger<ClientGrain> logger, IHubContext<Connect
     private string _displayName = string.Empty;
 
     private IConnectionGrain? _presenterConnectionGrain;
-    private readonly HashSet<IConnectionGrain> _viewerConnectionGrains = new();
+    private readonly List<IConnectionGrain> _viewerConnectionGrains = [];
 
     public async Task Initialize(string? displayName)
     {
@@ -82,12 +77,12 @@ public sealed class ClientGrain(ILogger<ClientGrain> logger, IHubContext<Connect
 
         if (this._presenterConnectionGrain is not null)
         {
-            await this._presenterConnectionGrain.Internal_RemoveClient(this);
+            await this._presenterConnectionGrain.Internal_RemoveClient(this.AsReference<IClientGrain>());
             this._presenterConnectionGrain = null;
         }
         foreach (var connection in this._viewerConnectionGrains)
         {
-            await connection.Internal_RemoveClient(this);
+            await connection.Internal_RemoveClient(this.AsReference<IClientGrain>());
         }
 
         await this._usernameGrain.ReleaseAsync(this.GetPrimaryKeyString());
@@ -133,7 +128,7 @@ public sealed class ClientGrain(ILogger<ClientGrain> logger, IHubContext<Connect
         // Create new connection
         var connectionId = Guid.NewGuid().ToString();
         this._presenterConnectionGrain = this.GrainFactory.GetGrain<IConnectionGrain>(connectionId);
-        await this._presenterConnectionGrain.Internal_InitializePresenter(this);
+        await this._presenterConnectionGrain.Internal_InitializePresenter(this.AsReference<IClientGrain>());
 
         logger.LogInformation("Created connection: ConnectionId={ConnectionId}, Presenter={SignalrId}", connectionId, this.GetPrimaryKeyString());
 
@@ -141,24 +136,27 @@ public sealed class ClientGrain(ILogger<ClientGrain> logger, IHubContext<Connect
     }
     public async Task ViewerJoinConnection(IConnectionGrain connectionGrain)
     {
-        if (connectionGrain == this._presenterConnectionGrain)
+        if (connectionGrain.GetGrainId() == this._presenterConnectionGrain?.GetGrainId())
+            return;
+
+        if (this._viewerConnectionGrains.Any(g => g.GetGrainId() == connectionGrain.GetGrainId()))
             return;
 
         this._viewerConnectionGrains.Add(connectionGrain);
-        await connectionGrain.Internal_AddViewer(this);
+        await connectionGrain.Internal_AddViewer(this.AsReference<IClientGrain>());
     }
     public async Task LeaveConnection(IConnectionGrain connectionGrain)
     {
-        if (this._presenterConnectionGrain?.GetGrainId() == connectionGrain.GetGrainId())
+        if (object.Equals(this._presenterConnectionGrain, connectionGrain))
         {
             this._presenterConnectionGrain = null;
         }
         else
         {
-            this._viewerConnectionGrains.RemoveWhere(f => f.GetGrainId() == connectionGrain.GetGrainId());
+            this._viewerConnectionGrains.Remove(connectionGrain);
         }
 
-        await connectionGrain.Internal_RemoveClient(this);
+        await connectionGrain.Internal_RemoveClient(this.AsReference<IClientGrain>());
     }
 
     public Task<string> Internal_GetClientId()
@@ -194,7 +192,12 @@ public sealed class ClientGrain(ILogger<ClientGrain> logger, IHubContext<Connect
     private void EnsureInitialized()
     {
         if (this._clientId is null || this._usernameGrain is null || this._password is null)
-            throw new InvalidOperationException("Client not initialized");
+        {
+            throw new InvalidOperationException(
+                $"ClientGrain not initialized: clientId={(this._clientId is null ? "null" : "set")}, " +
+                $"usernameGrain={(this._usernameGrain is null ? "null" : "set")}, " +
+                $"password={(this._password is null ? "null" : "set")}");
+        }
     }
 
 }
