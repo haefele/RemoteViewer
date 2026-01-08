@@ -1,45 +1,18 @@
 ﻿using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Orleans;
-using RemoteViewer.Server.Orleans.Grains;
 using TUnit.Core.Interfaces;
 
 namespace RemoteViewer.IntegrationTests.Fixtures;
 
 public class ServerFixture : WebApplicationFactory<Program>, IAsyncInitializer
 {
-    public async Task InitializeAsync()
+    public Task InitializeAsync()
     {
         this.UseKestrel(port: 0);
         this.StartServer();
-        await this.WaitForOrleansAsync();
-    }
-
-    private async Task WaitForOrleansAsync()
-    {
-        var grainFactory = this.Services.GetRequiredService<IGrainFactory>();
-
-        var maxAttempts = 60;
-        for (var i = 0; i < maxAttempts; i++)
-        {
-            try
-            {
-                // Warmup with UsernameGrain and ClientGrain activations
-                var usernameGrain = grainFactory.GetGrain<IUsernameGrain>("warmup-test");
-                await usernameGrain.GetSignalrConnectionIdAsync();
-
-                return;
-            }
-            catch
-            {
-                await Task.Delay(1000);
-            }
-        }
-
-        throw new TimeoutException("Orleans silo did not become ready within the timeout period");
+        return Task.CompletedTask;
     }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
