@@ -1,8 +1,10 @@
+﻿using Microsoft;
 using Microsoft.AspNetCore.SignalR;
 using Orleans;
 using Orleans.Concurrency;
 using RemoteViewer.Server.Hubs;
 using RemoteViewer.Shared;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 
 using ConnectionInfo = RemoteViewer.Shared.ConnectionInfo;
@@ -11,41 +13,40 @@ namespace RemoteViewer.Server.Grains;
 
 public interface IClientGrain : IGrainWithStringKey
 {
-    Task<string> InitializeAsync(string? displayName);
-    Task<string> GenerateNewPasswordAsync();
-    Task SetDisplayNameAsync(string displayName);
-    Task<bool> ValidatePasswordAsync(string password);
-    Task<string> GetClientIdAsync();
-    Task<ClientInfo> GetClientInfoAsync();
-    Task AddConnectionAsync(string connectionId);
-    Task RemoveConnectionAsync(string connectionId);
-    Task LeaveConnectionAsync(string connectionId);
-    Task<bool> IsInitializedAsync();
-    Task<string> GetOrCreateConnectionAsync();
-    Task DeactivateAsync();
+    Task Initialize(string? displayName);
+    [ReadOnly]
+    Task<bool> IsInitialized();
+    Task Deactivate();
+
+    Task GenerateNewPassword();
+    Task SetDisplayName(string displayName);
+
+    Task<IConnectionGrain?> ValidatePasswordAndStartPresenting(string password);
+    Task ViewerJoinConnection(IConnectionGrain connectionGrain);
+    Task LeaveConnection(IConnectionGrain connectionGrain);
+
+    [AlwaysInterleave]
+    Task<string> Internal_GetClientId();
+    [AlwaysInterleave]
+    Task<(string ClientId, string DisplayName)> Internal_GetClientInfo();
 }
 
-public sealed class ClientGrain(
-    ILogger<ClientGrain> logger,
-    IHubContext<ConnectionHub, IConnectionHubClient> hubContext,
-    IGrainFactory grainFactory) : Grain, IClientGrain
+public sealed class ClientGrain(ILogger<ClientGrain> logger, IHubContext<ConnectionHub, IConnectionHubClient> hubContext)
+    : Grain, IClientGrain
 {
     private string? _clientId;
-    private string? _username;
+    private IUsernameGrain? _usernameGrain;
     private string? _password;
+
     private string _displayName = string.Empty;
-    private readonly List<string> _activeConnectionIds = [];
-    private string? _presenterConnectionId;
 
-    private string SignalrConnectionId => this.GetPrimaryKeyString();
+    private IConnectionGrain? _presenterConnectionGrain;
+    private readonly HashSet<IConnectionGrain> _viewerConnectionGrains = new();
 
-    public async Task<string> InitializeAsync(string? displayName)
+    public async Task Initialize(string? displayName)
     {
         if (this._clientId is not null)
-        {
-            logger.LogWarning("ClientGrain {SignalrId} already initialized", this.SignalrConnectionId);
-            return this._clientId;
-        }
+            throw new InvalidOperationException("Client already initialized");
 
         this._clientId = Guid.NewGuid().ToString();
         this._displayName = displayName ?? string.Empty;
@@ -57,177 +58,120 @@ public sealed class ClientGrain(
         {
             attempts++;
             var username = Random.Shared.GetString(IdChars, 10);
-            var usernameGrain = grainFactory.GetGrain<IUsernameGrain>(username);
+            var usernameGrain = this.GrainFactory.GetGrain<IUsernameGrain>(username);
 
-            if (await usernameGrain.TryClaimAsync(this.SignalrConnectionId))
+            if (await usernameGrain.TryClaimAsync(this.GetPrimaryKeyString()))
             {
-                this._username = username;
+                this._usernameGrain = usernameGrain;
                 this._password = GeneratePassword();
                 break;
             }
-
-            if (attempts > 10)
-            {
-                logger.LogWarning("Too many username collisions, attempt {Attempts}", attempts);
-            }
         }
 
-        logger.LogInformation(
-            "Client initialized: ClientId={ClientId}, Username={Username}, SignalrId={SignalrId}",
-            this._clientId, this._username, this.SignalrConnectionId);
-
-        await hubContext.Clients.Client(this.SignalrConnectionId)
-            .CredentialsAssigned(this._clientId, FormatUsername(this._username!), this._password!);
-
-        return this._clientId;
+        await hubContext.Clients
+            .Client(this.GetPrimaryKeyString())
+            .CredentialsAssigned(this._clientId, FormatUsername(this._usernameGrain.GetPrimaryKeyString()), this._password);
     }
-
-    public async Task<string> GenerateNewPasswordAsync()
-    {
-        if (this._username is null)
-            return string.Empty; // Not initialized, silently return
-
-        this._password = GeneratePassword();
-
-        logger.LogInformation("Password regenerated for ClientId={ClientId}", this._clientId);
-
-        await hubContext.Clients.Client(this.SignalrConnectionId)
-            .CredentialsAssigned(this._clientId!, FormatUsername(this._username), this._password);
-
-        return this._password;
-    }
-
-    public async Task SetDisplayNameAsync(string displayName)
-    {
-        if (this._clientId is null)
-            return; // Not initialized, silently return
-
-        this._displayName = displayName;
-
-        logger.LogInformation("Display name changed for ClientId={ClientId} to {DisplayName}", this._clientId, displayName);
-
-        foreach (var connectionId in this._activeConnectionIds)
-        {
-            var connectionGrain = grainFactory.GetGrain<IConnectionGrain>(connectionId);
-            if (await connectionGrain.IsActiveAsync())
-            {
-                await this.NotifyConnectionChangedAsync(connectionGrain);
-            }
-        }
-    }
-
-    [ReadOnly]
-    public Task<bool> ValidatePasswordAsync(string password)
-    {
-        if (this._password is null)
-            return Task.FromResult(false);
-
-        return Task.FromResult(string.Equals(this._password, password, StringComparison.OrdinalIgnoreCase));
-    }
-
-    [ReadOnly]
-    public Task<string> GetClientIdAsync()
-    {
-        return Task.FromResult(this._clientId ?? string.Empty);
-    }
-
-    [ReadOnly]
-    public Task<ClientInfo> GetClientInfoAsync()
-    {
-        return Task.FromResult(new ClientInfo(this._clientId ?? string.Empty, this._displayName));
-    }
-
-    public Task AddConnectionAsync(string connectionId)
-    {
-        if (!this._activeConnectionIds.Contains(connectionId))
-        {
-            this._activeConnectionIds.Add(connectionId);
-        }
-        return Task.CompletedTask;
-    }
-
-    public Task RemoveConnectionAsync(string connectionId)
-    {
-        this._activeConnectionIds.Remove(connectionId);
-        return Task.CompletedTask;
-    }
-
-    public async Task LeaveConnectionAsync(string connectionId)
-    {
-        this._activeConnectionIds.Remove(connectionId);
-
-        var connectionGrain = grainFactory.GetGrain<IConnectionGrain>(connectionId);
-        await connectionGrain.RemoveClientAsync(this.SignalrConnectionId);
-    }
-
-    [ReadOnly]
-    public Task<bool> IsInitializedAsync()
+    public Task<bool> IsInitialized()
     {
         return Task.FromResult(this._clientId is not null);
     }
-
-    public async Task<string> GetOrCreateConnectionAsync()
+    public async Task Deactivate()
     {
-        if (this._clientId is null)
-            throw new InvalidOperationException("Client not initialized");
+        this.EnsureInitialized();
 
-        if (this._presenterConnectionId is not null)
+        if (this._presenterConnectionGrain is not null)
         {
-            var existingConnection = grainFactory.GetGrain<IConnectionGrain>(this._presenterConnectionId);
-            if (await existingConnection.IsActiveAsync())
-            {
-                return this._presenterConnectionId;
-            }
+            await this._presenterConnectionGrain.Internal_RemoveClient(this);
+            this._presenterConnectionGrain = null;
+        }
+        foreach (var connection in this._viewerConnectionGrains)
+        {
+            await connection.Internal_RemoveClient(this);
         }
 
-        // Create new connection - manage our own state first
-        var connectionId = Guid.NewGuid().ToString();
-        this._presenterConnectionId = connectionId;
-        this._activeConnectionIds.Add(connectionId);
-
-        var connectionGrain = grainFactory.GetGrain<IConnectionGrain>(connectionId);
-        await connectionGrain.InitializeAsync(this.SignalrConnectionId);
-
-        logger.LogInformation("Created connection: ConnectionId={ConnectionId}, Presenter={SignalrId}", connectionId, this.SignalrConnectionId);
-
-        return connectionId;
-    }
-
-    public async Task DeactivateAsync()
-    {
-        if (this._clientId is null)
-        {
-            this.DeactivateOnIdle();
-            return; // Not initialized, just deactivate
-        }
-
-        logger.LogInformation("Client deactivating: ClientId={ClientId}, SignalrId={SignalrId}", this._clientId, this.SignalrConnectionId);
-
-        // Release our username
-        if (this._username is not null)
-        {
-            var usernameGrain = grainFactory.GetGrain<IUsernameGrain>(this._username);
-            await usernameGrain.ReleaseAsync(this.SignalrConnectionId);
-        }
-
-        // Remove from all connections we're a viewer in
-        foreach (var connectionId in this._activeConnectionIds.ToList())
-        {
-            var connectionGrain = grainFactory.GetGrain<IConnectionGrain>(connectionId);
-            await connectionGrain.RemoveClientAsync(this.SignalrConnectionId);
-        }
-
-        // If we're a presenter, close our connection
-        if (this._presenterConnectionId is not null)
-        {
-            var connectionGrain = grainFactory.GetGrain<IConnectionGrain>(this._presenterConnectionId);
-            await connectionGrain.RemoveClientAsync(this.SignalrConnectionId);
-            this._presenterConnectionId = null;
-        }
-
-        logger.LogInformation("Client deactivated: ClientId={ClientId}, SignalrId={SignalrId}", this._clientId, this.SignalrConnectionId);
+        await this._usernameGrain.ReleaseAsync(this.GetPrimaryKeyString());
 
         this.DeactivateOnIdle();
+    }
+
+    public async Task GenerateNewPassword()
+    {
+        this.EnsureInitialized();
+
+        this._password = GeneratePassword();
+
+        await hubContext.Clients.Client(this.GetPrimaryKeyString())
+            .CredentialsAssigned(this._clientId, FormatUsername(this._usernameGrain.GetPrimaryKeyString()), this._password);
+    }
+    public async Task SetDisplayName(string displayName)
+    {
+        this.EnsureInitialized();
+
+        this._displayName = displayName;
+
+        if (this._presenterConnectionGrain is not null)
+            await this._presenterConnectionGrain.Internal_DisplayNameChanged();
+
+        foreach (var connection in this._viewerConnectionGrains)
+            await connection.Internal_DisplayNameChanged();
+    }
+
+    public async Task<IConnectionGrain?> ValidatePasswordAndStartPresenting(string password)
+    {
+        this.EnsureInitialized();
+
+        if (string.Equals(this._password, password, StringComparison.OrdinalIgnoreCase) == false)
+        {
+            logger.LogWarning("Invalid password attempt for ClientId={ClientId}", this._clientId);
+            return null;
+        }
+
+        if (this._presenterConnectionGrain is not null)
+            return this._presenterConnectionGrain;
+
+        // Create new connection
+        var connectionId = Guid.NewGuid().ToString();
+        this._presenterConnectionGrain = this.GrainFactory.GetGrain<IConnectionGrain>(connectionId);
+        await this._presenterConnectionGrain.Internal_InitializePresenter(this);
+
+        logger.LogInformation("Created connection: ConnectionId={ConnectionId}, Presenter={SignalrId}", connectionId, this.GetPrimaryKeyString());
+
+        return this._presenterConnectionGrain;
+    }
+    public async Task ViewerJoinConnection(IConnectionGrain connectionGrain)
+    {
+        if (connectionGrain == this._presenterConnectionGrain)
+            return;
+
+        this._viewerConnectionGrains.Add(connectionGrain);
+        await connectionGrain.Internal_AddViewer(this);
+    }
+    public async Task LeaveConnection(IConnectionGrain connectionGrain)
+    {
+        if (this._presenterConnectionGrain?.GetGrainId() == connectionGrain.GetGrainId())
+        {
+            this._presenterConnectionGrain = null;
+        }
+        else
+        {
+            this._viewerConnectionGrains.RemoveWhere(f => f.GetGrainId() == connectionGrain.GetGrainId());
+        }
+
+        await connectionGrain.Internal_RemoveClient(this);
+    }
+
+    public Task<string> Internal_GetClientId()
+    {
+        this.EnsureInitialized();
+
+        return Task.FromResult(this._clientId);
+    }
+    public Task<(string ClientId, string DisplayName)> Internal_GetClientInfo()
+    {
+        this.EnsureInitialized();
+
+        return Task.FromResult((this._clientId, this._displayName));
     }
 
     private static string GeneratePassword()
@@ -235,7 +179,6 @@ public sealed class ClientGrain(
         const string PasswordChars = "abcdefghijklmnopqrstuvwxyz0123456789";
         return Random.Shared.GetString(PasswordChars, 8);
     }
-
     private static string FormatUsername(string username)
     {
         var sb = new StringBuilder();
@@ -247,53 +190,11 @@ public sealed class ClientGrain(
         }
         return sb.ToString();
     }
-
-    private async Task NotifyConnectionChangedAsync(IConnectionGrain connectionGrain)
+    [MemberNotNull(nameof(_clientId), nameof(_usernameGrain), nameof(_password))]
+    private void EnsureInitialized()
     {
-        var presenterSignalrId = await connectionGrain.GetPresenterSignalrIdAsync();
-        var viewerSignalrIds = await connectionGrain.GetViewerSignalrIdsAsync();
-        var properties = await connectionGrain.GetPropertiesAsync();
-
-        if (presenterSignalrId is null)
-            return;
-
-        // Avoid calling back to self - get info directly from state if we're the presenter
-        ClientInfo presenterInfo;
-        if (presenterSignalrId == this.SignalrConnectionId)
-        {
-            presenterInfo = new ClientInfo(this._clientId ?? string.Empty, this._displayName);
-        }
-        else
-        {
-            var presenterGrain = grainFactory.GetGrain<IClientGrain>(presenterSignalrId);
-            presenterInfo = await presenterGrain.GetClientInfoAsync();
-        }
-
-        var viewerInfos = new List<ClientInfo>();
-        foreach (var viewerSignalrId in viewerSignalrIds)
-        {
-            // Avoid calling back to self - get info directly from state if we're a viewer
-            if (viewerSignalrId == this.SignalrConnectionId)
-            {
-                viewerInfos.Add(new ClientInfo(this._clientId ?? string.Empty, this._displayName));
-            }
-            else
-            {
-                var viewerGrain = grainFactory.GetGrain<IClientGrain>(viewerSignalrId);
-                viewerInfos.Add(await viewerGrain.GetClientInfoAsync());
-            }
-        }
-
-        var connectionInfo = new ConnectionInfo(
-            connectionGrain.GetPrimaryKeyString(),
-            presenterInfo,
-            viewerInfos,
-            properties);
-
-        await hubContext.Clients.Client(presenterSignalrId).ConnectionChanged(connectionInfo);
-        foreach (var viewerSignalrId in viewerSignalrIds)
-        {
-            await hubContext.Clients.Client(viewerSignalrId).ConnectionChanged(connectionInfo);
-        }
+        if (this._clientId is null || this._usernameGrain is null || this._password is null)
+            throw new InvalidOperationException("Client not initialized");
     }
+
 }

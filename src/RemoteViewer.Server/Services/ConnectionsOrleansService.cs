@@ -1,4 +1,4 @@
-using Orleans;
+﻿using Orleans;
 using RemoteViewer.Server.Grains;
 using RemoteViewer.Shared;
 
@@ -9,49 +9,38 @@ public sealed class ConnectionsOrleansService(IGrainFactory grainFactory) : ICon
     public async Task Register(string signalrConnectionId, string? displayName)
     {
         var clientGrain = grainFactory.GetGrain<IClientGrain>(signalrConnectionId);
-        await clientGrain.InitializeAsync(displayName);
+        await clientGrain.Initialize(displayName);
     }
 
     public async Task Unregister(string signalrConnectionId)
     {
         var clientGrain = grainFactory.GetGrain<IClientGrain>(signalrConnectionId);
-        await clientGrain.DeactivateAsync();
+        await clientGrain.Deactivate();
     }
 
     public async Task GenerateNewPassword(string signalrConnectionId)
     {
         var clientGrain = grainFactory.GetGrain<IClientGrain>(signalrConnectionId);
-        await clientGrain.GenerateNewPasswordAsync();
+        await clientGrain.GenerateNewPassword();
     }
 
     public async Task SetDisplayName(string signalrConnectionId, string displayName)
     {
         var clientGrain = grainFactory.GetGrain<IClientGrain>(signalrConnectionId);
-        await clientGrain.SetDisplayNameAsync(displayName);
+        await clientGrain.SetDisplayName(displayName);
     }
 
     public async Task<TryConnectError?> TryConnectTo(string signalrConnectionId, string username, string password)
     {
         var viewerGrain = grainFactory.GetGrain<IClientGrain>(signalrConnectionId);
-
-        if (!await viewerGrain.IsInitializedAsync())
+        if (await viewerGrain.IsInitialized() is false)
         {
             return TryConnectError.ViewerNotFound;
         }
 
-        var normalizedUsername = username.Replace(" ", "");
-
-        var usernameGrain = grainFactory.GetGrain<IUsernameGrain>(normalizedUsername);
+        var usernameGrain = grainFactory.GetGrain<IUsernameGrain>(username.Replace(" ", ""));
         var presenterSignalrId = await usernameGrain.GetSignalrConnectionIdAsync();
-
         if (presenterSignalrId is null)
-        {
-            return TryConnectError.IncorrectUsernameOrPassword;
-        }
-
-        var presenterGrain = grainFactory.GetGrain<IClientGrain>(presenterSignalrId);
-
-        if (!await presenterGrain.ValidatePasswordAsync(password))
         {
             return TryConnectError.IncorrectUsernameOrPassword;
         }
@@ -61,34 +50,38 @@ public sealed class ConnectionsOrleansService(IGrainFactory grainFactory) : ICon
             return TryConnectError.CannotConnectToYourself;
         }
 
-        var connectionId = await presenterGrain.GetOrCreateConnectionAsync();
-        var connectionGrain = grainFactory.GetGrain<IConnectionGrain>(connectionId);
-        await connectionGrain.AddViewerAsync(signalrConnectionId);
+        var presenterGrain = grainFactory.GetGrain<IClientGrain>(presenterSignalrId);
+        var connectionGrain = await presenterGrain.ValidatePasswordAndStartPresenting(password);
+        if (connectionGrain is null)
+            return TryConnectError.IncorrectUsernameOrPassword;
+
+        await viewerGrain.ViewerJoinConnection(connectionGrain);
 
         return null;
     }
 
     public async Task DisconnectFromConnection(string signalrConnectionId, string connectionId)
     {
+        var connectionGrain = grainFactory.GetGrain<IConnectionGrain>(connectionId);
         var clientGrain = grainFactory.GetGrain<IClientGrain>(signalrConnectionId);
-        await clientGrain.LeaveConnectionAsync(connectionId);
+        await clientGrain.LeaveConnection(connectionGrain);
     }
 
     public async Task SetConnectionProperties(string signalrConnectionId, string connectionId, ConnectionProperties properties)
     {
         var connectionGrain = grainFactory.GetGrain<IConnectionGrain>(connectionId);
-        await connectionGrain.UpdatePropertiesAsync(signalrConnectionId, properties);
+        await connectionGrain.UpdateProperties(signalrConnectionId, properties);
     }
 
     public async Task SendMessage(string signalrConnectionId, string connectionId, string messageType, byte[] data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null)
     {
         var connectionGrain = grainFactory.GetGrain<IConnectionGrain>(connectionId);
-        await connectionGrain.SendMessageAsync(signalrConnectionId, messageType, data, destination, targetClientIds);
+        await connectionGrain.SendMessage(signalrConnectionId, messageType, data, destination, targetClientIds);
     }
 
     public async Task<bool> IsPresenterOfConnection(string signalrConnectionId, string connectionId)
     {
         var connectionGrain = grainFactory.GetGrain<IConnectionGrain>(connectionId);
-        return await connectionGrain.IsPresenterAsync(signalrConnectionId);
+        return await connectionGrain.IsPresenter(signalrConnectionId);
     }
 }

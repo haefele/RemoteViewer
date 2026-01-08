@@ -31,11 +31,6 @@ public class ServerFixture : WebApplicationFactory<Program>, IAsyncInitializer
                 var usernameGrain = grainFactory.GetGrain<IUsernameGrain>("warmup-test");
                 await usernameGrain.GetSignalrConnectionIdAsync();
 
-                var warmupTasks = Enumerable.Range(0, 10)
-                    .Select(j => grainFactory.GetGrain<IClientGrain>($"warmup-{j}").IsInitializedAsync())
-                    .ToArray();
-                await Task.WhenAll(warmupTasks);
-
                 return;
             }
             catch
