@@ -26,7 +26,7 @@ public interface IClientGrain : IGrainWithStringKey
     Task<(string ClientId, string DisplayName)> Internal_GetClientInfo();
 }
 
-public sealed class ClientGrain(ILogger<ClientGrain> logger, IHubContext<ConnectionHub, IConnectionHubClient> hubContext)
+public sealed partial class ClientGrain(ILogger<ClientGrain> logger, IHubContext<ConnectionHub, IConnectionHubClient> hubContext)
     : Grain, IClientGrain
 {
     private string? _clientId;
@@ -46,6 +46,8 @@ public sealed class ClientGrain(ILogger<ClientGrain> logger, IHubContext<Connect
         this._clientId = Guid.NewGuid().ToString();
         this._displayName = displayName ?? string.Empty;
 
+        this.LogClientInitializing(this._clientId);
+
         const string IdChars = "0123456789";
         var attempts = 0;
 
@@ -61,7 +63,11 @@ public sealed class ClientGrain(ILogger<ClientGrain> logger, IHubContext<Connect
                 this._password = GeneratePassword();
                 break;
             }
+
+            this.LogUsernameCollision(attempts);
         }
+
+        this.LogClientInitialized(this._clientId, this._usernameGrain.GetPrimaryKeyString());
 
         await hubContext.Clients
             .Client(this.GetPrimaryKeyString())
@@ -74,6 +80,8 @@ public sealed class ClientGrain(ILogger<ClientGrain> logger, IHubContext<Connect
     public async Task Deactivate()
     {
         this.EnsureInitialized();
+
+        this.LogClientDeactivating(this._clientId);
 
         if (this._presenterConnectionGrain is not null)
         {
@@ -96,6 +104,8 @@ public sealed class ClientGrain(ILogger<ClientGrain> logger, IHubContext<Connect
 
         this._password = GeneratePassword();
 
+        this.LogPasswordRegenerated(this._clientId);
+
         await hubContext.Clients.Client(this.GetPrimaryKeyString())
             .CredentialsAssigned(this._clientId, FormatUsername(this._usernameGrain.GetPrimaryKeyString()), this._password);
     }
@@ -104,6 +114,8 @@ public sealed class ClientGrain(ILogger<ClientGrain> logger, IHubContext<Connect
         this.EnsureInitialized();
 
         this._displayName = displayName;
+
+        this.LogDisplayNameChanged(displayName, this._clientId);
 
         if (this._presenterConnectionGrain is not null)
             await this._presenterConnectionGrain.Internal_DisplayNameChanged();
@@ -118,7 +130,7 @@ public sealed class ClientGrain(ILogger<ClientGrain> logger, IHubContext<Connect
 
         if (string.Equals(this._password, password, StringComparison.OrdinalIgnoreCase) == false)
         {
-            logger.LogWarning("Invalid password attempt for ClientId={ClientId}", this._clientId);
+            this.LogInvalidPasswordAttempt(this._clientId);
             return null;
         }
 
@@ -130,12 +142,14 @@ public sealed class ClientGrain(ILogger<ClientGrain> logger, IHubContext<Connect
         this._presenterConnectionGrain = this.GrainFactory.GetGrain<IConnectionGrain>(connectionId);
         await this._presenterConnectionGrain.Internal_InitializePresenter(this.AsReference<IClientGrain>());
 
-        logger.LogInformation("Created connection: ConnectionId={ConnectionId}, Presenter={SignalrId}", connectionId, this.GetPrimaryKeyString());
+        this.LogConnectionCreated(this._clientId, connectionId);
 
         return this._presenterConnectionGrain;
     }
     public async Task ViewerJoinConnection(IConnectionGrain connectionGrain)
     {
+        this.EnsureInitialized();
+
         if (connectionGrain.GetGrainId() == this._presenterConnectionGrain?.GetGrainId())
             return;
 
@@ -144,9 +158,15 @@ public sealed class ClientGrain(ILogger<ClientGrain> logger, IHubContext<Connect
 
         this._viewerConnectionGrains.Add(connectionGrain);
         await connectionGrain.Internal_AddViewer(this.AsReference<IClientGrain>());
+
+        this.LogViewerJoinedConnection(this._clientId, connectionGrain.GetPrimaryKeyString());
     }
     public async Task LeaveConnection(IConnectionGrain connectionGrain)
     {
+        this.EnsureInitialized();
+
+        this.LogClientLeftConnection(this._clientId, connectionGrain.GetPrimaryKeyString());
+
         if (object.Equals(this._presenterConnectionGrain, connectionGrain))
         {
             this._presenterConnectionGrain = null;
@@ -200,4 +220,33 @@ public sealed class ClientGrain(ILogger<ClientGrain> logger, IHubContext<Connect
         }
     }
 
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Initializing client {ClientId}")]
+    private partial void LogClientInitializing(string clientId);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Username collision on attempt {Attempt}, retrying")]
+    private partial void LogUsernameCollision(int attempt);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Client {ClientId} initialized with username {Username}")]
+    private partial void LogClientInitialized(string clientId, string username);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Client {ClientId} deactivating")]
+    private partial void LogClientDeactivating(string clientId);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Password regenerated for client {ClientId}")]
+    private partial void LogPasswordRegenerated(string clientId);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Display name changed to {DisplayName} for client {ClientId}")]
+    private partial void LogDisplayNameChanged(string displayName, string clientId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Invalid password attempt for client {ClientId}")]
+    private partial void LogInvalidPasswordAttempt(string clientId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Client {ClientId} started presenting on connection {ConnectionId}")]
+    private partial void LogConnectionCreated(string clientId, string connectionId);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Client {ClientId} joined connection {ConnectionId} as viewer")]
+    private partial void LogViewerJoinedConnection(string clientId, string connectionId);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Client {ClientId} left connection {ConnectionId}")]
+    private partial void LogClientLeftConnection(string clientId, string connectionId);
 }

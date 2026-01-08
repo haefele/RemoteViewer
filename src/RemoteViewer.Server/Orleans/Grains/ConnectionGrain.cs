@@ -19,7 +19,7 @@ public interface IConnectionGrain : IGrainWithStringKey
     Task Internal_DisplayNameChanged();
 }
 
-public sealed class ConnectionGrain(ILogger<ConnectionGrain> logger, IHubContext<ConnectionHub, IConnectionHubClient> hubContext)
+public sealed partial class ConnectionGrain(ILogger<ConnectionGrain> logger, IHubContext<ConnectionHub, IConnectionHubClient> hubContext)
     : Grain, IConnectionGrain
 {
     private IClientGrain? _presenter;
@@ -29,9 +29,13 @@ public sealed class ConnectionGrain(ILogger<ConnectionGrain> logger, IHubContext
     public async Task UpdateProperties(string signalrConnectionId, ConnectionProperties properties)
     {
         if (this._presenter?.GetPrimaryKeyString() != signalrConnectionId)
+        {
+            this.LogNonPresenterUpdateAttempt(signalrConnectionId, this.GetPrimaryKeyString());
             return;
+        }
 
         this._properties = properties;
+        this.LogPropertiesUpdated(this.GetPrimaryKeyString());
         await this.NotifyConnectionChangedAsync();
     }
     public async Task SendMessage(string senderSignalrConnectionId, string messageType, byte[] data, MessageDestination destination, IReadOnlyList<string>? targetClientIds)
@@ -50,7 +54,10 @@ public sealed class ConnectionGrain(ILogger<ConnectionGrain> logger, IHubContext
         }
 
         if (senderClientId is null)
+        {
+            this.LogSenderNotFound(senderSignalrConnectionId, this.GetPrimaryKeyString());
             return;
+        }
 
         var isSenderPresenter = this._presenter?.GetPrimaryKeyString() == senderSignalrConnectionId;
 
@@ -116,6 +123,8 @@ public sealed class ConnectionGrain(ILogger<ConnectionGrain> logger, IHubContext
                 }
                 break;
         }
+
+        this.LogMessageSent(messageType, this.GetPrimaryKeyString(), destination);
     }
     public Task<bool> IsPresenter(string signalrConnectionId)
     {
@@ -130,9 +139,7 @@ public sealed class ConnectionGrain(ILogger<ConnectionGrain> logger, IHubContext
 
         this._presenter = presenter;
 
-        logger.LogInformation(
-            "Connection initialized: ConnectionId={ConnectionId}, PresenterSignalrId={PresenterSignalrId}",
-            this.GetPrimaryKeyString(), presenter.GetPrimaryKeyString());
+        this.LogConnectionInitialized(this.GetPrimaryKeyString(), presenter.GetPrimaryKeyString());
 
         await hubContext.Clients
             .Client(presenter.GetPrimaryKeyString())
@@ -144,17 +151,13 @@ public sealed class ConnectionGrain(ILogger<ConnectionGrain> logger, IHubContext
     {
         if (this._viewers.Any(v => v.GetGrainId() == viewer.GetGrainId()))
         {
-            logger.LogWarning(
-                "Viewer already in connection: ConnectionId={ConnectionId}, ViewerSignalrId={ViewerSignalrId}",
-                this.GetPrimaryKeyString(), viewer.GetPrimaryKeyString());
+            this.LogViewerAlreadyInConnection(this.GetPrimaryKeyString(), viewer.GetPrimaryKeyString());
             return;
         }
 
         this._viewers.Add(viewer);
 
-        logger.LogInformation(
-            "Viewer added: ConnectionId={ConnectionId}, ViewerSignalrId={ViewerSignalrId}, ViewerCount={ViewerCount}",
-            this.GetPrimaryKeyString(), viewer.GetPrimaryKeyString(), this._viewers.Count);
+        this.LogViewerAdded(this.GetPrimaryKeyString(), viewer.GetPrimaryKeyString(), this._viewers.Count);
 
         await hubContext.Clients
             .Client(viewer.GetPrimaryKeyString())
@@ -166,9 +169,7 @@ public sealed class ConnectionGrain(ILogger<ConnectionGrain> logger, IHubContext
     {
         if (object.Equals(client, this._presenter))
         {
-            logger.LogInformation(
-                "Presenter disconnected: ConnectionId={ConnectionId}, ViewerCount={ViewerCount}",
-                this.GetPrimaryKeyString(), this._viewers.Count);
+            this.LogPresenterDisconnected(this.GetPrimaryKeyString(), this._viewers.Count);
 
             foreach (var viewer in this._viewers)
             {
@@ -185,9 +186,7 @@ public sealed class ConnectionGrain(ILogger<ConnectionGrain> logger, IHubContext
         {
             this._viewers.Remove(client);
 
-            logger.LogInformation(
-                "Viewer disconnected: ConnectionId={ConnectionId}, ViewerCount={ViewerCount}",
-                this.GetPrimaryKeyString(), this._viewers.Count);
+            this.LogViewerDisconnected(this.GetPrimaryKeyString(), this._viewers.Count);
 
             await hubContext.Clients.Client(client.GetPrimaryKeyString()).ConnectionStopped(this.GetPrimaryKeyString());
 
@@ -229,4 +228,30 @@ public sealed class ConnectionGrain(ILogger<ConnectionGrain> logger, IHubContext
             throw new InvalidOperationException($"ConnectionGrain not initialized: ConnectionId={this.GetPrimaryKeyString()}, presenter=null");
     }
 
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Connection {ConnectionId} properties updated")]
+    private partial void LogPropertiesUpdated(string connectionId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Non-presenter {SignalrId} attempted to update properties on connection {ConnectionId}")]
+    private partial void LogNonPresenterUpdateAttempt(string signalrId, string connectionId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Message sender {SignalrId} not found in connection {ConnectionId}")]
+    private partial void LogSenderNotFound(string signalrId, string connectionId);
+
+    [LoggerMessage(Level = LogLevel.Trace, Message = "Message {MessageType} sent on connection {ConnectionId} to {Destination}")]
+    private partial void LogMessageSent(string messageType, string connectionId, MessageDestination destination);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Connection initialized: ConnectionId={ConnectionId}, PresenterSignalrId={PresenterSignalrId}")]
+    private partial void LogConnectionInitialized(string connectionId, string presenterSignalrId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Viewer already in connection: ConnectionId={ConnectionId}, ViewerSignalrId={ViewerSignalrId}")]
+    private partial void LogViewerAlreadyInConnection(string connectionId, string viewerSignalrId);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Viewer added: ConnectionId={ConnectionId}, ViewerSignalrId={ViewerSignalrId}, ViewerCount={ViewerCount}")]
+    private partial void LogViewerAdded(string connectionId, string viewerSignalrId, int viewerCount);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Presenter disconnected: ConnectionId={ConnectionId}, ViewerCount={ViewerCount}")]
+    private partial void LogPresenterDisconnected(string connectionId, int viewerCount);
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Viewer disconnected: ConnectionId={ConnectionId}, ViewerCount={ViewerCount}")]
+    private partial void LogViewerDisconnected(string connectionId, int viewerCount);
 }
