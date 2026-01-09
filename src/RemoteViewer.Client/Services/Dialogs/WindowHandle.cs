@@ -1,4 +1,4 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
 
 namespace RemoteViewer.Client.Services.Dialogs;
 
@@ -14,10 +14,12 @@ internal sealed class WindowHandle : IWindowHandle
 
     public event EventHandler? Closed;
 
+    public bool IsClosed => this._window is null;
+
     public void Show()
     {
         if (this._window is null)
-            throw new InvalidOperationException("Window is closed");
+            return;
 
         this._window.Show();
     }
@@ -25,7 +27,7 @@ internal sealed class WindowHandle : IWindowHandle
     public void Activate()
     {
         if (this._window is null)
-            throw new InvalidOperationException("Window is closed");
+            return;
 
         this._window.Activate();
     }
@@ -33,7 +35,7 @@ internal sealed class WindowHandle : IWindowHandle
     public void Close()
     {
         if (this._window is null)
-            throw new InvalidOperationException("Window is closed");
+            return;
 
         this._window.Close();
     }
@@ -42,7 +44,9 @@ internal sealed class WindowHandle : IWindowHandle
     {
         this.Closed?.Invoke(this, EventArgs.Empty);
 
-        this._window?.Closed -= this.OnWindowClosed;
+        if (this._window is { } window)
+            window.Closed -= this.OnWindowClosed;
+
         this._window = null;
     }
 }
