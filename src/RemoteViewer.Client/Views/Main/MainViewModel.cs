@@ -46,6 +46,7 @@ public partial class MainViewModel : ViewModelBase
 
     public event EventHandler? RequestHideMainView;
     public event EventHandler? RequestShowMainView;
+    public event EventHandler? RequestShowAbout;
 
     public MainViewModel(ConnectionHubClient hubClient, IDispatcher dispatcher, IViewModelFactory viewModelFactory, ILogger<MainViewModel> logger)
     {
@@ -195,5 +196,11 @@ public partial class MainViewModel : ViewModelBase
     {
         await this._hubClient.GenerateNewPassword();
         this._logger.GeneratedNewPassword();
+    }
+
+    [RelayCommand]
+    private void ShowAbout()
+    {
+        this.RequestShowAbout?.Invoke(this, EventArgs.Empty);
     }
 }

@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using RemoteViewer.Client.Controls.Toasts;
 using RemoteViewer.Client.Services.HubClient;
+using RemoteViewer.Client.Views.About;
 using RemoteViewer.Client.Views.Main;
 using RemoteViewer.Client.Views.Presenter;
 using RemoteViewer.Client.Views.Viewer;
@@ -15,6 +16,7 @@ public interface IViewModelFactory
     ViewerViewModel CreateViewerViewModel(Connection connection);
 
     ToastsViewModel CreateToastsViewModel();
+    AboutViewModel CreateAboutViewModel();
 }
 
 public class ViewModelFactory(IServiceProvider serviceProvider) : IViewModelFactory
@@ -24,4 +26,5 @@ public class ViewModelFactory(IServiceProvider serviceProvider) : IViewModelFact
     public ViewerViewModel CreateViewerViewModel(Connection connection) => ActivatorUtilities.CreateInstance<ViewerViewModel>(serviceProvider, connection);
 
     public ToastsViewModel CreateToastsViewModel() => ActivatorUtilities.CreateInstance<ToastsViewModel>(serviceProvider);
+    public AboutViewModel CreateAboutViewModel() => ActivatorUtilities.CreateInstance<AboutViewModel>(serviceProvider);
 }

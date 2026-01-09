@@ -1,0 +1,102 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:RemoteViewer.Client.Views.About"
+        xmlns:mi="using:Material.Icons.Avalonia"
+        xmlns:mik="using:Material.Icons"
+        x:Class="RemoteViewer.Client.Views.About.AboutView"
+        x:DataType="vm:AboutViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+        Title="About Remote Viewer"
+        Width="500"
+        Height="600"
+        CanResize="False"
+        WindowStartupLocation="CenterScreen"
+        DataContextChanged="Window_DataContextChanged">
+
+    <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+        <!-- Header Section -->
+        <StackPanel Grid.Row="0" Spacing="8" HorizontalAlignment="Center" Margin="0,8,0,20">
+            <mi:MaterialIcon Kind="{x:Static mik:MaterialIconKind.RemoteDesktop}"
+                             Width="64" Height="64"
+                             Foreground="{DynamicResource AccentBrush}"
+                             HorizontalAlignment="Center"/>
+
+            <TextBlock Text="{Binding ApplicationName}"
+                       FontSize="24"
+                       FontWeight="Bold"
+                       HorizontalAlignment="Center"/>
+
+            <TextBlock Text="{Binding Version, StringFormat='Version {0}'}"
+                       FontSize="14"
+                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                       HorizontalAlignment="Center"/>
+
+            <TextBlock Text="{Binding Copyright}"
+                       FontSize="12"
+                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                       HorizontalAlignment="Center"/>
+        </StackPanel>
+
+        <!-- Licenses Section -->
+        <Border Grid.Row="1"
+                Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+                CornerRadius="8"
+                Padding="16">
+            <Grid RowDefinitions="Auto,*">
+                <TextBlock Grid.Row="0"
+                           Text="Third-Party Licenses"
+                           FontWeight="SemiBold"
+                           FontSize="14"
+                           Margin="0,0,0,12"/>
+
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding Licenses}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ThirdPartyLicense">
+                                <Border Margin="0,0,0,8"
+                                        Padding="12"
+                                        Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
+                                        CornerRadius="4">
+                                    <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Row="0" Grid.Column="0"
+                                                   Text="{Binding Name}"
+                                                   FontWeight="SemiBold"
+                                                   FontSize="13"/>
+
+                                        <TextBlock Grid.Row="0" Grid.Column="1"
+                                                   Text="{Binding LicenseName}"
+                                                   FontSize="12"
+                                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                                                   VerticalAlignment="Center"/>
+
+                                        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                                    Orientation="Horizontal"
+                                                    Spacing="12"
+                                                    Margin="0,4,0,0">
+                                            <HyperlinkButton NavigateUri="{Binding Url}"
+                                                             Content="Website"
+                                                             Padding="0"
+                                                             FontSize="12"/>
+                                            <HyperlinkButton NavigateUri="{Binding LicenseUrl}"
+                                                             Content="License"
+                                                             Padding="0"
+                                                             FontSize="12"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <!-- Footer Button -->
+        <Button Grid.Row="2"
+                Content="Close"
+                HorizontalAlignment="Right"
+                MinWidth="80"
+                Margin="0,16,0,0"
+                Command="{Binding CloseCommand}"/>
+    </Grid>
+</Window>

@@ -1,17 +1,26 @@
-﻿using Avalonia.Controls;
+using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Input.Platform;
 using Avalonia.Interactivity;
 using RemoteViewer.Client.Services;
+using RemoteViewer.Client.Services.ViewModels;
+using RemoteViewer.Client.Views.About;
 
 namespace RemoteViewer.Client.Views.Main;
 
 public partial class MainView : Window
 {
+    private readonly IViewModelFactory _viewModelFactory;
     private MainViewModel? _viewModel;
+    private AboutView? _aboutView;
 
-    public MainView()
+    public MainView() : this(null!)
     {
+    }
+
+    public MainView(IViewModelFactory viewModelFactory)
+    {
+        this._viewModelFactory = viewModelFactory;
         this.InitializeComponent();
     }
 
@@ -21,6 +30,7 @@ public partial class MainView : Window
         {
             this._viewModel.RequestShowMainView -= this.ViewModel_RequestShowMainView;
             this._viewModel.RequestHideMainView -= this.ViewModel_RequestHideMainView;
+            this._viewModel.RequestShowAbout -= this.ViewModel_RequestShowAbout;
         }
 
         this._viewModel = this.DataContext as MainViewModel;
@@ -29,6 +39,7 @@ public partial class MainView : Window
         {
             this._viewModel.RequestShowMainView += this.ViewModel_RequestShowMainView;
             this._viewModel.RequestHideMainView += this.ViewModel_RequestHideMainView;
+            this._viewModel.RequestShowAbout += this.ViewModel_RequestShowAbout;
         }
     }
 
@@ -40,6 +51,31 @@ public partial class MainView : Window
     private void ViewModel_RequestShowMainView(object? sender, EventArgs e)
     {
         this.Show();
+    }
+
+    private void ViewModel_RequestShowAbout(object? sender, EventArgs e)
+    {
+        if (this._aboutView is not null)
+        {
+            this._aboutView.Activate();
+            return;
+        }
+
+        this._aboutView = new AboutView
+        {
+            DataContext = this._viewModelFactory.CreateAboutViewModel()
+        };
+        this._aboutView.Closed += this.AboutView_Closed;
+        this._aboutView.Show();
+    }
+
+    private void AboutView_Closed(object? sender, EventArgs e)
+    {
+        if (this._aboutView is not null)
+        {
+            this._aboutView.Closed -= this.AboutView_Closed;
+            this._aboutView = null;
+        }
     }
 
     private void TargetPasswordBox_KeyDown(object? sender, KeyEventArgs e)
