@@ -11,7 +11,8 @@
         Height="600"
         CanResize="False"
         WindowStartupLocation="CenterScreen"
-        DataContextChanged="Window_DataContextChanged">
+        DataContextChanged="Window_DataContextChanged"
+        Closed="Window_Closed">
 
     <Grid RowDefinitions="Auto,*,Auto" Margin="20">
         <!-- Header Section -->

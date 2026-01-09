@@ -26,6 +26,14 @@ public partial class AboutView : Window
         }
     }
 
+    private void Window_Closed(object? sender, EventArgs e)
+    {
+        if (this._viewModel is not null)
+        {
+            this._viewModel.CloseRequested -= this.ViewModel_CloseRequested;
+        }
+    }
+
     private void ViewModel_CloseRequested(object? sender, EventArgs e)
     {
         this.Close();

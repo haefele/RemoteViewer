@@ -1,16 +1,13 @@
 using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Interactivity;
 using Avalonia.Platform.Storage;
 using RemoteViewer.Client.Common;
-using RemoteViewer.Client.Views.Chat;
 
 namespace RemoteViewer.Client.Views.Presenter;
 
 public partial class PresenterView : Window
 {
     private PresenterViewModel? _viewModel;
-    private ChatView? _chatView;
 
     public PresenterView()
     {
@@ -26,7 +23,6 @@ public partial class PresenterView : Window
         if (this._viewModel is not null)
         {
             this._viewModel.CloseRequested -= this.ViewModel_CloseRequested;
-            this._viewModel.Chat.OpenChatRequested -= this.Chat_OpenChatRequested;
         }
 
         this._viewModel = this.DataContext as PresenterViewModel;
@@ -34,39 +30,16 @@ public partial class PresenterView : Window
         if (this._viewModel is not null)
         {
             this._viewModel.CloseRequested += this.ViewModel_CloseRequested;
-            this._viewModel.Chat.OpenChatRequested += this.Chat_OpenChatRequested;
         }
-    }
-
-    private void Chat_OpenChatRequested(object? sender, EventArgs e)
-    {
-        this.ShowChatWindow();
-    }
-
-    private void ChatButton_Click(object? sender, RoutedEventArgs e)
-    {
-        this.ShowChatWindow();
-    }
-
-    private void ShowChatWindow()
-    {
-        if (this._viewModel is null)
-            return;
-
-        if (this._chatView is null)
-        {
-            this._chatView = new ChatView { DataContext = this._viewModel.Chat };
-        }
-
-        this._chatView.ShowAndActivate();
     }
 
     private async void Window_Closed(object? sender, EventArgs e)
     {
-        this._chatView?.ForceClose();
-
         if (this._viewModel is not null)
+        {
+            this._viewModel.CloseRequested -= this.ViewModel_CloseRequested;
             await this._viewModel.DisposeAsync();
+        }
     }
 
     private void ViewModel_CloseRequested(object? sender, EventArgs e)

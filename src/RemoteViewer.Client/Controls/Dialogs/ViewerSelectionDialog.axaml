@@ -1,8 +1,10 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:mi="using:Material.Icons.Avalonia"
+        xmlns:dialogs="using:RemoteViewer.Client.Controls.Dialogs"
         xmlns:presenter="using:RemoteViewer.Client.Views.Presenter"
         x:Class="RemoteViewer.Client.Controls.Dialogs.ViewerSelectionDialog"
+        x:DataType="dialogs:ViewerSelectionDialogViewModel"
         Title="Send File"
         Icon="/Assets/avalonia-logo.ico"
         SizeToContent="WidthAndHeight"
@@ -39,18 +41,18 @@
                         CornerRadius="4"
                         Padding="12">
                     <StackPanel Spacing="4">
-                        <TextBlock x:Name="FileNameText"
+                        <TextBlock Text="{Binding FileName}"
                                    FontSize="14"
                                    FontWeight="SemiBold"
                                    TextWrapping="Wrap"/>
-                        <TextBlock x:Name="FileSizeText"
+                        <TextBlock Text="{Binding FileSizeFormatted}"
                                    FontSize="12"/>
                     </StackPanel>
                 </Border>
             </StackPanel>
 
             <!-- Viewer checkboxes -->
-            <ItemsControl x:Name="ViewerList">
+            <ItemsControl ItemsSource="{Binding Viewers}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="presenter:PresenterViewerDisplay">
                         <CheckBox Content="{Binding DisplayName}"
