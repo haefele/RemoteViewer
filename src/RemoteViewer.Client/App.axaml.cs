@@ -36,11 +36,11 @@ public partial class App : Application
         {
             DisableAvaloniaDataAnnotationValidation();
 
-            desktop.MainWindow = new MainView
+            var viewModelFactory = this._serviceProvider.GetRequiredService<IViewModelFactory>();
+
+            desktop.MainWindow = new MainView(viewModelFactory)
             {
-                DataContext = this._serviceProvider
-                    .GetRequiredService<IViewModelFactory>()
-                    .CreateMainViewModel(),
+                DataContext = viewModelFactory.CreateMainViewModel(),
             };
 
             desktop.ShutdownRequested += (_, _) =>
