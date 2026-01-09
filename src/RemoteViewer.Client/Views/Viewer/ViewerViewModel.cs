@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Views.Chat;
 using RemoteViewer.Client.Controls.Toasts;
+using RemoteViewer.Client.Services.Dialogs;
 using RemoteViewer.Client.Services.Dispatching;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.ViewModels;
@@ -17,8 +18,10 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 {
     #region Core State & Constructor
     public Connection Connection { get; }
+    private readonly IDialogService _dialogService;
     private readonly IDispatcher _dispatcher;
     private readonly ILogger<ViewerViewModel> _logger;
+    private IWindowHandle? _chatWindowHandle;
 
     public ToastsViewModel Toasts { get; }
     public ChatViewModel Chat { get; }
@@ -27,15 +30,17 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
 
     public ViewerViewModel(
         Connection connection,
+        IDialogService dialogService,
         IDispatcher dispatcher,
         IViewModelFactory viewModelFactory,
         ILoggerFactory loggerFactory)
     {
         this.Connection = connection;
+        this._dialogService = dialogService;
         this._dispatcher = dispatcher;
         this._logger = loggerFactory.CreateLogger<ViewerViewModel>();
         this.Toasts = viewModelFactory.CreateToastsViewModel();
-        this.Chat = new ChatViewModel(this.Connection.Chat, dispatcher, loggerFactory.CreateLogger<ChatViewModel>());
+        this.Chat = viewModelFactory.CreateChatViewModel(this.Connection.Chat);
         this.Connection.FileTransfers.Toasts = this.Toasts;
 
         this.Connection.ParticipantsChanged += this.Connection_ParticipantsChanged;
@@ -265,7 +270,20 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
     }
     #endregion
 
-    #region File Transfer
+    #region Chat & File Transfer
+    [RelayCommand]
+    private void ShowChat()
+    {
+        if (this._chatWindowHandle is not null)
+        {
+            this._chatWindowHandle.Activate();
+            return;
+        }
+
+        this._chatWindowHandle = this._dialogService.ShowChatWindow(this.Chat);
+        this._chatWindowHandle.Closed += (_, _) => this._chatWindowHandle = null;
+    }
+
     [RelayCommand]
     public async Task SendFile(string? path = null)
     {
@@ -287,7 +305,7 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
             }
 
             // Validate file existence
-            if (File.Exists(path) is false)
+            if (!File.Exists(path))
             {
                 this.Toasts.Error($"File not found: {path}");
                 return;
@@ -316,6 +334,8 @@ public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
             return;
 
         this._disposed = true;
+
+        this._chatWindowHandle?.Close();
 
         await this.Connection.FileTransfers.CancelAllAsync();
         await this.Connection.DisconnectAsync();

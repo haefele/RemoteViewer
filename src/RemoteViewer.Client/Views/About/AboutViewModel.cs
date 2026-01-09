@@ -28,9 +28,9 @@ public partial class AboutViewModel : ViewModelBase
         new("PolyType", "https://github.com/eiriktsarpalis/PolyType", "MIT", "https://github.com/eiriktsarpalis/PolyType/blob/main/LICENSE"),
     ];
 
-    public AboutViewModel()
+    public AboutViewModel(TimeProvider timeProvider)
     {
-        this.Copyright = $"Copyright {DateTime.Now.Year} RemoteViewer Contributors";
+        this.Copyright = $"Copyright {timeProvider.GetUtcNow().Year} RemoteViewer Contributors";
     }
 
     [RelayCommand]

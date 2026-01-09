@@ -26,8 +26,6 @@ public partial class ChatViewModel : ObservableObject, IDisposable
     [ObservableProperty]
     private bool _isOpen;
 
-    public event EventHandler? OpenChatRequested;
-
     public int MaxLength => ChatService.MaxMessageLength;
     public int CharactersRemaining => this.MaxLength - this.MessageInput.Length;
     public bool IsNearLimit => this.MessageInput.Length >= this.MaxLength - 100;
@@ -49,11 +47,6 @@ public partial class ChatViewModel : ObservableObject, IDisposable
         {
             this.Messages.Add(message);
         }
-    }
-
-    public void RequestOpenChat()
-    {
-        this.OpenChatRequested?.Invoke(this, EventArgs.Empty);
     }
 
     partial void OnIsOpenChanged(bool value)

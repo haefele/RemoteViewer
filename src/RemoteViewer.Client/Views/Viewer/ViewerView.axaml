@@ -185,7 +185,7 @@
                         BorderThickness="0"
                         Width="32" Height="32"
                         Padding="0"
-                        Click="ChatButton_Click">
+                        Command="{Binding ShowChatCommand}">
                     <Panel>
                         <mi:MaterialIcon Kind="Chat" Width="20" Height="20"/>
                         <!-- Unread indicator -->

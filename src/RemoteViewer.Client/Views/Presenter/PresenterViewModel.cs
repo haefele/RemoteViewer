@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Views.Chat;
+using RemoteViewer.Client.Controls.Dialogs;
 using RemoteViewer.Client.Controls.Toasts;
 using RemoteViewer.Client.Services.Dialogs;
 using RemoteViewer.Client.Services.Dispatching;
@@ -26,11 +27,13 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
     private readonly IFrameEncoder _frameEncoder;
     private readonly IDisplayService _displayService;
     private readonly IDialogService _dialogService;
+    private readonly IViewModelFactory _viewModelFactory;
     private readonly IDispatcher _dispatcher;
     private readonly ILogger<PresenterViewModel> _logger;
     private readonly DispatcherTimer _bandwidthTimer;
 
     private (int Width, int Height)? _biggestScreen;
+    private IWindowHandle? _chatWindowHandle;
 
     public ToastsViewModel Toasts { get; }
     public ChatViewModel Chat { get; }
@@ -101,6 +104,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         this._frameEncoder = frameEncoder;
         this._displayService = displayService;
         this._dialogService = dialogService;
+        this._viewModelFactory = viewModelFactory;
         this._dispatcher = dispatcher;
         this._logger = loggerFactory.CreateLogger<PresenterViewModel>();
 
@@ -110,7 +114,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
 
         _ = this.UpdateBiggestScreenAsync();
         this.Toasts = viewModelFactory.CreateToastsViewModel();
-        this.Chat = new ChatViewModel(this._connection.Chat, dispatcher, loggerFactory.CreateLogger<ChatViewModel>());
+        this.Chat = viewModelFactory.CreateChatViewModel(this._connection.Chat);
         this._connection.FileTransfers.Toasts = this.Toasts;
 
         // Subscribe to Connection events
@@ -239,6 +243,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
             CloseRequested?.Invoke(this, EventArgs.Empty);
         });
     }
+
     [RelayCommand]
     private async Task StopPresentingAsync()
     {
@@ -270,6 +275,18 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         await this._hubClient.GenerateNewPassword();
     }
 
+    [RelayCommand]
+    private void ShowChat()
+    {
+        if (this._chatWindowHandle is not null)
+        {
+            this._chatWindowHandle.Activate();
+            return;
+        }
+
+        this._chatWindowHandle = this._dialogService.ShowChatWindow(this.Chat);
+        this._chatWindowHandle.Closed += (_, _) => this._chatWindowHandle = null;
+    }
 
     [RelayCommand]
     public async Task SendFile(string? path = null)
@@ -312,10 +329,11 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         else
         {
             var fileInfo = new FileInfo(path);
-            var selected = await this._dialogService.ShowViewerSelectionAsync(
+            var viewerSelectionViewModel = this._viewModelFactory.CreateViewerSelectionDialogViewModel(
                 this.Viewers,
                 fileInfo.Name,
                 FileTransferHelpers.FormatFileSize(fileInfo.Length));
+            var selected = await this._dialogService.ShowViewerSelectionAsync(viewerSelectionViewModel);
 
             if (selected is null or { Count: 0 })
                 return;
@@ -350,6 +368,7 @@ public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
         this._disposed = true;
 
         this._bandwidthTimer.Stop();
+        this._chatWindowHandle?.Close();
 
         await this._connection.FileTransfers.CancelAllAsync();
         await this._connection.DisconnectAsync();

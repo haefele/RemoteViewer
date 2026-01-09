@@ -38,7 +38,7 @@ public partial class App : Application
 
             var viewModelFactory = this._serviceProvider.GetRequiredService<IViewModelFactory>();
 
-            desktop.MainWindow = new MainView(viewModelFactory)
+            desktop.MainWindow = new MainView
             {
                 DataContext = viewModelFactory.CreateMainViewModel(),
             };

@@ -1,36 +1,27 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
-using RemoteViewer.Client.Views.Presenter;
 
 namespace RemoteViewer.Client.Controls.Dialogs;
 
 public partial class ViewerSelectionDialog : Window
 {
-    private IReadOnlyList<PresenterViewerDisplay> _viewers = [];
+    private ViewerSelectionDialogViewModel? _viewModel;
 
     public ViewerSelectionDialog()
     {
         this.InitializeComponent();
-    }
-
-    public static ViewerSelectionDialog Create(
-        IReadOnlyList<PresenterViewerDisplay> viewers,
-        string fileName,
-        string fileSizeFormatted)
-    {
-        var dialog = new ViewerSelectionDialog
-        {
-            _viewers = viewers
-        };
-        dialog.FileNameText.Text = fileName;
-        dialog.FileSizeText.Text = fileSizeFormatted;
-        dialog.ViewerList.ItemsSource = viewers;
-        return dialog;
+        this.DataContextChanged += (_, _) => this._viewModel = this.DataContext as ViewerSelectionDialogViewModel;
     }
 
     private void OnSendClicked(object? sender, RoutedEventArgs e)
     {
-        var selected = this._viewers
+        if (this._viewModel is null)
+        {
+            this.Close(null);
+            return;
+        }
+
+        var selected = this._viewModel.Viewers
             .Where(v => v.IsSelected)
             .Select(v => v.ClientId)
             .ToList();

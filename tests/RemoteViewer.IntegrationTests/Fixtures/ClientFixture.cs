@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Time.Testing;
 using NSubstitute;
 using RemoteViewer.Client;
+using RemoteViewer.Client.Controls.Dialogs;
 using RemoteViewer.Client.Services;
 using RemoteViewer.Client.Services.Clipboard;
 using RemoteViewer.Client.Services.Dialogs;
@@ -113,9 +114,9 @@ public class ClientFixture : IAsyncDisposable
     private static IDialogService CreateDialogServiceMock()
     {
         var mock = Substitute.For<IDialogService>();
-        mock.ShowFileTransferConfirmationAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+        mock.ShowFileTransferConfirmationAsync(Arg.Any<FileTransferConfirmationDialogViewModel>())
             .Returns(Task.FromResult(false));
-        mock.ShowViewerSelectionAsync(Arg.Any<IReadOnlyList<PresenterViewerDisplay>>(), Arg.Any<string>(), Arg.Any<string>())
+        mock.ShowViewerSelectionAsync(Arg.Any<ViewerSelectionDialogViewModel>())
             .Returns(Task.FromResult<IReadOnlyList<string>?>(null));
         return mock;
     }

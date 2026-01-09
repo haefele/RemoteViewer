@@ -5,6 +5,7 @@ using RemoteViewer.Client.Controls.Toasts;
 using RemoteViewer.Client.Services.Dialogs;
 using RemoteViewer.Client.Services.Dispatching;
 using RemoteViewer.Client.Services.HubClient;
+using RemoteViewer.Client.Services.ViewModels;
 using RemoteViewer.Shared.Protocol;
 
 namespace RemoteViewer.Client.Services.FileTransfer;
@@ -12,6 +13,7 @@ namespace RemoteViewer.Client.Services.FileTransfer;
 public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
 {
     private readonly IDialogService _dialogService;
+    private readonly IViewModelFactory _viewModelFactory;
     private readonly IDispatcher _dispatcher;
     private readonly Connection _connection;
     private readonly ILogger<FileTransferService> _logger;
@@ -20,9 +22,10 @@ public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
 
     public ToastsViewModel? Toasts { get; set; }
 
-    public FileTransferService(IDialogService dialogService, IDispatcher dispatcher, Connection connection, ILogger<FileTransferService> logger)
+    public FileTransferService(IDialogService dialogService, IViewModelFactory viewModelFactory, IDispatcher dispatcher, Connection connection, ILogger<FileTransferService> logger)
     {
         this._dialogService = dialogService;
+        this._viewModelFactory = viewModelFactory;
         this._dispatcher = dispatcher;
         this._connection = connection;
         this._logger = logger;
@@ -32,8 +35,8 @@ public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
     public ObservableCollection<IFileTransfer> ActiveReceives { get; } = [];
 
     // Events for transfer completion
-    public event EventHandler<TransferCompletedEventArgs>? TransferCompleted;
-    public event EventHandler<TransferFailedEventArgs>? TransferFailed;
+    public event EventHandler<TransferEventArgs>? TransferCompleted;
+    public event EventHandler<TransferEventArgs>? TransferFailed;
 
     #region File Transfer Operations
 
@@ -104,24 +107,18 @@ public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
 
     private void OnTransferCompleted(object? sender, EventArgs e)
     {
-        if (sender is not IFileTransfer transfer)
-            return;
-
-        this._dispatcher.Post(() =>
-        {
-            this.ActiveSends.Remove(transfer);
-            this.ActiveReceives.Remove(transfer);
-            transfer.Dispose();
-        });
-
-        this.TransferCompleted?.Invoke(this, new TransferCompletedEventArgs(transfer));
+        if (sender is IFileTransfer transfer)
+            this.HandleTransferEnded(transfer, this.TransferCompleted);
     }
 
     private void OnTransferFailed(object? sender, EventArgs e)
     {
-        if (sender is not IFileTransfer transfer)
-            return;
+        if (sender is IFileTransfer transfer)
+            this.HandleTransferEnded(transfer, this.TransferFailed);
+    }
 
+    private void HandleTransferEnded(IFileTransfer transfer, EventHandler<TransferEventArgs>? eventHandler)
+    {
         this._dispatcher.Post(() =>
         {
             this.ActiveSends.Remove(transfer);
@@ -129,7 +126,7 @@ public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
             transfer.Dispose();
         });
 
-        this.TransferFailed?.Invoke(this, new TransferFailedEventArgs(transfer));
+        eventHandler?.Invoke(this, new TransferEventArgs(transfer));
     }
 
     #endregion
@@ -145,7 +142,8 @@ public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
             : this._connection.Presenter?.DisplayName ?? "Presenter";
         var fileSizeFormatted = FileTransferHelpers.FormatFileSize(fileSize);
 
-        if (await this._dialogService.ShowFileTransferConfirmationAsync(displayName, fileName, fileSizeFormatted))
+        var confirmViewModel = this._viewModelFactory.CreateFileTransferConfirmationDialogViewModel(displayName, fileName, fileSizeFormatted);
+        if (await this._dialogService.ShowFileTransferConfirmationAsync(confirmViewModel))
         {
             var transfer = new FileReceiveOperation(
                 transferId,
@@ -250,24 +248,9 @@ public sealed class FileTransferService : IFileTransferServiceImpl, IDisposable
 
 #region Types
 
-public sealed class TransferCompletedEventArgs : EventArgs
+public sealed class TransferEventArgs(IFileTransfer transfer) : EventArgs
 {
-    public TransferCompletedEventArgs(IFileTransfer transfer)
-    {
-        this.Transfer = transfer;
-    }
-
-    public IFileTransfer Transfer { get; }
-}
-
-public sealed class TransferFailedEventArgs : EventArgs
-{
-    public TransferFailedEventArgs(IFileTransfer transfer)
-    {
-        this.Transfer = transfer;
-    }
-
-    public IFileTransfer Transfer { get; }
+    public IFileTransfer Transfer { get; } = transfer;
 }
 
 #endregion

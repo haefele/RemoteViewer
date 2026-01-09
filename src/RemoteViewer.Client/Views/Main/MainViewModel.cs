@@ -2,11 +2,10 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Controls.Toasts;
+using RemoteViewer.Client.Services.Dialogs;
 using RemoteViewer.Client.Services.Dispatching;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.ViewModels;
-using RemoteViewer.Client.Views.Presenter;
-using RemoteViewer.Client.Views.Viewer;
 using RemoteViewer.Shared;
 
 namespace RemoteViewer.Client.Views.Main;
@@ -16,7 +15,10 @@ public partial class MainViewModel : ViewModelBase
     private readonly ConnectionHubClient _hubClient;
     private readonly IDispatcher _dispatcher;
     private readonly IViewModelFactory _viewModelFactory;
+    private readonly IDialogService _dialogService;
     private readonly ILogger<MainViewModel> _logger;
+
+    private IWindowHandle? _sessionWindowHandle;
 
     public ToastsViewModel Toasts { get; }
 
@@ -46,13 +48,13 @@ public partial class MainViewModel : ViewModelBase
 
     public event EventHandler? RequestHideMainView;
     public event EventHandler? RequestShowMainView;
-    public event EventHandler? RequestShowAbout;
 
-    public MainViewModel(ConnectionHubClient hubClient, IDispatcher dispatcher, IViewModelFactory viewModelFactory, ILogger<MainViewModel> logger)
+    public MainViewModel(ConnectionHubClient hubClient, IDispatcher dispatcher, IViewModelFactory viewModelFactory, IDialogService dialogService, ILogger<MainViewModel> logger)
     {
         this._hubClient = hubClient;
         this._dispatcher = dispatcher;
         this._viewModelFactory = viewModelFactory;
+        this._dialogService = dialogService;
         this._logger = logger;
         this.Toasts = viewModelFactory.CreateToastsViewModel();
 
@@ -118,29 +120,30 @@ public partial class MainViewModel : ViewModelBase
     {
         this.RequestHideMainView?.Invoke(this, EventArgs.Empty);
 
-        var window = new PresenterView
-        {
-            DataContext = this._viewModelFactory.CreatePresenterViewModel(connection)
-        };
-        window.Closed += this.OnSessionWindowClosed;
-        window.Show();
+        var viewModel = this._viewModelFactory.CreatePresenterViewModel(connection);
+        this._sessionWindowHandle = this._dialogService.ShowPresenterWindow(viewModel);
+        this._sessionWindowHandle.Closed += this.OnSessionWindowClosed;
     }
 
     private void OpenViewerWindow(Connection connection)
     {
         this.RequestHideMainView?.Invoke(this, EventArgs.Empty);
 
-        var window = new ViewerView
-        {
-            DataContext = this._viewModelFactory.CreateViewerViewModel(connection)
-        };
-        window.Closed += this.OnSessionWindowClosed;
-        window.Show();
+        var viewModel = this._viewModelFactory.CreateViewerViewModel(connection);
+        this._sessionWindowHandle = this._dialogService.ShowViewerWindow(viewModel);
+        this._sessionWindowHandle.Closed += this.OnSessionWindowClosed;
     }
 
     private void OnSessionWindowClosed(object? sender, EventArgs e)
     {
         this._logger.SessionWindowClosed();
+
+        if (this._sessionWindowHandle is not null)
+        {
+            this._sessionWindowHandle.Closed -= this.OnSessionWindowClosed;
+            this._sessionWindowHandle = null;
+        }
+
         this.RequestShowMainView?.Invoke(this, EventArgs.Empty);
     }
 
@@ -199,8 +202,8 @@ public partial class MainViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void ShowAbout()
+    private async Task ShowAboutAsync()
     {
-        this.RequestShowAbout?.Invoke(this, EventArgs.Empty);
+        await this._dialogService.ShowAboutDialogAsync();
     }
 }

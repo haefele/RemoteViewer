@@ -1,4 +1,5 @@
 ﻿using NSubstitute;
+using RemoteViewer.Client.Controls.Dialogs;
 using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.IntegrationTests.Fixtures;
@@ -677,7 +678,7 @@ public class ConnectionHubClientTests()
 
         // Configure presenter's dialog to accept file transfer
         presenter.DialogService.ShowFileTransferConfirmationAsync(
-            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            Arg.Any<FileTransferConfirmationDialogViewModel>())
             .Returns(Task.FromResult(true));
 
         // Create a temp file to transfer
@@ -696,9 +697,7 @@ public class ConnectionHubClientTests()
 
             // Verify the dialog was called on presenter side
             await presenter.DialogService.Received().ShowFileTransferConfirmationAsync(
-                Arg.Any<string>(),
-                Arg.Any<string>(),
-                Arg.Any<string>());
+                Arg.Any<FileTransferConfirmationDialogViewModel>());
         }
         finally
         {
@@ -717,7 +716,7 @@ public class ConnectionHubClientTests()
 
         // Configure presenter's dialog to reject file transfer
         presenter.DialogService.ShowFileTransferConfirmationAsync(
-            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            Arg.Any<FileTransferConfirmationDialogViewModel>())
             .Returns(Task.FromResult(false));
 
         // Create a temp file to transfer
@@ -987,7 +986,7 @@ public class ConnectionHubClientTests()
 
         // Configure presenter's dialog to accept file transfer
         presenter.DialogService.ShowFileTransferConfirmationAsync(
-            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            Arg.Any<FileTransferConfirmationDialogViewModel>())
             .Returns(Task.FromResult(true));
 
         // Create a temp file to transfer
@@ -997,7 +996,7 @@ public class ConnectionHubClientTests()
             await File.WriteAllTextAsync(tempFile, "Test file content for successful transfer");
 
             // Subscribe to transfer completed event on viewer (sender) side
-            var completedTask = TestHelpers.WaitForEventAsync<TransferCompletedEventArgs>(
+            var completedTask = TestHelpers.WaitForEventAsync<TransferEventArgs>(
                 onResult => viewerConn.FileTransfers.TransferCompleted += (s, e) => onResult(e),
                 timeout: TimeSpan.FromSeconds(10));
 
@@ -1028,7 +1027,7 @@ public class ConnectionHubClientTests()
 
         // Configure viewer's dialog to accept file transfer
         viewer.DialogService.ShowFileTransferConfirmationAsync(
-            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            Arg.Any<FileTransferConfirmationDialogViewModel>())
             .Returns(Task.FromResult(true));
 
         // Create a temp file to transfer
@@ -1038,7 +1037,7 @@ public class ConnectionHubClientTests()
             await File.WriteAllTextAsync(tempFile, "Test file from presenter to viewer");
 
             // Subscribe to transfer completed event on presenter (sender) side
-            var completedTask = TestHelpers.WaitForEventAsync<TransferCompletedEventArgs>(
+            var completedTask = TestHelpers.WaitForEventAsync<TransferEventArgs>(
                 onResult => presenterConn.FileTransfers.TransferCompleted += (s, e) => onResult(e),
                 timeout: TimeSpan.FromSeconds(10));
 
@@ -1068,7 +1067,7 @@ public class ConnectionHubClientTests()
         // Configure presenter's dialog to never respond (simulate user not accepting)
         var dialogTcs = new TaskCompletionSource<bool>();
         presenter.DialogService.ShowFileTransferConfirmationAsync(
-            Arg.Any<string>(), Arg.Any<string>(), Arg.Any<string>())
+            Arg.Any<FileTransferConfirmationDialogViewModel>())
             .Returns(dialogTcs.Task);
 
         // Create a temp file to transfer
@@ -1078,7 +1077,7 @@ public class ConnectionHubClientTests()
             await File.WriteAllTextAsync(tempFile, "Test file content for cancellation test");
 
             // Subscribe to transfer failed event
-            var failedTask = TestHelpers.WaitForEventAsync<TransferFailedEventArgs>(
+            var failedTask = TestHelpers.WaitForEventAsync<TransferEventArgs>(
                 onResult => viewerConn.FileTransfers.TransferFailed += (s, e) => onResult(e),
                 timeout: TimeSpan.FromSeconds(10));
 

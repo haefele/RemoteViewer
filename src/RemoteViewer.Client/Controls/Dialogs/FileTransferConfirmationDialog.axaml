@@ -1,10 +1,9 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:mi="using:Material.Icons.Avalonia"
-        xmlns:mik="using:Material.Icons"
         xmlns:dialogs="using:RemoteViewer.Client.Controls.Dialogs"
         x:Class="RemoteViewer.Client.Controls.Dialogs.FileTransferConfirmationDialog"
-        x:DataType="dialogs:FileTransferConfirmationDialog"
+        x:DataType="dialogs:FileTransferConfirmationDialogViewModel"
         Title="File Transfer"
         Icon="/Assets/avalonia-logo.ico"
         SizeToContent="WidthAndHeight"
@@ -22,12 +21,10 @@
         <StackPanel Spacing="16">
             <!-- Header with icon and title -->
             <StackPanel Orientation="Horizontal" Spacing="8">
-                <mi:MaterialIcon x:Name="HeaderIcon"
-                                 Kind="FileUpload"
+                <mi:MaterialIcon Kind="FileDownload"
                                  Width="28"
                                  Height="28" />
-                <TextBlock x:Name="HeaderText"
-                           Text="Incoming File Transfer"
+                <TextBlock Text="Incoming File Transfer"
                            FontSize="18"
                            FontWeight="SemiBold"
                            VerticalAlignment="Center"/>
@@ -35,7 +32,7 @@
 
             <!-- Message -->
             <StackPanel Spacing="8">
-                <TextBlock x:Name="SenderText"
+                <TextBlock Text="{Binding SenderDisplayName, StringFormat='&quot;{0}&quot; wants to send you:'}"
                            FontSize="14"
                            TextWrapping="Wrap"/>
 
@@ -43,11 +40,11 @@
                         CornerRadius="4"
                         Padding="12">
                     <StackPanel Spacing="4">
-                        <TextBlock x:Name="FileNameText"
+                        <TextBlock Text="{Binding FileName}"
                                    FontSize="14"
                                    FontWeight="SemiBold"
                                    TextWrapping="Wrap"/>
-                        <TextBlock x:Name="FileSizeText"
+                        <TextBlock Text="{Binding FileSizeFormatted}"
                                    FontSize="12"/>
                     </StackPanel>
                 </Border>
@@ -56,7 +53,6 @@
             <!-- Buttons -->
             <Grid ColumnDefinitions="*,16,*">
                 <Button Grid.Column="0"
-                        x:Name="RejectButton"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Center"
                         Padding="16,10"
@@ -68,7 +64,6 @@
                 </Button>
 
                 <Button Grid.Column="2"
-                        x:Name="AcceptButton"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Center"
                         Classes="accent"
