@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:mi="using:Material.Icons.Avalonia"
+        xmlns:controls="using:RemoteViewer.Client.Controls"
         xmlns:dialogs="using:RemoteViewer.Client.Controls.Dialogs"
         x:Class="RemoteViewer.Client.Controls.Dialogs.FileTransferConfirmationDialog"
         x:DataType="dialogs:FileTransferConfirmationDialogViewModel"
@@ -11,86 +12,58 @@
         ShowInTaskbar="False"
         WindowStartupLocation="CenterScreen">
 
-    <Border Padding="20"
+    <Border Padding="{StaticResource DialogPadding}"
             MinWidth="320"
             MaxWidth="400">
 
-        <StackPanel Spacing="16">
+        <StackPanel Spacing="{StaticResource SectionGap}">
 
-            <!-- Header with icon badge and title -->
-            <Grid ColumnDefinitions="Auto,*">
-                <Border Grid.Column="0"
-                        Width="40"
-                        Height="40"
-                        CornerRadius="10"
-                        Margin="0,0,14,0"
-                        Background="{DynamicResource ToastIconBadgeBrush}">
-                    <mi:MaterialIcon Kind="FileDownload"
-                                     Width="22"
-                                     Height="22"
-                                     HorizontalAlignment="Center"
-                                     VerticalAlignment="Center"
-                                     Foreground="{DynamicResource ToastInfoAccentBrush}"/>
-                </Border>
+            <!-- Header using DialogHeader control -->
+            <controls:DialogHeader Icon="FileDownload"
+                                   IconForeground="{DynamicResource ToastInfoAccentBrush}"
+                                   IconBackground="{DynamicResource BadgeBackgroundBrush}"
+                                   Title="Incoming File"
+                                   Subtitle="{Binding SenderDisplayName, StringFormat='From {0}'}"/>
 
-                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                    <TextBlock Text="Incoming File"
-                               FontSize="15"
-                               FontWeight="SemiBold"/>
-                    <TextBlock Text="{Binding SenderDisplayName, StringFormat='From {0}'}"
-                               FontSize="12"
-                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
-                </StackPanel>
-            </Grid>
-
-            <!-- File info card -->
-            <Border Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                    CornerRadius="8"
-                    Padding="14">
+            <!-- File info card using design system styles -->
+            <Border Classes="card">
                 <Grid ColumnDefinitions="Auto,*">
                     <mi:MaterialIcon Grid.Column="0"
                                      Kind="File"
-                                     Width="20"
-                                     Height="20"
+                                     Width="{StaticResource IconSizeMD}"
+                                     Height="{StaticResource IconSizeMD}"
                                      Margin="0,0,12,0"
                                      VerticalAlignment="Center"
-                                     Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                     Foreground="{DynamicResource TextSecondaryBrush}"/>
                     <StackPanel Grid.Column="1" Spacing="2">
                         <TextBlock Text="{Binding FileName}"
-                                   FontSize="13"
-                                   FontWeight="SemiBold"
+                                   Classes="header-small"
                                    TextTrimming="CharacterEllipsis"
                                    ToolTip.Tip="{Binding FileName}"/>
                         <TextBlock Text="{Binding FileSizeFormatted}"
-                                   FontSize="11"
-                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                   Classes="small"/>
                     </StackPanel>
                 </Grid>
             </Border>
 
             <!-- Action buttons -->
             <Grid ColumnDefinitions="*,10,*">
-                <!-- Reject button -->
                 <Button Grid.Column="0"
+                        Classes="action-secondary"
                         HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Center"
-                        Padding="14,10"
                         Click="OnRejectClicked">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <mi:MaterialIcon Kind="Close" Width="16" Height="16"/>
+                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource IconTextGap}">
+                        <mi:MaterialIcon Kind="Close" Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}"/>
                         <TextBlock Text="Reject" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
 
-                <!-- Accept button -->
                 <Button Grid.Column="2"
+                        Classes="action-primary"
                         HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Center"
-                        Classes="accent"
-                        Padding="14,10"
                         Click="OnAcceptClicked">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <mi:MaterialIcon Kind="Check" Width="16" Height="16"/>
+                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource IconTextGap}">
+                        <mi:MaterialIcon Kind="Check" Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}"/>
                         <TextBlock Text="Accept" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>

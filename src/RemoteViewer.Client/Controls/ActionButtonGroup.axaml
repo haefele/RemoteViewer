@@ -1,0 +1,45 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mi="using:Material.Icons.Avalonia"
+             xmlns:controls="using:RemoteViewer.Client.Controls"
+             x:Class="RemoteViewer.Client.Controls.ActionButtonGroup"
+             x:DataType="controls:ActionButtonGroup"
+             x:Name="Root">
+
+    <Grid ColumnDefinitions="*,10,*">
+        <!-- Secondary Button (Left) -->
+        <Button Grid.Column="0"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"
+                Padding="14,10"
+                Command="{Binding SecondaryCommand, ElementName=Root}"
+                IsVisible="{Binding SecondaryText, ElementName=Root, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <mi:MaterialIcon Kind="{Binding SecondaryIcon, ElementName=Root}"
+                                 Width="16"
+                                 Height="16"
+                                 IsVisible="{Binding ShowSecondaryIcon, ElementName=Root}"/>
+                <TextBlock Text="{Binding SecondaryText, ElementName=Root}"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+        </Button>
+
+        <!-- Primary Button (Right) -->
+        <Button Grid.Column="2"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"
+                Classes="accent"
+                Padding="14,10"
+                Command="{Binding PrimaryCommand, ElementName=Root}"
+                IsVisible="{Binding PrimaryText, ElementName=Root, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+            <StackPanel Orientation="Horizontal" Spacing="6">
+                <mi:MaterialIcon Kind="{Binding PrimaryIcon, ElementName=Root}"
+                                 Width="16"
+                                 Height="16"
+                                 IsVisible="{Binding ShowPrimaryIcon, ElementName=Root}"/>
+                <TextBlock Text="{Binding PrimaryText, ElementName=Root}"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
+        </Button>
+    </Grid>
+</UserControl>

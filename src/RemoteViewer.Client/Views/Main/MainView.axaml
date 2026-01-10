@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:RemoteViewer.Client.Controls"
         xmlns:vm="using:RemoteViewer.Client.Views.Main"
         xmlns:conv="using:RemoteViewer.Client.Converters"
         xmlns:toastControls="using:RemoteViewer.Client.Controls.Toasts"
@@ -22,16 +23,16 @@
         <DockPanel>
             <!-- Status Bar at Bottom -->
             <Border DockPanel.Dock="Bottom"
-                    Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
+                    Background="{DynamicResource SurfaceElevatedBrush}"
                     Padding="10,6">
                 <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
+                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource GapSM}">
                         <mi:MaterialIcon Kind="{Binding IsConnected, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.CloudCheck}, FalseValue={x:Static mik:MaterialIconKind.CloudOffOutline}}}"
-                                         Width="16" Height="16"
+                                         Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}"
                                          Foreground="{Binding IsConnected, Converter={conv:BoolToObject TrueValue='#4CAF50', FalseValue='#F44336'}}"/>
                         <TextBlock Text="{Binding StatusText}"
                                    VerticalAlignment="Center"
-                                   FontSize="12"/>
+                                   Classes="caption"/>
                     </StackPanel>
 
                     <Button Grid.Column="1"
@@ -42,32 +43,30 @@
                             Width="24" Height="24"
                             Padding="0">
                         <mi:MaterialIcon Kind="InformationOutline" Width="16" Height="16"
-                                         Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                         Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </Button>
                 </Grid>
             </Border>
 
             <!-- Main Content -->
-            <Grid ColumnDefinitions="*,*" Margin="16">
+            <Grid ColumnDefinitions="*,*" Margin="{StaticResource SpacingLG}">
                 <!-- Left Panel - Your Credentials -->
                 <Border Grid.Column="0"
-                        Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                        CornerRadius="8"
-                        Padding="16"
+                        Background="{DynamicResource CardBackgroundBrush}"
+                        CornerRadius="{StaticResource CornerRadiusCard}"
+                        Padding="{StaticResource CardPaddingLarge}"
                         Margin="0,0,8,0">
                     <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
                         <!-- Row 0: Title -->
                         <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
                                    Text="Your Credentials"
-                                   FontWeight="SemiBold"
-                                   FontSize="16"
+                                   Classes="header-small"
                                    Margin="0,0,0,12"/>
 
                         <!-- Row 1: ID Label + Value -->
-                        <StackPanel Grid.Row="1" Grid.Column="0" Spacing="4">
+                        <StackPanel Grid.Row="1" Grid.Column="0" Spacing="{StaticResource GapXS}">
                             <TextBlock Text="ID"
-                                       FontSize="12"
-                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                       Classes="caption secondary"/>
                             <SelectableTextBlock Text="{Binding YourUsername}"
                                                  Margin="0,8,0,0"
                                                  FontFamily="Consolas, Courier New, monospace"
@@ -86,15 +85,14 @@
                                 Padding="0"
                                 Margin="8,0,0,0">
                             <mi:MaterialIcon Kind="ContentCopy" Width="20" Height="20"
-                                             Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                             Foreground="{DynamicResource TextSecondaryBrush}"/>
                         </Button>
 
                         <!-- Row 2: Password Label + Value with Refresh -->
-                        <StackPanel Grid.Row="2" Grid.Column="0" Spacing="4" Margin="0,12,0,0">
+                        <StackPanel Grid.Row="2" Grid.Column="0" Spacing="{StaticResource GapXS}" Margin="0,12,0,0">
                             <TextBlock Text="Password"
-                                       FontSize="12"
-                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
-                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                       Classes="caption secondary"/>
+                            <StackPanel Orientation="Horizontal" Spacing="{StaticResource GapXS}">
                                 <SelectableTextBlock Text="{Binding YourPassword}"
                                                      Margin="0,8,0,2"
                                                      FontFamily="Consolas, Courier New, monospace"
@@ -109,7 +107,7 @@
                                         Padding="0"
                                         VerticalAlignment="Center">
                                     <mi:MaterialIcon Kind="Refresh" Width="18" Height="18"
-                                                     Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                                     Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 </Button>
                             </StackPanel>
                         </StackPanel>
@@ -118,19 +116,17 @@
 
                 <!-- Right Panel - Connect to Device -->
                 <Border Grid.Column="1"
-                        Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                        CornerRadius="8"
-                        Padding="16"
+                        Background="{DynamicResource CardBackgroundBrush}"
+                        CornerRadius="{StaticResource CornerRadiusCard}"
+                        Padding="{StaticResource CardPaddingLarge}"
                         Margin="8,0,0,0">
-                    <StackPanel Spacing="12">
+                    <StackPanel Spacing="{StaticResource GapMD}">
                         <TextBlock Text="Connect to Device"
-                                   FontWeight="SemiBold"
-                                   FontSize="16"/>
+                                   Classes="header-small"/>
 
-                        <StackPanel Spacing="4">
+                        <StackPanel Spacing="{StaticResource GapXS}">
                             <TextBlock Text="ID"
-                                       FontSize="12"
-                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                       Classes="caption secondary"/>
                             <TextBox x:Name="TargetUsernameBox"
                                      Text="{Binding TargetUsername}"
                                      Watermark="Enter ID"
@@ -138,10 +134,9 @@
                                      PastingFromClipboard="TargetUsernameBox_Pasting"/>
                         </StackPanel>
 
-                        <StackPanel Spacing="4">
+                        <StackPanel Spacing="{StaticResource GapXS}">
                             <TextBlock Text="Password"
-                                       FontSize="12"
-                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                       Classes="caption secondary"/>
                             <TextBox x:Name="TargetPasswordBox"
                                      Text="{Binding TargetPassword}"
                                      Watermark="Enter password"
@@ -156,7 +151,7 @@
                                             Padding="4"
                                             IsEnabled="{Binding !ConnectToDeviceCommand.IsRunning}">
                                         <mi:MaterialIcon Kind="ArrowRightCircle" Width="20" Height="20"
-                                                         Foreground="{DynamicResource SystemAccentColor}"/>
+                                                         Foreground="{DynamicResource AccentBrush}"/>
                                     </Button>
                                 </TextBox.InnerRightContent>
                             </TextBox>

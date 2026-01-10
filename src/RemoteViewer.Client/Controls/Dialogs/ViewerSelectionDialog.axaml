@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:mi="using:Material.Icons.Avalonia"
+        xmlns:controls="using:RemoteViewer.Client.Controls"
         xmlns:dialogs="using:RemoteViewer.Client.Controls.Dialogs"
         xmlns:presenter="using:RemoteViewer.Client.Views.Presenter"
         x:Class="RemoteViewer.Client.Controls.Dialogs.ViewerSelectionDialog"
@@ -12,89 +13,63 @@
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner">
 
-    <Border Padding="20"
+    <Border Padding="{StaticResource DialogPadding}"
             MinWidth="320"
             MaxWidth="400">
 
-        <StackPanel Spacing="16">
+        <StackPanel Spacing="{StaticResource SectionGap}">
 
-            <!-- Header with icon badge and title -->
-            <Grid ColumnDefinitions="Auto,*">
-                <Border Grid.Column="0"
-                        Width="40"
-                        Height="40"
-                        CornerRadius="10"
-                        Margin="0,0,14,0"
-                        Background="{DynamicResource ToastIconBadgeBrush}">
-                    <mi:MaterialIcon Kind="FileUpload"
-                                     Width="22"
-                                     Height="22"
-                                     HorizontalAlignment="Center"
-                                     VerticalAlignment="Center"
-                                     Foreground="{DynamicResource ToastTransferAccentBrush}"/>
-                </Border>
+            <!-- Header using DialogHeader control -->
+            <controls:DialogHeader Icon="FileUpload"
+                                   IconForeground="{DynamicResource ToastTransferAccentBrush}"
+                                   IconBackground="{DynamicResource BadgeBackgroundBrush}"
+                                   Title="Send File"
+                                   Subtitle="Select recipients"/>
 
-                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
-                    <TextBlock Text="Send File"
-                               FontSize="15"
-                               FontWeight="SemiBold"/>
-                    <TextBlock Text="Select recipients"
-                               FontSize="12"
-                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
-                </StackPanel>
-            </Grid>
-
-            <!-- File info card -->
-            <Border Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                    CornerRadius="8"
-                    Padding="14">
+            <!-- File info card using design system styles -->
+            <Border Classes="card">
                 <Grid ColumnDefinitions="Auto,*">
                     <mi:MaterialIcon Grid.Column="0"
                                      Kind="File"
-                                     Width="20"
-                                     Height="20"
+                                     Width="{StaticResource IconSizeMD}"
+                                     Height="{StaticResource IconSizeMD}"
                                      Margin="0,0,12,0"
                                      VerticalAlignment="Center"
-                                     Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                     Foreground="{DynamicResource TextSecondaryBrush}"/>
                     <StackPanel Grid.Column="1" Spacing="2">
                         <TextBlock Text="{Binding FileName}"
-                                   FontSize="13"
-                                   FontWeight="SemiBold"
+                                   Classes="header-small"
                                    TextTrimming="CharacterEllipsis"
                                    ToolTip.Tip="{Binding FileName}"/>
                         <TextBlock Text="{Binding FileSizeFormatted}"
-                                   FontSize="11"
-                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                   Classes="small"/>
                     </StackPanel>
                 </Grid>
             </Border>
 
             <!-- Viewer selection list -->
-            <StackPanel Spacing="8">
+            <StackPanel Spacing="{StaticResource GapSM}">
                 <TextBlock Text="Recipients"
-                           FontSize="12"
+                           Classes="caption"
                            FontWeight="SemiBold"
-                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
                            Margin="2,0,0,0"/>
 
                 <ItemsControl ItemsSource="{Binding Viewers}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="presenter:PresenterViewerDisplay">
-                            <Border Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                                    CornerRadius="6"
-                                    Padding="10,8"
+                            <Border Classes="list-item"
                                     Margin="0,0,0,6">
                                 <CheckBox IsChecked="{Binding IsSelected}"
                                           Cursor="Hand">
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource GapSM}">
                                         <mi:MaterialIcon Kind="Account"
-                                                         Width="16"
-                                                         Height="16"
+                                                         Width="{StaticResource IconSizeSM}"
+                                                         Height="{StaticResource IconSizeSM}"
                                                          VerticalAlignment="Center"
-                                                         Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                                         Foreground="{DynamicResource TextSecondaryBrush}"/>
                                         <TextBlock Text="{Binding DisplayName}"
                                                    VerticalAlignment="Center"
-                                                   FontSize="13"/>
+                                                   Classes="body-small"/>
                                     </StackPanel>
                                 </CheckBox>
                             </Border>
@@ -105,27 +80,22 @@
 
             <!-- Action buttons -->
             <Grid ColumnDefinitions="*,10,*">
-                <!-- Cancel button -->
                 <Button Grid.Column="0"
+                        Classes="action-secondary"
                         HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Center"
-                        Padding="14,10"
                         Click="OnCancelClicked">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <mi:MaterialIcon Kind="Close" Width="16" Height="16"/>
+                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource IconTextGap}">
+                        <mi:MaterialIcon Kind="Close" Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}"/>
                         <TextBlock Text="Cancel" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
 
-                <!-- Send button -->
                 <Button Grid.Column="2"
+                        Classes="action-primary"
                         HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Center"
-                        Classes="accent"
-                        Padding="14,10"
                         Click="OnSendClicked">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <mi:MaterialIcon Kind="Send" Width="16" Height="16"/>
+                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource IconTextGap}">
+                        <mi:MaterialIcon Kind="Send" Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}"/>
                         <TextBlock Text="Send" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>

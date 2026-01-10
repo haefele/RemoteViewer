@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:RemoteViewer.Client.Controls"
         xmlns:vm="using:RemoteViewer.Client.Views.About"
         xmlns:mi="using:Material.Icons.Avalonia"
         xmlns:mik="using:Material.Icons"
@@ -14,38 +15,27 @@
         DataContextChanged="Window_DataContextChanged"
         Closed="Window_Closed">
 
-    <Grid RowDefinitions="Auto,*,Auto" Margin="24">
+    <Grid RowDefinitions="Auto,*,Auto" Margin="{StaticResource DialogPaddingLarge}">
 
         <!-- Header Section -->
-        <StackPanel Grid.Row="0" Spacing="12" HorizontalAlignment="Center" Margin="0,8,0,24">
-            <!-- Circular icon badge -->
-            <Border Background="{DynamicResource AccentBrush}"
-                    CornerRadius="32"
-                    Width="64"
-                    Height="64"
-                    HorizontalAlignment="Center">
-                <mi:MaterialIcon Kind="{x:Static mik:MaterialIconKind.RemoteDesktop}"
-                                 Width="32"
-                                 Height="32"
-                                 Foreground="White"
-                                 HorizontalAlignment="Center"
-                                 VerticalAlignment="Center"/>
-            </Border>
+        <StackPanel Grid.Row="0" Spacing="{StaticResource GapMD}" HorizontalAlignment="Center" Margin="0,8,0,24">
+            <!-- Circular icon badge using design system -->
+            <controls:IconBadge Icon="{x:Static mik:MaterialIconKind.RemoteDesktop}"
+                                Size="Large"
+                                BadgeBackground="{DynamicResource AccentBrush}"
+                                IconForeground="White"/>
 
-            <StackPanel Spacing="4" HorizontalAlignment="Center">
+            <StackPanel Spacing="{StaticResource GapXS}" HorizontalAlignment="Center">
                 <TextBlock Text="{Binding ApplicationName}"
-                           FontSize="22"
-                           FontWeight="Bold"
+                           Classes="title-large"
                            HorizontalAlignment="Center"/>
 
                 <TextBlock Text="{Binding Version, StringFormat='Version {0}'}"
-                           FontSize="13"
-                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                           Classes="body-small secondary"
                            HorizontalAlignment="Center"/>
 
                 <TextBlock Text="{Binding Copyright}"
-                           FontSize="11"
-                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                           Classes="small secondary"
                            HorizontalAlignment="Center"
                            Margin="0,4,0,0"/>
             </StackPanel>
@@ -53,19 +43,16 @@
 
         <!-- Licenses Section -->
         <Border Grid.Row="1"
-                Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                CornerRadius="12"
-                Padding="16">
+                Classes="card-lg">
             <Grid RowDefinitions="Auto,*">
-                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,12">
+                <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="{StaticResource GapSM}" Margin="0,0,0,12">
                     <mi:MaterialIcon Kind="License"
-                                     Width="16"
-                                     Height="16"
+                                     Width="{StaticResource IconSizeSM}"
+                                     Height="{StaticResource IconSizeSM}"
                                      VerticalAlignment="Center"
-                                     Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                     Foreground="{DynamicResource TextSecondaryBrush}"/>
                     <TextBlock Text="Third-Party Licenses"
-                               FontWeight="SemiBold"
-                               FontSize="13"
+                               Classes="header-small"
                                VerticalAlignment="Center"/>
                 </StackPanel>
 
@@ -74,53 +61,45 @@
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:ThirdPartyLicense">
                                 <Border Margin="0,0,0,8"
-                                        Padding="14"
-                                        Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
-                                        CornerRadius="8">
+                                        Classes="list-item">
                                     <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
                                         <TextBlock Grid.Row="0" Grid.Column="0"
                                                    Text="{Binding Name}"
-                                                   FontWeight="SemiBold"
-                                                   FontSize="13"/>
+                                                   Classes="header-small"/>
 
                                         <Border Grid.Row="0" Grid.Column="1"
-                                                Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                                                CornerRadius="4"
-                                                Padding="6,2"
+                                                Classes="text-badge"
                                                 VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding LicenseName}"
-                                                       FontSize="10"
-                                                       FontWeight="SemiBold"
-                                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                            <TextBlock Text="{Binding LicenseName}"/>
                                         </Border>
 
                                         <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
                                                     Orientation="Horizontal"
-                                                    Spacing="16"
+                                                    Spacing="{StaticResource SectionGap}"
                                                     Margin="0,8,0,0">
                                             <HyperlinkButton NavigateUri="{Binding Url}"
                                                              Padding="0"
                                                              Cursor="Hand">
-                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <StackPanel Orientation="Horizontal" Spacing="{StaticResource GapXS}">
                                                     <mi:MaterialIcon Kind="Web"
-                                                                     Width="12"
-                                                                     Height="12"
+                                                                     Width="{StaticResource IconSizeXS}"
+                                                                     Height="{StaticResource IconSizeXS}"
                                                                      VerticalAlignment="Center"/>
                                                     <TextBlock Text="Website"
-                                                               FontSize="11"
+                                                               Classes="small"
                                                                VerticalAlignment="Center"/>
                                                 </StackPanel>
                                             </HyperlinkButton>
                                             <HyperlinkButton NavigateUri="{Binding LicenseUrl}"
                                                              Padding="0"
                                                              Cursor="Hand">
-                                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                                <StackPanel Orientation="Horizontal" Spacing="{StaticResource GapXS}">
                                                     <mi:MaterialIcon Kind="FileDocument"
-                                                                     Width="12"
-                                                                     Height="12"
+                                                                     Width="{StaticResource IconSizeXS}"
+                                                                     Height="{StaticResource IconSizeXS}"
                                                                      VerticalAlignment="Center"/>
                                                     <TextBlock Text="License"
-                                                               FontSize="11"
+                                                               Classes="small"
                                                                VerticalAlignment="Center"/>
                                                 </StackPanel>
                                             </HyperlinkButton>
@@ -136,13 +115,12 @@
 
         <!-- Footer Button -->
         <Button Grid.Row="2"
+                Classes="action-secondary"
                 HorizontalAlignment="Stretch"
-                HorizontalContentAlignment="Center"
-                Padding="14,10"
-                Margin="0,16,0,0"
+                Margin="{StaticResource SpacingVerticalLG}"
                 Command="{Binding CloseCommand}">
-            <StackPanel Orientation="Horizontal" Spacing="6">
-                <mi:MaterialIcon Kind="Close" Width="16" Height="16"/>
+            <StackPanel Orientation="Horizontal" Spacing="{StaticResource IconTextGap}">
+                <mi:MaterialIcon Kind="Close" Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}"/>
                 <TextBlock Text="Close" VerticalAlignment="Center"/>
             </StackPanel>
         </Button>

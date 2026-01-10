@@ -10,7 +10,7 @@
         <!-- Centered card -->
         <Border HorizontalAlignment="Center"
                 VerticalAlignment="Center"
-                Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
+                Background="{DynamicResource SurfaceElevatedBrush}"
                 CornerRadius="20"
                 Padding="32,28">
 
@@ -34,7 +34,7 @@
                                FontWeight="SemiBold"
                                HorizontalAlignment="Center"/>
                     <TextBlock x:Name="SubtitleText"
-                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                               Foreground="{DynamicResource TextSecondaryBrush}"
                                FontSize="13"
                                TextWrapping="Wrap"
                                TextAlignment="Center"

@@ -35,7 +35,7 @@
         <Border x:Name="ToolbarBorder"
                 Grid.Row="0"
                 Classes.fullscreen="{Binding IsFullscreen}"
-                Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
+                Background="{DynamicResource SurfaceElevatedBrush}"
                 Padding="8,6"
                 PointerEntered="Toolbar_PointerEntered"
                 PointerExited="Toolbar_PointerExited">
@@ -142,7 +142,7 @@
                 <!-- Separator -->
                 <Border Width="1"
                         Margin="0,4"
-                        Background="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                        Background="{DynamicResource TextSecondaryBrush}"/>
 
                 <!-- Participants flyout -->
                 <Button ToolTip.Tip="Participants"
@@ -201,7 +201,7 @@
                 <!-- Separator -->
                 <Border Width="1"
                         Margin="0,4"
-                        Background="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                        Background="{DynamicResource TextSecondaryBrush}"/>
 
                 <!-- Disconnect button -->
                 <Button Command="{Binding DisconnectCommand}"
