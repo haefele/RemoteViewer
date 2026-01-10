@@ -29,6 +29,7 @@ internal sealed class WindowHandle : IWindowHandle
         if (this._window is null)
             return;
 
+        this._window.Show();
         this._window.Activate();
     }
 
