@@ -8,7 +8,6 @@ namespace RemoteViewer.Client.Views.Chat;
 public partial class ChatView : Window
 {
     private ChatViewModel? _viewModel;
-    private bool _forceClose;
 
     public ChatView()
     {
@@ -16,12 +15,6 @@ public partial class ChatView : Window
         this.DataContextChanged += this.OnDataContextChanged;
         this.Activated += this.OnActivated;
         this.Deactivated += this.OnDeactivated;
-    }
-
-    public void ForceClose()
-    {
-        this._forceClose = true;
-        this.Close();
     }
 
     public void ShowAndActivate()
@@ -77,23 +70,12 @@ public partial class ChatView : Window
     {
         base.OnClosing(e);
 
-        if (this._forceClose)
+        if (this._viewModel is { } vm)
         {
-            // Dispose ViewModel and cleanup
-            if (this._viewModel is { } vm)
-            {
-                vm.Messages.CollectionChanged -= this.Messages_CollectionChanged;
-                vm.Dispose();
-            }
-            return;
+            vm.Messages.CollectionChanged -= this.Messages_CollectionChanged;
+            vm.IsOpen = false;
+            vm.Dispose();
         }
-
-        // Hide instead of close to preserve state
-        e.Cancel = true;
-        this.Hide();
-
-        if (this._viewModel is { } vm2)
-            vm2.IsOpen = false;
     }
 
     private void Messages_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
