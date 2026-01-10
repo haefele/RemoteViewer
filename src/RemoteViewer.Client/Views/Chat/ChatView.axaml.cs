@@ -17,17 +17,6 @@ public partial class ChatView : Window
         this.Deactivated += this.OnDeactivated;
     }
 
-    public void ShowAndActivate()
-    {
-        this.Show();
-
-        // Restore from minimized state if needed
-        if (this.WindowState == WindowState.Minimized)
-            this.WindowState = WindowState.Normal;
-
-        this.Activate();
-    }
-
     private void OnDataContextChanged(object? sender, EventArgs e)
     {
         if (this._viewModel is not null)
