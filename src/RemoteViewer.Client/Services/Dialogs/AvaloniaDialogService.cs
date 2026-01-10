@@ -88,7 +88,8 @@ public sealed class AvaloniaDialogService : IDialogService
             {
                 DataContext = viewModel
             };
-            window.ShowAndActivate();
+            window.Show();
+            window.Activate();
             return new WindowHandle(window);
         });
     }
