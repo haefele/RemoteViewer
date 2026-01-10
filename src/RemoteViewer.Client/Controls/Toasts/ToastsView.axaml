@@ -5,302 +5,403 @@
              xmlns:toasts="using:RemoteViewer.Client.Controls.Toasts"
              xmlns:ft="using:RemoteViewer.Client.Services.FileTransfer"
              xmlns:conv="using:RemoteViewer.Client.Converters"
-             xmlns:sys="using:System"
              x:Class="RemoteViewer.Client.Controls.Toasts.ToastsView"
              x:DataType="toasts:ToastsViewModel">
 
     <ItemsControl ItemsSource="{Binding Items}">
         <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-                <StackPanel Spacing="8"/>
+                <StackPanel Spacing="10"/>
             </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
 
         <ItemsControl.DataTemplates>
             <!-- Regular text toast -->
             <DataTemplate x:DataType="toasts:ToastItemViewModel">
-                <Border CornerRadius="4"
-                        Padding="8"
-                        MaxWidth="280"
-                        MinWidth="180">
-                    <Border.Background>
-                        <Binding Path="Type">
-                            <Binding.Converter>
-                                <conv:ObjectToObject DefaultValue="{StaticResource InfoBrush}">
-                                    <conv:MapItem From="{x:Static toasts:ToastType.Success}" To="{StaticResource SuccessBrush}"/>
-                                    <conv:MapItem From="{x:Static toasts:ToastType.Error}" To="{StaticResource ErrorBrush}"/>
-                                    <conv:MapItem From="{x:Static toasts:ToastType.Info}" To="{StaticResource InfoBrush}"/>
-                                </conv:ObjectToObject>
-                            </Binding.Converter>
-                        </Binding>
-                    </Border.Background>
-                    <Border.Transitions>
-                        <Transitions>
-                            <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
-                        </Transitions>
-                    </Border.Transitions>
+                <Border CornerRadius="12"
+                        MaxWidth="340"
+                        MinWidth="220"
+                        BoxShadow="0 4 16 0 #40000000">
+                    <Border CornerRadius="12"
+                            Background="{DynamicResource ToastBackgroundBrush}"
+                            ClipToBounds="True">
+                        <Grid ColumnDefinitions="3,Auto,*,Auto">
+                            <!-- Accent strip -->
+                            <Border Grid.Column="0"
+                                    CornerRadius="12,0,0,12">
+                                <Border.Background>
+                                    <Binding Path="Type">
+                                        <Binding.Converter>
+                                            <conv:ObjectToObject DefaultValue="{StaticResource ToastInfoAccentBrush}">
+                                                <conv:MapItem From="{x:Static toasts:ToastType.Success}" To="{StaticResource ToastSuccessAccentBrush}"/>
+                                                <conv:MapItem From="{x:Static toasts:ToastType.Error}" To="{StaticResource ToastErrorAccentBrush}"/>
+                                                <conv:MapItem From="{x:Static toasts:ToastType.Info}" To="{StaticResource ToastInfoAccentBrush}"/>
+                                            </conv:ObjectToObject>
+                                        </Binding.Converter>
+                                    </Binding>
+                                </Border.Background>
+                            </Border>
 
-                    <Grid ColumnDefinitions="Auto,*,Auto">
-                        <mi:MaterialIcon Grid.Column="0"
-                                         Width="16"
-                                         Height="16"
-                                         VerticalAlignment="Center"
-                                         Foreground="White"
-                                         Margin="0,0,8,0">
-                            <mi:MaterialIcon.Kind>
-                                <Binding Path="Type">
-                                    <Binding.Converter>
-                                        <conv:ObjectToObject DefaultValue="{x:Static mik:MaterialIconKind.InformationOutline}">
-                                            <conv:MapItem From="{x:Static toasts:ToastType.Success}" To="{x:Static mik:MaterialIconKind.CheckCircle}"/>
-                                            <conv:MapItem From="{x:Static toasts:ToastType.Error}" To="{x:Static mik:MaterialIconKind.AlertCircle}"/>
-                                            <conv:MapItem From="{x:Static toasts:ToastType.Info}" To="{x:Static mik:MaterialIconKind.InformationOutline}"/>
-                                        </conv:ObjectToObject>
-                                    </Binding.Converter>
-                                </Binding>
-                            </mi:MaterialIcon.Kind>
-                        </mi:MaterialIcon>
+                            <!-- Icon badge -->
+                            <Border Grid.Column="1"
+                                    Width="32"
+                                    Height="32"
+                                    CornerRadius="8"
+                                    Margin="14,14,12,14"
+                                    VerticalAlignment="Center"
+                                    Background="{DynamicResource ToastIconBadgeBrush}">
+                                <mi:MaterialIcon Width="18"
+                                                 Height="18"
+                                                 HorizontalAlignment="Center"
+                                                 VerticalAlignment="Center">
+                                    <mi:MaterialIcon.Foreground>
+                                        <Binding Path="Type">
+                                            <Binding.Converter>
+                                                <conv:ObjectToObject DefaultValue="{StaticResource ToastInfoAccentBrush}">
+                                                    <conv:MapItem From="{x:Static toasts:ToastType.Success}" To="{StaticResource ToastSuccessAccentBrush}"/>
+                                                    <conv:MapItem From="{x:Static toasts:ToastType.Error}" To="{StaticResource ToastErrorAccentBrush}"/>
+                                                    <conv:MapItem From="{x:Static toasts:ToastType.Info}" To="{StaticResource ToastInfoAccentBrush}"/>
+                                                </conv:ObjectToObject>
+                                            </Binding.Converter>
+                                        </Binding>
+                                    </mi:MaterialIcon.Foreground>
+                                    <mi:MaterialIcon.Kind>
+                                        <Binding Path="Type">
+                                            <Binding.Converter>
+                                                <conv:ObjectToObject DefaultValue="{x:Static mik:MaterialIconKind.InformationOutline}">
+                                                    <conv:MapItem From="{x:Static toasts:ToastType.Success}" To="{x:Static mik:MaterialIconKind.CheckCircle}"/>
+                                                    <conv:MapItem From="{x:Static toasts:ToastType.Error}" To="{x:Static mik:MaterialIconKind.AlertCircle}"/>
+                                                    <conv:MapItem From="{x:Static toasts:ToastType.Info}" To="{x:Static mik:MaterialIconKind.InformationOutline}"/>
+                                                </conv:ObjectToObject>
+                                            </Binding.Converter>
+                                        </Binding>
+                                    </mi:MaterialIcon.Kind>
+                                </mi:MaterialIcon>
+                            </Border>
 
-                        <TextBlock Grid.Column="1"
-                                   Text="{Binding Message}"
-                                   VerticalAlignment="Center"
-                                   TextWrapping="Wrap"
-                                   Foreground="White"
-                                   Margin="0,0,12,0"/>
+                            <!-- Message -->
+                            <TextBlock Grid.Column="2"
+                                       Text="{Binding Message}"
+                                       VerticalAlignment="Center"
+                                       TextWrapping="Wrap"
+                                       Foreground="{DynamicResource ToastForegroundBrush}"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"
+                                       Margin="0,14,8,14"/>
 
-                        <Button Grid.Column="2"
-                                Command="{Binding DismissCommand}"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Width="24"
-                                Height="24"
-                                Padding="0"
-                                VerticalAlignment="Center"
-                                Cursor="Hand">
-                            <mi:MaterialIcon Kind="Close"
-                                             Width="14"
-                                             Height="14"
-                                             Foreground="White"/>
-                        </Button>
-                    </Grid>
+                            <!-- Close button -->
+                            <Button Grid.Column="3"
+                                    Command="{Binding DismissCommand}"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Width="28"
+                                    Height="28"
+                                    Padding="0"
+                                    Margin="0,0,10,0"
+                                    VerticalAlignment="Center"
+                                    Cursor="Hand"
+                                    CornerRadius="6">
+                                <Button.Styles>
+                                    <Style Selector="Button">
+                                        <Setter Property="Opacity" Value="0.6"/>
+                                    </Style>
+                                    <Style Selector="Button:pointerover">
+                                        <Setter Property="Opacity" Value="1"/>
+                                        <Setter Property="Background" Value="{DynamicResource ToastCloseButtonHoverBrush}"/>
+                                    </Style>
+                                </Button.Styles>
+                                <mi:MaterialIcon Kind="Close"
+                                                 Width="16"
+                                                 Height="16"
+                                                 Foreground="{DynamicResource ToastForegroundBrush}"/>
+                            </Button>
+                        </Grid>
+                    </Border>
                 </Border>
             </DataTemplate>
 
             <!-- Action toast (with button) -->
             <DataTemplate x:DataType="toasts:ActionToastItemViewModel">
-                <Border CornerRadius="4"
-                        Padding="8"
-                        MaxWidth="320"
-                        MinWidth="200">
-                    <Border.Background>
-                        <Binding Path="Type">
-                            <Binding.Converter>
-                                <conv:ObjectToObject DefaultValue="{StaticResource InfoBrush}">
-                                    <conv:MapItem From="{x:Static toasts:ToastType.Success}" To="{StaticResource SuccessBrush}"/>
-                                    <conv:MapItem From="{x:Static toasts:ToastType.Error}" To="{StaticResource ErrorBrush}"/>
-                                    <conv:MapItem From="{x:Static toasts:ToastType.Info}" To="{StaticResource InfoBrush}"/>
-                                </conv:ObjectToObject>
-                            </Binding.Converter>
-                        </Binding>
-                    </Border.Background>
-                    <Border.Transitions>
-                        <Transitions>
-                            <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
-                        </Transitions>
-                    </Border.Transitions>
-
-                    <Grid ColumnDefinitions="Auto,*,Auto">
-                        <!-- Left column: icon, vertically centered -->
-                        <mi:MaterialIcon Grid.Column="0"
-                                         Width="16"
-                                         Height="16"
-                                         VerticalAlignment="Center"
-                                         Foreground="White"
-                                         Margin="0,0,8,0">
-                            <mi:MaterialIcon.Kind>
-                                <Binding Path="Type">
-                                    <Binding.Converter>
-                                        <conv:ObjectToObject DefaultValue="{x:Static mik:MaterialIconKind.InformationOutline}">
-                                            <conv:MapItem From="{x:Static toasts:ToastType.Success}" To="{x:Static mik:MaterialIconKind.CheckCircle}"/>
-                                            <conv:MapItem From="{x:Static toasts:ToastType.Error}" To="{x:Static mik:MaterialIconKind.AlertCircle}"/>
-                                            <conv:MapItem From="{x:Static toasts:ToastType.Info}" To="{x:Static mik:MaterialIconKind.InformationOutline}"/>
-                                        </conv:ObjectToObject>
-                                    </Binding.Converter>
-                                </Binding>
-                            </mi:MaterialIcon.Kind>
-                        </mi:MaterialIcon>
-
-                        <!-- Middle column: message + action button -->
-                        <StackPanel Grid.Column="1" Spacing="8">
-                            <TextBlock Text="{Binding Message}"
-                                       TextWrapping="Wrap"
-                                       Foreground="White"/>
-
-                            <Button Command="{Binding ExecuteActionCommand}"
-                                    Background="White"
-                                    CornerRadius="4"
-                                    Padding="8,4"
-                                    HorizontalAlignment="Right"
-                                    Cursor="Hand">
-                                <Button.Foreground>
+                <Border CornerRadius="12"
+                        MaxWidth="360"
+                        MinWidth="240"
+                        BoxShadow="0 4 16 0 #40000000">
+                    <Border CornerRadius="12"
+                            Background="{DynamicResource ToastBackgroundBrush}"
+                            ClipToBounds="True">
+                        <Grid ColumnDefinitions="3,Auto,*,Auto">
+                            <!-- Accent strip -->
+                            <Border Grid.Column="0"
+                                    CornerRadius="12,0,0,12">
+                                <Border.Background>
                                     <Binding Path="Type">
                                         <Binding.Converter>
-                                            <conv:ObjectToObject DefaultValue="{StaticResource InfoBrush}">
-                                                <conv:MapItem From="{x:Static toasts:ToastType.Success}" To="{StaticResource SuccessBrush}"/>
-                                                <conv:MapItem From="{x:Static toasts:ToastType.Error}" To="{StaticResource ErrorBrush}"/>
-                                                <conv:MapItem From="{x:Static toasts:ToastType.Info}" To="{StaticResource InfoBrush}"/>
+                                            <conv:ObjectToObject DefaultValue="{StaticResource ToastInfoAccentBrush}">
+                                                <conv:MapItem From="{x:Static toasts:ToastType.Success}" To="{StaticResource ToastSuccessAccentBrush}"/>
+                                                <conv:MapItem From="{x:Static toasts:ToastType.Error}" To="{StaticResource ToastErrorAccentBrush}"/>
+                                                <conv:MapItem From="{x:Static toasts:ToastType.Info}" To="{StaticResource ToastInfoAccentBrush}"/>
                                             </conv:ObjectToObject>
                                         </Binding.Converter>
                                     </Binding>
-                                </Button.Foreground>
-                                <StackPanel Orientation="Horizontal" Spacing="4">
-                                    <mi:MaterialIcon Kind="{Binding ActionIcon}"
-                                                     Width="14"
-                                                     Height="14"
-                                                     VerticalAlignment="Center"/>
-                                    <TextBlock Text="{Binding ActionText}"
-                                               VerticalAlignment="Center"
-                                               FontSize="12"/>
-                                </StackPanel>
-                            </Button>
-                        </StackPanel>
+                                </Border.Background>
+                            </Border>
 
-                        <!-- Right column: close button, vertically centered -->
-                        <Button Grid.Column="2"
-                                Command="{Binding DismissCommand}"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Width="24"
-                                Height="24"
-                                Padding="0"
-                                Margin="8,0,0,0"
-                                VerticalAlignment="Center"
-                                Cursor="Hand">
-                            <mi:MaterialIcon Kind="Close"
-                                             Width="14"
-                                             Height="14"
-                                             Foreground="White"/>
-                        </Button>
-                    </Grid>
+                            <!-- Icon badge -->
+                            <Border Grid.Column="1"
+                                    Width="32"
+                                    Height="32"
+                                    CornerRadius="8"
+                                    Margin="14,14,12,14"
+                                    VerticalAlignment="Top"
+                                    Background="{DynamicResource ToastIconBadgeBrush}">
+                                <mi:MaterialIcon Width="18"
+                                                 Height="18"
+                                                 HorizontalAlignment="Center"
+                                                 VerticalAlignment="Center">
+                                    <mi:MaterialIcon.Foreground>
+                                        <Binding Path="Type">
+                                            <Binding.Converter>
+                                                <conv:ObjectToObject DefaultValue="{StaticResource ToastInfoAccentBrush}">
+                                                    <conv:MapItem From="{x:Static toasts:ToastType.Success}" To="{StaticResource ToastSuccessAccentBrush}"/>
+                                                    <conv:MapItem From="{x:Static toasts:ToastType.Error}" To="{StaticResource ToastErrorAccentBrush}"/>
+                                                    <conv:MapItem From="{x:Static toasts:ToastType.Info}" To="{StaticResource ToastInfoAccentBrush}"/>
+                                                </conv:ObjectToObject>
+                                            </Binding.Converter>
+                                        </Binding>
+                                    </mi:MaterialIcon.Foreground>
+                                    <mi:MaterialIcon.Kind>
+                                        <Binding Path="Type">
+                                            <Binding.Converter>
+                                                <conv:ObjectToObject DefaultValue="{x:Static mik:MaterialIconKind.InformationOutline}">
+                                                    <conv:MapItem From="{x:Static toasts:ToastType.Success}" To="{x:Static mik:MaterialIconKind.CheckCircle}"/>
+                                                    <conv:MapItem From="{x:Static toasts:ToastType.Error}" To="{x:Static mik:MaterialIconKind.AlertCircle}"/>
+                                                    <conv:MapItem From="{x:Static toasts:ToastType.Info}" To="{x:Static mik:MaterialIconKind.InformationOutline}"/>
+                                                </conv:ObjectToObject>
+                                            </Binding.Converter>
+                                        </Binding>
+                                    </mi:MaterialIcon.Kind>
+                                </mi:MaterialIcon>
+                            </Border>
+
+                            <!-- Content: message + action button -->
+                            <StackPanel Grid.Column="2" Spacing="10" Margin="0,14,8,14">
+                                <TextBlock Text="{Binding Message}"
+                                           TextWrapping="Wrap"
+                                           Foreground="{DynamicResource ToastForegroundBrush}"
+                                           FontSize="13"
+                                           FontWeight="SemiBold"/>
+
+                                <Button Command="{Binding ExecuteActionCommand}"
+                                        CornerRadius="6"
+                                        Padding="12,6"
+                                        HorizontalAlignment="Left"
+                                        Cursor="Hand"
+                                        BorderThickness="0">
+                                    <Button.Background>
+                                        <Binding Path="Type">
+                                            <Binding.Converter>
+                                                <conv:ObjectToObject DefaultValue="{StaticResource ToastInfoAccentBrush}">
+                                                    <conv:MapItem From="{x:Static toasts:ToastType.Success}" To="{StaticResource ToastSuccessAccentBrush}"/>
+                                                    <conv:MapItem From="{x:Static toasts:ToastType.Error}" To="{StaticResource ToastErrorAccentBrush}"/>
+                                                    <conv:MapItem From="{x:Static toasts:ToastType.Info}" To="{StaticResource ToastInfoAccentBrush}"/>
+                                                </conv:ObjectToObject>
+                                            </Binding.Converter>
+                                        </Binding>
+                                    </Button.Background>
+                                    <Button.Styles>
+                                        <Style Selector="Button:pointerover">
+                                            <Setter Property="Opacity" Value="0.9"/>
+                                        </Style>
+                                    </Button.Styles>
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <mi:MaterialIcon Kind="{Binding ActionIcon}"
+                                                         Width="14"
+                                                         Height="14"
+                                                         VerticalAlignment="Center"
+                                                         Foreground="White"/>
+                                        <TextBlock Text="{Binding ActionText}"
+                                                   VerticalAlignment="Center"
+                                                   FontSize="12"
+                                                   FontWeight="SemiBold"
+                                                   Foreground="White"/>
+                                    </StackPanel>
+                                </Button>
+                            </StackPanel>
+
+                            <!-- Close button -->
+                            <Button Grid.Column="3"
+                                    Command="{Binding DismissCommand}"
+                                    Background="Transparent"
+                                    BorderThickness="0"
+                                    Width="28"
+                                    Height="28"
+                                    Padding="0"
+                                    Margin="0,10,10,0"
+                                    VerticalAlignment="Top"
+                                    Cursor="Hand"
+                                    CornerRadius="6">
+                                <Button.Styles>
+                                    <Style Selector="Button">
+                                        <Setter Property="Opacity" Value="0.6"/>
+                                    </Style>
+                                    <Style Selector="Button:pointerover">
+                                        <Setter Property="Opacity" Value="1"/>
+                                        <Setter Property="Background" Value="{DynamicResource ToastCloseButtonHoverBrush}"/>
+                                    </Style>
+                                </Button.Styles>
+                                <mi:MaterialIcon Kind="Close"
+                                                 Width="16"
+                                                 Height="16"
+                                                 Foreground="{DynamicResource ToastForegroundBrush}"/>
+                            </Button>
+                        </Grid>
+                    </Border>
                 </Border>
             </DataTemplate>
 
             <!-- File transfer progress toast -->
             <DataTemplate x:DataType="toasts:TransferToastItemViewModel">
-                <Border CornerRadius="4"
-                        Padding="12"
-                        MaxWidth="300"
-                        MinWidth="250"
-                        Background="{DynamicResource ToastTransferBackgroundBrush}">
-                    <Border.Transitions>
-                        <Transitions>
-                            <DoubleTransition Property="Opacity" Duration="0:0:0.2"/>
-                        </Transitions>
-                    </Border.Transitions>
+                <Border CornerRadius="12"
+                        MaxWidth="320"
+                        MinWidth="260"
+                        BoxShadow="0 4 16 0 #40000000">
+                    <Border CornerRadius="12"
+                            Background="{DynamicResource ToastTransferBackgroundBrush}"
+                            ClipToBounds="True">
+                        <Grid ColumnDefinitions="3,*">
+                            <!-- Accent strip -->
+                            <Border Grid.Column="0"
+                                    CornerRadius="12,0,0,12"
+                                    Background="{StaticResource ToastTransferAccentBrush}"/>
 
-                    <Grid RowDefinitions="Auto,Auto,Auto,Auto">
-                        <!-- Row 0: Header with icon, direction label, cancel button -->
-                        <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
-                            <mi:MaterialIcon Grid.Column="0"
-                                             Kind="{Binding IsUpload, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.FileUpload}, FalseValue={x:Static mik:MaterialIconKind.FileDownload}}}"
-                                             Width="16"
-                                             Height="16"
-                                             VerticalAlignment="Center"
-                                             Foreground="White"
-                                             Margin="0,0,8,0"/>
+                            <!-- Content -->
+                            <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,Auto" Margin="14">
+                                <!-- Row 0: Header with icon badge, direction label, cancel button -->
+                                <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
+                                    <!-- Icon badge -->
+                                    <Border Grid.Column="0"
+                                            Width="32"
+                                            Height="32"
+                                            CornerRadius="8"
+                                            Background="{DynamicResource ToastIconBadgeBrush}"
+                                            Margin="0,0,10,0"
+                                            VerticalAlignment="Center">
+                                        <mi:MaterialIcon Kind="{Binding IsUpload, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.CloudUpload}, FalseValue={x:Static mik:MaterialIconKind.CloudDownload}}}"
+                                                         Width="18"
+                                                         Height="18"
+                                                         HorizontalAlignment="Center"
+                                                         VerticalAlignment="Center"
+                                                         Foreground="{StaticResource ToastTransferAccentBrush}"/>
+                                    </Border>
 
-                            <TextBlock Grid.Column="1"
-                                       Text="{Binding IsUpload, Converter={conv:BoolToObject TrueValue='Sending file', FalseValue='Receiving file'}}"
-                                       VerticalAlignment="Center"
-                                       Foreground="White"
-                                       FontWeight="SemiBold"/>
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding IsUpload, Converter={conv:BoolToObject TrueValue='Sending file', FalseValue='Receiving file'}}"
+                                               VerticalAlignment="Center"
+                                               Foreground="{DynamicResource ToastForegroundBrush}"
+                                               FontWeight="SemiBold"
+                                               FontSize="13"/>
 
-                            <Button Grid.Column="2"
-                                    Command="{Binding CancelCommand}"
-                                    Background="Transparent"
-                                    BorderThickness="0"
-                                    Width="24"
-                                    Height="24"
-                                    Padding="0"
-                                    VerticalAlignment="Center"
-                                    Cursor="Hand"
-                                    ToolTip.Tip="Cancel transfer">
-                                <mi:MaterialIcon Kind="Close"
-                                                 Width="14"
-                                                 Height="14"
-                                                 Foreground="{DynamicResource ToastMutedTextBrush}"/>
-                            </Button>
+                                    <Button Grid.Column="2"
+                                            Command="{Binding CancelCommand}"
+                                            Background="Transparent"
+                                            BorderThickness="0"
+                                            Width="28"
+                                            Height="28"
+                                            Padding="0"
+                                            VerticalAlignment="Center"
+                                            Cursor="Hand"
+                                            CornerRadius="6"
+                                            ToolTip.Tip="Cancel transfer">
+                                        <Button.Styles>
+                                            <Style Selector="Button">
+                                                <Setter Property="Opacity" Value="0.6"/>
+                                            </Style>
+                                            <Style Selector="Button:pointerover">
+                                                <Setter Property="Opacity" Value="1"/>
+                                                <Setter Property="Background" Value="{DynamicResource ToastCloseButtonHoverBrush}"/>
+                                            </Style>
+                                        </Button.Styles>
+                                        <mi:MaterialIcon Kind="Close"
+                                                         Width="16"
+                                                         Height="16"
+                                                         Foreground="{DynamicResource ToastForegroundBrush}"/>
+                                    </Button>
+                                </Grid>
+
+                                <!-- Row 1: Filename -->
+                                <TextBlock Grid.Row="1"
+                                           Text="{Binding Transfer.FileName}"
+                                           TextTrimming="CharacterEllipsis"
+                                           Foreground="{DynamicResource ToastSecondaryTextBrush}"
+                                           FontSize="12"
+                                           Margin="0,8,0,10"
+                                           ToolTip.Tip="{Binding Transfer.FileName}"/>
+
+                                <!-- Row 2: Progress bar -->
+                                <Border Grid.Row="2"
+                                        Height="6"
+                                        CornerRadius="3"
+                                        Background="{DynamicResource ToastProgressBackgroundBrush}">
+                                    <Border CornerRadius="3"
+                                            HorizontalAlignment="Left"
+                                            Background="{StaticResource ToastTransferAccentBrush}">
+                                        <Border.Width>
+                                            <MultiBinding>
+                                                <MultiBinding.Converter>
+                                                    <conv:ProgressWidthConverter/>
+                                                </MultiBinding.Converter>
+                                                <Binding Path="Transfer.Progress"/>
+                                                <Binding Path="$parent[Border].Bounds.Width"/>
+                                            </MultiBinding>
+                                        </Border.Width>
+                                    </Border>
+                                </Border>
+
+                                <!-- Row 3: Footer - waiting text OR size/percent -->
+                                <TextBlock Grid.Row="3"
+                                           Text="Waiting for approval..."
+                                           Foreground="{DynamicResource ToastMutedTextBrush}"
+                                           FontSize="11"
+                                           FontStyle="Italic"
+                                           Margin="0,8,0,0">
+                                    <TextBlock.IsVisible>
+                                        <Binding Path="Transfer.State">
+                                            <Binding.Converter>
+                                                <conv:ObjectToObject DefaultValue="False">
+                                                    <conv:MapItem From="{x:Static ft:FileTransferState.Pending}" To="True"/>
+                                                    <conv:MapItem From="{x:Static ft:FileTransferState.WaitingForAcceptance}" To="True"/>
+                                                </conv:ObjectToObject>
+                                            </Binding.Converter>
+                                        </Binding>
+                                    </TextBlock.IsVisible>
+                                </TextBlock>
+
+                                <Grid Grid.Row="3"
+                                      ColumnDefinitions="*,Auto"
+                                      Margin="0,8,0,0">
+                                    <Grid.IsVisible>
+                                        <Binding Path="Transfer.State">
+                                            <Binding.Converter>
+                                                <conv:ObjectToObject DefaultValue="False">
+                                                    <conv:MapItem From="{x:Static ft:FileTransferState.Transferring}" To="True"/>
+                                                </conv:ObjectToObject>
+                                            </Binding.Converter>
+                                        </Binding>
+                                    </Grid.IsVisible>
+                                    <TextBlock Grid.Column="0"
+                                               Text="{Binding Transfer.FileSizeFormatted}"
+                                               Foreground="{DynamicResource ToastMutedTextBrush}"
+                                               FontSize="11"/>
+
+                                    <TextBlock Grid.Column="1"
+                                               Text="{Binding Transfer.ProgressPercent, StringFormat={}{0}%}"
+                                               Foreground="{DynamicResource ToastSecondaryTextBrush}"
+                                               FontSize="11"
+                                               FontWeight="SemiBold"/>
+                                </Grid>
+                            </Grid>
                         </Grid>
-
-                        <!-- Row 1: Filename (always visible) -->
-                        <TextBlock Grid.Row="1"
-                                   Text="{Binding Transfer.FileName}"
-                                   TextTrimming="CharacterEllipsis"
-                                   Foreground="{DynamicResource ToastSecondaryTextBrush}"
-                                   FontSize="12"
-                                   Margin="0,4,0,8"
-                                   ToolTip.Tip="{Binding Transfer.FileName}"/>
-
-                        <!-- Row 2: Progress bar -->
-                        <ProgressBar Grid.Row="2"
-                                     Value="{Binding Transfer.Progress}"
-                                     Minimum="0"
-                                     Maximum="1"
-                                     Height="4"
-                                     CornerRadius="2"
-                                     Background="{DynamicResource ToastProgressBackgroundBrush}">
-                            <ProgressBar.IsIndeterminate>
-                                <Binding Path="Transfer.State">
-                                    <Binding.Converter>
-                                        <conv:ObjectToObject DefaultValue="False">
-                                            <conv:MapItem From="{x:Static ft:FileTransferState.Pending}" To="True"/>
-                                            <conv:MapItem From="{x:Static ft:FileTransferState.WaitingForAcceptance}" To="True"/>
-                                        </conv:ObjectToObject>
-                                    </Binding.Converter>
-                                </Binding>
-                            </ProgressBar.IsIndeterminate>
-                        </ProgressBar>
-
-                        <!-- Row 3: Footer - waiting text OR size/percent -->
-                        <TextBlock Grid.Row="3"
-                                   Text="Waiting for approval..."
-                                   Foreground="{DynamicResource ToastMutedTextBrush}"
-                                   FontSize="11"
-                                   Margin="0,6,0,0">
-                            <TextBlock.IsVisible>
-                                <Binding Path="Transfer.State">
-                                    <Binding.Converter>
-                                        <conv:ObjectToObject DefaultValue="False">
-                                            <conv:MapItem From="{x:Static ft:FileTransferState.Pending}" To="True"/>
-                                            <conv:MapItem From="{x:Static ft:FileTransferState.WaitingForAcceptance}" To="True"/>
-                                        </conv:ObjectToObject>
-                                    </Binding.Converter>
-                                </Binding>
-                            </TextBlock.IsVisible>
-                        </TextBlock>
-
-                        <Grid Grid.Row="3"
-                              ColumnDefinitions="*,Auto"
-                              Margin="0,6,0,0">
-                            <Grid.IsVisible>
-                                <Binding Path="Transfer.State">
-                                    <Binding.Converter>
-                                        <conv:ObjectToObject DefaultValue="False">
-                                            <conv:MapItem From="{x:Static ft:FileTransferState.Transferring}" To="True"/>
-                                        </conv:ObjectToObject>
-                                    </Binding.Converter>
-                                </Binding>
-                            </Grid.IsVisible>
-                            <TextBlock Grid.Column="0"
-                                       Text="{Binding Transfer.FileSizeFormatted}"
-                                       Foreground="{DynamicResource ToastMutedTextBrush}"
-                                       FontSize="11"/>
-
-                            <TextBlock Grid.Column="1"
-                                       Text="{Binding Transfer.ProgressPercent, StringFormat={}{0}%}"
-                                       Foreground="{DynamicResource ToastMutedTextBrush}"
-                                       FontSize="11"/>
-                        </Grid>
-                    </Grid>
+                    </Border>
                 </Border>
             </DataTemplate>
         </ItemsControl.DataTemplates>
