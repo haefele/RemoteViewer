@@ -4,58 +4,77 @@
         xmlns:dialogs="using:RemoteViewer.Client.Controls.Dialogs"
         x:Class="RemoteViewer.Client.Controls.Dialogs.FileTransferConfirmationDialog"
         x:DataType="dialogs:FileTransferConfirmationDialogViewModel"
-        Title="File Transfer"
+        Title="Incoming File"
         Icon="/Assets/avalonia-logo.ico"
         SizeToContent="WidthAndHeight"
         CanResize="False"
         ShowInTaskbar="False"
         WindowStartupLocation="CenterScreen">
 
-    <Border Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-            CornerRadius="4"
-            Margin="16"
-            Padding="16"
+    <Border Padding="20"
             MinWidth="320"
-            MaxWidth="450">
+            MaxWidth="400">
 
         <StackPanel Spacing="16">
-            <!-- Header with icon and title -->
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <mi:MaterialIcon Kind="FileDownload"
-                                 Width="28"
-                                 Height="28" />
-                <TextBlock Text="Incoming File Transfer"
-                           FontSize="18"
-                           FontWeight="SemiBold"
-                           VerticalAlignment="Center"/>
-            </StackPanel>
 
-            <!-- Message -->
-            <StackPanel Spacing="8">
-                <TextBlock Text="{Binding SenderDisplayName, StringFormat='&quot;{0}&quot; wants to send you:'}"
-                           FontSize="14"
-                           TextWrapping="Wrap"/>
-
-                <Border Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
-                        CornerRadius="4"
-                        Padding="12">
-                    <StackPanel Spacing="4">
-                        <TextBlock Text="{Binding FileName}"
-                                   FontSize="14"
-                                   FontWeight="SemiBold"
-                                   TextWrapping="Wrap"/>
-                        <TextBlock Text="{Binding FileSizeFormatted}"
-                                   FontSize="12"/>
-                    </StackPanel>
+            <!-- Header with icon badge and title -->
+            <Grid ColumnDefinitions="Auto,*">
+                <Border Grid.Column="0"
+                        Width="40"
+                        Height="40"
+                        CornerRadius="10"
+                        Margin="0,0,14,0"
+                        Background="{DynamicResource ToastIconBadgeBrush}">
+                    <mi:MaterialIcon Kind="FileDownload"
+                                     Width="22"
+                                     Height="22"
+                                     HorizontalAlignment="Center"
+                                     VerticalAlignment="Center"
+                                     Foreground="{DynamicResource ToastInfoAccentBrush}"/>
                 </Border>
-            </StackPanel>
 
-            <!-- Buttons -->
-            <Grid ColumnDefinitions="*,16,*">
+                <StackPanel Grid.Column="1" VerticalAlignment="Center" Spacing="2">
+                    <TextBlock Text="Incoming File"
+                               FontSize="15"
+                               FontWeight="SemiBold"/>
+                    <TextBlock Text="{Binding SenderDisplayName, StringFormat='From {0}'}"
+                               FontSize="12"
+                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                </StackPanel>
+            </Grid>
+
+            <!-- File info card -->
+            <Border Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
+                    CornerRadius="8"
+                    Padding="14">
+                <Grid ColumnDefinitions="Auto,*">
+                    <mi:MaterialIcon Grid.Column="0"
+                                     Kind="File"
+                                     Width="20"
+                                     Height="20"
+                                     Margin="0,0,12,0"
+                                     VerticalAlignment="Center"
+                                     Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                    <StackPanel Grid.Column="1" Spacing="2">
+                        <TextBlock Text="{Binding FileName}"
+                                   FontSize="13"
+                                   FontWeight="SemiBold"
+                                   TextTrimming="CharacterEllipsis"
+                                   ToolTip.Tip="{Binding FileName}"/>
+                        <TextBlock Text="{Binding FileSizeFormatted}"
+                                   FontSize="11"
+                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <!-- Action buttons -->
+            <Grid ColumnDefinitions="*,10,*">
+                <!-- Reject button -->
                 <Button Grid.Column="0"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Center"
-                        Padding="16,10"
+                        Padding="14,10"
                         Click="OnRejectClicked">
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <mi:MaterialIcon Kind="Close" Width="16" Height="16"/>
@@ -63,11 +82,12 @@
                     </StackPanel>
                 </Button>
 
+                <!-- Accept button -->
                 <Button Grid.Column="2"
                         HorizontalAlignment="Stretch"
                         HorizontalContentAlignment="Center"
                         Classes="accent"
-                        Padding="16,10"
+                        Padding="14,10"
                         Click="OnAcceptClicked">
                     <StackPanel Orientation="Horizontal" Spacing="6">
                         <mi:MaterialIcon Kind="Check" Width="16" Height="16"/>
@@ -75,6 +95,7 @@
                     </StackPanel>
                 </Button>
             </Grid>
+
         </StackPanel>
     </Border>
 </Window>
