@@ -14,7 +14,7 @@
         </Style>
 
         <Style Selector="Button.DisplayButton TextBlock.dimensions">
-            <Setter Property="Foreground" Value="{DynamicResource SystemControlForegroundBaseMediumBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}" />
         </Style>
     </UserControl.Styles>
 

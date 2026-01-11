@@ -27,7 +27,7 @@
                     <DataTemplate x:DataType="hub:ChatMessageDisplay">
                         <Border Margin="{theme:Spacing Y=XXS}"
                                 Padding="{theme:Spacing X=SM, Y=SM}"
-                                CornerRadius="8"
+                                CornerRadius="{StaticResource CornerRadiusMD}"
                                 Classes.self="{Binding IsFromSelf}"
                                 Classes.other="{Binding !IsFromSelf}">
                             <Border.Styles>
@@ -50,8 +50,7 @@
                                 <!-- Message text (selectable) -->
                                 <SelectableTextBlock Text="{Binding Text}"
                                                      TextWrapping="Wrap"
-                                                     FontSize="13"
-                                                     LineHeight="20"/>
+                                                     Classes="body-small"/>
                                 <!-- Link buttons -->
                                 <ItemsControl ItemsSource="{Binding Links}"
                                               IsVisible="{Binding Links.Count}"
@@ -126,9 +125,11 @@
                     <Button Command="{Binding SendMessageCommand}"
                             ToolTip.Tip="Send message"
                             Classes="icon-button"
-                            Width="28"
-                            Height="28">
-                        <mi:MaterialIcon Kind="Send" Width="18" Height="18"
+                            Width="32"
+                            Height="32">
+                        <mi:MaterialIcon Kind="Send"
+                                         Width="{StaticResource IconSizeSM}"
+                                         Height="{StaticResource IconSizeSM}"
                                          Foreground="{DynamicResource AccentBrush}"/>
                     </Button>
                 </TextBox.InnerRightContent>

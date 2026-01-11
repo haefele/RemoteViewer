@@ -49,7 +49,9 @@
                                 Margin="{theme:Spacing Left=SM}"
                                 Command="{Binding CopyCredentialsCommand}"
                                 ToolTip.Tip="Copy ID and password">
-                            <mi:MaterialIcon Kind="ContentCopy" Width="20" Height="20"
+                            <mi:MaterialIcon Kind="ContentCopy"
+                                             Width="{StaticResource IconSizeMD}"
+                                             Height="{StaticResource IconSizeMD}"
                                              Foreground="{DynamicResource TextSecondaryBrush}"/>
                         </Button>
 
@@ -68,8 +70,10 @@
                                         ToolTip.Tip="Generate new password"
                                         Classes="icon-button"
                                         VerticalAlignment="Center"
-                                        Width="28" Height="28">
-                                    <mi:MaterialIcon Kind="Refresh" Width="18" Height="18"
+                                        Width="32" Height="32">
+                                    <mi:MaterialIcon Kind="Refresh"
+                                                     Width="{StaticResource IconSizeSM}"
+                                                     Height="{StaticResource IconSizeSM}"
                                                      Foreground="{DynamicResource TextSecondaryBrush}"/>
                                 </Button>
                             </StackPanel>
@@ -109,7 +113,9 @@
                                             Classes="icon-button"
                                             Padding="{theme:Spacing XS}"
                                             IsEnabled="{Binding !ConnectToDeviceCommand.IsRunning}">
-                                        <mi:MaterialIcon Kind="ArrowRightCircle" Width="20" Height="20"
+                                        <mi:MaterialIcon Kind="ArrowRightCircle"
+                                                         Width="{StaticResource IconSizeMD}"
+                                                         Height="{StaticResource IconSizeMD}"
                                                          Foreground="{DynamicResource AccentBrush}"/>
                                     </Button>
                                 </TextBox.InnerRightContent>
@@ -138,7 +144,9 @@
                             ToolTip.Tip="About"
                             Classes="icon-button"
                             Width="24" Height="24">
-                        <mi:MaterialIcon Kind="InformationOutline" Width="16" Height="16"
+                        <mi:MaterialIcon Kind="InformationOutline"
+                                         Width="{StaticResource IconSizeSM}"
+                                         Height="{StaticResource IconSizeSM}"
                                          Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </Button>
                 </Grid>
@@ -158,7 +166,8 @@
                 IsVisible="{Binding HasVersionMismatch}">
             <Grid ColumnDefinitions="Auto,*">
                 <mi:MaterialIcon Kind="AlertOutline"
-                                 Width="20" Height="20"
+                                 Width="{StaticResource IconSizeMD}"
+                                 Height="{StaticResource IconSizeMD}"
                                  Foreground="{DynamicResource WarningForegroundBrush}"
                                  VerticalAlignment="Center"
                                  Margin="{theme:Spacing Right=MD}"/>
