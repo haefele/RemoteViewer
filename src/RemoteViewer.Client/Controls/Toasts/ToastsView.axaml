@@ -11,7 +11,7 @@
     <ItemsControl ItemsSource="{Binding Items}">
         <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-                <StackPanel Spacing="10"/>
+                <StackPanel Spacing="{StaticResource ButtonGap}"/>
             </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
 
@@ -184,7 +184,7 @@
                             </Border>
 
                             <!-- Content: message + action button -->
-                            <StackPanel Grid.Column="2" Spacing="10" Margin="0,14,8,14">
+                            <StackPanel Grid.Column="2" Spacing="{StaticResource ButtonGap}" Margin="0,14,8,14">
                                 <TextBlock Text="{Binding Message}"
                                            TextWrapping="Wrap"
                                            Foreground="{DynamicResource ToastForegroundBrush}"
@@ -213,17 +213,17 @@
                                             <Setter Property="Opacity" Value="0.9"/>
                                         </Style>
                                     </Button.Styles>
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <StackPanel Orientation="Horizontal" Spacing="{StaticResource IconTextGap}">
                                         <mi:MaterialIcon Kind="{Binding ActionIcon}"
                                                          Width="14"
                                                          Height="14"
                                                          VerticalAlignment="Center"
-                                                         Foreground="White"/>
+                                                         Foreground="{DynamicResource OnAccentTextBrush}"/>
                                         <TextBlock Text="{Binding ActionText}"
                                                    VerticalAlignment="Center"
                                                    FontSize="12"
                                                    FontWeight="SemiBold"
-                                                   Foreground="White"/>
+                                                   Foreground="{DynamicResource OnAccentTextBrush}"/>
                                     </StackPanel>
                                 </Button>
                             </StackPanel>

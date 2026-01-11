@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:mi="using:Material.Icons.Avalonia"
+        xmlns:controls="using:RemoteViewer.Client.Controls"
         xmlns:dialogs="using:RemoteViewer.Client.Controls.Dialogs"
         xmlns:presenter="using:RemoteViewer.Client.Views.Presenter"
         x:Class="RemoteViewer.Client.Controls.Dialogs.ViewerSelectionDialog"
@@ -12,81 +13,85 @@
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner">
 
-    <Border Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-            CornerRadius="4"
-            Margin="16"
-            Padding="16"
+    <Border Classes="p-xl"
             MinWidth="320"
-            MaxWidth="450">
+            MaxWidth="400">
 
-        <StackPanel Spacing="16">
-            <!-- Header with icon and title -->
-            <StackPanel Orientation="Horizontal" Spacing="8">
-                <mi:MaterialIcon Kind="FileUpload"
-                                 Width="28"
-                                 Height="28"/>
-                <TextBlock Text="Send File"
-                           FontSize="18"
-                           FontWeight="SemiBold"
-                           VerticalAlignment="Center"/>
-            </StackPanel>
+        <StackPanel Classes="gap-lg">
 
-            <!-- File info card -->
-            <StackPanel Spacing="8">
-                <TextBlock Text="Select viewers to receive:"
-                           FontSize="14"
-                           TextWrapping="Wrap"/>
+            <!-- Header using DialogHeader control -->
+            <controls:DialogHeader Icon="FileUpload"
+                                   IconForeground="{DynamicResource ToastTransferAccentBrush}"
+                                   IconBackground="{DynamicResource BadgeBackgroundBrush}"
+                                   Title="Send File"
+                                   Subtitle="Select recipients"/>
 
-                <Border Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
-                        CornerRadius="4"
-                        Padding="12">
-                    <StackPanel Spacing="4">
+            <!-- File info card using design system styles -->
+            <Border Classes="card">
+                <Grid ColumnDefinitions="Auto,*">
+                    <mi:MaterialIcon Grid.Column="0"
+                                     Kind="File"
+                                     Width="{StaticResource IconSizeMD}"
+                                     Height="{StaticResource IconSizeMD}"
+                                     Classes="mx-md justify-center text-secondary"/>
+                    <StackPanel Grid.Column="1" Classes="gap-xxs">
                         <TextBlock Text="{Binding FileName}"
-                                   FontSize="14"
-                                   FontWeight="SemiBold"
-                                   TextWrapping="Wrap"/>
+                                   Classes="header-small truncate"
+                                   ToolTip.Tip="{Binding FileName}"/>
                         <TextBlock Text="{Binding FileSizeFormatted}"
-                                   FontSize="12"/>
+                                   Classes="small"/>
                     </StackPanel>
-                </Border>
+                </Grid>
+            </Border>
+
+            <!-- Viewer selection list -->
+            <StackPanel Classes="gap-sm">
+                <TextBlock Text="Recipients"
+                           Classes="caption ml-xxs"
+                           FontWeight="SemiBold"/>
+
+                <ItemsControl ItemsSource="{Binding Viewers}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="presenter:PresenterViewerDisplay">
+                            <Border Classes="list-item mb-sm">
+                                <CheckBox IsChecked="{Binding IsSelected}"
+                                          Classes="cursor-pointer">
+                                    <StackPanel Classes="flex-row gap-sm">
+                                        <mi:MaterialIcon Kind="Account"
+                                                         Width="{StaticResource IconSizeSM}"
+                                                         Height="{StaticResource IconSizeSM}"
+                                                         Classes="justify-center text-secondary"/>
+                                        <TextBlock Text="{Binding DisplayName}"
+                                                   Classes="body-small justify-center"/>
+                                    </StackPanel>
+                                </CheckBox>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </StackPanel>
 
-            <!-- Viewer checkboxes -->
-            <ItemsControl ItemsSource="{Binding Viewers}">
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate x:DataType="presenter:PresenterViewerDisplay">
-                        <CheckBox Content="{Binding DisplayName}"
-                                  IsChecked="{Binding IsSelected}"
-                                  Padding="4,6"/>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-
-            <!-- Buttons -->
-            <Grid ColumnDefinitions="*,16,*">
+            <!-- Action buttons -->
+            <Grid ColumnDefinitions="*,10,*">
                 <Button Grid.Column="0"
-                        HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Center"
-                        Padding="16,10"
+                        Classes="action-secondary w-full"
                         Click="OnCancelClicked">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <mi:MaterialIcon Kind="Close" Width="16" Height="16"/>
-                        <TextBlock Text="Cancel" VerticalAlignment="Center"/>
+                    <StackPanel Classes="flex-row gap-icon">
+                        <mi:MaterialIcon Kind="Close" Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}"/>
+                        <TextBlock Text="Cancel" Classes="justify-center"/>
                     </StackPanel>
                 </Button>
 
                 <Button Grid.Column="2"
-                        HorizontalAlignment="Stretch"
-                        HorizontalContentAlignment="Center"
-                        Classes="accent"
-                        Padding="16,10"
+                        Classes="action-primary w-full"
                         Click="OnSendClicked">
-                    <StackPanel Orientation="Horizontal" Spacing="6">
-                        <mi:MaterialIcon Kind="Send" Width="16" Height="16"/>
-                        <TextBlock Text="Send" VerticalAlignment="Center"/>
+                    <StackPanel Classes="flex-row gap-icon">
+                        <mi:MaterialIcon Kind="Send" Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}"/>
+                        <TextBlock Text="Send" Classes="justify-center"/>
                     </StackPanel>
                 </Button>
             </Grid>
+
         </StackPanel>
     </Border>
 </Window>

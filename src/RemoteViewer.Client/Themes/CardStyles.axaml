@@ -1,0 +1,126 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ============================================== -->
+    <!-- CARD / CONTAINER STYLES                        -->
+    <!-- ============================================== -->
+
+    <!-- Basic Card - Rounded background container -->
+    <!-- Usage: <Border Classes="card"> -->
+    <Style Selector="Border.card">
+        <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="14"/>
+    </Style>
+
+    <!-- Card with larger padding -->
+    <Style Selector="Border.card-lg">
+        <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+        <Setter Property="CornerRadius" Value="12"/>
+        <Setter Property="Padding" Value="16"/>
+    </Style>
+
+    <!-- Elevated Card - With shadow for floating effect -->
+    <!-- Usage: <Border Classes="card-elevated"> -->
+    <Style Selector="Border.card-elevated">
+        <Setter Property="Background" Value="{DynamicResource CardElevatedBackgroundBrush}"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="14"/>
+        <Setter Property="BoxShadow" Value="0 2 8 0 #20000000"/>
+    </Style>
+
+    <Style Selector="Border.card-elevated-lg">
+        <Setter Property="Background" Value="{DynamicResource CardElevatedBackgroundBrush}"/>
+        <Setter Property="CornerRadius" Value="12"/>
+        <Setter Property="Padding" Value="16"/>
+        <Setter Property="BoxShadow" Value="0 4 16 0 #30000000"/>
+    </Style>
+
+    <!-- Surface Card - Uses surface colors, for nested content -->
+    <!-- Usage: <Border Classes="surface"> -->
+    <Style Selector="Border.surface">
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="14"/>
+    </Style>
+
+    <Style Selector="Border.surface-elevated">
+        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="14"/>
+    </Style>
+
+    <!-- Accent Strip Card - Left colored border accent -->
+    <!-- Usage: <Border Classes="accent-strip success"> -->
+    <Style Selector="Border.accent-strip">
+        <Setter Property="Background" Value="{DynamicResource CardBackgroundBrush}"/>
+        <Setter Property="CornerRadius" Value="0,8,8,0"/>
+        <Setter Property="Padding" Value="14"/>
+        <Setter Property="BorderThickness" Value="3,0,0,0"/>
+    </Style>
+
+    <Style Selector="Border.accent-strip.success">
+        <Setter Property="BorderBrush" Value="{DynamicResource ToastSuccessAccentBrush}"/>
+    </Style>
+
+    <Style Selector="Border.accent-strip.error">
+        <Setter Property="BorderBrush" Value="{DynamicResource ToastErrorAccentBrush}"/>
+    </Style>
+
+    <Style Selector="Border.accent-strip.info">
+        <Setter Property="BorderBrush" Value="{DynamicResource ToastInfoAccentBrush}"/>
+    </Style>
+
+    <Style Selector="Border.accent-strip.warning">
+        <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}"/>
+    </Style>
+
+    <Style Selector="Border.accent-strip.accent">
+        <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+    </Style>
+
+    <!-- Dialog Panel - For dialog content sections -->
+    <!-- Usage: <Border Classes="dialog-panel"> -->
+    <Style Selector="Border.dialog-panel">
+        <Setter Property="Background" Value="{DynamicResource SurfaceElevatedBrush}"/>
+        <Setter Property="CornerRadius" Value="12"/>
+        <Setter Property="Padding" Value="16"/>
+    </Style>
+
+    <!-- Toast Card - Semi-transparent with shadow -->
+    <!-- Usage: <Border Classes="toast-card"> -->
+    <Style Selector="Border.toast-card">
+        <Setter Property="Background" Value="{DynamicResource ToastBackgroundBrush}"/>
+        <Setter Property="CornerRadius" Value="12"/>
+        <Setter Property="BoxShadow" Value="0 4 16 0 #40000000"/>
+    </Style>
+
+    <!-- Overlay Card - For centered overlays -->
+    <!-- Usage: <Border Classes="overlay-card"> -->
+    <Style Selector="Border.overlay-card">
+        <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        <Setter Property="CornerRadius" Value="20"/>
+        <Setter Property="Padding" Value="32,28"/>
+    </Style>
+
+    <!-- List Item Card - For items in lists -->
+    <!-- Usage: <Border Classes="list-item"> -->
+    <Style Selector="Border.list-item">
+        <Setter Property="Background" Value="{DynamicResource SurfaceOverlayBrush}"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="14"/>
+    </Style>
+
+    <!-- Interactive list item with hover -->
+    <Style Selector="Border.list-item-interactive">
+        <Setter Property="Background" Value="{DynamicResource SurfaceOverlayBrush}"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="Padding" Value="14"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style Selector="Border.list-item-interactive:pointerover">
+        <Setter Property="Background" Value="{DynamicResource WindowButtonHoverBrush}"/>
+    </Style>
+
+</Styles>

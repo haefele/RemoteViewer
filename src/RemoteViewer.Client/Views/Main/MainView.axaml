@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:RemoteViewer.Client.Controls"
         xmlns:vm="using:RemoteViewer.Client.Views.Main"
         xmlns:conv="using:RemoteViewer.Client.Converters"
         xmlns:toastControls="using:RemoteViewer.Client.Controls.Toasts"
@@ -22,94 +23,68 @@
         <DockPanel>
             <!-- Status Bar at Bottom -->
             <Border DockPanel.Dock="Bottom"
-                    Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
-                    Padding="10,6">
+                    Classes="bg-elevated px-md py-sm">
                 <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel Orientation="Horizontal" Spacing="8">
+                    <StackPanel Classes="flex-row gap-sm">
                         <mi:MaterialIcon Kind="{Binding IsConnected, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.CloudCheck}, FalseValue={x:Static mik:MaterialIconKind.CloudOffOutline}}}"
-                                         Width="16" Height="16"
-                                         Foreground="{Binding IsConnected, Converter={conv:BoolToObject TrueValue='#4CAF50', FalseValue='#F44336'}}"/>
+                                         Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}"
+                                         Foreground="{Binding IsConnected, Converter={conv:BoolToObject TrueValue={StaticResource SuccessBrush}, FalseValue={StaticResource ErrorBrush}}}"/>
                         <TextBlock Text="{Binding StatusText}"
-                                   VerticalAlignment="Center"
-                                   FontSize="12"/>
+                                   Classes="caption justify-center"/>
                     </StackPanel>
 
                     <Button Grid.Column="1"
                             Command="{Binding ShowAboutCommand}"
                             ToolTip.Tip="About"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Width="24" Height="24"
-                            Padding="0">
+                            Classes="icon-button"
+                            Width="24" Height="24">
                         <mi:MaterialIcon Kind="InformationOutline" Width="16" Height="16"
-                                         Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                         Classes="text-secondary"/>
                     </Button>
                 </Grid>
             </Border>
 
             <!-- Main Content -->
-            <Grid ColumnDefinitions="*,*" Margin="16">
+            <Grid ColumnDefinitions="*,*" Classes="m-lg">
                 <!-- Left Panel - Your Credentials -->
                 <Border Grid.Column="0"
-                        Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                        CornerRadius="8"
-                        Padding="16"
-                        Margin="0,0,8,0">
+                        Classes="card-lg mr-sm">
                     <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
                         <!-- Row 0: Title -->
                         <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
                                    Text="Your Credentials"
-                                   FontWeight="SemiBold"
-                                   FontSize="16"
-                                   Margin="0,0,0,12"/>
+                                   Classes="header-small mb-md"/>
 
                         <!-- Row 1: ID Label + Value -->
-                        <StackPanel Grid.Row="1" Grid.Column="0" Spacing="4">
+                        <StackPanel Grid.Row="1" Grid.Column="0" Classes="gap-xs">
                             <TextBlock Text="ID"
-                                       FontSize="12"
-                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                       Classes="caption secondary"/>
                             <SelectableTextBlock Text="{Binding YourUsername}"
-                                                 Margin="0,8,0,0"
-                                                 FontFamily="Consolas, Courier New, monospace"
-                                                 FontSize="18"
-                                                 FontWeight="Bold"/>
+                                                 Classes="credential my-sm"/>
                         </StackPanel>
 
                         <!-- Copy button - spans rows 1-2, vertically centered -->
                         <Button Grid.Row="1" Grid.RowSpan="2" Grid.Column="1"
-                                VerticalAlignment="Center"
+                                Classes="icon-button justify-center ml-sm"
                                 Command="{Binding CopyCredentialsCommand}"
-                                ToolTip.Tip="Copy ID and password"
-                                Background="Transparent"
-                                BorderThickness="0"
-                                Width="32" Height="32"
-                                Padding="0"
-                                Margin="8,0,0,0">
+                                ToolTip.Tip="Copy ID and password">
                             <mi:MaterialIcon Kind="ContentCopy" Width="20" Height="20"
-                                             Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                             Classes="text-secondary"/>
                         </Button>
 
                         <!-- Row 2: Password Label + Value with Refresh -->
-                        <StackPanel Grid.Row="2" Grid.Column="0" Spacing="4" Margin="0,12,0,0">
+                        <StackPanel Grid.Row="2" Grid.Column="0" Classes="gap-xs mt-md">
                             <TextBlock Text="Password"
-                                       FontSize="12"
-                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
-                            <StackPanel Orientation="Horizontal" Spacing="4">
+                                       Classes="caption secondary"/>
+                            <StackPanel Classes="flex-row gap-xs">
                                 <SelectableTextBlock Text="{Binding YourPassword}"
-                                                     Margin="0,8,0,2"
-                                                     FontFamily="Consolas, Courier New, monospace"
-                                                     FontSize="18"
-                                                     FontWeight="Bold"
-                                                     VerticalAlignment="Center"/>
+                                                     Classes="credential my-sm justify-center"/>
                                 <Button Command="{Binding GenerateNewPasswordCommand}"
                                         ToolTip.Tip="Generate new password"
-                                        Background="Transparent"
-                                        BorderThickness="0"
-                                        Width="28" Height="28"
-                                        Padding="0"
-                                        VerticalAlignment="Center">
+                                        Classes="icon-button justify-center"
+                                        Width="28" Height="28">
                                     <mi:MaterialIcon Kind="Refresh" Width="18" Height="18"
-                                                     Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                                     Classes="text-secondary"/>
                                 </Button>
                             </StackPanel>
                         </StackPanel>
@@ -118,19 +93,14 @@
 
                 <!-- Right Panel - Connect to Device -->
                 <Border Grid.Column="1"
-                        Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                        CornerRadius="8"
-                        Padding="16"
-                        Margin="8,0,0,0">
-                    <StackPanel Spacing="12">
+                        Classes="card-lg ml-sm">
+                    <StackPanel Classes="gap-md">
                         <TextBlock Text="Connect to Device"
-                                   FontWeight="SemiBold"
-                                   FontSize="16"/>
+                                   Classes="header-small"/>
 
-                        <StackPanel Spacing="4">
+                        <StackPanel Classes="gap-xs">
                             <TextBlock Text="ID"
-                                       FontSize="12"
-                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                       Classes="caption secondary"/>
                             <TextBox x:Name="TargetUsernameBox"
                                      Text="{Binding TargetUsername}"
                                      Watermark="Enter ID"
@@ -138,10 +108,9 @@
                                      PastingFromClipboard="TargetUsernameBox_Pasting"/>
                         </StackPanel>
 
-                        <StackPanel Spacing="4">
+                        <StackPanel Classes="gap-xs">
                             <TextBlock Text="Password"
-                                       FontSize="12"
-                                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                       Classes="caption secondary"/>
                             <TextBox x:Name="TargetPasswordBox"
                                      Text="{Binding TargetPassword}"
                                      Watermark="Enter password"
@@ -151,12 +120,10 @@
                                 <TextBox.InnerRightContent>
                                     <Button Command="{Binding ConnectToDeviceCommand}"
                                             ToolTip.Tip="Connect"
-                                            Background="Transparent"
-                                            BorderThickness="0"
-                                            Padding="4"
+                                            Classes="icon-button p-xs"
                                             IsEnabled="{Binding !ConnectToDeviceCommand.IsRunning}">
                                         <mi:MaterialIcon Kind="ArrowRightCircle" Width="20" Height="20"
-                                                         Foreground="{DynamicResource SystemAccentColor}"/>
+                                                         Classes="text-accent"/>
                                     </Button>
                                 </TextBox.InnerRightContent>
                             </TextBox>
@@ -167,26 +134,21 @@
         </DockPanel>
 
         <toastControls:ToastsView DataContext="{Binding Toasts}"
-                                  VerticalAlignment="Bottom"
-                                  HorizontalAlignment="Right"
-                                  Margin="0,0,8,8"/>
+                                  Classes="items-end justify-end mr-sm mb-sm"/>
 
         <!-- Version Mismatch Warning Banner (overlay) -->
-        <Border VerticalAlignment="Top"
-                HorizontalAlignment="Stretch"
+        <Border Classes="items-stretch justify-start px-md py-sm"
                 Background="{DynamicResource WarningBackgroundBrush}"
-                Padding="12,8"
                 IsVisible="{Binding HasVersionMismatch}">
             <Grid ColumnDefinitions="Auto,*">
                 <mi:MaterialIcon Kind="AlertOutline"
                                  Width="20" Height="20"
                                  Foreground="{DynamicResource WarningForegroundBrush}"
-                                 VerticalAlignment="Center"
-                                 Margin="0,0,10,0"/>
+                                 Classes="justify-center mr-md"/>
                 <TextBlock Grid.Column="1"
                            Text="{Binding VersionMismatchText}"
                            Foreground="{DynamicResource WarningForegroundBrush}"
-                           VerticalAlignment="Center"/>
+                           Classes="justify-center"/>
             </Grid>
         </Border>
     </Panel>

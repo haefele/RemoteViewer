@@ -1,5 +1,6 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:controls="using:RemoteViewer.Client.Controls"
         xmlns:vm="using:RemoteViewer.Client.Views.About"
         xmlns:mi="using:Material.Icons.Avalonia"
         xmlns:mik="using:Material.Icons"
@@ -7,81 +8,87 @@
         x:DataType="vm:AboutViewModel"
         Icon="/Assets/avalonia-logo.ico"
         Title="About Remote Viewer"
-        Width="500"
-        Height="600"
+        Width="480"
+        Height="560"
         CanResize="False"
         WindowStartupLocation="CenterScreen"
         DataContextChanged="Window_DataContextChanged"
         Closed="Window_Closed">
 
-    <Grid RowDefinitions="Auto,*,Auto" Margin="20">
+    <Grid RowDefinitions="Auto,*,Auto" Classes="p-xl">
+
         <!-- Header Section -->
-        <StackPanel Grid.Row="0" Spacing="8" HorizontalAlignment="Center" Margin="0,8,0,20">
-            <mi:MaterialIcon Kind="{x:Static mik:MaterialIconKind.RemoteDesktop}"
-                             Width="64" Height="64"
-                             Foreground="{DynamicResource AccentBrush}"
-                             HorizontalAlignment="Center"/>
+        <StackPanel Grid.Row="0" Classes="gap-md items-center mt-sm mb-xl">
+            <!-- Circular icon badge using design system -->
+            <controls:IconBadge Icon="{x:Static mik:MaterialIconKind.RemoteDesktop}"
+                                Size="Large"
+                                BadgeBackground="{DynamicResource AccentBrush}"
+                                IconForeground="White"/>
 
-            <TextBlock Text="{Binding ApplicationName}"
-                       FontSize="24"
-                       FontWeight="Bold"
-                       HorizontalAlignment="Center"/>
+            <StackPanel Classes="gap-xs items-center">
+                <TextBlock Text="{Binding ApplicationName}"
+                           Classes="title-large items-center"/>
 
-            <TextBlock Text="{Binding Version, StringFormat='Version {0}'}"
-                       FontSize="14"
-                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                       HorizontalAlignment="Center"/>
+                <TextBlock Text="{Binding Version, StringFormat='Version {0}'}"
+                           Classes="body-small secondary items-center"/>
 
-            <TextBlock Text="{Binding Copyright}"
-                       FontSize="12"
-                       Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                       HorizontalAlignment="Center"/>
+                <TextBlock Text="{Binding Copyright}"
+                           Classes="small secondary items-center mt-xs"/>
+            </StackPanel>
         </StackPanel>
 
         <!-- Licenses Section -->
         <Border Grid.Row="1"
-                Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                CornerRadius="8"
-                Padding="16">
+                Classes="card-lg">
             <Grid RowDefinitions="Auto,*">
-                <TextBlock Grid.Row="0"
-                           Text="Third-Party Licenses"
-                           FontWeight="SemiBold"
-                           FontSize="14"
-                           Margin="0,0,0,12"/>
+                <StackPanel Grid.Row="0" Classes="flex-row gap-sm mb-md">
+                    <mi:MaterialIcon Kind="License"
+                                     Width="{StaticResource IconSizeSM}"
+                                     Height="{StaticResource IconSizeSM}"
+                                     Classes="justify-center text-secondary"/>
+                    <TextBlock Text="Third-Party Licenses"
+                               Classes="header-small justify-center"/>
+                </StackPanel>
 
                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding Licenses}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:ThirdPartyLicense">
-                                <Border Margin="0,0,0,8"
-                                        Padding="12"
-                                        Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
-                                        CornerRadius="4">
+                                <Border Classes="list-item mb-sm">
                                     <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
                                         <TextBlock Grid.Row="0" Grid.Column="0"
                                                    Text="{Binding Name}"
-                                                   FontWeight="SemiBold"
-                                                   FontSize="13"/>
+                                                   Classes="header-small"/>
 
-                                        <TextBlock Grid.Row="0" Grid.Column="1"
-                                                   Text="{Binding LicenseName}"
-                                                   FontSize="12"
-                                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                                                   VerticalAlignment="Center"/>
+                                        <Border Grid.Row="0" Grid.Column="1"
+                                                Classes="text-badge justify-center">
+                                            <TextBlock Text="{Binding LicenseName}"/>
+                                        </Border>
 
                                         <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
-                                                    Orientation="Horizontal"
-                                                    Spacing="12"
-                                                    Margin="0,4,0,0">
+                                                    Classes="flex-row gap-lg mt-sm">
                                             <HyperlinkButton NavigateUri="{Binding Url}"
-                                                             Content="Website"
-                                                             Padding="0"
-                                                             FontSize="12"/>
+                                                             Classes="p-0 cursor-pointer">
+                                                <StackPanel Classes="flex-row gap-xs">
+                                                    <mi:MaterialIcon Kind="Web"
+                                                                     Width="{StaticResource IconSizeXS}"
+                                                                     Height="{StaticResource IconSizeXS}"
+                                                                     Classes="justify-center"/>
+                                                    <TextBlock Text="Website"
+                                                               Classes="small justify-center"/>
+                                                </StackPanel>
+                                            </HyperlinkButton>
                                             <HyperlinkButton NavigateUri="{Binding LicenseUrl}"
-                                                             Content="License"
-                                                             Padding="0"
-                                                             FontSize="12"/>
+                                                             Classes="p-0 cursor-pointer">
+                                                <StackPanel Classes="flex-row gap-xs">
+                                                    <mi:MaterialIcon Kind="FileDocument"
+                                                                     Width="{StaticResource IconSizeXS}"
+                                                                     Height="{StaticResource IconSizeXS}"
+                                                                     Classes="justify-center"/>
+                                                    <TextBlock Text="License"
+                                                               Classes="small justify-center"/>
+                                                </StackPanel>
+                                            </HyperlinkButton>
                                         </StackPanel>
                                     </Grid>
                                 </Border>
@@ -94,10 +101,12 @@
 
         <!-- Footer Button -->
         <Button Grid.Row="2"
-                Content="Close"
-                HorizontalAlignment="Right"
-                MinWidth="80"
-                Margin="0,16,0,0"
-                Command="{Binding CloseCommand}"/>
+                Classes="action-secondary w-full my-lg"
+                Command="{Binding CloseCommand}">
+            <StackPanel Classes="flex-row gap-icon">
+                <mi:MaterialIcon Kind="Close" Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}"/>
+                <TextBlock Text="Close" Classes="justify-center"/>
+            </StackPanel>
+        </Button>
     </Grid>
 </Window>

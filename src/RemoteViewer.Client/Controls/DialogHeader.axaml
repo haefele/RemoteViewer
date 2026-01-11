@@ -1,0 +1,29 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:controls="using:RemoteViewer.Client.Controls"
+             x:Class="RemoteViewer.Client.Controls.DialogHeader"
+             x:DataType="controls:DialogHeader"
+             x:Name="Root">
+
+    <Grid ColumnDefinitions="Auto,*">
+        <!-- Icon Badge -->
+        <controls:IconBadge Grid.Column="0"
+                            Icon="{Binding Icon, ElementName=Root}"
+                            Size="{Binding IconSize, ElementName=Root}"
+                            IconForeground="{Binding IconForeground, ElementName=Root}"
+                            BadgeBackground="{Binding IconBackground, ElementName=Root}"
+                            Margin="{StaticResource SpacingHorizontalMD}"
+                            VerticalAlignment="Center"/>
+
+        <!-- Title and Subtitle -->
+        <StackPanel Grid.Column="1"
+                    VerticalAlignment="Center"
+                    Spacing="{StaticResource GapXS}">
+            <TextBlock Text="{Binding Title, ElementName=Root}"
+                       Classes="header"/>
+            <TextBlock Text="{Binding Subtitle, ElementName=Root}"
+                       Classes="caption"
+                       IsVisible="{Binding Subtitle, ElementName=Root, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+        </StackPanel>
+    </Grid>
+</UserControl>
