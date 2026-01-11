@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mi="using:Material.Icons.Avalonia"
+             xmlns:controls="using:RemoteViewer.Client.Controls"
+             x:Class="RemoteViewer.Client.Controls.IconBadge"
+             x:DataType="controls:IconBadge"
+             x:Name="Root">
+
+    <Border x:Name="BadgeBorder"
+            Background="{Binding BadgeBackground, ElementName=Root}"
+            HorizontalAlignment="Center"
+            VerticalAlignment="Center">
+        <mi:MaterialIcon x:Name="BadgeIcon"
+                         Kind="{Binding Icon, ElementName=Root}"
+                         Foreground="{Binding IconForeground, ElementName=Root}"
+                         HorizontalAlignment="Center"
+                         VerticalAlignment="Center"/>
+    </Border>
+</UserControl>

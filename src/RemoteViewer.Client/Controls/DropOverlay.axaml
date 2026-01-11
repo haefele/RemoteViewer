@@ -5,37 +5,33 @@
              x:Name="Root">
 
     <Border Background="{DynamicResource OverlayDimBrush}"
-            Padding="16">
+            Padding="{StaticResource SpacingLG}">
 
-        <!-- Centered card -->
+        <!-- Centered card using overlay-card style -->
         <Border HorizontalAlignment="Center"
                 VerticalAlignment="Center"
-                Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
-                CornerRadius="20"
-                Padding="32,28">
+                Classes="overlay-card">
 
-            <StackPanel Spacing="16" HorizontalAlignment="Center">
+            <StackPanel Spacing="{StaticResource GapLG}" HorizontalAlignment="Center">
                 <!-- Icon with circular background -->
                 <Border Background="{DynamicResource SuccessBrush}"
                         CornerRadius="32"
                         Width="64" Height="64"
                         HorizontalAlignment="Center">
                     <mi:MaterialIcon Kind="FileUpload"
-                                     Width="32" Height="32"
-                                     Foreground="White"
+                                     Width="{StaticResource IconSizeXL}" Height="{StaticResource IconSizeXL}"
+                                     Foreground="{DynamicResource OnAccentTextBrush}"
                                      HorizontalAlignment="Center"
                                      VerticalAlignment="Center"/>
                 </Border>
 
                 <!-- Text content -->
-                <StackPanel Spacing="4" HorizontalAlignment="Center">
+                <StackPanel Spacing="{StaticResource GapXS}" HorizontalAlignment="Center">
                     <TextBlock Text="Drop to Send"
-                               FontSize="18"
-                               FontWeight="SemiBold"
+                               Classes="title"
                                HorizontalAlignment="Center"/>
                     <TextBlock x:Name="SubtitleText"
-                               Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                               FontSize="13"
+                               Classes="body-small secondary"
                                TextWrapping="Wrap"
                                TextAlignment="Center"
                                HorizontalAlignment="Center"/>

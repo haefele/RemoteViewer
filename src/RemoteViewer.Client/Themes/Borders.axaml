@@ -1,0 +1,31 @@
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ============================================== -->
+    <!-- CORNER RADIUS TOKENS                           -->
+    <!-- ============================================== -->
+    <!-- Usage: CornerRadius="{StaticResource CornerRadiusMD}" -->
+
+    <CornerRadius x:Key="CornerRadiusNone">0</CornerRadius>
+    <CornerRadius x:Key="CornerRadiusSM">4</CornerRadius>
+    <CornerRadius x:Key="CornerRadiusMD">8</CornerRadius>
+    <CornerRadius x:Key="CornerRadiusLG">12</CornerRadius>
+    <CornerRadius x:Key="CornerRadiusXL">20</CornerRadius>
+    <CornerRadius x:Key="CornerRadiusRound">32</CornerRadius>
+
+    <!-- Specific use-case corner radii -->
+    <CornerRadius x:Key="CornerRadiusButton">6</CornerRadius>
+    <CornerRadius x:Key="CornerRadiusCard">8</CornerRadius>
+    <CornerRadius x:Key="CornerRadiusDialog">12</CornerRadius>
+
+    <!-- ============================================== -->
+    <!-- ICON SIZE TOKENS                               -->
+    <!-- ============================================== -->
+
+    <x:Double x:Key="IconSizeXS">12</x:Double>
+    <x:Double x:Key="IconSizeSM">16</x:Double>
+    <x:Double x:Key="IconSizeMD">20</x:Double>
+    <x:Double x:Key="IconSizeLG">24</x:Double>
+    <x:Double x:Key="IconSizeXL">32</x:Double>
+
+</ResourceDictionary>

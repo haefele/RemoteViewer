@@ -24,16 +24,12 @@
     <Grid RowDefinitions="Auto,*">
         <!-- Toolbar -->
         <Border Grid.Row="0"
-                Background="{DynamicResource SystemControlBackgroundChromeMediumBrush}"
-                Padding="8,6">
-            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
+                Classes="bg-elevated px-sm py-sm">
+            <StackPanel Classes="flex-row gap-sm items-center">
                 <!-- Send File button - no flyout when single viewer -->
                 <Button x:Name="SendFileButton"
                         ToolTip.Tip="Send file to viewers"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Width="32" Height="32"
-                        Padding="0"
+                        Classes="icon-button"
                         IsEnabled="{Binding Viewers.Count}"
                         Command="{Binding SendFileCommand}">
                     <mi:MaterialIcon Kind="FileUpload" Width="20" Height="20"/>
@@ -42,18 +38,14 @@
                 <!-- Chat button -->
                 <Button x:Name="ChatButton"
                         ToolTip.Tip="Chat"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Width="32" Height="32"
-                        Padding="0"
+                        Classes="icon-button"
                         Command="{Binding ShowChatCommand}">
                     <Panel>
                         <mi:MaterialIcon Kind="Chat" Width="20" Height="20"/>
                         <!-- Unread indicator -->
                         <Ellipse Width="8" Height="8"
                                  Fill="{DynamicResource ErrorBrush}"
-                                 HorizontalAlignment="Right"
-                                 VerticalAlignment="Top"
+                                 Classes="items-end justify-start"
                                  Margin="0,2,2,0"
                                  IsVisible="{Binding Chat.HasUnreadMessages}"/>
                     </Panel>
@@ -61,21 +53,17 @@
 
                 <!-- Stream Settings flyout -->
                 <Button ToolTip.Tip="Stream settings"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Width="32" Height="32"
-                        Padding="0">
+                        Classes="icon-button">
                     <Button.Flyout>
                         <Flyout Placement="Bottom">
-                            <StackPanel MinWidth="200" Spacing="12">
+                            <StackPanel MinWidth="200" Classes="gap-md">
                                 <TextBlock Text="Stream Settings"
-                                           FontWeight="SemiBold"
-                                           Margin="0,0,0,4"/>
+                                           Classes="header-small mb-xs"/>
 
                                 <!-- FPS Setting -->
-                                <StackPanel Spacing="4">
+                                <StackPanel Classes="gap-xs">
                                     <Grid ColumnDefinitions="*,Auto">
-                                        <TextBlock Text="FPS" VerticalAlignment="Center"/>
+                                        <TextBlock Text="FPS" Classes="justify-center"/>
                                         <TextBlock Grid.Column="1"
                                                    Text="{Binding TargetFps}"
                                                    FontWeight="SemiBold"/>
@@ -88,9 +76,9 @@
                                 </StackPanel>
 
                                 <!-- Quality Setting -->
-                                <StackPanel Spacing="4">
+                                <StackPanel Classes="gap-xs">
                                     <Grid ColumnDefinitions="*,Auto">
-                                        <TextBlock Text="Quality" VerticalAlignment="Center"/>
+                                        <TextBlock Text="Quality" Classes="justify-center"/>
                                         <TextBlock Grid.Column="1"
                                                    Text="{Binding Quality}"
                                                    FontWeight="SemiBold"/>
@@ -104,14 +92,11 @@
 
                                 <!-- Bandwidth Estimate -->
                                 <TextBlock Text="{Binding EstimatedBandwidth}"
-                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                                           FontSize="12"
-                                           Margin="0,8,0,0"/>
+                                           Classes="caption secondary mt-sm"/>
 
                                 <!-- Actual Bandwidth -->
                                 <TextBlock Text="{Binding ActualBandwidth}"
-                                           Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"
-                                           FontSize="12"/>
+                                           Classes="caption secondary"/>
                             </StackPanel>
                         </Flyout>
                     </Button.Flyout>
@@ -119,85 +104,59 @@
                 </Button>
 
                 <!-- Separator -->
-                <Border Width="1"
-                        Margin="0,4"
-                        Background="{DynamicResource SystemControlForegroundBaseMediumBrush}"
+                <Border Classes="divider-v"
                         IsVisible="{Binding Viewers.Count}"/>
 
                 <!-- Stop Presenting button -->
                 <Button Command="{Binding StopPresentingCommand}"
                         ToolTip.Tip="Stop presenting"
-                        Background="Transparent"
-                        BorderThickness="0"
-                        Width="32" Height="32"
-                        Padding="0">
-                    <mi:MaterialIcon Kind="LanDisconnect" Width="20" Height="20" Foreground="{DynamicResource ErrorBrush}"/>
+                        Classes="icon-button">
+                    <mi:MaterialIcon Kind="LanDisconnect" Width="20" Height="20" Classes="text-error"/>
                 </Button>
             </StackPanel>
         </Border>
 
         <!-- Main Content -->
-        <StackPanel Grid.Row="1" Spacing="16" Margin="16">
+        <StackPanel Grid.Row="1" Classes="gap-lg m-lg">
 
             <!-- Your Credentials -->
-            <Border Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                    CornerRadius="8"
-                    Padding="16">
+            <Border Classes="card-lg">
                 <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
                     <!-- Row 0: Title -->
                     <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
                                Text="Your Credentials"
-                               FontWeight="SemiBold"
-                               FontSize="16"
-                               Margin="0,0,0,12"/>
+                               Classes="header-small mb-md"/>
 
                     <!-- Row 1: ID Label + Value -->
-                    <StackPanel Grid.Row="1" Grid.Column="0" Spacing="4">
+                    <StackPanel Grid.Row="1" Grid.Column="0" Classes="gap-xs">
                         <TextBlock Text="ID"
-                                   FontSize="12"
-                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                   Classes="caption secondary"/>
                         <SelectableTextBlock Text="{Binding YourId}"
-                                             Margin="0,8,0,0"
-                                             FontFamily="Consolas, Courier New, monospace"
-                                             FontSize="18"
-                                             FontWeight="Bold"/>
+                                             Classes="credential my-sm"/>
                     </StackPanel>
 
                     <!-- Copy button - spans rows 1-2, vertically centered -->
                     <Button Grid.Row="1" Grid.RowSpan="2" Grid.Column="1"
-                            VerticalAlignment="Center"
+                            Classes="icon-button justify-center ml-sm"
                             Command="{Binding CopyCredentialsCommand}"
-                            ToolTip.Tip="Copy ID and password"
-                            Background="Transparent"
-                            BorderThickness="0"
-                            Width="32" Height="32"
-                            Padding="0"
-                            Margin="8,0,0,0">
+                            ToolTip.Tip="Copy ID and password">
                         <mi:MaterialIcon Kind="ContentCopy" Width="20" Height="20"
-                                         Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                         Classes="text-secondary"/>
                     </Button>
 
                     <!-- Row 2: Password Label + Value with Refresh -->
-                    <StackPanel Grid.Row="2" Grid.Column="0" Spacing="4" Margin="0,12,0,0">
+                    <StackPanel Grid.Row="2" Grid.Column="0" Classes="gap-xs mt-md">
                         <TextBlock Text="Password"
-                                   FontSize="12"
-                                   Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
-                        <StackPanel Orientation="Horizontal" Spacing="4">
+                                   Classes="caption secondary"/>
+                        <StackPanel Classes="flex-row gap-xs">
                             <SelectableTextBlock Text="{Binding YourPassword}"
-                                                 Margin="0,8,0,2"
-                                                 FontFamily="Consolas, Courier New, monospace"
-                                                 FontSize="18"
-                                                 FontWeight="Bold"
-                                                 VerticalAlignment="Center"/>
+                                                 Classes="credential my-sm justify-center"/>
                             <Button Command="{Binding GenerateNewPasswordCommand}"
                                     ToolTip.Tip="Generate new password"
-                                    Background="Transparent"
-                                    BorderThickness="0"
-                                    Width="28" Height="28"
-                                    Padding="0"
-                                    VerticalAlignment="Center">
+                                    Classes="icon-button justify-center"
+                                    Width="28" Height="28">
                                 <mi:MaterialIcon Kind="Refresh" Width="18" Height="18"
-                                                 Foreground="{DynamicResource SystemControlForegroundBaseMediumBrush}"/>
+                                                 Classes="text-secondary"/>
                             </Button>
                         </StackPanel>
                     </StackPanel>
@@ -205,45 +164,37 @@
             </Border>
 
             <!-- Connected Viewers -->
-            <Border Background="{DynamicResource SystemControlBackgroundBaseLowBrush}"
-                    CornerRadius="8"
-                    Padding="16"
+            <Border Classes="card-lg"
                     IsVisible="{Binding Viewers.Count}">
                 <Grid RowDefinitions="Auto,Auto">
                     <!-- Header -->
                     <TextBlock Grid.Row="0"
                                Text="{Binding Viewers.Count, StringFormat='Viewers ({0})'}"
-                               FontWeight="SemiBold"
-                               FontSize="16"
-                               Margin="0,0,0,12"/>
+                               Classes="header-small mb-md"/>
 
                     <!-- Viewers list -->
                     <ScrollViewer Grid.Row="1"
-                                  VerticalScrollBarVisibility="Auto" 
+                                  VerticalScrollBarVisibility="Auto"
                                   VerticalContentAlignment="Stretch">
-                        <ItemsControl ItemsSource="{Binding Viewers}" VerticalAlignment="Stretch">
+                        <ItemsControl ItemsSource="{Binding Viewers}" Classes="justify-stretch">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:PresenterViewerDisplay">
                                     <Grid ColumnDefinitions="*,Auto">
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="8">
-                                            <mi:MaterialIcon Kind="Account" 
-                                                             Width="16" 
-                                                             Height="16"
-                                                             VerticalAlignment="Center"/>
+                                        <StackPanel Grid.Column="0" Classes="flex-row gap-sm">
+                                            <mi:MaterialIcon Kind="Account"
+                                                             Width="{StaticResource IconSizeSM}"
+                                                             Height="{StaticResource IconSizeSM}"
+                                                             Classes="justify-center"/>
                                             <TextBlock Text="{Binding DisplayName}"
                                                        FontWeight="SemiBold"
-                                                       VerticalAlignment="Center"/>
+                                                       Classes="justify-center"/>
                                         </StackPanel>
 
                                         <!-- Block button for this viewer -->
                                         <Button Grid.Column="1"
                                                 Command="{Binding ToggleInputBlockCommand}"
                                                 ToolTip.Tip="{Binding IsInputBlocked, Converter={conv:BoolToObject TrueValue='Unblock input', FalseValue='Block input'}}"
-                                                Background="Transparent"
-                                                BorderThickness="0"
-                                                Width="32"
-                                                Height="32"
-                                                Padding="0">
+                                                Classes="icon-button">
                                             <mi:MaterialIcon Kind="{Binding IsInputBlocked, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.MouseOff}, FalseValue={x:Static mik:MaterialIconKind.Mouse}}}"
                                                              Width="18"
                                                              Height="18"/>
@@ -260,9 +211,7 @@
         <!-- Toast Notifications (overlay, bottom-right) -->
         <toastControls:ToastsView Grid.Row="1"
                                   DataContext="{Binding Toasts}"
-                                  VerticalAlignment="Bottom"
-                                  HorizontalAlignment="Right"
-                                  Margin="0,0,8,8"/>
+                                  Classes="items-end justify-end mr-sm mb-sm"/>
 
         <!-- Drop overlay for file transfer (covers entire window) -->
         <controls:DropOverlay x:Name="DropOverlay"
