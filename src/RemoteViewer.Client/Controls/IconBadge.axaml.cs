@@ -53,36 +53,5 @@ public partial class IconBadge : UserControl
     public IconBadge()
     {
         this.InitializeComponent();
-        this.UpdateSize();
-    }
-
-    protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
-    {
-        base.OnPropertyChanged(change);
-
-        if (change.Property == SizeProperty)
-        {
-            this.UpdateSize();
-        }
-    }
-
-    private void UpdateSize()
-    {
-        if (this.BadgeBorder == null || this.BadgeIcon == null)
-            return;
-
-        var (badgeSize, cornerRadius, iconSize) = this.Size switch
-        {
-            IconBadgeSize.Small => (32.0, 8.0, 16.0),
-            IconBadgeSize.Medium => (40.0, 10.0, 22.0),
-            IconBadgeSize.Large => (64.0, 32.0, 32.0),
-            _ => (40.0, 10.0, 22.0)
-        };
-
-        this.BadgeBorder.Width = badgeSize;
-        this.BadgeBorder.Height = badgeSize;
-        this.BadgeBorder.CornerRadius = new CornerRadius(cornerRadius);
-        this.BadgeIcon.Width = iconSize;
-        this.BadgeIcon.Height = iconSize;
     }
 }

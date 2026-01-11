@@ -4,6 +4,7 @@
         xmlns:vm="using:RemoteViewer.Client.Views.About"
         xmlns:mi="using:Material.Icons.Avalonia"
         xmlns:mik="using:Material.Icons"
+        xmlns:theme="using:RemoteViewer.Client.Themes"
         x:Class="RemoteViewer.Client.Views.About.AboutView"
         x:DataType="vm:AboutViewModel"
         Icon="/Assets/avalonia-logo.ico"
@@ -15,25 +16,33 @@
         DataContextChanged="Window_DataContextChanged"
         Closed="Window_Closed">
 
-    <Grid RowDefinitions="Auto,*,Auto" Classes="p-xl">
+    <Border Padding="{theme:Spacing XL}">
+    <Grid RowDefinitions="Auto,*,Auto">
 
         <!-- Header Section -->
-        <StackPanel Grid.Row="0" Classes="gap-md items-center mt-sm mb-xl">
+        <StackPanel Grid.Row="0"
+                    Spacing="{theme:Gap MD}"
+                    HorizontalAlignment="Center"
+                    Margin="{theme:Spacing Top=SM, Bottom=XL}">
             <!-- Circular icon badge using design system -->
             <controls:IconBadge Icon="{x:Static mik:MaterialIconKind.RemoteDesktop}"
                                 Size="Large"
                                 BadgeBackground="{DynamicResource AccentBrush}"
                                 IconForeground="White"/>
 
-            <StackPanel Classes="gap-xs items-center">
+            <StackPanel Spacing="{theme:Gap XS}" HorizontalAlignment="Center">
                 <TextBlock Text="{Binding ApplicationName}"
-                           Classes="title-large items-center"/>
+                           Classes="title-large"
+                           HorizontalAlignment="Center"/>
 
                 <TextBlock Text="{Binding Version, StringFormat='Version {0}'}"
-                           Classes="body-small secondary items-center"/>
+                           Classes="body-small secondary"
+                           HorizontalAlignment="Center"/>
 
                 <TextBlock Text="{Binding Copyright}"
-                           Classes="small secondary items-center mt-xs"/>
+                           Classes="small secondary"
+                           HorizontalAlignment="Center"
+                           Margin="{theme:Spacing Top=XS}"/>
             </StackPanel>
         </StackPanel>
 
@@ -41,52 +50,64 @@
         <Border Grid.Row="1"
                 Classes="card-lg">
             <Grid RowDefinitions="Auto,*">
-                <StackPanel Grid.Row="0" Classes="flex-row gap-sm mb-md">
+                <StackPanel Grid.Row="0"
+                            Orientation="Horizontal"
+                            Spacing="{theme:Gap SM}"
+                            Margin="{theme:Spacing Bottom=MD}">
                     <mi:MaterialIcon Kind="License"
                                      Width="{StaticResource IconSizeSM}"
                                      Height="{StaticResource IconSizeSM}"
-                                     Classes="justify-center text-secondary"/>
+                                     VerticalAlignment="Center"
+                                     Foreground="{DynamicResource TextSecondaryBrush}"/>
                     <TextBlock Text="Third-Party Licenses"
-                               Classes="header-small justify-center"/>
+                               Classes="header-small"
+                               VerticalAlignment="Center"/>
                 </StackPanel>
 
                 <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding Licenses}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:ThirdPartyLicense">
-                                <Border Classes="list-item mb-sm">
+                                <Border Classes="list-item" Margin="{theme:Spacing Bottom=SM}">
                                     <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
                                         <TextBlock Grid.Row="0" Grid.Column="0"
                                                    Text="{Binding Name}"
                                                    Classes="header-small"/>
 
                                         <Border Grid.Row="0" Grid.Column="1"
-                                                Classes="text-badge justify-center">
+                                                Classes="text-badge"
+                                                VerticalAlignment="Center">
                                             <TextBlock Text="{Binding LicenseName}"/>
                                         </Border>
 
                                         <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
-                                                    Classes="flex-row gap-lg mt-sm">
+                                                    Orientation="Horizontal"
+                                                    Spacing="{theme:Gap LG}"
+                                                    Margin="{theme:Spacing Top=SM}">
                                             <HyperlinkButton NavigateUri="{Binding Url}"
-                                                             Classes="p-0 cursor-pointer">
-                                                <StackPanel Classes="flex-row gap-xs">
+                                                             Padding="0"
+                                                             Cursor="Hand">
+                                                <StackPanel Orientation="Horizontal" Spacing="{theme:Gap XS}">
                                                     <mi:MaterialIcon Kind="Web"
                                                                      Width="{StaticResource IconSizeXS}"
                                                                      Height="{StaticResource IconSizeXS}"
-                                                                     Classes="justify-center"/>
+                                                                     VerticalAlignment="Center"/>
                                                     <TextBlock Text="Website"
-                                                               Classes="small justify-center"/>
+                                                               Classes="small"
+                                                               VerticalAlignment="Center"/>
                                                 </StackPanel>
                                             </HyperlinkButton>
                                             <HyperlinkButton NavigateUri="{Binding LicenseUrl}"
-                                                             Classes="p-0 cursor-pointer">
-                                                <StackPanel Classes="flex-row gap-xs">
+                                                             Padding="0"
+                                                             Cursor="Hand">
+                                                <StackPanel Orientation="Horizontal" Spacing="{theme:Gap XS}">
                                                     <mi:MaterialIcon Kind="FileDocument"
                                                                      Width="{StaticResource IconSizeXS}"
                                                                      Height="{StaticResource IconSizeXS}"
-                                                                     Classes="justify-center"/>
+                                                                     VerticalAlignment="Center"/>
                                                     <TextBlock Text="License"
-                                                               Classes="small justify-center"/>
+                                                               Classes="small"
+                                                               VerticalAlignment="Center"/>
                                                 </StackPanel>
                                             </HyperlinkButton>
                                         </StackPanel>
@@ -101,12 +122,15 @@
 
         <!-- Footer Button -->
         <Button Grid.Row="2"
-                Classes="action-secondary w-full my-lg"
+                Classes="action-secondary"
+                HorizontalAlignment="Stretch"
+                Margin="{theme:Spacing Y=LG}"
                 Command="{Binding CloseCommand}">
-            <StackPanel Classes="flex-row gap-icon">
+            <StackPanel Orientation="Horizontal" Spacing="{theme:Gap Icon}">
                 <mi:MaterialIcon Kind="Close" Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}"/>
-                <TextBlock Text="Close" Classes="justify-center"/>
+                <TextBlock Text="Close" VerticalAlignment="Center"/>
             </StackPanel>
         </Button>
     </Grid>
+    </Border>
 </Window>
