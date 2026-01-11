@@ -8,52 +8,12 @@
 
     <Application.Resources>
         <ResourceDictionary>
-            <!-- Accent Colors -->
-            <SolidColorBrush x:Key="AccentBrush" Color="#0078D4"/>
-            <SolidColorBrush x:Key="WarningBrush" Color="#FFA500"/>
-
-            <!-- Semantic Status Colors -->
-            <SolidColorBrush x:Key="SuccessBrush" Color="#4CAF50"/>
-            <SolidColorBrush x:Key="ErrorBrush" Color="#F44336"/>
-            <SolidColorBrush x:Key="InfoBrush" Color="#2196F3"/>
-            <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#FFF3CD"/>
-            <SolidColorBrush x:Key="WarningForegroundBrush" Color="#856404"/>
-
-            <!-- Overlay Colors -->
-            <SolidColorBrush x:Key="OverlayDimBrush" Color="#B0000000"/>
-            <SolidColorBrush x:Key="OverlayButtonBrush" Color="#80000000"/>
-
-            <!-- Toast Accent Colors (shared across themes) -->
-            <SolidColorBrush x:Key="ToastSuccessAccentBrush" Color="#22C55E"/>
-            <SolidColorBrush x:Key="ToastErrorAccentBrush" Color="#EF4444"/>
-            <SolidColorBrush x:Key="ToastInfoAccentBrush" Color="#3B82F6"/>
-            <SolidColorBrush x:Key="ToastTransferAccentBrush" Color="#3B82F6"/>
-
-            <ResourceDictionary.ThemeDictionaries>
-                <!-- Dark Theme -->
-                <ResourceDictionary x:Key="Dark">
-                    <SolidColorBrush x:Key="ToastBackgroundBrush" Color="#F01E1E1E"/>
-                    <SolidColorBrush x:Key="ToastForegroundBrush" Color="#FFFFFF"/>
-                    <SolidColorBrush x:Key="ToastTransferBackgroundBrush" Color="#F01E1E1E"/>
-                    <SolidColorBrush x:Key="ToastIconBadgeBrush" Color="#18FFFFFF"/>
-                    <SolidColorBrush x:Key="ToastProgressBackgroundBrush" Color="#40FFFFFF"/>
-                    <SolidColorBrush x:Key="ToastSecondaryTextBrush" Color="#E0E0E0"/>
-                    <SolidColorBrush x:Key="ToastMutedTextBrush" Color="#A0A0A0"/>
-                    <SolidColorBrush x:Key="ToastCloseButtonHoverBrush" Color="#20FFFFFF"/>
-                </ResourceDictionary>
-
-                <!-- Light Theme -->
-                <ResourceDictionary x:Key="Light">
-                    <SolidColorBrush x:Key="ToastBackgroundBrush" Color="#F5FFFFFF"/>
-                    <SolidColorBrush x:Key="ToastForegroundBrush" Color="#1F2937"/>
-                    <SolidColorBrush x:Key="ToastTransferBackgroundBrush" Color="#F5FFFFFF"/>
-                    <SolidColorBrush x:Key="ToastIconBadgeBrush" Color="#18000000"/>
-                    <SolidColorBrush x:Key="ToastProgressBackgroundBrush" Color="#20000000"/>
-                    <SolidColorBrush x:Key="ToastSecondaryTextBrush" Color="#4B5563"/>
-                    <SolidColorBrush x:Key="ToastMutedTextBrush" Color="#6B7280"/>
-                    <SolidColorBrush x:Key="ToastCloseButtonHoverBrush" Color="#10000000"/>
-                </ResourceDictionary>
-            </ResourceDictionary.ThemeDictionaries>
+            <ResourceDictionary.MergedDictionaries>
+                <!-- Design System - Colors and Tokens -->
+                <ResourceInclude Source="/Themes/Colors.axaml"/>
+                <ResourceInclude Source="/Themes/Spacing.axaml"/>
+                <ResourceInclude Source="/Themes/Borders.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
         </ResourceDictionary>
     </Application.Resources>
 
@@ -64,5 +24,15 @@
     <Application.Styles>
         <FluentTheme />
         <mi:MaterialIconStyles />
+
+        <!-- Design System - Component Styles -->
+        <StyleInclude Source="/Themes/Typography.axaml"/>
+        <StyleInclude Source="/Themes/ButtonStyles.axaml"/>
+        <StyleInclude Source="/Themes/CardStyles.axaml"/>
+        <StyleInclude Source="/Themes/BadgeStyles.axaml"/>
+
+        <!-- Tailwind-like Utility Classes -->
+        <StyleInclude Source="/Themes/Utilities.axaml"/>
+
     </Application.Styles>
 </Application>

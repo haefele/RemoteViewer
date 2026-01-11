@@ -1,0 +1,223 @@
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ============================================== -->
+    <!-- BUTTON STYLES                                  -->
+    <!-- ============================================== -->
+
+    <!-- Icon Button - Transparent background, for toolbars -->
+    <!-- Usage: <Button Classes="icon-button"> -->
+    <Style Selector="Button.icon-button">
+        <Setter Property="Width" Value="32"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style Selector="Button.icon-button:pointerover">
+        <Setter Property="Background" Value="{DynamicResource WindowButtonHoverBrush}"/>
+    </Style>
+
+    <Style Selector="Button.icon-button:pressed">
+        <Setter Property="Background" Value="{DynamicResource WindowButtonPressedBrush}"/>
+    </Style>
+
+    <!-- Icon Button Large -->
+    <Style Selector="Button.icon-button-lg">
+        <Setter Property="Width" Value="40"/>
+        <Setter Property="Height" Value="40"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CornerRadius" Value="8"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style Selector="Button.icon-button-lg:pointerover">
+        <Setter Property="Background" Value="{DynamicResource WindowButtonHoverBrush}"/>
+    </Style>
+
+    <Style Selector="Button.icon-button-lg:pressed">
+        <Setter Property="Background" Value="{DynamicResource WindowButtonPressedBrush}"/>
+    </Style>
+
+    <!-- Close Button - Small, opacity hover effect -->
+    <!-- Usage: <Button Classes="close-button"> -->
+    <Style Selector="Button.close-button">
+        <Setter Property="Width" Value="28"/>
+        <Setter Property="Height" Value="28"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Opacity" Value="0.6"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+    </Style>
+
+    <Style Selector="Button.close-button:pointerover">
+        <Setter Property="Opacity" Value="1"/>
+        <Setter Property="Background" Value="{DynamicResource ToastCloseButtonHoverBrush}"/>
+    </Style>
+
+    <Style Selector="Button.close-button:pressed">
+        <Setter Property="Opacity" Value="1"/>
+        <Setter Property="Background" Value="{DynamicResource WindowButtonPressedBrush}"/>
+    </Style>
+
+    <!-- Action Primary Button - Accent colored -->
+    <!-- Usage: <Button Classes="action-primary"> -->
+    <Style Selector="Button.action-primary">
+        <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource OnAccentTextBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Padding" Value="14,10"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style Selector="Button.action-primary:pointerover">
+        <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
+    </Style>
+
+    <Style Selector="Button.action-primary:pressed">
+        <Setter Property="Background" Value="{DynamicResource AccentPressedBrush}"/>
+    </Style>
+
+    <Style Selector="Button.action-primary:disabled">
+        <Setter Property="Opacity" Value="0.5"/>
+    </Style>
+
+    <!-- Action Secondary Button - Subtle background -->
+    <!-- Usage: <Button Classes="action-secondary"> -->
+    <Style Selector="Button.action-secondary">
+        <Setter Property="Background" Value="{DynamicResource ButtonSecondaryBackgroundBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Padding" Value="14,10"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style Selector="Button.action-secondary:pointerover">
+        <Setter Property="Background" Value="{DynamicResource ButtonSecondaryHoverBrush}"/>
+    </Style>
+
+    <Style Selector="Button.action-secondary:pressed">
+        <Setter Property="Background" Value="{DynamicResource ButtonSecondaryPressedBrush}"/>
+    </Style>
+
+    <Style Selector="Button.action-secondary:disabled">
+        <Setter Property="Opacity" Value="0.5"/>
+    </Style>
+
+    <!-- Ghost Button - No background, text only -->
+    <!-- Usage: <Button Classes="ghost"> -->
+    <Style Selector="Button.ghost">
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="8,6"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style Selector="Button.ghost:pointerover">
+        <Setter Property="Background" Value="{DynamicResource WindowButtonHoverBrush}"/>
+    </Style>
+
+    <Style Selector="Button.ghost:pressed">
+        <Setter Property="Background" Value="{DynamicResource WindowButtonPressedBrush}"/>
+    </Style>
+
+    <!-- Danger Button - Red/destructive actions -->
+    <!-- Usage: <Button Classes="danger"> -->
+    <Style Selector="Button.danger">
+        <Setter Property="Background" Value="{DynamicResource ErrorBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource OnAccentTextBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Padding" Value="14,10"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style Selector="Button.danger:pointerover">
+        <Setter Property="Background" Value="{DynamicResource ErrorHoverBrush}"/>
+    </Style>
+
+    <Style Selector="Button.danger:pressed">
+        <Setter Property="Background" Value="{DynamicResource ErrorPressedBrush}"/>
+    </Style>
+
+    <!-- Success Button - Green/positive actions -->
+    <!-- Usage: <Button Classes="success"> -->
+    <Style Selector="Button.success">
+        <Setter Property="Background" Value="{DynamicResource SuccessBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource OnAccentTextBrush}"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="CornerRadius" Value="6"/>
+        <Setter Property="Padding" Value="14,10"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Cursor" Value="Hand"/>
+    </Style>
+
+    <Style Selector="Button.success:pointerover">
+        <Setter Property="Background" Value="{DynamicResource SuccessHoverBrush}"/>
+    </Style>
+
+    <Style Selector="Button.success:pressed">
+        <Setter Property="Background" Value="{DynamicResource SuccessPressedBrush}"/>
+    </Style>
+
+    <!-- ============================================== -->
+    <!-- WINDOW BUTTON STYLES                           -->
+    <!-- ============================================== -->
+
+    <!-- Window Button - For window controls (min/max/close) -->
+    <!-- Usage: <Button Classes="window-button"> -->
+    <Style Selector="Button.window-button">
+        <Setter Property="Width" Value="46"/>
+        <Setter Property="Height" Value="32"/>
+        <Setter Property="Background" Value="Transparent"/>
+        <Setter Property="BorderThickness" Value="0"/>
+        <Setter Property="Padding" Value="0"/>
+        <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        <Setter Property="VerticalContentAlignment" Value="Center"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Foreground" Value="{DynamicResource WindowButtonForegroundBrush}"/>
+    </Style>
+
+    <Style Selector="Button.window-button:pointerover">
+        <Setter Property="Background" Value="{DynamicResource WindowButtonHoverBrush}"/>
+    </Style>
+
+    <Style Selector="Button.window-button:pressed">
+        <Setter Property="Background" Value="{DynamicResource WindowButtonPressedBrush}"/>
+    </Style>
+
+    <!-- Close Button Special Styling (red hover) -->
+    <Style Selector="Button.window-button-close:pointerover">
+        <Setter Property="Background" Value="{DynamicResource WindowCloseHoverBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource OnAccentTextBrush}"/>
+    </Style>
+
+    <Style Selector="Button.window-button-close:pressed">
+        <Setter Property="Background" Value="{DynamicResource WindowClosePressedBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource OnAccentTextBrush}"/>
+    </Style>
+
+</Styles>
