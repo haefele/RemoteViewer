@@ -27,7 +27,6 @@
         <!-- Design System - Component Styles -->
         <StyleInclude Source="/Themes/Typography.axaml"/>
         <StyleInclude Source="/Themes/ButtonStyles.axaml"/>
-        <StyleInclude Source="/Themes/CardStyles.axaml"/>
         <StyleInclude Source="/Themes/BadgeStyles.axaml"/>
 
     </Application.Styles>

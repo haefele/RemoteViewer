@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
 using RemoteViewer.Server.Services;
 using RemoteViewer.Shared;
 using ConnectionInfo = RemoteViewer.Shared.ConnectionInfo;
