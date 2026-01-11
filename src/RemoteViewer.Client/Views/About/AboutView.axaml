@@ -47,8 +47,8 @@
         </StackPanel>
 
         <!-- Licenses Section -->
-        <Border Grid.Row="1"
-                Classes="card-lg">
+        <controls:Card Grid.Row="1"
+                       Size="Large">
             <Grid RowDefinitions="Auto,*">
                 <StackPanel Grid.Row="0"
                             Orientation="Horizontal"
@@ -68,7 +68,7 @@
                     <ItemsControl ItemsSource="{Binding Licenses}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:ThirdPartyLicense">
-                                <Border Classes="list-item" Margin="{theme:Spacing Bottom=SM}">
+                                <controls:Card Size="ListItem" Margin="{theme:Spacing Bottom=SM}">
                                     <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
                                         <TextBlock Grid.Row="0" Grid.Column="0"
                                                    Text="{Binding Name}"
@@ -112,13 +112,13 @@
                                             </HyperlinkButton>
                                         </StackPanel>
                                     </Grid>
-                                </Border>
+                                </controls:Card>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                 </ScrollViewer>
             </Grid>
-        </Border>
+        </controls:Card>
 
         <!-- Footer Button -->
         <Button Grid.Row="2"

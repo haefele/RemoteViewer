@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mi="using:Material.Icons.Avalonia"
+             xmlns:controls="using:RemoteViewer.Client.Controls"
              xmlns:theme="using:RemoteViewer.Client.Themes"
              x:Class="RemoteViewer.Client.Controls.DropOverlay"
              x:Name="Root">
@@ -8,10 +9,10 @@
     <Border Background="{DynamicResource OverlayDimBrush}"
             Padding="{theme:Spacing LG}">
 
-        <!-- Centered card using overlay-card style -->
-        <Border HorizontalAlignment="Center"
-                VerticalAlignment="Center"
-                Classes="overlay-card">
+        <!-- Centered card using Card component -->
+        <controls:Card HorizontalAlignment="Center"
+                       VerticalAlignment="Center"
+                       Size="XLarge">
 
             <StackPanel Spacing="{theme:Gap LG}" HorizontalAlignment="Center">
                 <!-- Icon with circular background -->
@@ -38,6 +39,6 @@
                                HorizontalAlignment="Center"/>
                 </StackPanel>
             </StackPanel>
-        </Border>
+        </controls:Card>
     </Border>
 </UserControl>

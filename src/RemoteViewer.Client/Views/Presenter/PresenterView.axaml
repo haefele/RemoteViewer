@@ -140,7 +140,7 @@
                     Margin="{theme:Spacing LG}">
 
             <!-- Your Credentials -->
-            <Border Classes="card-lg">
+            <controls:Card Size="Large">
                 <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
                     <!-- Row 0: Title -->
                     <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
@@ -194,10 +194,10 @@
                         </StackPanel>
                     </StackPanel>
                 </Grid>
-            </Border>
+            </controls:Card>
 
             <!-- Connected Viewers -->
-            <Border Classes="card-lg"
+            <controls:Card Size="Large"
                     IsVisible="{Binding Viewers.Count}">
                 <Grid RowDefinitions="Auto,Auto">
                     <!-- Header -->
@@ -241,8 +241,8 @@
                         </ItemsControl>
                     </ScrollViewer>
                 </Grid>
-            </Border>
-            </StackPanel>
+            </controls:Card>
+        </StackPanel>
 
         <!-- Toast Notifications (overlay, bottom-right) -->
         <toastControls:ToastsView Grid.Row="1"

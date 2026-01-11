@@ -128,7 +128,7 @@
             <!-- Status Bar at Bottom -->
             <Border Grid.Row="1"
                     Background="{DynamicResource SurfaceElevatedBrush}"
-                    Padding="{theme:Spacing X=MD, Y=SM}">
+                    Padding="{theme:Spacing X=LG, Y=XXS}">
                 <Grid ColumnDefinitions="*,Auto">
                     <StackPanel Orientation="Horizontal" Spacing="{theme:Gap SM}">
                         <mi:MaterialIcon Kind="{Binding IsConnected, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.CloudCheck}, FalseValue={x:Static mik:MaterialIconKind.CloudOffOutline}}}"
