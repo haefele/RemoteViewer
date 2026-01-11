@@ -8,6 +8,7 @@
         xmlns:mi="using:Material.Icons.Avalonia"
         xmlns:mik="using:Material.Icons"
         xmlns:dto="using:RemoteViewer.Shared"
+        xmlns:theme="using:RemoteViewer.Client.Themes"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         x:Class="RemoteViewer.Client.Views.Viewer.ViewerView"
@@ -35,7 +36,8 @@
         <Border x:Name="ToolbarBorder"
                 Grid.Row="0"
                 Classes.fullscreen="{Binding IsFullscreen}"
-                Classes="bg-elevated px-sm py-sm"
+                Background="{DynamicResource SurfaceElevatedBrush}"
+                Padding="{theme:Spacing X=SM, Y=SM}"
                 PointerEntered="Toolbar_PointerEntered"
                 PointerExited="Toolbar_PointerExited">
 
@@ -59,7 +61,9 @@
                 </Style>
             </Border.Styles>
 
-            <StackPanel Classes="flex-row gap-sm items-center">
+            <StackPanel Orientation="Horizontal"
+                        Spacing="{theme:Gap SM}"
+                        VerticalAlignment="Center">
                 <!-- Fullscreen toggle (dynamic icon + tooltip) -->
                 <Button Command="{Binding ToggleFullscreenCommand}"
                         ToolTip.Tip="{Binding IsFullscreen, Converter={conv:BoolToObject TrueValue='Exit fullscreen (F11 / ESC)', FalseValue='Enter fullscreen (F11)'}}"
@@ -74,10 +78,10 @@
                         Classes="icon-button">
                     <Button.Flyout>
                         <Flyout Placement="Bottom">
-                            <StackPanel MinWidth="220" Classes="gap-xxs">
+                            <StackPanel MinWidth="220" Spacing="{theme:Gap XXS}">
                                 <TextBlock Text="Displays"
                                            FontWeight="SemiBold"
-                                           Classes="mx-sm mt-xs mb-sm"/>
+                                           Margin="{theme:Spacing X=SM, Top=XS, Bottom=SM}"/>
                                 <controls:DisplayMiniMap
                                     AvailableDisplays="{Binding AvailableDisplays}"
                                     CurrentDisplayId="{Binding CurrentDisplayId}"
@@ -124,27 +128,30 @@
                 </Button>
 
                 <!-- Separator -->
-                <Border Classes="divider-v"/>
+                <Border Width="1"
+                        Margin="{theme:Spacing Y=XS}"
+                        Background="{DynamicResource BorderSubtleBrush}"/>
 
                 <!-- Participants flyout -->
                 <Button ToolTip.Tip="Participants"
                         Classes="icon-button">
                     <Button.Flyout>
                         <Flyout Placement="Bottom">
-                            <StackPanel MinWidth="180" Classes="gap-xxs">
+                            <StackPanel MinWidth="180" Spacing="{theme:Gap XXS}">
                                 <TextBlock Text="Participants"
                                            FontWeight="SemiBold"
-                                           Classes="mx-sm mt-xs mb-sm"/>
+                                           Margin="{theme:Spacing X=SM, Top=XS, Bottom=SM}"/>
                                 <ItemsControl ItemsSource="{Binding Participants}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="vm:ParticipantDisplay">
-                                            <Border Classes="px-sm py-sm rounded-sm"
+                                            <Border Padding="{theme:Spacing X=SM, Y=SM}"
+                                                    CornerRadius="4"
                                                     Background="{Binding IsPresenter, Converter={x:Static conv:BoolToAccentBrushConverter.Instance}}">
-                                                <StackPanel Classes="flex-row gap-sm">
+                                                <StackPanel Orientation="Horizontal" Spacing="{theme:Gap SM}">
                                                     <mi:MaterialIcon Kind="{Binding IsPresenter, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.Monitor}, FalseValue={x:Static mik:MaterialIconKind.Account}}}"
                                                                      Width="16" Height="16"
                                                                      ToolTip.Tip="{Binding IsPresenter, Converter={conv:BoolToObject TrueValue='Presenter', FalseValue='Viewer'}}"/>
-                                                    <TextBlock Text="{Binding DisplayName}" Classes="justify-center"/>
+                                                    <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
                                                 </StackPanel>
                                             </Border>
                                         </DataTemplate>
@@ -166,20 +173,24 @@
                         <!-- Unread indicator -->
                         <Ellipse Width="8" Height="8"
                                  Fill="{DynamicResource ErrorBrush}"
-                                 Classes="items-end justify-start"
+                                 HorizontalAlignment="Right"
+                                 VerticalAlignment="Top"
                                  Margin="0,2,2,0"
                                  IsVisible="{Binding Chat.HasUnreadMessages}"/>
                     </Panel>
                 </Button>
 
                 <!-- Separator -->
-                <Border Classes="divider-v"/>
+                <Border Width="1"
+                        Margin="{theme:Spacing Y=XS}"
+                        Background="{DynamicResource BorderSubtleBrush}"/>
 
                 <!-- Disconnect button -->
                 <Button Command="{Binding DisconnectCommand}"
                         ToolTip.Tip="Disconnect"
                         Classes="icon-button">
-                    <mi:MaterialIcon Kind="LanDisconnect" Width="20" Height="20" Classes="text-error"/>
+                    <mi:MaterialIcon Kind="LanDisconnect" Width="20" Height="20"
+                                     Foreground="{DynamicResource ErrorBrush}"/>
                 </Button>
             </StackPanel>
         </Border>
@@ -211,10 +222,12 @@
 
                 <!-- Left navigation arrows -->
                 <ItemsControl ItemsSource="{Binding LeftAdjacentDisplays}"
-                              Classes="items-start justify-center mx-lg">
+                              HorizontalAlignment="Left"
+                              VerticalAlignment="Center"
+                              Margin="{theme:Spacing X=LG}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Classes="flex-col gap-sm"/>
+                            <StackPanel Orientation="Vertical" Spacing="{theme:Gap SM}"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
@@ -240,10 +253,12 @@
 
                 <!-- Right navigation arrows -->
                 <ItemsControl ItemsSource="{Binding RightAdjacentDisplays}"
-                              Classes="items-end justify-center mx-lg">
+                              HorizontalAlignment="Right"
+                              VerticalAlignment="Center"
+                              Margin="{theme:Spacing X=LG}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Classes="flex-col gap-sm"/>
+                            <StackPanel Orientation="Vertical" Spacing="{theme:Gap SM}"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
@@ -269,10 +284,12 @@
 
                 <!-- Up navigation arrows -->
                 <ItemsControl ItemsSource="{Binding UpAdjacentDisplays}"
-                              Classes="items-center justify-start my-lg">
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Top"
+                              Margin="{theme:Spacing Y=LG}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Classes="flex-row gap-sm"/>
+                            <StackPanel Orientation="Horizontal" Spacing="{theme:Gap SM}"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
@@ -298,10 +315,12 @@
 
                 <!-- Down navigation arrows -->
                 <ItemsControl ItemsSource="{Binding DownAdjacentDisplays}"
-                              Classes="items-center justify-end my-lg">
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Bottom"
+                              Margin="{theme:Spacing Y=LG}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Classes="flex-row gap-sm"/>
+                            <StackPanel Orientation="Horizontal" Spacing="{theme:Gap SM}"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
@@ -330,7 +349,9 @@
         <!-- Toast Notifications (row 1, overlay bottom-right) -->
         <toastControls:ToastsView Grid.Row="1"
                                   DataContext="{Binding Toasts}"
-                                  Classes="items-end justify-end mr-sm mb-sm"/>
+                                  HorizontalAlignment="Right"
+                                  VerticalAlignment="Bottom"
+                                  Margin="{theme:Spacing Right=SM, Bottom=SM}"/>
 
         <!-- Drop overlay for file transfer (covers entire window) -->
         <controls:DropOverlay x:Name="DropOverlay"

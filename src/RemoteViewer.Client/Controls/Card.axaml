@@ -1,0 +1,66 @@
+<ContentControl xmlns="https://github.com/avaloniaui"
+                xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+                xmlns:controls="using:RemoteViewer.Client.Controls"
+                x:Class="RemoteViewer.Client.Controls.Card"
+                x:DataType="controls:Card">
+
+    <ContentControl.Styles>
+        <!-- Base card template -->
+        <Style Selector="controls|Card">
+            <Setter Property="Template">
+                <ControlTemplate>
+                    <Border x:Name="CardBorder"
+                            Background="{DynamicResource CardBackgroundBrush}"
+                            CornerRadius="8"
+                            Padding="14">
+                        <ContentPresenter Content="{TemplateBinding Content}"
+                                          ContentTemplate="{TemplateBinding ContentTemplate}"/>
+                    </Border>
+                </ControlTemplate>
+            </Setter>
+        </Style>
+
+        <!-- Elevated variant -->
+        <Style Selector="controls|Card[Variant=Elevated] /template/ Border#CardBorder">
+            <Setter Property="Background" Value="{DynamicResource CardElevatedBackgroundBrush}"/>
+            <Setter Property="BoxShadow" Value="0 2 8 0 #20000000"/>
+        </Style>
+
+        <!-- Surface variant -->
+        <Style Selector="controls|Card[Variant=Surface] /template/ Border#CardBorder">
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}"/>
+        </Style>
+
+        <!-- AccentStrip variant base -->
+        <Style Selector="controls|Card[Variant=AccentStrip] /template/ Border#CardBorder">
+            <Setter Property="CornerRadius" Value="0,8,8,0"/>
+            <Setter Property="BorderThickness" Value="3,0,0,0"/>
+        </Style>
+
+        <!-- AccentStrip with Success accent -->
+        <Style Selector="controls|Card[Variant=AccentStrip][Accent=Success] /template/ Border#CardBorder">
+            <Setter Property="BorderBrush" Value="{DynamicResource ToastSuccessAccentBrush}"/>
+        </Style>
+
+        <!-- AccentStrip with Error accent -->
+        <Style Selector="controls|Card[Variant=AccentStrip][Accent=Error] /template/ Border#CardBorder">
+            <Setter Property="BorderBrush" Value="{DynamicResource ToastErrorAccentBrush}"/>
+        </Style>
+
+        <!-- AccentStrip with Info accent -->
+        <Style Selector="controls|Card[Variant=AccentStrip][Accent=Info] /template/ Border#CardBorder">
+            <Setter Property="BorderBrush" Value="{DynamicResource ToastInfoAccentBrush}"/>
+        </Style>
+
+        <!-- AccentStrip with Warning accent -->
+        <Style Selector="controls|Card[Variant=AccentStrip][Accent=Warning] /template/ Border#CardBorder">
+            <Setter Property="BorderBrush" Value="{DynamicResource WarningBrush}"/>
+        </Style>
+
+        <!-- AccentStrip with Primary accent -->
+        <Style Selector="controls|Card[Variant=AccentStrip][Accent=Primary] /template/ Border#CardBorder">
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}"/>
+        </Style>
+    </ContentControl.Styles>
+
+</ContentControl>

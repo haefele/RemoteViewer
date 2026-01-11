@@ -4,6 +4,7 @@
         xmlns:controls="using:RemoteViewer.Client.Controls"
         xmlns:dialogs="using:RemoteViewer.Client.Controls.Dialogs"
         xmlns:presenter="using:RemoteViewer.Client.Views.Presenter"
+        xmlns:theme="using:RemoteViewer.Client.Themes"
         x:Class="RemoteViewer.Client.Controls.Dialogs.ViewerSelectionDialog"
         x:DataType="dialogs:ViewerSelectionDialogViewModel"
         Title="Send File"
@@ -13,11 +14,11 @@
         ShowInTaskbar="False"
         WindowStartupLocation="CenterOwner">
 
-    <Border Classes="p-xl"
+    <Border Padding="{theme:Spacing XL}"
             MinWidth="320"
             MaxWidth="400">
 
-        <StackPanel Classes="gap-lg">
+        <StackPanel Spacing="{theme:Gap LG}">
 
             <!-- Header using DialogHeader control -->
             <controls:DialogHeader Icon="FileUpload"
@@ -26,43 +27,49 @@
                                    Title="Send File"
                                    Subtitle="Select recipients"/>
 
-            <!-- File info card using design system styles -->
-            <Border Classes="card">
+            <!-- File info card using Card component -->
+            <controls:Card>
                 <Grid ColumnDefinitions="Auto,*">
                     <mi:MaterialIcon Grid.Column="0"
                                      Kind="File"
                                      Width="{StaticResource IconSizeMD}"
                                      Height="{StaticResource IconSizeMD}"
-                                     Classes="mx-md justify-center text-secondary"/>
-                    <StackPanel Grid.Column="1" Classes="gap-xxs">
+                                     Margin="{theme:Spacing X=MD}"
+                                     VerticalAlignment="Center"
+                                     Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <StackPanel Grid.Column="1" Spacing="{theme:Gap XXS}">
                         <TextBlock Text="{Binding FileName}"
-                                   Classes="header-small truncate"
+                                   Classes="header-small"
+                                   TextTrimming="CharacterEllipsis"
                                    ToolTip.Tip="{Binding FileName}"/>
                         <TextBlock Text="{Binding FileSizeFormatted}"
                                    Classes="small"/>
                     </StackPanel>
                 </Grid>
-            </Border>
+            </controls:Card>
 
             <!-- Viewer selection list -->
-            <StackPanel Classes="gap-sm">
+            <StackPanel Spacing="{theme:Gap SM}">
                 <TextBlock Text="Recipients"
-                           Classes="caption ml-xxs"
+                           Classes="caption"
+                           Margin="{theme:Spacing Left=XXS}"
                            FontWeight="SemiBold"/>
 
                 <ItemsControl ItemsSource="{Binding Viewers}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="presenter:PresenterViewerDisplay">
-                            <Border Classes="list-item mb-sm">
+                            <Border Classes="list-item" Margin="{theme:Spacing Bottom=SM}">
                                 <CheckBox IsChecked="{Binding IsSelected}"
-                                          Classes="cursor-pointer">
-                                    <StackPanel Classes="flex-row gap-sm">
+                                          Cursor="Hand">
+                                    <StackPanel Orientation="Horizontal" Spacing="{theme:Gap SM}">
                                         <mi:MaterialIcon Kind="Account"
                                                          Width="{StaticResource IconSizeSM}"
                                                          Height="{StaticResource IconSizeSM}"
-                                                         Classes="justify-center text-secondary"/>
+                                                         VerticalAlignment="Center"
+                                                         Foreground="{DynamicResource TextSecondaryBrush}"/>
                                         <TextBlock Text="{Binding DisplayName}"
-                                                   Classes="body-small justify-center"/>
+                                                   Classes="body-small"
+                                                   VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </CheckBox>
                             </Border>
@@ -72,22 +79,30 @@
             </StackPanel>
 
             <!-- Action buttons -->
-            <Grid ColumnDefinitions="*,10,*">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="{theme:GridSpacing SM}"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
                 <Button Grid.Column="0"
-                        Classes="action-secondary w-full"
+                        Classes="action-secondary"
+                        HorizontalAlignment="Stretch"
                         Click="OnCancelClicked">
-                    <StackPanel Classes="flex-row gap-icon">
+                    <StackPanel Orientation="Horizontal" Spacing="{theme:Gap Icon}">
                         <mi:MaterialIcon Kind="Close" Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}"/>
-                        <TextBlock Text="Cancel" Classes="justify-center"/>
+                        <TextBlock Text="Cancel" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
 
                 <Button Grid.Column="2"
-                        Classes="action-primary w-full"
+                        Classes="action-primary"
+                        HorizontalAlignment="Stretch"
                         Click="OnSendClicked">
-                    <StackPanel Classes="flex-row gap-icon">
+                    <StackPanel Orientation="Horizontal" Spacing="{theme:Gap Icon}">
                         <mi:MaterialIcon Kind="Send" Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}"/>
-                        <TextBlock Text="Send" Classes="justify-center"/>
+                        <TextBlock Text="Send" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
             </Grid>
