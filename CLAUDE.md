@@ -61,3 +61,105 @@ For detailed MVVM patterns, examples, and best practices, see the `avalonia-mvvm
 - **Bindings**: Use `x:DataType` in XAML for compiled bindings
 - **DI**: Services registered in `ServiceRegistration.cs`
 - **Threading**: Use `IDispatcher` for UI updates from background threads
+
+# Design System (Client)
+
+The client uses a comprehensive design system with markup extensions, design tokens, and reusable components. All UI should use these tokens instead of hardcoded values.
+
+## Markup Extensions
+
+Located in `Themes/` folder. Add `xmlns:theme="using:RemoteViewer.Client.Themes"` to use.
+
+### Spacing (Margin/Padding)
+```xml
+Padding="{theme:Spacing MD}"              <!-- All sides: 12 -->
+Margin="{theme:Spacing X=LG, Y=SM}"       <!-- Horizontal: 16, Vertical: 8 -->
+Margin="{theme:Spacing Top=XL, Right=MD}" <!-- Individual sides -->
+```
+
+Values: `None=0, XXS=2, XS=4, SM=8, MD=12, LG=16, XL=24, XXL=32`
+
+### Gap (StackPanel/ItemsControl Spacing)
+```xml
+<StackPanel Spacing="{theme:Gap SM}">     <!-- 8px between items -->
+<StackPanel Spacing="{theme:Gap Icon}">   <!-- 6px for icon+text pairs -->
+```
+
+Values: `None=0, XXS=2, XS=4, Icon=6, SM=8, MD=12, LG=16, XL=24, XXL=32`
+
+### GridSpacing (Grid Column/Row Definitions)
+```xml
+<ColumnDefinition Width="{theme:GridSpacing SM}"/>  <!-- 8px spacer column -->
+```
+
+## Design Tokens
+
+### Icon Sizes
+```xml
+Width="{StaticResource IconSizeXS}"   <!-- 12px -->
+Width="{StaticResource IconSizeSM}"   <!-- 16px -->
+Width="{StaticResource IconSizeMD}"   <!-- 20px -->
+Width="{StaticResource IconSizeLG}"   <!-- 24px -->
+Width="{StaticResource IconSizeXL}"   <!-- 32px -->
+```
+
+### Corner Radii
+```xml
+CornerRadius="{StaticResource CornerRadiusSM}"      <!-- 4px -->
+CornerRadius="{StaticResource CornerRadiusMD}"      <!-- 8px -->
+CornerRadius="{StaticResource CornerRadiusLG}"      <!-- 12px -->
+CornerRadius="{StaticResource CornerRadiusXL}"      <!-- 20px -->
+CornerRadius="{StaticResource CornerRadiusButton}"  <!-- 6px -->
+CornerRadius="{StaticResource CornerRadiusCard}"    <!-- 8px -->
+```
+
+### Colors (use DynamicResource for theme support)
+- **Text**: `TextPrimaryBrush`, `TextSecondaryBrush`, `TextMutedBrush`, `TextDisabledBrush`
+- **Surfaces**: `SurfaceBrush`, `SurfaceElevatedBrush`, `CardBackgroundBrush`
+- **Borders**: `BorderSubtleBrush`, `BorderDefaultBrush`, `BorderStrongBrush`
+- **Semantic**: `AccentBrush`, `SuccessBrush`, `ErrorBrush`, `WarningBrush`, `InfoBrush`
+
+## Typography Classes
+
+Apply via `Classes="class-name"` on TextBlock:
+
+- **Titles**: `title-large` (22px Bold), `title` (20px SemiBold)
+- **Headers**: `header` (15px SemiBold), `header-small` (13px SemiBold)
+- **Body**: `body` (14px), `body-small` (13px)
+- **Small**: `caption` (12px), `small` (11px), `small-muted` (10px)
+- **Special**: `credential` (18px Bold monospace), `monospace` (13px)
+- **Color modifiers**: `secondary`, `muted`, `accent`, `success`, `error`, `warning`
+
+## Button Styles
+
+```xml
+<Button Classes="icon-button">       <!-- 32x32 transparent icon button -->
+<Button Classes="icon-button-lg">    <!-- 40x40 larger icon button -->
+<Button Classes="action-primary">    <!-- Accent background, white text -->
+<Button Classes="action-secondary">  <!-- Subtle background -->
+<Button Classes="ghost">             <!-- Transparent, text only -->
+<Button Classes="danger">            <!-- Error/destructive action -->
+<Button Classes="success">           <!-- Positive action -->
+```
+
+## Card Component & Styles
+
+### Card Component (Controls/Card.axaml)
+```xml
+<controls:Card Variant="Default|Elevated|Surface|AccentStrip" Accent="None|Success|Error|Info|Warning|Primary">
+    <!-- Content -->
+</controls:Card>
+```
+
+### Card Utility Classes
+```xml
+<Border Classes="card">              <!-- Basic card -->
+<Border Classes="card-elevated">     <!-- Card with shadow -->
+<Border Classes="accent-strip success">  <!-- Left accent border -->
+```
+
+## Components
+
+- **Card**: Flexible container with variants (`Controls/Card.axaml`)
+- **IconBadge**: Circular icon container with sizes Small/Medium/Large (`Controls/IconBadge.axaml`)
+- **DialogHeader**: Standardized dialog header with icon, title, subtitle (`Controls/DialogHeader.axaml`)
