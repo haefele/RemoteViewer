@@ -1,4 +1,4 @@
-using CommunityToolkit.Mvvm.ComponentModel;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Controls.Toasts;
@@ -34,17 +34,27 @@ public partial class MainViewModel : ViewModelBase
     [ObservableProperty]
     private string? _targetPassword;
 
-    [ObservableProperty]
-    private bool _isConnected;
+    public ConnectionStatus Status => this._hubClient switch
+    {
+        { HasVersionMismatch: true } => ConnectionStatus.VersionMismatch,
+        { IsConnected: true } => ConnectionStatus.Connected,
+        _ => ConnectionStatus.Connecting
+    };
 
-    [ObservableProperty]
-    private string _statusText = "Connecting...";
+    public string? VersionTooltipText
+    {
+        get
+        {
+            if (this._hubClient.HasVersionMismatch is false)
+                return null;
 
-    [ObservableProperty]
-    private bool _hasVersionMismatch;
-
-    [ObservableProperty]
-    private string _versionMismatchText = string.Empty;
+            return $"""
+                    Version Mismatch
+                    Server: v{this._hubClient.ServerVersion}
+                    Client: v{ThisAssembly.AssemblyInformationalVersion}
+                    """;
+        }
+    }
 
     public event EventHandler? RequestHideMainView;
     public event EventHandler? RequestShowMainView;
@@ -62,21 +72,10 @@ public partial class MainViewModel : ViewModelBase
         {
             this._dispatcher.Post(() =>
             {
-                this.IsConnected = this._hubClient.IsConnected;
-                this.HasVersionMismatch = this._hubClient.HasVersionMismatch;
+                this.OnPropertyChanged(nameof(this.Status));
+                this.OnPropertyChanged(nameof(this.VersionTooltipText));
 
-                if (this._hubClient.HasVersionMismatch)
-                {
-                    this.VersionMismatchText = $"""
-                                                Version mismatch!
-                                                Server v{this._hubClient.ServerVersion}
-                                                Client v{ThisAssembly.AssemblyInformationalVersion}
-                                                """;
-                }
-
-                this.StatusText = this._hubClient.IsConnected ? "Connected" : "Connecting...";
-
-                this._logger.HubConnectionStatusChanged(this._hubClient.IsConnected, this.StatusText);
+                this._logger.HubConnectionStatusChanged(this._hubClient.IsConnected, this.Status.ToString());
 
                 this.YourUsername = this._hubClient.IsConnected ? this._hubClient.Username : "...";
                 this.YourPassword = this._hubClient.IsConnected ? this._hubClient.Password : "...";
@@ -93,58 +92,22 @@ public partial class MainViewModel : ViewModelBase
             });
         };
 
-        this.IsConnected = this._hubClient.IsConnected;
-
-        // Handle viewer connections - open viewer window when connected as viewer
-        this._hubClient.ConnectionStarted += this.OnConnectionStarted;
-    }
-
-    private void OnConnectionStarted(object? sender, ConnectionStartedEventArgs e)
-    {
-        this._dispatcher.Post(() =>
+        this._hubClient.ConnectionStarted += (_, e) =>
         {
-            if (e.Connection.IsPresenter)
+            this._dispatcher.Post(() =>
             {
-                this._logger.ConnectionSuccessful("Presenter");
-                this.OpenPresenterWindow(e.Connection);
-            }
-            else
-            {
-                this._logger.ConnectionSuccessful("Viewer");
-                this.OpenViewerWindow(e.Connection);
-            }
-        });
-    }
-
-    private void OpenPresenterWindow(Connection connection)
-    {
-        this.RequestHideMainView?.Invoke(this, EventArgs.Empty);
-
-        var viewModel = this._viewModelFactory.CreatePresenterViewModel(connection);
-        this._sessionWindowHandle = this._dialogService.ShowPresenterWindow(viewModel);
-        this._sessionWindowHandle.Closed += this.OnSessionWindowClosed;
-    }
-
-    private void OpenViewerWindow(Connection connection)
-    {
-        this.RequestHideMainView?.Invoke(this, EventArgs.Empty);
-
-        var viewModel = this._viewModelFactory.CreateViewerViewModel(connection);
-        this._sessionWindowHandle = this._dialogService.ShowViewerWindow(viewModel);
-        this._sessionWindowHandle.Closed += this.OnSessionWindowClosed;
-    }
-
-    private void OnSessionWindowClosed(object? sender, EventArgs e)
-    {
-        this._logger.SessionWindowClosed();
-
-        if (this._sessionWindowHandle is not null)
-        {
-            this._sessionWindowHandle.Closed -= this.OnSessionWindowClosed;
-            this._sessionWindowHandle = null;
-        }
-
-        this.RequestShowMainView?.Invoke(this, EventArgs.Empty);
+                if (e.Connection.IsPresenter)
+                {
+                    this._logger.ConnectionSuccessful("Presenter");
+                    this.OpenPresenterWindow(e.Connection);
+                }
+                else
+                {
+                    this._logger.ConnectionSuccessful("Viewer");
+                    this.OpenViewerWindow(e.Connection);
+                }
+            });
+        };
     }
 
     [RelayCommand]
@@ -205,5 +168,32 @@ public partial class MainViewModel : ViewModelBase
     private async Task ShowAboutAsync()
     {
         await this._dialogService.ShowAboutDialogAsync();
+    }
+
+    private void OpenPresenterWindow(Connection connection)
+    {
+        this.RequestHideMainView?.Invoke(this, EventArgs.Empty);
+
+        var viewModel = this._viewModelFactory.CreatePresenterViewModel(connection);
+        this._sessionWindowHandle = this._dialogService.ShowPresenterWindow(viewModel);
+        this._sessionWindowHandle.Closed += this.OnSessionWindowClosed;
+    }
+
+    private void OpenViewerWindow(Connection connection)
+    {
+        this.RequestHideMainView?.Invoke(this, EventArgs.Empty);
+
+        var viewModel = this._viewModelFactory.CreateViewerViewModel(connection);
+        this._sessionWindowHandle = this._dialogService.ShowViewerWindow(viewModel);
+        this._sessionWindowHandle.Closed += this.OnSessionWindowClosed;
+    }
+
+    private void OnSessionWindowClosed(object? sender, EventArgs e)
+    {
+        this._logger.SessionWindowClosed();
+        this._sessionWindowHandle?.Closed -= this.OnSessionWindowClosed;
+        this._sessionWindowHandle = null;
+
+        this.RequestShowMainView?.Invoke(this, EventArgs.Empty);
     }
 }

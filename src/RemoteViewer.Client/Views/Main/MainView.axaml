@@ -130,13 +130,45 @@
                     Background="{DynamicResource SurfaceElevatedBrush}"
                     Padding="{theme:Spacing X=LG, Y=XXS}">
                 <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel Orientation="Horizontal" Spacing="{theme:Gap SM}">
-                        <mi:MaterialIcon Kind="{Binding IsConnected, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.CloudCheck}, FalseValue={x:Static mik:MaterialIconKind.CloudOffOutline}}}"
-                                         Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}"
-                                         Foreground="{Binding IsConnected, Converter={conv:BoolToObject TrueValue={StaticResource SuccessBrush}, FalseValue={StaticResource ErrorBrush}}}"/>
-                        <TextBlock Text="{Binding StatusText}"
-                                   Classes="caption"
-                                   VerticalAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal"
+                            Spacing="{theme:Gap SM}"
+                            ToolTip.Tip="{Binding VersionTooltipText}">
+                        <mi:MaterialIcon Width="{StaticResource IconSizeSM}"
+                                         Height="{StaticResource IconSizeSM}">
+                            <mi:MaterialIcon.Kind>
+                                <Binding Path="Status">
+                                    <Binding.Converter>
+                                        <conv:ObjectToObject DefaultValue="{x:Static mik:MaterialIconKind.CloudOffOutline}">
+                                            <conv:MapItem From="{x:Static vm:ConnectionStatus.Connected}" To="{x:Static mik:MaterialIconKind.CloudCheck}"/>
+                                            <conv:MapItem From="{x:Static vm:ConnectionStatus.VersionMismatch}" To="{x:Static mik:MaterialIconKind.AlertOutline}"/>
+                                        </conv:ObjectToObject>
+                                    </Binding.Converter>
+                                </Binding>
+                            </mi:MaterialIcon.Kind>
+                            <mi:MaterialIcon.Foreground>
+                                <Binding Path="Status">
+                                    <Binding.Converter>
+                                        <conv:ObjectToObject DefaultValue="{StaticResource ErrorBrush}">
+                                            <conv:MapItem From="{x:Static vm:ConnectionStatus.Connected}" To="{StaticResource SuccessBrush}"/>
+                                            <conv:MapItem From="{x:Static vm:ConnectionStatus.VersionMismatch}" To="{StaticResource WarningBrush}"/>
+                                        </conv:ObjectToObject>
+                                    </Binding.Converter>
+                                </Binding>
+                            </mi:MaterialIcon.Foreground>
+                        </mi:MaterialIcon>
+                        <TextBlock Classes="caption"
+                                   VerticalAlignment="Center">
+                            <TextBlock.Text>
+                                <Binding Path="Status">
+                                    <Binding.Converter>
+                                        <conv:ObjectToObject DefaultValue="Connecting...">
+                                            <conv:MapItem From="{x:Static vm:ConnectionStatus.Connected}" To="Connected"/>
+                                            <conv:MapItem From="{x:Static vm:ConnectionStatus.VersionMismatch}" To="Version Mismatch"/>
+                                        </conv:ObjectToObject>
+                                    </Binding.Converter>
+                                </Binding>
+                            </TextBlock.Text>
+                        </TextBlock>
                     </StackPanel>
 
                     <Button Grid.Column="1"
@@ -157,25 +189,5 @@
                                   HorizontalAlignment="Right"
                                   VerticalAlignment="Bottom"
                                   Margin="{theme:Spacing Right=SM, Bottom=SM}"/>
-
-        <!-- Version Mismatch Warning Banner (overlay) -->
-        <Border HorizontalAlignment="Stretch"
-                VerticalAlignment="Top"
-                Padding="{theme:Spacing X=MD, Y=SM}"
-                Background="{DynamicResource WarningBackgroundBrush}"
-                IsVisible="{Binding HasVersionMismatch}">
-            <Grid ColumnDefinitions="Auto,*">
-                <mi:MaterialIcon Kind="AlertOutline"
-                                 Width="{StaticResource IconSizeMD}"
-                                 Height="{StaticResource IconSizeMD}"
-                                 Foreground="{DynamicResource WarningForegroundBrush}"
-                                 VerticalAlignment="Center"
-                                 Margin="{theme:Spacing Right=MD}"/>
-                <TextBlock Grid.Column="1"
-                           Text="{Binding VersionMismatchText}"
-                           Foreground="{DynamicResource WarningForegroundBrush}"
-                           VerticalAlignment="Center"/>
-            </Grid>
-        </Border>
     </Panel>
 </Window>
