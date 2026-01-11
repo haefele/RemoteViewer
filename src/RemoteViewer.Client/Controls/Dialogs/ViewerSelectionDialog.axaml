@@ -58,7 +58,7 @@
                 <ItemsControl ItemsSource="{Binding Viewers}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="presenter:PresenterViewerDisplay">
-                            <Border Classes="list-item" Margin="{theme:Spacing Bottom=SM}">
+                            <controls:Card Size="ListItem" Margin="{theme:Spacing Bottom=SM}">
                                 <CheckBox IsChecked="{Binding IsSelected}"
                                           Cursor="Hand">
                                     <StackPanel Orientation="Horizontal" Spacing="{theme:Gap SM}">
@@ -72,7 +72,7 @@
                                                    VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </CheckBox>
-                            </Border>
+                            </controls:Card>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>

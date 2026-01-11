@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui"
+﻿<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="using:RemoteViewer.Client.Controls"
         xmlns:vm="using:RemoteViewer.Client.Views.Main"
@@ -19,163 +19,207 @@
         Width="500"
 
         DataContextChanged="Window_DataContextChanged">
-    <Panel>
-        <Grid RowDefinitions="*,Auto">
-            <!-- Main Content -->
-            <Grid Grid.Row="0" ColumnDefinitions="*,*" Margin="{theme:Spacing LG}">
-                <!-- Left Panel - Your Credentials -->
-                <controls:Card Grid.Column="0"
-                               Margin="{theme:Spacing Right=SM}">
-                    <Grid ColumnDefinitions="*,Auto" RowDefinitions="Auto,Auto,Auto">
-                        <!-- Row 0: Title -->
-                        <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
-                                   Text="Your Credentials"
+    <Grid RowDefinitions="*,Auto">
+
+        <!-- Main Content -->
+        <Grid Grid.Row="0"
+              Margin="{theme:Spacing LG}"
+              Grid.IsSharedSizeScope="True">
+            <Grid.ColumnDefinitions>
+               <ColumnDefinition Width="*" />
+               <ColumnDefinition Width="{theme:GridSpacing Size=LG}" />
+               <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Left Panel - Your Credentials -->
+            <controls:Card Grid.Column="0">
+                <Grid ColumnDefinitions="*,Auto">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" SharedSizeGroup="HeaderRow"/>
+                            <RowDefinition Height="{theme:GridSpacing Size=SM}" />
+                            <RowDefinition Height="Auto" SharedSizeGroup="IdLabelRow"/>
+                            <RowDefinition Height="{theme:GridSpacing Size=XS}" />
+                            <RowDefinition Height="Auto" SharedSizeGroup="IdValueRow"/>
+                            <RowDefinition Height="{theme:GridSpacing Size=SM}" />
+                            <RowDefinition Height="Auto" SharedSizeGroup="PasswordLabelRow"/>
+                            <RowDefinition Height="{theme:GridSpacing Size=XS}" />
+                            <RowDefinition Height="Auto" SharedSizeGroup="PasswordValueRow"/>
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.Row="0"
                                    Classes="header"
-                                   Margin="{theme:Spacing Bottom=MD}"/>
+                                   Text="Your Credentials" />
 
-                        <!-- Row 1: ID Label + Value -->
-                        <StackPanel Grid.Row="1" Grid.Column="0" Spacing="{theme:Gap XS}">
-                            <TextBlock Text="ID"
-                                       Classes="caption secondary"/>
-                            <SelectableTextBlock Text="{Binding YourUsername}"
-                                                 Classes="credential"
-                                                 Margin="{theme:Spacing Y=SM}"/>
-                        </StackPanel>
+                        <TextBlock Grid.Row="2"
+                                   Classes="caption secondary"
+                                   Text="ID" />
 
-                        <!-- Copy button - spans rows 1-2, vertically centered -->
-                        <Button Grid.Row="1" Grid.RowSpan="2" Grid.Column="1"
-                                Classes="icon-button"
-                                VerticalAlignment="Center"
-                                Margin="{theme:Spacing Left=SM}"
-                                Command="{Binding CopyCredentialsCommand}"
-                                ToolTip.Tip="Copy ID and password">
-                            <mi:MaterialIcon Kind="ContentCopy"
-                                             Width="{StaticResource IconSizeMD}"
-                                             Height="{StaticResource IconSizeMD}"
-                                             Foreground="{DynamicResource TextSecondaryBrush}"/>
-                        </Button>
+                        <SelectableTextBlock Grid.Row="4"
+                                             Text="{Binding YourUsername}"
+                                             Classes="credential"
+                                             VerticalAlignment="Center" />
 
-                        <!-- Row 2: Password Label + Value with Refresh -->
-                        <StackPanel Grid.Row="2" Grid.Column="0"
-                                    Spacing="{theme:Gap XS}"
-                                    Margin="{theme:Spacing Top=MD}">
-                            <TextBlock Text="Password"
-                                       Classes="caption secondary"/>
-                            <StackPanel Orientation="Horizontal" Spacing="{theme:Gap XS}">
-                                <SelectableTextBlock Text="{Binding YourPassword}"
-                                                     Classes="credential"
-                                                     Margin="{theme:Spacing Y=SM}"
-                                                     VerticalAlignment="Center"/>
-                                <Button Command="{Binding GenerateNewPasswordCommand}"
-                                        ToolTip.Tip="Generate new password"
-                                        Classes="icon-button"
-                                        VerticalAlignment="Center"
-                                        Width="32" Height="32">
-                                    <mi:MaterialIcon Kind="Refresh"
-                                                     Width="{StaticResource IconSizeSM}"
-                                                     Height="{StaticResource IconSizeSM}"
-                                                     Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                </Button>
-                            </StackPanel>
+                        <TextBlock Grid.Row="6"
+                                   Classes="caption secondary"
+                                   Text="Password" />
+
+                        <StackPanel Grid.Row="8"
+                                    Orientation="Horizontal"
+                                    Spacing="{theme:Gap XS}">
+                            <SelectableTextBlock Text="{Binding YourPassword}"
+                                                    Classes="credential"
+                                                    VerticalAlignment="Center"/>
+                            <Button Command="{Binding GenerateNewPasswordCommand}"
+                                    ToolTip.Tip="Generate new password"
+                                    Classes="icon-button"
+                                    VerticalAlignment="Center"
+                                    Width="32" 
+                                    Height="32">
+                                <mi:MaterialIcon Kind="Refresh"
+                                                 Width="{StaticResource IconSizeSM}"
+                                                 Height="{StaticResource IconSizeSM}"
+                                                 Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            </Button>
                         </StackPanel>
                     </Grid>
-                </controls:Card>
-
-                <!-- Right Panel - Connect to Device -->
-                <controls:Card Grid.Column="1"
-                               Margin="{theme:Spacing Left=SM}">
-                    <StackPanel Spacing="{theme:Gap MD}">
-                        <TextBlock Text="Connect to Device"
-                                   Classes="header"/>
-
-                        <StackPanel Spacing="{theme:Gap XS}">
-                            <TextBlock Text="ID"
-                                       Classes="caption secondary"/>
-                            <TextBox x:Name="TargetUsernameBox"
-                                     Text="{Binding TargetUsername}"
-                                     Watermark="Enter ID"
-                                     IsEnabled="{Binding !ConnectToDeviceCommand.IsRunning}"
-                                     PastingFromClipboard="TargetUsernameBox_Pasting"/>
-                        </StackPanel>
-
-                        <StackPanel Spacing="{theme:Gap XS}">
-                            <TextBlock Text="Password"
-                                       Classes="caption secondary"/>
-                            <TextBox x:Name="TargetPasswordBox"
-                                     Text="{Binding TargetPassword}"
-                                     Watermark="Enter password"
-                                     PasswordChar="*"
-                                     IsEnabled="{Binding !ConnectToDeviceCommand.IsRunning}"
-                                     KeyDown="TargetPasswordBox_KeyDown">
-                                <TextBox.InnerRightContent>
-                                    <Button Command="{Binding ConnectToDeviceCommand}"
-                                            ToolTip.Tip="Connect"
-                                            Classes="icon-button"
-                                            Padding="{theme:Spacing XS}"
-                                            IsEnabled="{Binding !ConnectToDeviceCommand.IsRunning}">
-                                        <mi:MaterialIcon Kind="ArrowRightCircle"
-                                                         Width="{StaticResource IconSizeMD}"
-                                                         Height="{StaticResource IconSizeMD}"
-                                                         Foreground="{DynamicResource AccentBrush}"/>
-                                    </Button>
-                                </TextBox.InnerRightContent>
-                            </TextBox>
-                        </StackPanel>
-                    </StackPanel>
-                </controls:Card>
-            </Grid>
-
-            <!-- Status Bar at Bottom -->
-            <Border Grid.Row="1"
-                    Background="{DynamicResource SurfaceElevatedBrush}"
-                    Padding="{theme:Spacing X=MD, Y=SM}">
-                <Grid ColumnDefinitions="*,Auto">
-                    <StackPanel Orientation="Horizontal" Spacing="{theme:Gap SM}">
-                        <mi:MaterialIcon Kind="{Binding IsConnected, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.CloudCheck}, FalseValue={x:Static mik:MaterialIconKind.CloudOffOutline}}}"
-                                         Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}"
-                                         Foreground="{Binding IsConnected, Converter={conv:BoolToObject TrueValue={StaticResource SuccessBrush}, FalseValue={StaticResource ErrorBrush}}}"/>
-                        <TextBlock Text="{Binding StatusText}"
-                                   Classes="caption"
-                                   VerticalAlignment="Center"/>
-                    </StackPanel>
 
                     <Button Grid.Column="1"
-                            Command="{Binding ShowAboutCommand}"
-                            ToolTip.Tip="About"
                             Classes="icon-button"
-                            Width="24" Height="24">
-                        <mi:MaterialIcon Kind="InformationOutline"
-                                         Width="{StaticResource IconSizeSM}"
-                                         Height="{StaticResource IconSizeSM}"
+                            VerticalAlignment="Center"
+                            Margin="{theme:Spacing Left=SM}"
+                            Command="{Binding CopyCredentialsCommand}"
+                            ToolTip.Tip="Copy ID and password">
+                        <mi:MaterialIcon Kind="ContentCopy"
+                                         Width="{StaticResource IconSizeMD}"
+                                         Height="{StaticResource IconSizeMD}"
                                          Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </Button>
                 </Grid>
-            </Border>
+            </controls:Card>
+
+            <!-- Right Panel - Connect to Device -->
+            <controls:Card Grid.Column="2">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" SharedSizeGroup="HeaderRow"/>
+                        <RowDefinition Height="{theme:GridSpacing Size=SM}" />
+                        <RowDefinition Height="Auto" SharedSizeGroup="IdLabelRow"/>
+                        <RowDefinition Height="{theme:GridSpacing Size=XS}" />
+                        <RowDefinition Height="Auto" SharedSizeGroup="IdValueRow"/>
+                        <RowDefinition Height="{theme:GridSpacing Size=SM}" />
+                        <RowDefinition Height="Auto" SharedSizeGroup="PasswordLabelRow"/>
+                        <RowDefinition Height="{theme:GridSpacing Size=XS}" />
+                        <RowDefinition Height="Auto" SharedSizeGroup="PasswordValueRow"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0"
+                               Classes="header"
+                               Text="Connect to Device" />
+
+                    <TextBlock Grid.Row="2"
+                               Classes="caption secondary"
+                               Text="ID" />
+
+                    <TextBox Grid.Row="4"
+                             x:Name="TargetUsernameBox"
+                             Text="{Binding TargetUsername}"
+                             Watermark="Enter ID"
+                             IsEnabled="{Binding !ConnectToDeviceCommand.IsRunning}"
+                             PastingFromClipboard="TargetUsernameBox_Pasting" />
+
+                    <TextBlock Grid.Row="6"
+                               Classes="caption secondary"
+                               Text="Password" />
+
+                    <TextBox Grid.Row="8"
+                             x:Name="TargetPasswordBox"
+                             Text="{Binding TargetPassword}"
+                             Watermark="Enter password"
+                             IsEnabled="{Binding !ConnectToDeviceCommand.IsRunning}"
+                             PasswordChar="●"
+                             KeyDown="TargetPasswordBox_KeyDown">
+                        <TextBox.InnerRightContent>
+                            <Button Command="{Binding ConnectToDeviceCommand}"
+                                    ToolTip.Tip="Connect"
+                                    Classes="icon-button"
+                                    IsEnabled="{Binding !ConnectToDeviceCommand.IsRunning}">
+                                <mi:MaterialIcon Kind="ArrowRightCircle"
+                                                 Width="{StaticResource IconSizeMD}"
+                                                 Height="{StaticResource IconSizeMD}"
+                                                 Foreground="{DynamicResource AccentBrush}"/>
+                            </Button>
+                        </TextBox.InnerRightContent>
+                    </TextBox>
+                </Grid>
+            </controls:Card>
         </Grid>
 
-        <toastControls:ToastsView DataContext="{Binding Toasts}"
+        <!-- Status Bar at Bottom -->
+        <Border Grid.Row="1"
+                Background="{DynamicResource SurfaceElevatedBrush}"
+                Padding="{theme:Spacing X=LG, Y=XXS}">
+            <Grid ColumnDefinitions="*,Auto">
+                <StackPanel Orientation="Horizontal"
+                            Spacing="{theme:Gap SM}"
+                            ToolTip.Tip="{Binding VersionTooltipText}">
+                    <mi:MaterialIcon Width="{StaticResource IconSizeSM}"
+                                     Height="{StaticResource IconSizeSM}">
+                        <mi:MaterialIcon.Kind>
+                            <Binding Path="Status">
+                                <Binding.Converter>
+                                    <conv:ObjectToObject DefaultValue="{x:Static mik:MaterialIconKind.CloudOffOutline}">
+                                        <conv:MapItem From="{x:Static vm:ConnectionStatus.Connected}" To="{x:Static mik:MaterialIconKind.CloudCheck}"/>
+                                        <conv:MapItem From="{x:Static vm:ConnectionStatus.VersionMismatch}" To="{x:Static mik:MaterialIconKind.AlertOutline}"/>
+                                    </conv:ObjectToObject>
+                                </Binding.Converter>
+                            </Binding>
+                        </mi:MaterialIcon.Kind>
+                        <mi:MaterialIcon.Foreground>
+                            <Binding Path="Status">
+                                <Binding.Converter>
+                                    <conv:ObjectToObject DefaultValue="{StaticResource ErrorBrush}">
+                                        <conv:MapItem From="{x:Static vm:ConnectionStatus.Connected}" To="{StaticResource SuccessBrush}"/>
+                                        <conv:MapItem From="{x:Static vm:ConnectionStatus.VersionMismatch}" To="{StaticResource WarningBrush}"/>
+                                    </conv:ObjectToObject>
+                                </Binding.Converter>
+                            </Binding>
+                        </mi:MaterialIcon.Foreground>
+                    </mi:MaterialIcon>
+                    <TextBlock Classes="caption"
+                               VerticalAlignment="Center">
+                        <TextBlock.Text>
+                            <Binding Path="Status">
+                                <Binding.Converter>
+                                    <conv:ObjectToObject DefaultValue="Connecting...">
+                                        <conv:MapItem From="{x:Static vm:ConnectionStatus.Connected}" To="Connected"/>
+                                        <conv:MapItem From="{x:Static vm:ConnectionStatus.VersionMismatch}" To="Version Mismatch"/>
+                                    </conv:ObjectToObject>
+                                </Binding.Converter>
+                            </Binding>
+                        </TextBlock.Text>
+                    </TextBlock>
+                </StackPanel>
+
+                <Button Grid.Column="1"
+                        Command="{Binding ShowAboutCommand}"
+                        ToolTip.Tip="About"
+                        Classes="icon-button"
+                        Width="24" 
+                        Height="24">
+                    <mi:MaterialIcon Kind="InformationOutline"
+                                     Width="{StaticResource IconSizeSM}"
+                                     Height="{StaticResource IconSizeSM}"
+                                     Foreground="{DynamicResource TextSecondaryBrush}"/>
+                </Button>
+            </Grid>
+        </Border>
+
+        <!-- Toast Notifications -->
+        <toastControls:ToastsView Grid.RowSpan="2"
+                                  DataContext="{Binding Toasts}"
                                   HorizontalAlignment="Right"
                                   VerticalAlignment="Bottom"
                                   Margin="{theme:Spacing Right=SM, Bottom=SM}"/>
-
-        <!-- Version Mismatch Warning Banner (overlay) -->
-        <Border HorizontalAlignment="Stretch"
-                VerticalAlignment="Top"
-                Padding="{theme:Spacing X=MD, Y=SM}"
-                Background="{DynamicResource WarningBackgroundBrush}"
-                IsVisible="{Binding HasVersionMismatch}">
-            <Grid ColumnDefinitions="Auto,*">
-                <mi:MaterialIcon Kind="AlertOutline"
-                                 Width="{StaticResource IconSizeMD}"
-                                 Height="{StaticResource IconSizeMD}"
-                                 Foreground="{DynamicResource WarningForegroundBrush}"
-                                 VerticalAlignment="Center"
-                                 Margin="{theme:Spacing Right=MD}"/>
-                <TextBlock Grid.Column="1"
-                           Text="{Binding VersionMismatchText}"
-                           Foreground="{DynamicResource WarningForegroundBrush}"
-                           VerticalAlignment="Center"/>
-            </Grid>
-        </Border>
-    </Panel>
+    </Grid>
 </Window>

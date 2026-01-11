@@ -134,32 +134,23 @@ Apply via `Classes="class-name"` on TextBlock:
 
 ```xml
 <Button Classes="icon-button">       <!-- 32x32 transparent icon button -->
-<Button Classes="icon-button-lg">    <!-- 40x40 larger icon button -->
 <Button Classes="action-primary">    <!-- Accent background, white text -->
 <Button Classes="action-secondary">  <!-- Subtle background -->
-<Button Classes="ghost">             <!-- Transparent, text only -->
-<Button Classes="danger">            <!-- Error/destructive action -->
-<Button Classes="success">           <!-- Positive action -->
 ```
 
-## Card Component & Styles
+## Card Component (Controls/Card.axaml)
 
-### Card Component (Controls/Card.axaml)
-```xml
-<controls:Card Variant="Default|Elevated|Surface|AccentStrip" Accent="None|Success|Error|Info|Warning|Primary">
-    <!-- Content -->
-</controls:Card>
-```
+A flexible card container with size options.
 
-### Card Utility Classes
 ```xml
-<Border Classes="card">              <!-- Basic card -->
-<Border Classes="card-elevated">     <!-- Card with shadow -->
-<Border Classes="accent-strip success">  <!-- Left accent border -->
+<controls:Card>                <!-- Default: 8px radius, 14px padding -->
+<controls:Card Size="Large">   <!-- 12px radius, 16px padding -->
+<controls:Card Size="XLarge">  <!-- 20px radius, 32x28 padding (for overlays) -->
+<controls:Card Size="ListItem"><!-- Uses SurfaceOverlayBrush background -->
 ```
 
 ## Components
 
-- **Card**: Flexible container with variants (`Controls/Card.axaml`)
+- **Card**: Flexible container with size options (`Controls/Card.axaml`)
 - **IconBadge**: Circular icon container with sizes Small/Medium/Large (`Controls/IconBadge.axaml`)
 - **DialogHeader**: Standardized dialog header with icon, title, subtitle (`Controls/DialogHeader.axaml`)
