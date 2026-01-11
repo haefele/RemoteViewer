@@ -4,6 +4,7 @@
         xmlns:controls="using:RemoteViewer.Client.Controls"
         xmlns:hub="using:RemoteViewer.Client.Services.HubClient"
         xmlns:local="using:RemoteViewer.Client.Views.Chat"
+        xmlns:theme="using:RemoteViewer.Client.Themes"
         x:Class="RemoteViewer.Client.Views.Chat.ChatView"
         x:DataType="local:ChatViewModel"
         x:Name="ChatWindow"
@@ -15,7 +16,7 @@
         ShowInTaskbar="True"
         WindowStartupLocation="CenterOwner">
 
-    <Grid RowDefinitions="*,Auto" Classes="m-sm">
+    <Grid RowDefinitions="*,Auto" Margin="{theme:Spacing SM}">
         <!-- Message list -->
         <ScrollViewer Grid.Row="0"
                       x:Name="MessageScrollViewer"
@@ -24,7 +25,9 @@
             <ItemsControl ItemsSource="{Binding Messages}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="hub:ChatMessageDisplay">
-                        <Border Classes="my-xxs px-sm py-sm rounded-md"
+                        <Border Margin="{theme:Spacing Y=XXS}"
+                                Padding="{theme:Spacing X=SM, Y=SM}"
+                                CornerRadius="8"
                                 Classes.self="{Binding IsFromSelf}"
                                 Classes.other="{Binding !IsFromSelf}">
                             <Border.Styles>
@@ -40,28 +43,32 @@
                             <StackPanel MaxWidth="240">
                                 <!-- Sender name (hidden for self) -->
                                 <TextBlock Text="{Binding SenderDisplayName}"
-                                           Classes="small text-secondary"
+                                           Classes="small"
+                                           Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontWeight="SemiBold"
                                            IsVisible="{Binding !IsFromSelf}"/>
                                 <!-- Message text (selectable) -->
                                 <SelectableTextBlock Text="{Binding Text}"
-                                                     Classes="wrap"
+                                                     TextWrapping="Wrap"
                                                      FontSize="13"
                                                      LineHeight="20"/>
                                 <!-- Link buttons -->
                                 <ItemsControl ItemsSource="{Binding Links}"
                                               IsVisible="{Binding Links.Count}"
-                                              Classes="mt-xs">
+                                              Margin="{theme:Spacing Top=XS}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="hub:ChatLinkDisplay">
                                             <Button Command="{Binding #ChatWindow.((local:ChatViewModel)DataContext).OpenLinkCommand}"
                                                     CommandParameter="{Binding Url}"
-                                                    Classes="px-sm py-xs mt-xxs items-start">
-                                                <StackPanel Classes="flex-row gap-sm">
-                                                    <mi:MaterialIcon Kind="Link" Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}" Classes="justify-center"/>
+                                                    Padding="{theme:Spacing X=SM, Y=XS}"
+                                                    Margin="{theme:Spacing Top=XXS}"
+                                                    HorizontalAlignment="Left">
+                                                <StackPanel Orientation="Horizontal" Spacing="{theme:Gap SM}">
+                                                    <mi:MaterialIcon Kind="Link" Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}" VerticalAlignment="Center"/>
                                                     <StackPanel>
                                                         <TextBlock Text="{Binding Domain}" Classes="caption" FontWeight="SemiBold"/>
-                                                        <TextBlock Text="{Binding Url}" Classes="small-muted truncate"
+                                                        <TextBlock Text="{Binding Url}" Classes="small-muted"
+                                                                   TextTrimming="CharacterEllipsis"
                                                                    MaxWidth="180"/>
                                                     </StackPanel>
                                                 </StackPanel>
@@ -71,7 +78,8 @@
                                 </ItemsControl>
                                 <!-- Timestamp -->
                                 <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:HH:mm}'}"
-                                           Classes="small-muted text-right"/>
+                                           Classes="small-muted"
+                                           TextAlignment="Right"/>
                             </StackPanel>
                         </Border>
                     </DataTemplate>
@@ -82,14 +90,17 @@
         <!-- Empty state -->
         <TextBlock Grid.Row="0"
                    Text="No messages yet"
-                   Classes="caption muted center"
+                   Classes="caption muted"
+                   HorizontalAlignment="Center"
+                   VerticalAlignment="Center"
                    IsVisible="{Binding !Messages.Count}"/>
 
         <!-- Input area -->
-        <StackPanel Grid.Row="1" Classes="my-sm gap-xs">
+        <StackPanel Grid.Row="1" Margin="{theme:Spacing Y=SM}" Spacing="{theme:Gap XS}">
             <!-- Character limit warning -->
             <TextBlock Text="{Binding CharactersRemaining, StringFormat='{}{0} characters remaining'}"
-                       Classes="small-muted items-end"
+                       Classes="small-muted"
+                       HorizontalAlignment="Right"
                        IsVisible="{Binding IsNearLimit}"
                        Classes.warning="{Binding IsNearLimit}"
                        Classes.error="{Binding IsAtLimit}">
@@ -118,7 +129,7 @@
                             Width="28"
                             Height="28">
                         <mi:MaterialIcon Kind="Send" Width="18" Height="18"
-                                         Classes="text-accent"/>
+                                         Foreground="{DynamicResource AccentBrush}"/>
                     </Button>
                 </TextBox.InnerRightContent>
             </TextBox>

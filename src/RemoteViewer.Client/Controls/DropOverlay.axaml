@@ -1,18 +1,19 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mi="using:Material.Icons.Avalonia"
+             xmlns:theme="using:RemoteViewer.Client.Themes"
              x:Class="RemoteViewer.Client.Controls.DropOverlay"
              x:Name="Root">
 
     <Border Background="{DynamicResource OverlayDimBrush}"
-            Padding="{StaticResource SpacingLG}">
+            Padding="{theme:Spacing LG}">
 
         <!-- Centered card using overlay-card style -->
         <Border HorizontalAlignment="Center"
                 VerticalAlignment="Center"
                 Classes="overlay-card">
 
-            <StackPanel Spacing="{StaticResource GapLG}" HorizontalAlignment="Center">
+            <StackPanel Spacing="{theme:Gap LG}" HorizontalAlignment="Center">
                 <!-- Icon with circular background -->
                 <Border Background="{DynamicResource SuccessBrush}"
                         CornerRadius="32"
@@ -26,7 +27,7 @@
                 </Border>
 
                 <!-- Text content -->
-                <StackPanel Spacing="{StaticResource GapXS}" HorizontalAlignment="Center">
+                <StackPanel Spacing="{theme:Gap XS}" HorizontalAlignment="Center">
                     <TextBlock Text="Drop to Send"
                                Classes="title"
                                HorizontalAlignment="Center"/>

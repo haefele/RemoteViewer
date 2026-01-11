@@ -3,6 +3,7 @@
         xmlns:mi="using:Material.Icons.Avalonia"
         xmlns:controls="using:RemoteViewer.Client.Controls"
         xmlns:dialogs="using:RemoteViewer.Client.Controls.Dialogs"
+        xmlns:theme="using:RemoteViewer.Client.Themes"
         x:Class="RemoteViewer.Client.Controls.Dialogs.FileTransferConfirmationDialog"
         x:DataType="dialogs:FileTransferConfirmationDialogViewModel"
         Title="Incoming File"
@@ -12,9 +13,9 @@
         ShowInTaskbar="False"
         WindowStartupLocation="CenterScreen">
 
-    <Border Classes="p-xl" MinWidth="320" MaxWidth="400">
+    <Border Padding="{theme:Spacing XL}" MinWidth="320" MaxWidth="400">
 
-        <StackPanel Classes="gap-lg">
+        <StackPanel Spacing="{theme:Gap LG}">
 
             <!-- Header -->
             <controls:DialogHeader Icon="FileDownload"
@@ -24,14 +25,16 @@
                                    Subtitle="{Binding SenderDisplayName, StringFormat='From {0}'}"/>
 
             <!-- File info card -->
-            <Border Classes="card">
+            <controls:Card>
                 <Grid ColumnDefinitions="Auto,*">
                     <mi:MaterialIcon Grid.Column="0"
                                      Kind="File"
                                      Width="{StaticResource IconSizeMD}"
                                      Height="{StaticResource IconSizeMD}"
-                                     Classes="mr-md justify-center text-secondary"/>
-                    <StackPanel Grid.Column="1" Classes="gap-xxs">
+                                     Margin="{theme:Spacing Right=MD}"
+                                     VerticalAlignment="Center"
+                                     Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <StackPanel Grid.Column="1" Spacing="{theme:Gap XXS}">
                         <TextBlock Text="{Binding FileName}"
                                    Classes="header-small"
                                    TextTrimming="CharacterEllipsis"
@@ -40,25 +43,33 @@
                                    Classes="small"/>
                     </StackPanel>
                 </Grid>
-            </Border>
+            </controls:Card>
 
             <!-- Action buttons -->
-            <Grid ColumnDefinitions="*,10,*">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="{theme:GridSpacing SM}"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
                 <Button Grid.Column="0"
-                        Classes="action-secondary w-full"
+                        Classes="action-secondary"
+                        HorizontalAlignment="Stretch"
                         Click="OnRejectClicked">
-                    <StackPanel Classes="flex-row gap-icon">
+                    <StackPanel Orientation="Horizontal" Spacing="{theme:Gap Icon}">
                         <mi:MaterialIcon Kind="Close" Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}"/>
-                        <TextBlock Text="Reject" Classes="justify-center"/>
+                        <TextBlock Text="Reject" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
 
                 <Button Grid.Column="2"
-                        Classes="action-primary w-full"
+                        Classes="action-primary"
+                        HorizontalAlignment="Stretch"
                         Click="OnAcceptClicked">
-                    <StackPanel Classes="flex-row gap-icon">
+                    <StackPanel Orientation="Horizontal" Spacing="{theme:Gap Icon}">
                         <mi:MaterialIcon Kind="Check" Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}"/>
-                        <TextBlock Text="Accept" Classes="justify-center"/>
+                        <TextBlock Text="Accept" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
             </Grid>
