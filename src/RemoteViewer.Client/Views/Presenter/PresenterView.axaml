@@ -36,7 +36,9 @@
                         Classes="icon-button"
                         IsEnabled="{Binding Viewers.Count}"
                         Command="{Binding SendFileCommand}">
-                    <mi:MaterialIcon Kind="FileUpload" Width="20" Height="20"/>
+                    <mi:MaterialIcon Kind="FileUpload"
+                                     Width="{StaticResource IconSizeMD}"
+                                     Height="{StaticResource IconSizeMD}"/>
                 </Button>
 
                 <!-- Chat button -->
@@ -45,7 +47,9 @@
                         Classes="icon-button"
                         Command="{Binding ShowChatCommand}">
                     <Panel>
-                        <mi:MaterialIcon Kind="Chat" Width="20" Height="20"/>
+                        <mi:MaterialIcon Kind="Chat"
+                                         Width="{StaticResource IconSizeMD}"
+                                         Height="{StaticResource IconSizeMD}"/>
                         <!-- Unread indicator -->
                         <Ellipse Width="8" Height="8"
                                  Fill="{DynamicResource ErrorBrush}"
@@ -107,7 +111,9 @@
                             </StackPanel>
                         </Flyout>
                     </Button.Flyout>
-                    <mi:MaterialIcon Kind="Cog" Width="20" Height="20"/>
+                    <mi:MaterialIcon Kind="Cog"
+                                     Width="{StaticResource IconSizeMD}"
+                                     Height="{StaticResource IconSizeMD}"/>
                 </Button>
 
                 <!-- Separator -->
@@ -120,7 +126,9 @@
                 <Button Command="{Binding StopPresentingCommand}"
                         ToolTip.Tip="Stop presenting"
                         Classes="icon-button">
-                    <mi:MaterialIcon Kind="LanDisconnect" Width="20" Height="20"
+                    <mi:MaterialIcon Kind="LanDisconnect"
+                                     Width="{StaticResource IconSizeMD}"
+                                     Height="{StaticResource IconSizeMD}"
                                      Foreground="{DynamicResource ErrorBrush}"/>
                 </Button>
             </StackPanel>
@@ -156,7 +164,9 @@
                             Margin="{theme:Spacing Left=SM}"
                             Command="{Binding CopyCredentialsCommand}"
                             ToolTip.Tip="Copy ID and password">
-                        <mi:MaterialIcon Kind="ContentCopy" Width="20" Height="20"
+                        <mi:MaterialIcon Kind="ContentCopy"
+                                         Width="{StaticResource IconSizeMD}"
+                                         Height="{StaticResource IconSizeMD}"
                                          Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </Button>
 
@@ -175,8 +185,10 @@
                                     ToolTip.Tip="Generate new password"
                                     Classes="icon-button"
                                     VerticalAlignment="Center"
-                                    Width="28" Height="28">
-                                <mi:MaterialIcon Kind="Refresh" Width="18" Height="18"
+                                    Width="32" Height="32">
+                                <mi:MaterialIcon Kind="Refresh"
+                                                 Width="{StaticResource IconSizeSM}"
+                                                 Height="{StaticResource IconSizeSM}"
                                                  Foreground="{DynamicResource TextSecondaryBrush}"/>
                             </Button>
                         </StackPanel>
@@ -220,8 +232,8 @@
                                                 ToolTip.Tip="{Binding IsInputBlocked, Converter={conv:BoolToObject TrueValue='Unblock input', FalseValue='Block input'}}"
                                                 Classes="icon-button">
                                             <mi:MaterialIcon Kind="{Binding IsInputBlocked, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.MouseOff}, FalseValue={x:Static mik:MaterialIconKind.Mouse}}}"
-                                                             Width="18"
-                                                             Height="18"/>
+                                                             Width="{StaticResource IconSizeSM}"
+                                                             Height="{StaticResource IconSizeSM}"/>
                                         </Button>
                                     </Grid>
                                 </DataTemplate>

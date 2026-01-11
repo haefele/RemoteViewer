@@ -5,24 +5,25 @@
              xmlns:toasts="using:RemoteViewer.Client.Controls.Toasts"
              xmlns:ft="using:RemoteViewer.Client.Services.FileTransfer"
              xmlns:conv="using:RemoteViewer.Client.Converters"
+             xmlns:theme="using:RemoteViewer.Client.Themes"
              x:Class="RemoteViewer.Client.Controls.Toasts.ToastsView"
              x:DataType="toasts:ToastsViewModel">
 
     <ItemsControl ItemsSource="{Binding Items}">
         <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-                <StackPanel Spacing="8"/>
+                <StackPanel Spacing="{theme:Gap SM}"/>
             </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
 
         <ItemsControl.DataTemplates>
             <!-- Regular text toast -->
             <DataTemplate x:DataType="toasts:ToastItemViewModel">
-                <Border CornerRadius="12"
+                <Border CornerRadius="{StaticResource CornerRadiusLG}"
                         MaxWidth="340"
                         MinWidth="220"
                         BoxShadow="0 4 16 0 #40000000">
-                    <Border CornerRadius="12"
+                    <Border CornerRadius="{StaticResource CornerRadiusLG}"
                             Background="{DynamicResource ToastBackgroundBrush}"
                             ClipToBounds="True">
                         <Grid ColumnDefinitions="3,Auto,*,Auto">
@@ -46,12 +47,12 @@
                             <Border Grid.Column="1"
                                     Width="32"
                                     Height="32"
-                                    CornerRadius="8"
-                                    Margin="14,14,12,14"
+                                    CornerRadius="{StaticResource CornerRadiusMD}"
+                                    Margin="{theme:Spacing Left=MD, Right=MD, Y=MD}"
                                     VerticalAlignment="Center"
                                     Background="{DynamicResource ToastIconBadgeBrush}">
-                                <mi:MaterialIcon Width="18"
-                                                 Height="18"
+                                <mi:MaterialIcon Width="{StaticResource IconSizeSM}"
+                                                 Height="{StaticResource IconSizeSM}"
                                                  HorizontalAlignment="Center"
                                                  VerticalAlignment="Center">
                                     <mi:MaterialIcon.Foreground>
@@ -85,22 +86,22 @@
                                        VerticalAlignment="Center"
                                        TextWrapping="Wrap"
                                        Foreground="{DynamicResource ToastForegroundBrush}"
-                                       FontSize="13"
+                                       Classes="body-small"
                                        FontWeight="SemiBold"
-                                       Margin="0,14,8,14"/>
+                                       Margin="{theme:Spacing Y=MD, Right=SM}"/>
 
                             <!-- Close button -->
                             <Button Grid.Column="3"
                                     Command="{Binding DismissCommand}"
                                     Background="Transparent"
                                     BorderThickness="0"
-                                    Width="28"
-                                    Height="28"
+                                    Width="32"
+                                    Height="32"
                                     Padding="0"
-                                    Margin="0,0,10,0"
+                                    Margin="{theme:Spacing Right=SM}"
                                     VerticalAlignment="Center"
                                     Cursor="Hand"
-                                    CornerRadius="6">
+                                    CornerRadius="{StaticResource CornerRadiusButton}">
                                 <Button.Styles>
                                     <Style Selector="Button">
                                         <Setter Property="Opacity" Value="0.6"/>
@@ -111,8 +112,8 @@
                                     </Style>
                                 </Button.Styles>
                                 <mi:MaterialIcon Kind="Close"
-                                                 Width="16"
-                                                 Height="16"
+                                                 Width="{StaticResource IconSizeSM}"
+                                                 Height="{StaticResource IconSizeSM}"
                                                  Foreground="{DynamicResource ToastForegroundBrush}"/>
                             </Button>
                         </Grid>
@@ -122,11 +123,11 @@
 
             <!-- Action toast (with button) -->
             <DataTemplate x:DataType="toasts:ActionToastItemViewModel">
-                <Border CornerRadius="12"
+                <Border CornerRadius="{StaticResource CornerRadiusLG}"
                         MaxWidth="360"
                         MinWidth="240"
                         BoxShadow="0 4 16 0 #40000000">
-                    <Border CornerRadius="12"
+                    <Border CornerRadius="{StaticResource CornerRadiusLG}"
                             Background="{DynamicResource ToastBackgroundBrush}"
                             ClipToBounds="True">
                         <Grid ColumnDefinitions="3,Auto,*,Auto">
@@ -150,12 +151,12 @@
                             <Border Grid.Column="1"
                                     Width="32"
                                     Height="32"
-                                    CornerRadius="8"
-                                    Margin="14,14,12,14"
+                                    CornerRadius="{StaticResource CornerRadiusMD}"
+                                    Margin="{theme:Spacing Left=MD, Right=MD, Y=MD}"
                                     VerticalAlignment="Top"
                                     Background="{DynamicResource ToastIconBadgeBrush}">
-                                <mi:MaterialIcon Width="18"
-                                                 Height="18"
+                                <mi:MaterialIcon Width="{StaticResource IconSizeSM}"
+                                                 Height="{StaticResource IconSizeSM}"
                                                  HorizontalAlignment="Center"
                                                  VerticalAlignment="Center">
                                     <mi:MaterialIcon.Foreground>
@@ -184,16 +185,16 @@
                             </Border>
 
                             <!-- Content: message + action button -->
-                            <StackPanel Grid.Column="2" Spacing="8" Margin="0,14,8,14">
+                            <StackPanel Grid.Column="2" Spacing="{theme:Gap SM}" Margin="{theme:Spacing Y=MD, Right=SM}">
                                 <TextBlock Text="{Binding Message}"
                                            TextWrapping="Wrap"
                                            Foreground="{DynamicResource ToastForegroundBrush}"
-                                           FontSize="13"
+                                           Classes="body-small"
                                            FontWeight="SemiBold"/>
 
                                 <Button Command="{Binding ExecuteActionCommand}"
-                                        CornerRadius="6"
-                                        Padding="12,6"
+                                        CornerRadius="{StaticResource CornerRadiusButton}"
+                                        Padding="{theme:Spacing X=MD, Y=XS}"
                                         HorizontalAlignment="Left"
                                         Cursor="Hand"
                                         BorderThickness="0">
@@ -213,15 +214,15 @@
                                             <Setter Property="Opacity" Value="0.9"/>
                                         </Style>
                                     </Button.Styles>
-                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <StackPanel Orientation="Horizontal" Spacing="{theme:Gap Icon}">
                                         <mi:MaterialIcon Kind="{Binding ActionIcon}"
-                                                         Width="14"
-                                                         Height="14"
+                                                         Width="{StaticResource IconSizeXS}"
+                                                         Height="{StaticResource IconSizeXS}"
                                                          VerticalAlignment="Center"
                                                          Foreground="{DynamicResource OnAccentTextBrush}"/>
                                         <TextBlock Text="{Binding ActionText}"
                                                    VerticalAlignment="Center"
-                                                   FontSize="12"
+                                                   Classes="caption"
                                                    FontWeight="SemiBold"
                                                    Foreground="{DynamicResource OnAccentTextBrush}"/>
                                     </StackPanel>
@@ -233,13 +234,13 @@
                                     Command="{Binding DismissCommand}"
                                     Background="Transparent"
                                     BorderThickness="0"
-                                    Width="28"
-                                    Height="28"
+                                    Width="32"
+                                    Height="32"
                                     Padding="0"
-                                    Margin="0,10,10,0"
+                                    Margin="{theme:Spacing Top=SM, Right=SM}"
                                     VerticalAlignment="Top"
                                     Cursor="Hand"
-                                    CornerRadius="6">
+                                    CornerRadius="{StaticResource CornerRadiusButton}">
                                 <Button.Styles>
                                     <Style Selector="Button">
                                         <Setter Property="Opacity" Value="0.6"/>
@@ -250,8 +251,8 @@
                                     </Style>
                                 </Button.Styles>
                                 <mi:MaterialIcon Kind="Close"
-                                                 Width="16"
-                                                 Height="16"
+                                                 Width="{StaticResource IconSizeSM}"
+                                                 Height="{StaticResource IconSizeSM}"
                                                  Foreground="{DynamicResource ToastForegroundBrush}"/>
                             </Button>
                         </Grid>
@@ -261,11 +262,11 @@
 
             <!-- File transfer progress toast -->
             <DataTemplate x:DataType="toasts:TransferToastItemViewModel">
-                <Border CornerRadius="12"
+                <Border CornerRadius="{StaticResource CornerRadiusLG}"
                         MaxWidth="320"
                         MinWidth="260"
                         BoxShadow="0 4 16 0 #40000000">
-                    <Border CornerRadius="12"
+                    <Border CornerRadius="{StaticResource CornerRadiusLG}"
                             Background="{DynamicResource ToastTransferBackgroundBrush}"
                             ClipToBounds="True">
                         <Grid ColumnDefinitions="3,*">
@@ -275,20 +276,20 @@
                                     Background="{StaticResource ToastTransferAccentBrush}"/>
 
                             <!-- Content -->
-                            <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,Auto" Margin="14">
+                            <Grid Grid.Column="1" RowDefinitions="Auto,Auto,Auto,Auto" Margin="{theme:Spacing MD}">
                                 <!-- Row 0: Header with icon badge, direction label, cancel button -->
                                 <Grid Grid.Row="0" ColumnDefinitions="Auto,*,Auto">
                                     <!-- Icon badge -->
                                     <Border Grid.Column="0"
                                             Width="32"
                                             Height="32"
-                                            CornerRadius="8"
+                                            CornerRadius="{StaticResource CornerRadiusMD}"
                                             Background="{DynamicResource ToastIconBadgeBrush}"
-                                            Margin="0,0,10,0"
+                                            Margin="{theme:Spacing Right=SM}"
                                             VerticalAlignment="Center">
                                         <mi:MaterialIcon Kind="{Binding IsUpload, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.CloudUpload}, FalseValue={x:Static mik:MaterialIconKind.CloudDownload}}}"
-                                                         Width="18"
-                                                         Height="18"
+                                                         Width="{StaticResource IconSizeSM}"
+                                                         Height="{StaticResource IconSizeSM}"
                                                          HorizontalAlignment="Center"
                                                          VerticalAlignment="Center"
                                                          Foreground="{StaticResource ToastTransferAccentBrush}"/>
@@ -299,18 +300,18 @@
                                                VerticalAlignment="Center"
                                                Foreground="{DynamicResource ToastForegroundBrush}"
                                                FontWeight="SemiBold"
-                                               FontSize="13"/>
+                                               Classes="body-small"/>
 
                                     <Button Grid.Column="2"
                                             Command="{Binding CancelCommand}"
                                             Background="Transparent"
                                             BorderThickness="0"
-                                            Width="28"
-                                            Height="28"
+                                            Width="32"
+                                            Height="32"
                                             Padding="0"
                                             VerticalAlignment="Center"
                                             Cursor="Hand"
-                                            CornerRadius="6"
+                                            CornerRadius="{StaticResource CornerRadiusButton}"
                                             ToolTip.Tip="Cancel transfer">
                                         <Button.Styles>
                                             <Style Selector="Button">
@@ -322,8 +323,8 @@
                                             </Style>
                                         </Button.Styles>
                                         <mi:MaterialIcon Kind="Close"
-                                                         Width="16"
-                                                         Height="16"
+                                                         Width="{StaticResource IconSizeSM}"
+                                                         Height="{StaticResource IconSizeSM}"
                                                          Foreground="{DynamicResource ToastForegroundBrush}"/>
                                     </Button>
                                 </Grid>
@@ -333,8 +334,8 @@
                                            Text="{Binding Transfer.FileName}"
                                            TextTrimming="CharacterEllipsis"
                                            Foreground="{DynamicResource ToastSecondaryTextBrush}"
-                                           FontSize="12"
-                                           Margin="0,8,0,10"
+                                           Classes="caption"
+                                           Margin="{theme:Spacing Top=SM, Bottom=SM}"
                                            ToolTip.Tip="{Binding Transfer.FileName}"/>
 
                                 <!-- Row 2: Progress bar -->
@@ -361,9 +362,9 @@
                                 <TextBlock Grid.Row="3"
                                            Text="Waiting for approval..."
                                            Foreground="{DynamicResource ToastMutedTextBrush}"
-                                           FontSize="11"
+                                           Classes="small"
                                            FontStyle="Italic"
-                                           Margin="0,8,0,0">
+                                           Margin="{theme:Spacing Top=SM}">
                                     <TextBlock.IsVisible>
                                         <Binding Path="Transfer.State">
                                             <Binding.Converter>
@@ -378,7 +379,7 @@
 
                                 <Grid Grid.Row="3"
                                       ColumnDefinitions="*,Auto"
-                                      Margin="0,8,0,0">
+                                      Margin="{theme:Spacing Top=SM}">
                                     <Grid.IsVisible>
                                         <Binding Path="Transfer.State">
                                             <Binding.Converter>
@@ -391,12 +392,12 @@
                                     <TextBlock Grid.Column="0"
                                                Text="{Binding Transfer.FileSizeFormatted}"
                                                Foreground="{DynamicResource ToastMutedTextBrush}"
-                                               FontSize="11"/>
+                                               Classes="small"/>
 
                                     <TextBlock Grid.Column="1"
                                                Text="{Binding Transfer.ProgressPercent, StringFormat={}{0}%}"
                                                Foreground="{DynamicResource ToastSecondaryTextBrush}"
-                                               FontSize="11"
+                                               Classes="small"
                                                FontWeight="SemiBold"/>
                                 </Grid>
                             </Grid>
