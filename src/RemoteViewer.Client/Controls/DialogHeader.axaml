@@ -21,9 +21,9 @@
                     VerticalAlignment="Center"
                     Spacing="{theme:Gap XS}">
             <TextBlock Text="{Binding Title, ElementName=Root}"
-                       Classes="header"/>
+                       Classes="h2"/>
             <TextBlock Text="{Binding Subtitle, ElementName=Root}"
-                       Classes="caption"
+                       Classes="m1"
                        IsVisible="{Binding Subtitle, ElementName=Root, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
         </StackPanel>
     </Grid>

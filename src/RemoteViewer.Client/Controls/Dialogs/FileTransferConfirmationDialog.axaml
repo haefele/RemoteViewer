@@ -11,7 +11,7 @@
         SizeToContent="WidthAndHeight"
         CanResize="False"
         ShowInTaskbar="False"
-        WindowStartupLocation="CenterScreen">
+        WindowStartupLocation="CenterOwner">
 
     <Border Padding="{theme:Spacing XL}" MinWidth="320" MaxWidth="400">
 
@@ -36,11 +36,11 @@
                                      Foreground="{DynamicResource TextSecondaryBrush}"/>
                     <StackPanel Grid.Column="1" Spacing="{theme:Gap XXS}">
                         <TextBlock Text="{Binding FileName}"
-                                   Classes="header-small"
+                                   Classes="h3"
                                    TextTrimming="CharacterEllipsis"
                                    ToolTip.Tip="{Binding FileName}"/>
                         <TextBlock Text="{Binding FileSizeFormatted}"
-                                   Classes="small"/>
+                                   Classes="m1"/>
                     </StackPanel>
                 </Grid>
             </controls:Card>

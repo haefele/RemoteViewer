@@ -48,11 +48,11 @@
                         </Grid.RowDefinitions>
 
                         <TextBlock Grid.Row="0"
-                                   Classes="header"
+                                   Classes="h2"
                                    Text="Your Credentials" />
 
                         <TextBlock Grid.Row="2"
-                                   Classes="caption secondary"
+                                   Classes="m1 muted"
                                    Text="ID" />
 
                         <SelectableTextBlock Grid.Row="4"
@@ -61,7 +61,7 @@
                                              VerticalAlignment="Center" />
 
                         <TextBlock Grid.Row="6"
-                                   Classes="caption secondary"
+                                   Classes="m1 muted"
                                    Text="Password" />
 
                         <StackPanel Grid.Row="8"
@@ -114,11 +114,11 @@
                     </Grid.RowDefinitions>
 
                     <TextBlock Grid.Row="0"
-                               Classes="header"
+                               Classes="h2"
                                Text="Connect to Device" />
 
                     <TextBlock Grid.Row="2"
-                               Classes="caption secondary"
+                               Classes="m1 muted"
                                Text="ID" />
 
                     <TextBox Grid.Row="4"
@@ -129,7 +129,7 @@
                              PastingFromClipboard="TargetUsernameBox_Pasting" />
 
                     <TextBlock Grid.Row="6"
-                               Classes="caption secondary"
+                               Classes="m1 muted"
                                Text="Password" />
 
                     <TextBox Grid.Row="8"
@@ -186,7 +186,7 @@
                             </Binding>
                         </mi:MaterialIcon.Foreground>
                     </mi:MaterialIcon>
-                    <TextBlock Classes="caption"
+                    <TextBlock Classes="m1"
                                VerticalAlignment="Center">
                         <TextBlock.Text>
                             <Binding Path="Status">

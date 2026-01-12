@@ -12,125 +12,125 @@
         Width="480"
         Height="560"
         CanResize="False"
-        WindowStartupLocation="CenterScreen"
+        WindowStartupLocation="CenterOwner"
         DataContextChanged="Window_DataContextChanged"
         Closed="Window_Closed">
 
     <Border Padding="{theme:Spacing XL}">
-    <Grid RowDefinitions="Auto,*,Auto">
+        <Grid RowDefinitions="Auto,*,Auto">
 
-        <!-- Header Section -->
-        <StackPanel Grid.Row="0"
-                    Spacing="{theme:Gap MD}"
-                    HorizontalAlignment="Center"
-                    Margin="{theme:Spacing Top=SM, Bottom=XL}">
-            <!-- Circular icon badge using design system -->
-            <controls:IconBadge Icon="{x:Static mik:MaterialIconKind.RemoteDesktop}"
-                                Size="Large"
-                                BadgeBackground="{DynamicResource AccentBrush}"
-                                IconForeground="White"/>
+            <!-- Header Section -->
+            <StackPanel Grid.Row="0"
+                        Spacing="{theme:Gap MD}"
+                        HorizontalAlignment="Center"
+                        Margin="{theme:Spacing Top=SM, Bottom=XL}">
+                <!-- Circular icon badge using design system -->
+                <controls:IconBadge Icon="{x:Static mik:MaterialIconKind.RemoteDesktop}"
+                                    Size="Large"
+                                    BadgeBackground="{DynamicResource AccentBrush}"
+                                    IconForeground="White"/>
 
-            <StackPanel Spacing="{theme:Gap XS}" HorizontalAlignment="Center">
-                <TextBlock Text="{Binding ApplicationName}"
-                           Classes="title-large"
-                           HorizontalAlignment="Center"/>
+                <StackPanel Spacing="{theme:Gap XS}" HorizontalAlignment="Center">
+                    <TextBlock Text="{Binding ApplicationName}"
+                               Classes="h1"
+                               HorizontalAlignment="Center"/>
 
-                <TextBlock Text="{Binding Version, StringFormat='Version {0}'}"
-                           Classes="body-small secondary"
-                           HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding Version, StringFormat='Version {0}'}"
+                               Classes="muted"
+                               HorizontalAlignment="Center"/>
 
-                <TextBlock Text="{Binding Copyright}"
-                           Classes="small secondary"
-                           HorizontalAlignment="Center"
-                           Margin="{theme:Spacing Top=XS}"/>
-            </StackPanel>
-        </StackPanel>
-
-        <!-- Licenses Section -->
-        <controls:Card Grid.Row="1"
-                       Size="Large">
-            <Grid RowDefinitions="Auto,*">
-                <StackPanel Grid.Row="0"
-                            Orientation="Horizontal"
-                            Spacing="{theme:Gap SM}"
-                            Margin="{theme:Spacing Bottom=MD}">
-                    <mi:MaterialIcon Kind="License"
-                                     Width="{StaticResource IconSizeSM}"
-                                     Height="{StaticResource IconSizeSM}"
-                                     VerticalAlignment="Center"
-                                     Foreground="{DynamicResource TextSecondaryBrush}"/>
-                    <TextBlock Text="Third-Party Licenses"
-                               Classes="header-small"
-                               VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding Copyright}"
+                               Classes="m1 muted"
+                               HorizontalAlignment="Center"
+                               Margin="{theme:Spacing Top=XS}"/>
                 </StackPanel>
-
-                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding Licenses}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate x:DataType="vm:ThirdPartyLicense">
-                                <controls:Card Size="ListItem" Margin="{theme:Spacing Bottom=SM}">
-                                    <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
-                                        <TextBlock Grid.Row="0" Grid.Column="0"
-                                                   Text="{Binding Name}"
-                                                   Classes="header-small"/>
-
-                                        <Border Grid.Row="0" Grid.Column="1"
-                                                Classes="text-badge"
-                                                VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding LicenseName}"/>
-                                        </Border>
-
-                                        <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
-                                                    Orientation="Horizontal"
-                                                    Spacing="{theme:Gap LG}"
-                                                    Margin="{theme:Spacing Top=SM}">
-                                            <HyperlinkButton NavigateUri="{Binding Url}"
-                                                             Padding="0"
-                                                             Cursor="Hand">
-                                                <StackPanel Orientation="Horizontal" Spacing="{theme:Gap XS}">
-                                                    <mi:MaterialIcon Kind="Web"
-                                                                     Width="{StaticResource IconSizeXS}"
-                                                                     Height="{StaticResource IconSizeXS}"
-                                                                     VerticalAlignment="Center"/>
-                                                    <TextBlock Text="Website"
-                                                               Classes="small"
-                                                               VerticalAlignment="Center"/>
-                                                </StackPanel>
-                                            </HyperlinkButton>
-                                            <HyperlinkButton NavigateUri="{Binding LicenseUrl}"
-                                                             Padding="0"
-                                                             Cursor="Hand">
-                                                <StackPanel Orientation="Horizontal" Spacing="{theme:Gap XS}">
-                                                    <mi:MaterialIcon Kind="FileDocument"
-                                                                     Width="{StaticResource IconSizeXS}"
-                                                                     Height="{StaticResource IconSizeXS}"
-                                                                     VerticalAlignment="Center"/>
-                                                    <TextBlock Text="License"
-                                                               Classes="small"
-                                                               VerticalAlignment="Center"/>
-                                                </StackPanel>
-                                            </HyperlinkButton>
-                                        </StackPanel>
-                                    </Grid>
-                                </controls:Card>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
-            </Grid>
-        </controls:Card>
-
-        <!-- Footer Button -->
-        <Button Grid.Row="2"
-                Classes="action-secondary"
-                HorizontalAlignment="Stretch"
-                Margin="{theme:Spacing Y=LG}"
-                Command="{Binding CloseCommand}">
-            <StackPanel Orientation="Horizontal" Spacing="{theme:Gap Icon}">
-                <mi:MaterialIcon Kind="Close" Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}"/>
-                <TextBlock Text="Close" VerticalAlignment="Center"/>
             </StackPanel>
-        </Button>
-    </Grid>
+
+            <!-- Licenses Section -->
+            <controls:Card Grid.Row="1"
+                           Size="Large">
+                <Grid RowDefinitions="Auto,*">
+                    <StackPanel Grid.Row="0"
+                                Orientation="Horizontal"
+                                Spacing="{theme:Gap SM}"
+                                Margin="{theme:Spacing Bottom=MD}">
+                        <mi:MaterialIcon Kind="License"
+                                         Width="{StaticResource IconSizeSM}"
+                                         Height="{StaticResource IconSizeSM}"
+                                         VerticalAlignment="Center"
+                                         Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <TextBlock Text="Third-Party Licenses"
+                                   Classes="h3"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding Licenses}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ThirdPartyLicense">
+                                    <controls:Card Size="ListItem" Margin="{theme:Spacing Bottom=SM}">
+                                        <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
+                                            <TextBlock Grid.Row="0" Grid.Column="0"
+                                                       Text="{Binding Name}"
+                                                       Classes="h3"/>
+
+                                            <Border Grid.Row="0" Grid.Column="1"
+                                                    Classes="text-badge"
+                                                    VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding LicenseName}"/>
+                                            </Border>
+
+                                            <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
+                                                        Orientation="Horizontal"
+                                                        Spacing="{theme:Gap LG}"
+                                                        Margin="{theme:Spacing Top=SM}">
+                                                <HyperlinkButton NavigateUri="{Binding Url}"
+                                                                 Padding="0"
+                                                                 Cursor="Hand">
+                                                    <StackPanel Orientation="Horizontal" Spacing="{theme:Gap XS}">
+                                                        <mi:MaterialIcon Kind="Web"
+                                                                         Width="{StaticResource IconSizeXS}"
+                                                                         Height="{StaticResource IconSizeXS}"
+                                                                         VerticalAlignment="Center"/>
+                                                        <TextBlock Text="Website"
+                                                                   Classes="m1"
+                                                                   VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </HyperlinkButton>
+                                                <HyperlinkButton NavigateUri="{Binding LicenseUrl}"
+                                                                 Padding="0"
+                                                                 Cursor="Hand">
+                                                    <StackPanel Orientation="Horizontal" Spacing="{theme:Gap XS}">
+                                                        <mi:MaterialIcon Kind="FileDocument"
+                                                                         Width="{StaticResource IconSizeXS}"
+                                                                         Height="{StaticResource IconSizeXS}"
+                                                                         VerticalAlignment="Center"/>
+                                                        <TextBlock Text="License"
+                                                                   Classes="m1"
+                                                                   VerticalAlignment="Center"/>
+                                                    </StackPanel>
+                                                </HyperlinkButton>
+                                            </StackPanel>
+                                        </Grid>
+                                    </controls:Card>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+                </Grid>
+            </controls:Card>
+
+            <!-- Footer Button -->
+            <Button Grid.Row="2"
+                    Classes="action-secondary"
+                    HorizontalAlignment="Stretch"
+                    Margin="{theme:Spacing Top=XL}"
+                    Command="{Binding CloseCommand}">
+                <StackPanel Orientation="Horizontal" Spacing="{theme:Gap Icon}">
+                    <mi:MaterialIcon Kind="Close" Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}"/>
+                    <TextBlock Text="Close" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+        </Grid>
     </Border>
 </Window>

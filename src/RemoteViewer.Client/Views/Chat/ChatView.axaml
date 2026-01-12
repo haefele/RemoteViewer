@@ -43,14 +43,13 @@
                             <StackPanel MaxWidth="240">
                                 <!-- Sender name (hidden for self) -->
                                 <TextBlock Text="{Binding SenderDisplayName}"
-                                           Classes="small"
+                                           Classes="m1"
                                            Foreground="{DynamicResource TextSecondaryBrush}"
                                            FontWeight="SemiBold"
                                            IsVisible="{Binding !IsFromSelf}"/>
                                 <!-- Message text (selectable) -->
                                 <SelectableTextBlock Text="{Binding Text}"
-                                                     TextWrapping="Wrap"
-                                                     Classes="body-small"/>
+                                                     TextWrapping="Wrap"/>
                                 <!-- Link buttons -->
                                 <ItemsControl ItemsSource="{Binding Links}"
                                               IsVisible="{Binding Links.Count}"
@@ -65,8 +64,8 @@
                                                 <StackPanel Orientation="Horizontal" Spacing="{theme:Gap SM}">
                                                     <mi:MaterialIcon Kind="Link" Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}" VerticalAlignment="Center"/>
                                                     <StackPanel>
-                                                        <TextBlock Text="{Binding Domain}" Classes="caption" FontWeight="SemiBold"/>
-                                                        <TextBlock Text="{Binding Url}" Classes="small-muted"
+                                                        <TextBlock Text="{Binding Domain}" Classes="m1" FontWeight="SemiBold"/>
+                                                        <TextBlock Text="{Binding Url}" Classes="m2"
                                                                    TextTrimming="CharacterEllipsis"
                                                                    MaxWidth="180"/>
                                                     </StackPanel>
@@ -77,7 +76,7 @@
                                 </ItemsControl>
                                 <!-- Timestamp -->
                                 <TextBlock Text="{Binding Timestamp, StringFormat='{}{0:HH:mm}'}"
-                                           Classes="small-muted"
+                                           Classes="m2"
                                            TextAlignment="Right"/>
                             </StackPanel>
                         </Border>
@@ -89,16 +88,17 @@
         <!-- Empty state -->
         <TextBlock Grid.Row="0"
                    Text="No messages yet"
-                   Classes="caption muted"
+                   Classes="m1 muted"
                    HorizontalAlignment="Center"
                    VerticalAlignment="Center"
                    IsVisible="{Binding !Messages.Count}"/>
 
         <!-- Input area -->
-        <StackPanel Grid.Row="1" Margin="{theme:Spacing Y=SM}" Spacing="{theme:Gap XS}">
+        <StackPanel Grid.Row="1" Margin="{theme:Spacing Top=SM}" 
+                    Spacing="{theme:Gap XS}">
             <!-- Character limit warning -->
             <TextBlock Text="{Binding CharactersRemaining, StringFormat='{}{0} characters remaining'}"
-                       Classes="small-muted"
+                       Classes="m2"
                        HorizontalAlignment="Right"
                        IsVisible="{Binding IsNearLimit}"
                        Classes.warning="{Binding IsNearLimit}"

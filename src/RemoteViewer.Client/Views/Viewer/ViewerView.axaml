@@ -18,7 +18,7 @@
         Title="Remote Viewer"
         Width="1280"
         Height="720"
-        WindowStartupLocation="CenterScreen"
+        WindowStartupLocation="CenterOwner"
         DragDrop.AllowDrop="True"
 
         DataContextChanged="Window_DataContextChanged"
@@ -63,7 +63,8 @@
 
             <StackPanel Orientation="Horizontal"
                         Spacing="{theme:Gap SM}"
-                        VerticalAlignment="Center">
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Center">
                 <!-- Fullscreen toggle (dynamic icon + tooltip) -->
                 <Button Command="{Binding ToggleFullscreenCommand}"
                         ToolTip.Tip="{Binding IsFullscreen, Converter={conv:BoolToObject TrueValue='Exit fullscreen (F11 / ESC)', FalseValue='Enter fullscreen (F11)'}}"
