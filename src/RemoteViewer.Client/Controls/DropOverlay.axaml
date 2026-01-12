@@ -30,10 +30,10 @@
                 <!-- Text content -->
                 <StackPanel Spacing="{theme:Gap XS}" HorizontalAlignment="Center">
                     <TextBlock Text="Drop to Send"
-                               Classes="title"
+                               Classes="h1"
                                HorizontalAlignment="Center"/>
                     <TextBlock x:Name="SubtitleText"
-                               Classes="body-small secondary"
+                               Classes="muted"
                                TextWrapping="Wrap"
                                TextAlignment="Center"
                                HorizontalAlignment="Center"/>

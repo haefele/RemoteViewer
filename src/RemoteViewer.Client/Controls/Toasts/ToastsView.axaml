@@ -86,7 +86,6 @@
                                        VerticalAlignment="Center"
                                        TextWrapping="Wrap"
                                        Foreground="{DynamicResource ToastForegroundBrush}"
-                                       Classes="body-small"
                                        FontWeight="SemiBold"
                                        Margin="{theme:Spacing Y=MD, Right=SM}"/>
 
@@ -189,7 +188,6 @@
                                 <TextBlock Text="{Binding Message}"
                                            TextWrapping="Wrap"
                                            Foreground="{DynamicResource ToastForegroundBrush}"
-                                           Classes="body-small"
                                            FontWeight="SemiBold"/>
 
                                 <Button Command="{Binding ExecuteActionCommand}"
@@ -222,7 +220,7 @@
                                                          Foreground="{DynamicResource OnAccentTextBrush}"/>
                                         <TextBlock Text="{Binding ActionText}"
                                                    VerticalAlignment="Center"
-                                                   Classes="caption"
+                                                   Classes="m1"
                                                    FontWeight="SemiBold"
                                                    Foreground="{DynamicResource OnAccentTextBrush}"/>
                                     </StackPanel>
@@ -299,8 +297,7 @@
                                                Text="{Binding IsUpload, Converter={conv:BoolToObject TrueValue='Sending file', FalseValue='Receiving file'}}"
                                                VerticalAlignment="Center"
                                                Foreground="{DynamicResource ToastForegroundBrush}"
-                                               FontWeight="SemiBold"
-                                               Classes="body-small"/>
+                                               FontWeight="SemiBold" />
 
                                     <Button Grid.Column="2"
                                             Command="{Binding CancelCommand}"
@@ -334,7 +331,7 @@
                                            Text="{Binding Transfer.FileName}"
                                            TextTrimming="CharacterEllipsis"
                                            Foreground="{DynamicResource ToastSecondaryTextBrush}"
-                                           Classes="caption"
+                                           Classes="m1"
                                            Margin="{theme:Spacing Top=SM, Bottom=SM}"
                                            ToolTip.Tip="{Binding Transfer.FileName}"/>
 
@@ -362,7 +359,7 @@
                                 <TextBlock Grid.Row="3"
                                            Text="Waiting for approval..."
                                            Foreground="{DynamicResource ToastMutedTextBrush}"
-                                           Classes="small"
+                                           Classes="m1"
                                            FontStyle="Italic"
                                            Margin="{theme:Spacing Top=SM}">
                                     <TextBlock.IsVisible>
@@ -392,12 +389,12 @@
                                     <TextBlock Grid.Column="0"
                                                Text="{Binding Transfer.FileSizeFormatted}"
                                                Foreground="{DynamicResource ToastMutedTextBrush}"
-                                               Classes="small"/>
+                                               Classes="m1"/>
 
                                     <TextBlock Grid.Column="1"
                                                Text="{Binding Transfer.ProgressPercent, StringFormat={}{0}%}"
                                                Foreground="{DynamicResource ToastSecondaryTextBrush}"
-                                               Classes="small"
+                                               Classes="m1"
                                                FontWeight="SemiBold"/>
                                 </Grid>
                             </Grid>
