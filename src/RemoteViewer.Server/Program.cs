@@ -1,4 +1,4 @@
-﻿using Nerdbank.MessagePack.SignalR;
+using Nerdbank.MessagePack.SignalR;
 using RemoteViewer.Server.Hubs;
 using RemoteViewer.Server.Services;
 using RemoteViewer.Shared;
@@ -26,9 +26,6 @@ try
         .AddSignalR(options =>
         {
             options.MaximumReceiveMessageSize = null;
-
-            options.ClientTimeoutInterval = TimeSpan.FromMinutes(2);
-            options.KeepAliveInterval = TimeSpan.FromSeconds(30);
         })
         .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider);
     builder.Services.AddSerilog();
