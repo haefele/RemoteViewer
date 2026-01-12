@@ -16,7 +16,7 @@
         Width="300"
         CanResize="False"
         SizeToContent="Height"
-        WindowStartupLocation="CenterScreen"
+        WindowStartupLocation="CenterOwner"
         DragDrop.AllowDrop="True"
 
         DataContextChanged="Window_DataContextChanged"
@@ -29,7 +29,8 @@
                 Padding="{theme:Spacing X=SM, Y=SM}">
             <StackPanel Orientation="Horizontal"
                         Spacing="{theme:Gap SM}"
-                        VerticalAlignment="Center">
+                        VerticalAlignment="Center"
+                        HorizontalAlignment="Center">
                 <!-- Send File button - no flyout when single viewer -->
                 <Button x:Name="SendFileButton"
                         ToolTip.Tip="Send file to viewers"
@@ -67,7 +68,7 @@
                         <Flyout Placement="Bottom">
                             <StackPanel MinWidth="200" Spacing="{theme:Gap MD}">
                                 <TextBlock Text="Stream Settings"
-                                           Classes="header-small"
+                                           Classes="h3"
                                            Margin="{theme:Spacing Bottom=XS}"/>
 
                                 <!-- FPS Setting -->
@@ -102,12 +103,12 @@
 
                                 <!-- Bandwidth Estimate -->
                                 <TextBlock Text="{Binding EstimatedBandwidth}"
-                                           Classes="caption secondary"
+                                           Classes="m1 muted"
                                            Margin="{theme:Spacing Top=SM}"/>
 
                                 <!-- Actual Bandwidth -->
                                 <TextBlock Text="{Binding ActualBandwidth}"
-                                           Classes="caption secondary"/>
+                                           Classes="m1 muted"/>
                             </StackPanel>
                         </Flyout>
                     </Button.Flyout>
@@ -145,13 +146,13 @@
                     <!-- Row 0: Title -->
                     <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
                                Text="Your Credentials"
-                               Classes="header-small"
+                               Classes="h3"
                                Margin="{theme:Spacing Bottom=MD}"/>
 
                     <!-- Row 1: ID Label + Value -->
                     <StackPanel Grid.Row="1" Grid.Column="0" Spacing="{theme:Gap XS}">
                         <TextBlock Text="ID"
-                                   Classes="caption secondary"/>
+                                   Classes="m1 muted"/>
                         <SelectableTextBlock Text="{Binding YourId}"
                                              Classes="credential"
                                              Margin="{theme:Spacing Y=SM}"/>
@@ -175,7 +176,7 @@
                                 Spacing="{theme:Gap XS}"
                                 Margin="{theme:Spacing Top=MD}">
                         <TextBlock Text="Password"
-                                   Classes="caption secondary"/>
+                                   Classes="m1 muted"/>
                         <StackPanel Orientation="Horizontal" Spacing="{theme:Gap XS}">
                             <SelectableTextBlock Text="{Binding YourPassword}"
                                                  Classes="credential"
@@ -203,7 +204,7 @@
                     <!-- Header -->
                     <TextBlock Grid.Row="0"
                                Text="{Binding Viewers.Count, StringFormat='Viewers ({0})'}"
-                               Classes="header-small"
+                               Classes="h3"
                                Margin="{theme:Spacing Bottom=MD}"/>
 
                     <!-- Viewers list -->

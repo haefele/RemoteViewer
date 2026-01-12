@@ -123,12 +123,10 @@ CornerRadius="{StaticResource CornerRadiusCard}"    <!-- 8px -->
 
 Apply via `Classes="class-name"` on TextBlock:
 
-- **Titles**: `title-large` (22px Bold), `title` (20px SemiBold)
-- **Headers**: `header` (15px SemiBold), `header-small` (13px SemiBold)
-- **Body**: `body` (14px), `body-small` (13px)
-- **Small**: `caption` (12px), `small` (11px), `small-muted` (10px)
-- **Special**: `credential` (18px Bold monospace), `monospace` (13px)
-- **Color modifiers**: `secondary`, `muted`, `accent`, `success`, `error`, `warning`
+- **Headings**: `h1` (22px Bold), `h2` (15px SemiBold), `h3` (13px SemiBold)
+- **Small text**: `m1` (12px), `m2` (10px)
+- **Special**: `credential` (18px Bold monospace)
+- **Color modifier**: `muted`
 
 ## Button Styles
 

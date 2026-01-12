@@ -39,11 +39,11 @@
                                      Foreground="{DynamicResource TextSecondaryBrush}"/>
                     <StackPanel Grid.Column="1" Spacing="{theme:Gap XXS}">
                         <TextBlock Text="{Binding FileName}"
-                                   Classes="header-small"
+                                   Classes="h3"
                                    TextTrimming="CharacterEllipsis"
                                    ToolTip.Tip="{Binding FileName}"/>
                         <TextBlock Text="{Binding FileSizeFormatted}"
-                                   Classes="small"/>
+                                   Classes="m1"/>
                     </StackPanel>
                 </Grid>
             </controls:Card>
@@ -51,7 +51,7 @@
             <!-- Viewer selection list -->
             <StackPanel Spacing="{theme:Gap SM}">
                 <TextBlock Text="Recipients"
-                           Classes="caption"
+                           Classes="m1"
                            Margin="{theme:Spacing Left=XXS}"
                            FontWeight="SemiBold"/>
 
@@ -68,7 +68,6 @@
                                                          VerticalAlignment="Center"
                                                          Foreground="{DynamicResource TextSecondaryBrush}"/>
                                         <TextBlock Text="{Binding DisplayName}"
-                                                   Classes="body-small"
                                                    VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </CheckBox>
