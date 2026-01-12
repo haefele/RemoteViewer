@@ -1,4 +1,4 @@
-﻿using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.SignalR;
 using RemoteViewer.Server.Hubs;
 using RemoteViewer.Shared;
@@ -28,7 +28,9 @@ public sealed partial class ConnectionGrain(ILogger<ConnectionGrain> logger, IHu
 
     public async Task UpdateProperties(string signalrConnectionId, ConnectionProperties properties)
     {
-        if (this._presenter?.GetPrimaryKeyString() != signalrConnectionId)
+        this.EnsureInitialized();
+
+        if (this._presenter.GetPrimaryKeyString() != signalrConnectionId)
         {
             this.LogNonPresenterUpdateAttempt(signalrConnectionId, this.GetPrimaryKeyString());
             return;
@@ -149,6 +151,8 @@ public sealed partial class ConnectionGrain(ILogger<ConnectionGrain> logger, IHu
     }
     async Task IConnectionGrain.Internal_AddViewer(IClientGrain viewer)
     {
+        this.EnsureInitialized();
+
         if (this._viewers.Contains(viewer))
         {
             this.LogViewerAlreadyInConnection(this.GetPrimaryKeyString(), viewer.GetPrimaryKeyString());
@@ -190,11 +194,17 @@ public sealed partial class ConnectionGrain(ILogger<ConnectionGrain> logger, IHu
 
             await hubContext.Clients.Client(client.GetPrimaryKeyString()).ConnectionStopped(this.GetPrimaryKeyString());
 
-            await this.NotifyConnectionChangedAsync();
+            // Only notify if presenter still exists - during teardown the presenter may have already
+            // disconnected and nullified _presenter, so we skip notification since the connection is dead
+            if (this._presenter is not null)
+            {
+                await this.NotifyConnectionChangedAsync();
+            }
         }
     }
     async Task IConnectionGrain.Internal_DisplayNameChanged()
     {
+        this.EnsureInitialized();
         await this.NotifyConnectionChangedAsync();
     }
 
