@@ -1,4 +1,4 @@
-<Window xmlns="https://github.com/avaloniaui"
+﻿<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="using:RemoteViewer.Client.Controls"
         xmlns:vm="using:RemoteViewer.Client.Views.Main"
@@ -22,47 +22,68 @@
     <Grid RowDefinitions="*,Auto">
 
         <!-- Main Content -->
-        <Grid Grid.Row="0" ColumnDefinitions="*,*" Margin="{theme:Spacing LG}">
+        <Grid Grid.Row="0"
+              Margin="{theme:Spacing LG}"
+              Grid.IsSharedSizeScope="True">
+            <Grid.ColumnDefinitions>
+               <ColumnDefinition Width="*" />
+               <ColumnDefinition Width="{theme:GridSpacing Size=LG}" />
+               <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
             <!-- Left Panel - Your Credentials -->
-            <controls:Card Grid.Column="0"
-                            Margin="{theme:Spacing Right=SM}">
+            <controls:Card Grid.Column="0">
                 <Grid ColumnDefinitions="*,Auto">
-                    <!-- Column 0: Content (mirrors right panel structure) -->
-                    <StackPanel Spacing="{theme:Gap MD}">
-                        <TextBlock Text="Your Credentials"
-                                    Classes="header"/>
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" SharedSizeGroup="HeaderRow"/>
+                            <RowDefinition Height="{theme:GridSpacing Size=SM}" />
+                            <RowDefinition Height="Auto" SharedSizeGroup="IdLabelRow"/>
+                            <RowDefinition Height="{theme:GridSpacing Size=XS}" />
+                            <RowDefinition Height="Auto" SharedSizeGroup="IdValueRow"/>
+                            <RowDefinition Height="{theme:GridSpacing Size=SM}" />
+                            <RowDefinition Height="Auto" SharedSizeGroup="PasswordLabelRow"/>
+                            <RowDefinition Height="{theme:GridSpacing Size=XS}" />
+                            <RowDefinition Height="Auto" SharedSizeGroup="PasswordValueRow"/>
+                        </Grid.RowDefinitions>
 
-                        <StackPanel Spacing="{theme:Gap XS}">
-                            <TextBlock Text="ID"
-                                        Classes="caption secondary"/>
-                            <SelectableTextBlock Text="{Binding YourUsername}"
+                        <TextBlock Grid.Row="0"
+                                   Classes="header"
+                                   Text="Your Credentials" />
+
+                        <TextBlock Grid.Row="2"
+                                   Classes="caption secondary"
+                                   Text="ID" />
+
+                        <SelectableTextBlock Grid.Row="4"
+                                             Text="{Binding YourUsername}"
+                                             Classes="credential"
+                                             VerticalAlignment="Center" />
+
+                        <TextBlock Grid.Row="6"
+                                   Classes="caption secondary"
+                                   Text="Password" />
+
+                        <StackPanel Grid.Row="8"
+                                    Orientation="Horizontal"
+                                    Spacing="{theme:Gap XS}">
+                            <SelectableTextBlock Text="{Binding YourPassword}"
                                                     Classes="credential"
-                                                    Margin="{theme:Spacing Y=SM}"/>
+                                                    VerticalAlignment="Center"/>
+                            <Button Command="{Binding GenerateNewPasswordCommand}"
+                                    ToolTip.Tip="Generate new password"
+                                    Classes="icon-button"
+                                    VerticalAlignment="Center"
+                                    Width="32" 
+                                    Height="32">
+                                <mi:MaterialIcon Kind="Refresh"
+                                                 Width="{StaticResource IconSizeSM}"
+                                                 Height="{StaticResource IconSizeSM}"
+                                                 Foreground="{DynamicResource TextSecondaryBrush}"/>
+                            </Button>
                         </StackPanel>
+                    </Grid>
 
-                        <StackPanel Spacing="{theme:Gap XS}">
-                            <TextBlock Text="Password"
-                                        Classes="caption secondary"/>
-                            <StackPanel Orientation="Horizontal" Spacing="{theme:Gap XS}">
-                                <SelectableTextBlock Text="{Binding YourPassword}"
-                                                        Classes="credential"
-                                                        Margin="{theme:Spacing Y=SM}"
-                                                        VerticalAlignment="Center"/>
-                                <Button Command="{Binding GenerateNewPasswordCommand}"
-                                        ToolTip.Tip="Generate new password"
-                                        Classes="icon-button"
-                                        VerticalAlignment="Center"
-                                        Width="32" Height="32">
-                                    <mi:MaterialIcon Kind="Refresh"
-                                                        Width="{StaticResource IconSizeSM}"
-                                                        Height="{StaticResource IconSizeSM}"
-                                                        Foreground="{DynamicResource TextSecondaryBrush}"/>
-                                </Button>
-                            </StackPanel>
-                        </StackPanel>
-                    </StackPanel>
-
-                    <!-- Column 1: Copy button -->
                     <Button Grid.Column="1"
                             Classes="icon-button"
                             VerticalAlignment="Center"
@@ -70,54 +91,67 @@
                             Command="{Binding CopyCredentialsCommand}"
                             ToolTip.Tip="Copy ID and password">
                         <mi:MaterialIcon Kind="ContentCopy"
-                                            Width="{StaticResource IconSizeMD}"
-                                            Height="{StaticResource IconSizeMD}"
-                                            Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                         Width="{StaticResource IconSizeMD}"
+                                         Height="{StaticResource IconSizeMD}"
+                                         Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </Button>
                 </Grid>
             </controls:Card>
 
             <!-- Right Panel - Connect to Device -->
-            <controls:Card Grid.Column="1"
-                            Margin="{theme:Spacing Left=SM}">
-                <StackPanel Spacing="{theme:Gap MD}">
-                    <TextBlock Text="Connect to Device"
-                                Classes="header"/>
+            <controls:Card Grid.Column="2">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" SharedSizeGroup="HeaderRow"/>
+                        <RowDefinition Height="{theme:GridSpacing Size=SM}" />
+                        <RowDefinition Height="Auto" SharedSizeGroup="IdLabelRow"/>
+                        <RowDefinition Height="{theme:GridSpacing Size=XS}" />
+                        <RowDefinition Height="Auto" SharedSizeGroup="IdValueRow"/>
+                        <RowDefinition Height="{theme:GridSpacing Size=SM}" />
+                        <RowDefinition Height="Auto" SharedSizeGroup="PasswordLabelRow"/>
+                        <RowDefinition Height="{theme:GridSpacing Size=XS}" />
+                        <RowDefinition Height="Auto" SharedSizeGroup="PasswordValueRow"/>
+                    </Grid.RowDefinitions>
 
-                    <StackPanel Spacing="{theme:Gap XS}">
-                        <TextBlock Text="ID"
-                                    Classes="caption secondary"/>
-                        <TextBox x:Name="TargetUsernameBox"
-                                    Text="{Binding TargetUsername}"
-                                    Watermark="Enter ID"
-                                    IsEnabled="{Binding !ConnectToDeviceCommand.IsRunning}"
-                                    PastingFromClipboard="TargetUsernameBox_Pasting"/>
-                    </StackPanel>
+                    <TextBlock Grid.Row="0"
+                               Classes="header"
+                               Text="Connect to Device" />
 
-                    <StackPanel Spacing="{theme:Gap XS}">
-                        <TextBlock Text="Password"
-                                    Classes="caption secondary"/>
-                        <TextBox x:Name="TargetPasswordBox"
-                                    Text="{Binding TargetPassword}"
-                                    Watermark="Enter password"
-                                    PasswordChar="*"
-                                    IsEnabled="{Binding !ConnectToDeviceCommand.IsRunning}"
-                                    KeyDown="TargetPasswordBox_KeyDown">
-                            <TextBox.InnerRightContent>
-                                <Button Command="{Binding ConnectToDeviceCommand}"
-                                        ToolTip.Tip="Connect"
-                                        Classes="icon-button"
-                                        Padding="{theme:Spacing XS}"
-                                        IsEnabled="{Binding !ConnectToDeviceCommand.IsRunning}">
-                                    <mi:MaterialIcon Kind="ArrowRightCircle"
-                                                        Width="{StaticResource IconSizeMD}"
-                                                        Height="{StaticResource IconSizeMD}"
-                                                        Foreground="{DynamicResource AccentBrush}"/>
-                                </Button>
-                            </TextBox.InnerRightContent>
-                        </TextBox>
-                    </StackPanel>
-                </StackPanel>
+                    <TextBlock Grid.Row="2"
+                               Classes="caption secondary"
+                               Text="ID" />
+
+                    <TextBox Grid.Row="4"
+                             x:Name="TargetUsernameBox"
+                             Text="{Binding TargetUsername}"
+                             Watermark="Enter ID"
+                             IsEnabled="{Binding !ConnectToDeviceCommand.IsRunning}"
+                             PastingFromClipboard="TargetUsernameBox_Pasting" />
+
+                    <TextBlock Grid.Row="6"
+                               Classes="caption secondary"
+                               Text="Password" />
+
+                    <TextBox Grid.Row="8"
+                             x:Name="TargetPasswordBox"
+                             Text="{Binding TargetPassword}"
+                             Watermark="Enter password"
+                             IsEnabled="{Binding !ConnectToDeviceCommand.IsRunning}"
+                             PasswordChar="●"
+                             KeyDown="TargetPasswordBox_KeyDown">
+                        <TextBox.InnerRightContent>
+                            <Button Command="{Binding ConnectToDeviceCommand}"
+                                    ToolTip.Tip="Connect"
+                                    Classes="icon-button"
+                                    IsEnabled="{Binding !ConnectToDeviceCommand.IsRunning}">
+                                <mi:MaterialIcon Kind="ArrowRightCircle"
+                                                 Width="{StaticResource IconSizeMD}"
+                                                 Height="{StaticResource IconSizeMD}"
+                                                 Foreground="{DynamicResource AccentBrush}"/>
+                            </Button>
+                        </TextBox.InnerRightContent>
+                    </TextBox>
+                </Grid>
             </controls:Card>
         </Grid>
 
@@ -127,10 +161,10 @@
                 Padding="{theme:Spacing X=LG, Y=XXS}">
             <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Orientation="Horizontal"
-                        Spacing="{theme:Gap SM}"
-                        ToolTip.Tip="{Binding VersionTooltipText}">
+                            Spacing="{theme:Gap SM}"
+                            ToolTip.Tip="{Binding VersionTooltipText}">
                     <mi:MaterialIcon Width="{StaticResource IconSizeSM}"
-                                        Height="{StaticResource IconSizeSM}">
+                                     Height="{StaticResource IconSizeSM}">
                         <mi:MaterialIcon.Kind>
                             <Binding Path="Status">
                                 <Binding.Converter>
@@ -153,7 +187,7 @@
                         </mi:MaterialIcon.Foreground>
                     </mi:MaterialIcon>
                     <TextBlock Classes="caption"
-                                VerticalAlignment="Center">
+                               VerticalAlignment="Center">
                         <TextBlock.Text>
                             <Binding Path="Status">
                                 <Binding.Converter>
@@ -171,11 +205,12 @@
                         Command="{Binding ShowAboutCommand}"
                         ToolTip.Tip="About"
                         Classes="icon-button"
-                        Width="24" Height="24">
+                        Width="24" 
+                        Height="24">
                     <mi:MaterialIcon Kind="InformationOutline"
-                                        Width="{StaticResource IconSizeSM}"
-                                        Height="{StaticResource IconSizeSM}"
-                                        Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                     Width="{StaticResource IconSizeSM}"
+                                     Height="{StaticResource IconSizeSM}"
+                                     Foreground="{DynamicResource TextSecondaryBrush}"/>
                 </Button>
             </Grid>
         </Border>
