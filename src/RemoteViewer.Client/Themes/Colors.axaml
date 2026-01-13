@@ -12,11 +12,7 @@
     <!-- SEMANTIC STATUS COLORS                         -->
     <!-- ============================================== -->
     <SolidColorBrush x:Key="SuccessBrush" Color="#4CAF50"/>
-    <SolidColorBrush x:Key="SuccessHoverBrush" Color="#43A047"/>
-    <SolidColorBrush x:Key="SuccessPressedBrush" Color="#388E3C"/>
     <SolidColorBrush x:Key="ErrorBrush" Color="#F44336"/>
-    <SolidColorBrush x:Key="ErrorHoverBrush" Color="#E53935"/>
-    <SolidColorBrush x:Key="ErrorPressedBrush" Color="#C62828"/>
 
     <!-- ============================================== -->
     <!-- ON-COLOR TEXT (for text on colored backgrounds)-->
@@ -24,14 +20,9 @@
     <SolidColorBrush x:Key="OnAccentTextBrush" Color="#FFFFFF"/>
 
     <!-- ============================================== -->
-    <!-- WINDOW CHROME SPECIAL COLORS                   -->
+    <!-- SEMANTIC STATUS COLORS (continued)            -->
     <!-- ============================================== -->
-    <SolidColorBrush x:Key="WindowCloseHoverBrush" Color="#E81123"/>
-    <SolidColorBrush x:Key="WindowClosePressedBrush" Color="#F1707A"/>
-    <SolidColorBrush x:Key="InfoBrush" Color="#2196F3"/>
     <SolidColorBrush x:Key="WarningBrush" Color="#FFA500"/>
-    <SolidColorBrush x:Key="WarningBackgroundBrush" Color="#FFF3CD"/>
-    <SolidColorBrush x:Key="WarningForegroundBrush" Color="#856404"/>
 
     <!-- ============================================== -->
     <!-- OVERLAY COLORS                                 -->
@@ -55,15 +46,10 @@
         <!-- ========== DARK THEME ========== -->
         <ResourceDictionary x:Key="Dark">
             <!-- Window Chrome -->
-            <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#E6202020"/>
-            <SolidColorBrush x:Key="WindowBorderBrush" Color="#40FFFFFF"/>
-            <SolidColorBrush x:Key="WindowTitleForegroundBrush" Color="#FFFFFF"/>
-            <SolidColorBrush x:Key="WindowButtonForegroundBrush" Color="#FFFFFF"/>
             <SolidColorBrush x:Key="WindowButtonHoverBrush" Color="#20FFFFFF"/>
             <SolidColorBrush x:Key="WindowButtonPressedBrush" Color="#30FFFFFF"/>
 
             <!-- Surface Colors -->
-            <SolidColorBrush x:Key="SurfaceBrush" Color="#2D2D2D"/>
             <SolidColorBrush x:Key="SurfaceElevatedBrush" Color="#383838"/>
             <SolidColorBrush x:Key="SurfaceOverlayBrush" Color="#404040"/>
 
@@ -71,12 +57,9 @@
             <SolidColorBrush x:Key="TextPrimaryBrush" Color="#FFFFFF"/>
             <SolidColorBrush x:Key="TextSecondaryBrush" Color="#E0E0E0"/>
             <SolidColorBrush x:Key="TextMutedBrush" Color="#A0A0A0"/>
-            <SolidColorBrush x:Key="TextDisabledBrush" Color="#606060"/>
 
             <!-- Border Colors -->
             <SolidColorBrush x:Key="BorderSubtleBrush" Color="#20FFFFFF"/>
-            <SolidColorBrush x:Key="BorderDefaultBrush" Color="#40FFFFFF"/>
-            <SolidColorBrush x:Key="BorderStrongBrush" Color="#60FFFFFF"/>
 
             <!-- Toast Colors -->
             <SolidColorBrush x:Key="ToastBackgroundBrush" Color="#F01E1E1E"/>
@@ -95,7 +78,6 @@
 
             <!-- Card Colors -->
             <SolidColorBrush x:Key="CardBackgroundBrush" Color="#383838"/>
-            <SolidColorBrush x:Key="CardElevatedBackgroundBrush" Color="#404040"/>
 
             <!-- Badge Colors -->
             <SolidColorBrush x:Key="BadgeBackgroundBrush" Color="#18FFFFFF"/>
@@ -104,15 +86,10 @@
         <!-- ========== LIGHT THEME ========== -->
         <ResourceDictionary x:Key="Light">
             <!-- Window Chrome -->
-            <SolidColorBrush x:Key="WindowBackgroundBrush" Color="#F0F9F9F9"/>
-            <SolidColorBrush x:Key="WindowBorderBrush" Color="#20000000"/>
-            <SolidColorBrush x:Key="WindowTitleForegroundBrush" Color="#1F2937"/>
-            <SolidColorBrush x:Key="WindowButtonForegroundBrush" Color="#1F2937"/>
             <SolidColorBrush x:Key="WindowButtonHoverBrush" Color="#10000000"/>
             <SolidColorBrush x:Key="WindowButtonPressedBrush" Color="#20000000"/>
 
             <!-- Surface Colors -->
-            <SolidColorBrush x:Key="SurfaceBrush" Color="#FFFFFF"/>
             <SolidColorBrush x:Key="SurfaceElevatedBrush" Color="#F5F5F5"/>
             <SolidColorBrush x:Key="SurfaceOverlayBrush" Color="#EBEBEB"/>
 
@@ -120,12 +97,9 @@
             <SolidColorBrush x:Key="TextPrimaryBrush" Color="#1F2937"/>
             <SolidColorBrush x:Key="TextSecondaryBrush" Color="#4B5563"/>
             <SolidColorBrush x:Key="TextMutedBrush" Color="#6B7280"/>
-            <SolidColorBrush x:Key="TextDisabledBrush" Color="#9CA3AF"/>
 
             <!-- Border Colors -->
             <SolidColorBrush x:Key="BorderSubtleBrush" Color="#10000000"/>
-            <SolidColorBrush x:Key="BorderDefaultBrush" Color="#20000000"/>
-            <SolidColorBrush x:Key="BorderStrongBrush" Color="#40000000"/>
 
             <!-- Toast Colors -->
             <SolidColorBrush x:Key="ToastBackgroundBrush" Color="#F5FFFFFF"/>
@@ -144,7 +118,6 @@
 
             <!-- Card Colors -->
             <SolidColorBrush x:Key="CardBackgroundBrush" Color="#F5F5F5"/>
-            <SolidColorBrush x:Key="CardElevatedBackgroundBrush" Color="#EBEBEB"/>
 
             <!-- Badge Colors -->
             <SolidColorBrush x:Key="BadgeBackgroundBrush" Color="#18000000"/>
