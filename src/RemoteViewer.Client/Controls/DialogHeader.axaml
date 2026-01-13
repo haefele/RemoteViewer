@@ -19,7 +19,7 @@
         <!-- Title and Subtitle -->
         <StackPanel Grid.Column="1"
                     VerticalAlignment="Center"
-                    Spacing="{theme:Gap XS}">
+                    Spacing="{theme:Spacing XS}">
             <TextBlock Text="{Binding Title, ElementName=Root}"
                        Classes="h2"/>
             <TextBlock Text="{Binding Subtitle, ElementName=Root}"

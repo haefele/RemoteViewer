@@ -21,7 +21,7 @@
 
             <!-- Header Section -->
             <StackPanel Grid.Row="0"
-                        Spacing="{theme:Gap MD}"
+                        Spacing="{theme:Spacing MD}"
                         HorizontalAlignment="Center"
                         Margin="{theme:Spacing Top=SM, Bottom=XL}">
                 <!-- Circular icon badge using design system -->
@@ -30,7 +30,7 @@
                                     BadgeBackground="{DynamicResource AccentBrush}"
                                     IconForeground="White"/>
 
-                <StackPanel Spacing="{theme:Gap XS}" HorizontalAlignment="Center">
+                <StackPanel Spacing="{theme:Spacing XS}" HorizontalAlignment="Center">
                     <TextBlock Text="{Binding ApplicationName}"
                                Classes="h1"
                                HorizontalAlignment="Center"/>
@@ -52,7 +52,7 @@
                 <Grid RowDefinitions="Auto,*">
                     <StackPanel Grid.Row="0"
                                 Orientation="Horizontal"
-                                Spacing="{theme:Gap SM}"
+                                Spacing="{theme:Spacing SM}"
                                 Margin="{theme:Spacing Bottom=MD}">
                         <mi:MaterialIcon Kind="License"
                                          Classes="icon-xs"
@@ -81,12 +81,12 @@
 
                                             <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
                                                         Orientation="Horizontal"
-                                                        Spacing="{theme:Gap LG}"
+                                                        Spacing="{theme:Spacing LG}"
                                                         Margin="{theme:Spacing Top=SM}">
                                                 <HyperlinkButton NavigateUri="{Binding Url}"
                                                                  Padding="0"
                                                                  Cursor="Hand">
-                                                    <StackPanel Orientation="Horizontal" Spacing="{theme:Gap XS}">
+                                                    <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing XS}">
                                                         <mi:MaterialIcon Kind="Web"
                                                                          Classes="icon-xxs"
                                                                          VerticalAlignment="Center"/>
@@ -98,7 +98,7 @@
                                                 <HyperlinkButton NavigateUri="{Binding LicenseUrl}"
                                                                  Padding="0"
                                                                  Cursor="Hand">
-                                                    <StackPanel Orientation="Horizontal" Spacing="{theme:Gap XS}">
+                                                    <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing XS}">
                                                         <mi:MaterialIcon Kind="FileDocument"
                                                                          Classes="icon-xxs"
                                                                          VerticalAlignment="Center"/>
@@ -123,7 +123,7 @@
                     HorizontalAlignment="Stretch"
                     Margin="{theme:Spacing Top=XL}"
                     Command="{Binding CloseCommand}">
-                <StackPanel Orientation="Horizontal" Spacing="{theme:Gap Icon}">
+                <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}">
                     <mi:MaterialIcon Kind="Close" Classes="icon-xs"/>
                     <TextBlock Text="Close" VerticalAlignment="Center"/>
                 </StackPanel>

@@ -15,7 +15,7 @@
 
     <Border Padding="{theme:Spacing XL}" MinWidth="320" MaxWidth="400">
 
-        <StackPanel Spacing="{theme:Gap LG}">
+        <StackPanel Spacing="{theme:Spacing LG}">
 
             <!-- Header -->
             <controls:DialogHeader Icon="FileDownload"
@@ -33,7 +33,7 @@
                                      Margin="{theme:Spacing Right=MD}"
                                      VerticalAlignment="Center"
                                      Foreground="{DynamicResource TextSecondaryBrush}"/>
-                    <StackPanel Grid.Column="1" Spacing="{theme:Gap XXS}">
+                    <StackPanel Grid.Column="1" Spacing="{theme:Spacing XXS}">
                         <TextBlock Text="{Binding FileName}"
                                    Classes="h3"
                                    TextTrimming="CharacterEllipsis"
@@ -48,7 +48,7 @@
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="{theme:GridSpacing SM}"/>
+                    <ColumnDefinition Width="{theme:Spacing SM}"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
@@ -56,7 +56,7 @@
                         Classes="action-secondary"
                         HorizontalAlignment="Stretch"
                         Click="OnRejectClicked">
-                    <StackPanel Orientation="Horizontal" Spacing="{theme:Gap Icon}">
+                    <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}">
                         <mi:MaterialIcon Kind="Close" Classes="icon-xs"/>
                         <TextBlock Text="Reject" VerticalAlignment="Center"/>
                     </StackPanel>
@@ -66,7 +66,7 @@
                         Classes="action-primary"
                         HorizontalAlignment="Stretch"
                         Click="OnAcceptClicked">
-                    <StackPanel Orientation="Horizontal" Spacing="{theme:Gap Icon}">
+                    <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}">
                         <mi:MaterialIcon Kind="Check" Classes="icon-xs"/>
                         <TextBlock Text="Accept" VerticalAlignment="Center"/>
                     </StackPanel>

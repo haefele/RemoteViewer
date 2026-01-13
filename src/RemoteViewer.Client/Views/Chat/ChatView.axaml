@@ -61,7 +61,7 @@
                                                     Padding="{theme:Spacing X=SM, Y=XS}"
                                                     Margin="{theme:Spacing Top=XXS}"
                                                     HorizontalAlignment="Left">
-                                                <StackPanel Orientation="Horizontal" Spacing="{theme:Gap SM}">
+                                                <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}">
                                                     <mi:MaterialIcon Kind="Link" Classes="icon-xs" VerticalAlignment="Center"/>
                                                     <StackPanel>
                                                         <TextBlock Text="{Binding Domain}" Classes="m1" FontWeight="SemiBold"/>
@@ -95,7 +95,7 @@
 
         <!-- Input area -->
         <StackPanel Grid.Row="1" Margin="{theme:Spacing Top=SM}" 
-                    Spacing="{theme:Gap XS}">
+                    Spacing="{theme:Spacing XS}">
             <!-- Character limit warning -->
             <TextBlock Text="{Binding CharactersRemaining, StringFormat='{}{0} characters remaining'}"
                        Classes="m2"

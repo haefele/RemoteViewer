@@ -1,4 +1,6 @@
+﻿using System.Reflection;
 using Avalonia;
+using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 
 namespace RemoteViewer.Client.Themes;
@@ -31,11 +33,31 @@ public class SpacingExtension : MarkupExtension
 
     public override object ProvideValue(IServiceProvider serviceProvider)
     {
-        var top = (double)(this.Top ?? this.Y ?? this.All);
-        var bottom = (double)(this.Bottom ?? this.Y ?? this.All);
-        var left = (double)(this.Left ?? this.X ?? this.All);
-        var right = (double)(this.Right ?? this.X ?? this.All);
+        var target = serviceProvider.GetService(typeof(IProvideValueTarget)) as IProvideValueTarget;
+        var targetProperty = target?.TargetProperty;
 
-        return new Thickness(left, top, right, bottom);
+        Type? targetType = null;
+        if (targetProperty is PropertyInfo pi)
+            targetType = pi.PropertyType;
+        else if (targetProperty is AvaloniaProperty ap)
+            targetType = ap.PropertyType;
+
+        if (targetType == typeof(double))
+            return (double)this.All;
+
+        if (targetType == typeof(GridLength))
+            return new GridLength((double)this.All, GridUnitType.Pixel);
+
+        if (targetType == typeof(Thickness))
+        {
+            var top = (double)(this.Top ?? this.Y ?? this.All);
+            var bottom = (double)(this.Bottom ?? this.Y ?? this.All);
+            var left = (double)(this.Left ?? this.X ?? this.All);
+            var right = (double)(this.Right ?? this.X ?? this.All);
+
+            return new Thickness(left, top, right, bottom);
+        }
+
+        throw new InvalidOperationException($"Cannot convert SpacingExtension to target type '{targetType}'");
     }
 }
