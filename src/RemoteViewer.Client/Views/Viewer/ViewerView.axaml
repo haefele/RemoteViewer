@@ -152,7 +152,7 @@
                                                     CornerRadius="4"
                                                     Background="{Binding IsPresenter, Converter={x:Static conv:BoolToAccentBrushConverter.Instance}}">
                                                 <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}">
-                                                    <controls:Icon Kind="{Binding IsPresenter, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.Monitor}, FalseValue={x:Static mik:MaterialIconKind.Account}}"
+                                                    <controls:Icon Kind="{Binding IsPresenter, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.Monitor}, FalseValue={x:Static mik:MaterialIconKind.Account}}}"
                                                                   Size="XXS"
                                                                   ToolTip.Tip="{Binding IsPresenter, Converter={conv:BoolToObject TrueValue='Presenter', FalseValue='Viewer'}}"/>
                                                     <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>

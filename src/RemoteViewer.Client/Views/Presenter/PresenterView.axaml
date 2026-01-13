@@ -5,7 +5,6 @@
         xmlns:toastControls="using:RemoteViewer.Client.Controls.Toasts"
         xmlns:controls="using:RemoteViewer.Client.Controls"
         xmlns:chatControls="using:RemoteViewer.Client.Views.Chat"
-        xmlns:mi="using:Material.Icons.Avalonia"
         xmlns:mik="using:Material.Icons"
         xmlns:theme="using:RemoteViewer.Client.Themes"
         x:Class="RemoteViewer.Client.Views.Presenter.PresenterView"
@@ -183,7 +182,7 @@
                                     VerticalAlignment="Center"
                                     Width="32" Height="32">
                                 <controls:Icon Kind="Refresh"
-                                              Size="XXS"
+                                              Size="XS"
                                               Foreground="{DynamicResource TextSecondaryBrush}"/>
                             </Button>
                         </StackPanel>
@@ -213,7 +212,7 @@
                                                     Orientation="Horizontal"
                                                     Spacing="{theme:Spacing SM}">
                                             <controls:Icon Kind="Account"
-                                                          Size="XXS"
+                                                          Size="XS"
                                                           VerticalAlignment="Center"/>
                                             <TextBlock Text="{Binding DisplayName}"
                                                        FontWeight="SemiBold"
@@ -225,8 +224,8 @@
                                                 Command="{Binding ToggleInputBlockCommand}"
                                                 ToolTip.Tip="{Binding IsInputBlocked, Converter={conv:BoolToObject TrueValue='Unblock input', FalseValue='Block input'}}"
                                                 Classes="icon-button">
-                                            <controls:Icon Kind="{Binding IsInputBlocked, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.MouseOff}, FalseValue={x:Static mik:MaterialIconKind.Mouse}}"
-                                                          Size="XXS"/>
+                                            <controls:Icon Kind="{Binding IsInputBlocked, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.MouseOff}, FalseValue={x:Static mik:MaterialIconKind.Mouse}}}"
+                                                          Size="XS"/>
                                         </Button>
                                     </Grid>
                                 </DataTemplate>
