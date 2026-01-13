@@ -14,7 +14,7 @@
                        VerticalAlignment="Center"
                        Size="XLarge">
 
-            <StackPanel Spacing="{theme:Gap LG}" HorizontalAlignment="Center">
+            <StackPanel Spacing="{theme:Spacing LG}" HorizontalAlignment="Center">
                 <!-- Icon with circular background -->
                 <Border Background="{DynamicResource SuccessBrush}"
                         CornerRadius="32"
@@ -28,7 +28,7 @@
                 </Border>
 
                 <!-- Text content -->
-                <StackPanel Spacing="{theme:Gap XS}" HorizontalAlignment="Center">
+                <StackPanel Spacing="{theme:Spacing XS}" HorizontalAlignment="Center">
                     <TextBlock Text="Drop to Send"
                                Classes="h1"
                                HorizontalAlignment="Center"/>

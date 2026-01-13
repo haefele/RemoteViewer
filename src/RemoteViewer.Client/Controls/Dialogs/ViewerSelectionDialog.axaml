@@ -18,7 +18,7 @@
             MinWidth="320"
             MaxWidth="400">
 
-        <StackPanel Spacing="{theme:Gap LG}">
+        <StackPanel Spacing="{theme:Spacing LG}">
 
             <!-- Header using DialogHeader control -->
             <controls:DialogHeader Icon="FileUpload"
@@ -36,7 +36,7 @@
                                      Margin="{theme:Spacing X=MD}"
                                      VerticalAlignment="Center"
                                      Foreground="{DynamicResource TextSecondaryBrush}"/>
-                    <StackPanel Grid.Column="1" Spacing="{theme:Gap XXS}">
+                    <StackPanel Grid.Column="1" Spacing="{theme:Spacing XXS}">
                         <TextBlock Text="{Binding FileName}"
                                    Classes="h3"
                                    TextTrimming="CharacterEllipsis"
@@ -48,7 +48,7 @@
             </controls:Card>
 
             <!-- Viewer selection list -->
-            <StackPanel Spacing="{theme:Gap SM}">
+            <StackPanel Spacing="{theme:Spacing SM}">
                 <TextBlock Text="Recipients"
                            Classes="m1"
                            Margin="{theme:Spacing Left=XXS}"
@@ -60,7 +60,7 @@
                             <controls:Card Size="ListItem" Margin="{theme:Spacing Bottom=SM}">
                                 <CheckBox IsChecked="{Binding IsSelected}"
                                           Cursor="Hand">
-                                    <StackPanel Orientation="Horizontal" Spacing="{theme:Gap SM}">
+                                    <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}">
                                         <mi:MaterialIcon Kind="Account"
                                                          Classes="icon-xs"
                                                          VerticalAlignment="Center"
@@ -79,7 +79,7 @@
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="{theme:GridSpacing SM}"/>
+                    <ColumnDefinition Width="{theme:Spacing SM}"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
@@ -87,7 +87,7 @@
                         Classes="action-secondary"
                         HorizontalAlignment="Stretch"
                         Click="OnCancelClicked">
-                    <StackPanel Orientation="Horizontal" Spacing="{theme:Gap Icon}">
+                    <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}">
                         <mi:MaterialIcon Kind="Close" Classes="icon-xs"/>
                         <TextBlock Text="Cancel" VerticalAlignment="Center"/>
                     </StackPanel>
@@ -97,7 +97,7 @@
                         Classes="action-primary"
                         HorizontalAlignment="Stretch"
                         Click="OnSendClicked">
-                    <StackPanel Orientation="Horizontal" Spacing="{theme:Gap Icon}">
+                    <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}">
                         <mi:MaterialIcon Kind="Send" Classes="icon-xs"/>
                         <TextBlock Text="Send" VerticalAlignment="Center"/>
                     </StackPanel>
