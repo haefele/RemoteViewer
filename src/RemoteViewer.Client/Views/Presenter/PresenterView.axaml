@@ -28,7 +28,7 @@
                 Background="{DynamicResource SurfaceElevatedBrush}"
                 Padding="{theme:Spacing X=SM, Y=SM}">
             <StackPanel Orientation="Horizontal"
-                        Spacing="{theme:Gap SM}"
+                        Spacing="{theme:Spacing SM}"
                         VerticalAlignment="Center"
                         HorizontalAlignment="Center">
                 <!-- Send File button - no flyout when single viewer -->
@@ -64,13 +64,13 @@
                         Classes="icon-button">
                     <Button.Flyout>
                         <Flyout Placement="Bottom">
-                            <StackPanel MinWidth="200" Spacing="{theme:Gap MD}">
+                            <StackPanel MinWidth="200" Spacing="{theme:Spacing MD}">
                                 <TextBlock Text="Stream Settings"
                                            Classes="h3"
                                            Margin="{theme:Spacing Bottom=XS}"/>
 
                                 <!-- FPS Setting -->
-                                <StackPanel Spacing="{theme:Gap XS}">
+                                <StackPanel Spacing="{theme:Spacing XS}">
                                     <Grid ColumnDefinitions="*,Auto">
                                         <TextBlock Text="FPS" VerticalAlignment="Center"/>
                                         <TextBlock Grid.Column="1"
@@ -85,7 +85,7 @@
                                 </StackPanel>
 
                                 <!-- Quality Setting -->
-                                <StackPanel Spacing="{theme:Gap XS}">
+                                <StackPanel Spacing="{theme:Spacing XS}">
                                     <Grid ColumnDefinitions="*,Auto">
                                         <TextBlock Text="Quality" VerticalAlignment="Center"/>
                                         <TextBlock Grid.Column="1"
@@ -133,7 +133,7 @@
 
         <!-- Main Content -->
         <StackPanel Grid.Row="1"
-                    Spacing="{theme:Gap LG}"
+                    Spacing="{theme:Spacing LG}"
                     Margin="{theme:Spacing LG}">
 
             <!-- Your Credentials -->
@@ -146,7 +146,7 @@
                                Margin="{theme:Spacing Bottom=MD}"/>
 
                     <!-- Row 1: ID Label + Value -->
-                    <StackPanel Grid.Row="1" Grid.Column="0" Spacing="{theme:Gap XS}">
+                    <StackPanel Grid.Row="1" Grid.Column="0" Spacing="{theme:Spacing XS}">
                         <TextBlock Text="ID"
                                    Classes="m1 muted"/>
                         <SelectableTextBlock Text="{Binding YourId}"
@@ -168,11 +168,11 @@
 
                     <!-- Row 2: Password Label + Value with Refresh -->
                     <StackPanel Grid.Row="2" Grid.Column="0"
-                                Spacing="{theme:Gap XS}"
+                                Spacing="{theme:Spacing XS}"
                                 Margin="{theme:Spacing Top=MD}">
                         <TextBlock Text="Password"
                                    Classes="m1 muted"/>
-                        <StackPanel Orientation="Horizontal" Spacing="{theme:Gap XS}">
+                        <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing XS}">
                             <SelectableTextBlock Text="{Binding YourPassword}"
                                                  Classes="credential"
                                                  Margin="{theme:Spacing Y=SM}"
@@ -211,7 +211,7 @@
                                     <Grid ColumnDefinitions="*,Auto">
                                         <StackPanel Grid.Column="0"
                                                     Orientation="Horizontal"
-                                                    Spacing="{theme:Gap SM}">
+                                                    Spacing="{theme:Spacing SM}">
                                             <mi:MaterialIcon Kind="Account"
                                                              Classes="icon-xs"
                                                              VerticalAlignment="Center"/>

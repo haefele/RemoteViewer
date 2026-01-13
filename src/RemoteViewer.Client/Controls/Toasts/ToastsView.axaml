@@ -12,7 +12,7 @@
     <ItemsControl ItemsSource="{Binding Items}">
         <ItemsControl.ItemsPanel>
             <ItemsPanelTemplate>
-                <StackPanel Spacing="{theme:Gap SM}"/>
+                <StackPanel Spacing="{theme:Spacing SM}"/>
             </ItemsPanelTemplate>
         </ItemsControl.ItemsPanel>
 
@@ -181,7 +181,7 @@
                             </Border>
 
                             <!-- Content: message + action button -->
-                            <StackPanel Grid.Column="2" Spacing="{theme:Gap SM}" Margin="{theme:Spacing Y=MD, Right=SM}">
+                            <StackPanel Grid.Column="2" Spacing="{theme:Spacing SM}" Margin="{theme:Spacing Y=MD, Right=SM}">
                                 <TextBlock Text="{Binding Message}"
                                            TextWrapping="Wrap"
                                            Foreground="{DynamicResource ToastForegroundBrush}"
@@ -209,7 +209,7 @@
                                             <Setter Property="Opacity" Value="0.9"/>
                                         </Style>
                                     </Button.Styles>
-                                    <StackPanel Orientation="Horizontal" Spacing="{theme:Gap Icon}">
+                                    <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}">
                                         <mi:MaterialIcon Kind="{Binding ActionIcon}"
                                                          Classes="icon-xxs"
                                                          VerticalAlignment="Center"

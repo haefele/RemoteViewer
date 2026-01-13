@@ -62,7 +62,7 @@
             </Border.Styles>
 
             <StackPanel Orientation="Horizontal"
-                        Spacing="{theme:Gap SM}"
+                        Spacing="{theme:Spacing SM}"
                         VerticalAlignment="Center"
                         HorizontalAlignment="Center">
                 <!-- Fullscreen toggle (dynamic icon + tooltip) -->
@@ -79,7 +79,7 @@
                         Classes="icon-button">
                     <Button.Flyout>
                         <Flyout Placement="Bottom">
-                            <StackPanel MinWidth="220" Spacing="{theme:Gap XXS}">
+                            <StackPanel MinWidth="220" Spacing="{theme:Spacing XXS}">
                                 <TextBlock Text="Displays"
                                            FontWeight="SemiBold"
                                            Margin="{theme:Spacing X=SM, Top=XS, Bottom=SM}"/>
@@ -141,7 +141,7 @@
                         Classes="icon-button">
                     <Button.Flyout>
                         <Flyout Placement="Bottom">
-                            <StackPanel MinWidth="180" Spacing="{theme:Gap XXS}">
+                            <StackPanel MinWidth="180" Spacing="{theme:Spacing XXS}">
                                 <TextBlock Text="Participants"
                                            FontWeight="SemiBold"
                                            Margin="{theme:Spacing X=SM, Top=XS, Bottom=SM}"/>
@@ -151,7 +151,7 @@
                                             <Border Padding="{theme:Spacing X=SM, Y=SM}"
                                                     CornerRadius="4"
                                                     Background="{Binding IsPresenter, Converter={x:Static conv:BoolToAccentBrushConverter.Instance}}">
-                                                <StackPanel Orientation="Horizontal" Spacing="{theme:Gap SM}">
+                                                <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}">
                                                     <mi:MaterialIcon Kind="{Binding IsPresenter, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.Monitor}, FalseValue={x:Static mik:MaterialIconKind.Account}}}"
                                                                      Classes="icon-xs"
                                                                      ToolTip.Tip="{Binding IsPresenter, Converter={conv:BoolToObject TrueValue='Presenter', FalseValue='Viewer'}}"/>
@@ -234,7 +234,7 @@
                               Margin="{theme:Spacing X=LG}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Orientation="Vertical" Spacing="{theme:Gap SM}"/>
+                            <StackPanel Orientation="Vertical" Spacing="{theme:Spacing SM}"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
@@ -267,7 +267,7 @@
                               Margin="{theme:Spacing X=LG}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Orientation="Vertical" Spacing="{theme:Gap SM}"/>
+                            <StackPanel Orientation="Vertical" Spacing="{theme:Spacing SM}"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
@@ -300,7 +300,7 @@
                               Margin="{theme:Spacing Y=LG}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal" Spacing="{theme:Gap SM}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
@@ -333,7 +333,7 @@
                               Margin="{theme:Spacing Y=LG}">
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <StackPanel Orientation="Horizontal" Spacing="{theme:Gap SM}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>

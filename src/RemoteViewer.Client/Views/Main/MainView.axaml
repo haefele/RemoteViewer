@@ -27,7 +27,7 @@
               Grid.IsSharedSizeScope="True">
             <Grid.ColumnDefinitions>
                <ColumnDefinition Width="*" />
-               <ColumnDefinition Width="{theme:GridSpacing Size=LG}" />
+               <ColumnDefinition Width="{theme:Spacing All=LG}" />
                <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
 
@@ -37,13 +37,13 @@
                     <Grid>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" SharedSizeGroup="HeaderRow"/>
-                            <RowDefinition Height="{theme:GridSpacing Size=SM}" />
+                            <RowDefinition Height="{theme:Spacing All=SM}" />
                             <RowDefinition Height="Auto" SharedSizeGroup="IdLabelRow"/>
-                            <RowDefinition Height="{theme:GridSpacing Size=XS}" />
+                            <RowDefinition Height="{theme:Spacing All=XS}" />
                             <RowDefinition Height="Auto" SharedSizeGroup="IdValueRow"/>
-                            <RowDefinition Height="{theme:GridSpacing Size=SM}" />
+                            <RowDefinition Height="{theme:Spacing All=SM}" />
                             <RowDefinition Height="Auto" SharedSizeGroup="PasswordLabelRow"/>
-                            <RowDefinition Height="{theme:GridSpacing Size=XS}" />
+                            <RowDefinition Height="{theme:Spacing All=XS}" />
                             <RowDefinition Height="Auto" SharedSizeGroup="PasswordValueRow"/>
                         </Grid.RowDefinitions>
 
@@ -66,7 +66,7 @@
 
                         <StackPanel Grid.Row="8"
                                     Orientation="Horizontal"
-                                    Spacing="{theme:Gap XS}">
+                                    Spacing="{theme:Spacing XS}">
                             <SelectableTextBlock Text="{Binding YourPassword}"
                                                     Classes="credential"
                                                     VerticalAlignment="Center"/>
@@ -101,13 +101,13 @@
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" SharedSizeGroup="HeaderRow"/>
-                        <RowDefinition Height="{theme:GridSpacing Size=SM}" />
+                        <RowDefinition Height="{theme:Spacing All=SM}" />
                         <RowDefinition Height="Auto" SharedSizeGroup="IdLabelRow"/>
-                        <RowDefinition Height="{theme:GridSpacing Size=XS}" />
+                        <RowDefinition Height="{theme:Spacing All=XS}" />
                         <RowDefinition Height="Auto" SharedSizeGroup="IdValueRow"/>
-                        <RowDefinition Height="{theme:GridSpacing Size=SM}" />
+                        <RowDefinition Height="{theme:Spacing All=SM}" />
                         <RowDefinition Height="Auto" SharedSizeGroup="PasswordLabelRow"/>
-                        <RowDefinition Height="{theme:GridSpacing Size=XS}" />
+                        <RowDefinition Height="{theme:Spacing All=XS}" />
                         <RowDefinition Height="Auto" SharedSizeGroup="PasswordValueRow"/>
                     </Grid.RowDefinitions>
 
@@ -158,7 +158,7 @@
                 Padding="{theme:Spacing X=LG, Y=XXS}">
             <Grid ColumnDefinitions="*,Auto">
                 <StackPanel Orientation="Horizontal"
-                            Spacing="{theme:Gap SM}"
+                            Spacing="{theme:Spacing SM}"
                             ToolTip.Tip="{Binding VersionTooltipText}">
                     <mi:MaterialIcon Classes="icon-xs">
                         <mi:MaterialIcon.Kind>
