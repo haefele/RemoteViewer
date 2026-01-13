@@ -19,11 +19,11 @@
         <ItemsControl.DataTemplates>
             <!-- Regular text toast -->
             <DataTemplate x:DataType="toasts:ToastItemViewModel">
-                <Border CornerRadius="{StaticResource CornerRadiusLG}"
+                <Border CornerRadius="12"
                         MaxWidth="340"
                         MinWidth="220"
                         BoxShadow="0 4 16 0 #40000000">
-                    <Border CornerRadius="{StaticResource CornerRadiusLG}"
+                    <Border CornerRadius="12"
                             Background="{DynamicResource ToastBackgroundBrush}"
                             ClipToBounds="True">
                         <Grid ColumnDefinitions="3,Auto,*,Auto">
@@ -47,12 +47,11 @@
                             <Border Grid.Column="1"
                                     Width="32"
                                     Height="32"
-                                    CornerRadius="{StaticResource CornerRadiusMD}"
+                                    CornerRadius="8"
                                     Margin="{theme:Spacing Left=MD, Right=MD, Y=MD}"
                                     VerticalAlignment="Center"
                                     Background="{DynamicResource ToastIconBadgeBrush}">
-                                <mi:MaterialIcon Width="{StaticResource IconSizeSM}"
-                                                 Height="{StaticResource IconSizeSM}"
+                                <mi:MaterialIcon Classes="icon-sm"
                                                  HorizontalAlignment="Center"
                                                  VerticalAlignment="Center">
                                     <mi:MaterialIcon.Foreground>
@@ -100,7 +99,7 @@
                                     Margin="{theme:Spacing Right=SM}"
                                     VerticalAlignment="Center"
                                     Cursor="Hand"
-                                    CornerRadius="{StaticResource CornerRadiusButton}">
+                                    CornerRadius="6">
                                 <Button.Styles>
                                     <Style Selector="Button">
                                         <Setter Property="Opacity" Value="0.6"/>
@@ -111,8 +110,7 @@
                                     </Style>
                                 </Button.Styles>
                                 <mi:MaterialIcon Kind="Close"
-                                                 Width="{StaticResource IconSizeSM}"
-                                                 Height="{StaticResource IconSizeSM}"
+                                                 Classes="icon-xs"
                                                  Foreground="{DynamicResource ToastForegroundBrush}"/>
                             </Button>
                         </Grid>
@@ -122,11 +120,11 @@
 
             <!-- Action toast (with button) -->
             <DataTemplate x:DataType="toasts:ActionToastItemViewModel">
-                <Border CornerRadius="{StaticResource CornerRadiusLG}"
+                <Border CornerRadius="12"
                         MaxWidth="360"
                         MinWidth="240"
                         BoxShadow="0 4 16 0 #40000000">
-                    <Border CornerRadius="{StaticResource CornerRadiusLG}"
+                    <Border CornerRadius="12"
                             Background="{DynamicResource ToastBackgroundBrush}"
                             ClipToBounds="True">
                         <Grid ColumnDefinitions="3,Auto,*,Auto">
@@ -150,12 +148,11 @@
                             <Border Grid.Column="1"
                                     Width="32"
                                     Height="32"
-                                    CornerRadius="{StaticResource CornerRadiusMD}"
+                                    CornerRadius="8"
                                     Margin="{theme:Spacing Left=MD, Right=MD, Y=MD}"
                                     VerticalAlignment="Top"
                                     Background="{DynamicResource ToastIconBadgeBrush}">
-                                <mi:MaterialIcon Width="{StaticResource IconSizeSM}"
-                                                 Height="{StaticResource IconSizeSM}"
+                                <mi:MaterialIcon Classes="icon-sm"
                                                  HorizontalAlignment="Center"
                                                  VerticalAlignment="Center">
                                     <mi:MaterialIcon.Foreground>
@@ -191,7 +188,7 @@
                                            FontWeight="SemiBold"/>
 
                                 <Button Command="{Binding ExecuteActionCommand}"
-                                        CornerRadius="{StaticResource CornerRadiusButton}"
+                                        CornerRadius="6"
                                         Padding="{theme:Spacing X=MD, Y=XS}"
                                         HorizontalAlignment="Left"
                                         Cursor="Hand"
@@ -214,8 +211,7 @@
                                     </Button.Styles>
                                     <StackPanel Orientation="Horizontal" Spacing="{theme:Gap Icon}">
                                         <mi:MaterialIcon Kind="{Binding ActionIcon}"
-                                                         Width="{StaticResource IconSizeXS}"
-                                                         Height="{StaticResource IconSizeXS}"
+                                                         Classes="icon-xxs"
                                                          VerticalAlignment="Center"
                                                          Foreground="{DynamicResource OnAccentTextBrush}"/>
                                         <TextBlock Text="{Binding ActionText}"
@@ -238,7 +234,7 @@
                                     Margin="{theme:Spacing Top=SM, Right=SM}"
                                     VerticalAlignment="Top"
                                     Cursor="Hand"
-                                    CornerRadius="{StaticResource CornerRadiusButton}">
+                                    CornerRadius="6">
                                 <Button.Styles>
                                     <Style Selector="Button">
                                         <Setter Property="Opacity" Value="0.6"/>
@@ -249,8 +245,7 @@
                                     </Style>
                                 </Button.Styles>
                                 <mi:MaterialIcon Kind="Close"
-                                                 Width="{StaticResource IconSizeSM}"
-                                                 Height="{StaticResource IconSizeSM}"
+                                                 Classes="icon-xs"
                                                  Foreground="{DynamicResource ToastForegroundBrush}"/>
                             </Button>
                         </Grid>
@@ -260,11 +255,11 @@
 
             <!-- File transfer progress toast -->
             <DataTemplate x:DataType="toasts:TransferToastItemViewModel">
-                <Border CornerRadius="{StaticResource CornerRadiusLG}"
+                <Border CornerRadius="12"
                         MaxWidth="320"
                         MinWidth="260"
                         BoxShadow="0 4 16 0 #40000000">
-                    <Border CornerRadius="{StaticResource CornerRadiusLG}"
+                    <Border CornerRadius="12"
                             Background="{DynamicResource ToastTransferBackgroundBrush}"
                             ClipToBounds="True">
                         <Grid ColumnDefinitions="3,*">
@@ -281,13 +276,12 @@
                                     <Border Grid.Column="0"
                                             Width="32"
                                             Height="32"
-                                            CornerRadius="{StaticResource CornerRadiusMD}"
+                                            CornerRadius="8"
                                             Background="{DynamicResource ToastIconBadgeBrush}"
                                             Margin="{theme:Spacing Right=SM}"
                                             VerticalAlignment="Center">
                                         <mi:MaterialIcon Kind="{Binding IsUpload, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.CloudUpload}, FalseValue={x:Static mik:MaterialIconKind.CloudDownload}}}"
-                                                         Width="{StaticResource IconSizeSM}"
-                                                         Height="{StaticResource IconSizeSM}"
+                                                         Classes="icon-xs"
                                                          HorizontalAlignment="Center"
                                                          VerticalAlignment="Center"
                                                          Foreground="{StaticResource ToastTransferAccentBrush}"/>
@@ -308,7 +302,7 @@
                                             Padding="0"
                                             VerticalAlignment="Center"
                                             Cursor="Hand"
-                                            CornerRadius="{StaticResource CornerRadiusButton}"
+                                            CornerRadius="6"
                                             ToolTip.Tip="Cancel transfer">
                                         <Button.Styles>
                                             <Style Selector="Button">
@@ -320,8 +314,7 @@
                                             </Style>
                                         </Button.Styles>
                                         <mi:MaterialIcon Kind="Close"
-                                                         Width="{StaticResource IconSizeSM}"
-                                                         Height="{StaticResource IconSizeSM}"
+                                                         Classes="icon-xs"
                                                          Foreground="{DynamicResource ToastForegroundBrush}"/>
                                     </Button>
                                 </Grid>
