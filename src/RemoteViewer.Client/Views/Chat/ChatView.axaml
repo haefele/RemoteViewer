@@ -27,7 +27,7 @@
                     <DataTemplate x:DataType="hub:ChatMessageDisplay">
                         <Border Margin="{theme:Spacing Y=XXS}"
                                 Padding="{theme:Spacing X=SM, Y=SM}"
-                                CornerRadius="{StaticResource CornerRadiusMD}"
+                                CornerRadius="8"
                                 Classes.self="{Binding IsFromSelf}"
                                 Classes.other="{Binding !IsFromSelf}">
                             <Border.Styles>
@@ -62,7 +62,7 @@
                                                     Margin="{theme:Spacing Top=XXS}"
                                                     HorizontalAlignment="Left">
                                                 <StackPanel Orientation="Horizontal" Spacing="{theme:Gap SM}">
-                                                    <mi:MaterialIcon Kind="Link" Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}" VerticalAlignment="Center"/>
+                                                    <mi:MaterialIcon Kind="Link" Classes="icon-xs" VerticalAlignment="Center"/>
                                                     <StackPanel>
                                                         <TextBlock Text="{Binding Domain}" Classes="m1" FontWeight="SemiBold"/>
                                                         <TextBlock Text="{Binding Url}" Classes="m2"
@@ -128,8 +128,7 @@
                             Width="32"
                             Height="32">
                         <mi:MaterialIcon Kind="Send"
-                                         Width="{StaticResource IconSizeSM}"
-                                         Height="{StaticResource IconSizeSM}"
+                                         Classes="icon-xs"
                                          Foreground="{DynamicResource AccentBrush}"/>
                     </Button>
                 </TextBox.InnerRightContent>

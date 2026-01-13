@@ -94,8 +94,8 @@
             <SolidColorBrush x:Key="ButtonSecondaryPressedBrush" Color="#383838"/>
 
             <!-- Card Colors -->
-            <SolidColorBrush x:Key="CardBackgroundBrush" Color="#2D2D2D"/>
-            <SolidColorBrush x:Key="CardElevatedBackgroundBrush" Color="#383838"/>
+            <SolidColorBrush x:Key="CardBackgroundBrush" Color="#383838"/>
+            <SolidColorBrush x:Key="CardElevatedBackgroundBrush" Color="#404040"/>
 
             <!-- Badge Colors -->
             <SolidColorBrush x:Key="BadgeBackgroundBrush" Color="#18FFFFFF"/>
@@ -143,8 +143,8 @@
             <SolidColorBrush x:Key="ButtonSecondaryPressedBrush" Color="#D8D8D8"/>
 
             <!-- Card Colors -->
-            <SolidColorBrush x:Key="CardBackgroundBrush" Color="#FFFFFF"/>
-            <SolidColorBrush x:Key="CardElevatedBackgroundBrush" Color="#FAFAFA"/>
+            <SolidColorBrush x:Key="CardBackgroundBrush" Color="#F5F5F5"/>
+            <SolidColorBrush x:Key="CardElevatedBackgroundBrush" Color="#EBEBEB"/>
 
             <!-- Badge Colors -->
             <SolidColorBrush x:Key="BadgeBackgroundBrush" Color="#18000000"/>
