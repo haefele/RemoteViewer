@@ -5,6 +5,11 @@
     <!-- BUTTON STYLES                                  -->
     <!-- ============================================== -->
 
+    <!-- Base button style - applies corner radius to all buttons -->
+    <Style Selector="Button">
+        <Setter Property="CornerRadius" Value="6"/>
+    </Style>
+
     <!-- Icon Button - Transparent background, for toolbars -->
     <!-- Usage: <Button Classes="icon-button"> -->
     <Style Selector="Button.icon-button">
@@ -13,68 +18,8 @@
         <Setter Property="Padding" Value="0"/>
         <Setter Property="Background" Value="Transparent"/>
         <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="CornerRadius" Value="6"/>
         <Setter Property="HorizontalContentAlignment" Value="Center"/>
         <Setter Property="VerticalContentAlignment" Value="Center"/>
-        <Setter Property="Cursor" Value="Hand"/>
-    </Style>
-
-    <Style Selector="Button.icon-button:pointerover">
-        <Setter Property="Background" Value="{DynamicResource WindowButtonHoverBrush}"/>
-    </Style>
-
-    <Style Selector="Button.icon-button:pressed">
-        <Setter Property="Background" Value="{DynamicResource WindowButtonPressedBrush}"/>
-    </Style>
-
-    <!-- Action Primary Button - Accent colored -->
-    <!-- Usage: <Button Classes="action-primary"> -->
-    <Style Selector="Button.action-primary">
-        <Setter Property="Background" Value="{DynamicResource AccentBrush}"/>
-        <Setter Property="Foreground" Value="{DynamicResource OnAccentTextBrush}"/>
-        <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="CornerRadius" Value="6"/>
-        <Setter Property="Padding" Value="14,10"/>
-        <Setter Property="HorizontalContentAlignment" Value="Center"/>
-        <Setter Property="VerticalContentAlignment" Value="Center"/>
-        <Setter Property="Cursor" Value="Hand"/>
-    </Style>
-
-    <Style Selector="Button.action-primary:pointerover">
-        <Setter Property="Background" Value="{DynamicResource AccentHoverBrush}"/>
-    </Style>
-
-    <Style Selector="Button.action-primary:pressed">
-        <Setter Property="Background" Value="{DynamicResource AccentPressedBrush}"/>
-    </Style>
-
-    <Style Selector="Button.action-primary:disabled">
-        <Setter Property="Opacity" Value="0.5"/>
-    </Style>
-
-    <!-- Action Secondary Button - Subtle background -->
-    <!-- Usage: <Button Classes="action-secondary"> -->
-    <Style Selector="Button.action-secondary">
-        <Setter Property="Background" Value="{DynamicResource ButtonSecondaryBackgroundBrush}"/>
-        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
-        <Setter Property="BorderThickness" Value="0"/>
-        <Setter Property="CornerRadius" Value="6"/>
-        <Setter Property="Padding" Value="14,10"/>
-        <Setter Property="HorizontalContentAlignment" Value="Center"/>
-        <Setter Property="VerticalContentAlignment" Value="Center"/>
-        <Setter Property="Cursor" Value="Hand"/>
-    </Style>
-
-    <Style Selector="Button.action-secondary:pointerover">
-        <Setter Property="Background" Value="{DynamicResource ButtonSecondaryHoverBrush}"/>
-    </Style>
-
-    <Style Selector="Button.action-secondary:pressed">
-        <Setter Property="Background" Value="{DynamicResource ButtonSecondaryPressedBrush}"/>
-    </Style>
-
-    <Style Selector="Button.action-secondary:disabled">
-        <Setter Property="Opacity" Value="0.5"/>
     </Style>
 
 </Styles>

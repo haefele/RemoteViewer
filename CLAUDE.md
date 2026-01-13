@@ -114,10 +114,10 @@ CornerRadius="{StaticResource CornerRadiusCard}"    <!-- 8px -->
 ```
 
 ### Colors (use DynamicResource for theme support)
-- **Text**: `TextPrimaryBrush`, `TextSecondaryBrush`, `TextMutedBrush`, `TextDisabledBrush`
-- **Surfaces**: `SurfaceBrush`, `SurfaceElevatedBrush`, `CardBackgroundBrush`
-- **Borders**: `BorderSubtleBrush`, `BorderDefaultBrush`, `BorderStrongBrush`
-- **Semantic**: `AccentBrush`, `SuccessBrush`, `ErrorBrush`, `WarningBrush`, `InfoBrush`
+- **Muted text**: `SystemControlDisabledBaseMediumLowBrush` (Avalonia built-in)
+- **Accent**: `AccentButtonBackground`, `AccentButtonForeground` (Avalonia built-in)
+- **Surfaces**: `SurfaceElevatedBrush`, `SurfaceOverlayBrush`, `CardBackgroundBrush`
+- **Semantic**: `SuccessBrush`, `ErrorBrush`, `WarningBrush`
 
 ## Typography Classes
 
@@ -130,10 +130,12 @@ Apply via `Classes="class-name"` on TextBlock:
 
 ## Button Styles
 
+All buttons automatically get `CornerRadius="6"` from the base style.
+
 ```xml
-<Button Classes="icon-button">       <!-- 32x32 transparent icon button -->
-<Button Classes="action-primary">    <!-- Accent background, white text -->
-<Button Classes="action-secondary">  <!-- Subtle background -->
+<Button>                             <!-- Default button (uses Avalonia defaults) -->
+<Button Classes="accent">            <!-- Accent/primary button (Avalonia built-in) -->
+<Button Classes="icon-button">       <!-- 32x32 transparent icon button for toolbars -->
 ```
 
 ## Card Component (Controls/Card.axaml)

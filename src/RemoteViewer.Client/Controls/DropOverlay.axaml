@@ -22,7 +22,7 @@
                         HorizontalAlignment="Center">
                     <controls:Icon Kind="FileUpload"
                                   Size="LG"
-                                  Foreground="{DynamicResource OnAccentTextBrush}"
+                                  Foreground="{DynamicResource AccentButtonForeground}"
                                   HorizontalAlignment="Center"
                                   VerticalAlignment="Center"/>
                 </Border>

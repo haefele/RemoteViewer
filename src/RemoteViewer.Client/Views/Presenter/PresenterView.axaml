@@ -116,7 +116,7 @@
                 <!-- Separator -->
                 <Border Width="1"
                         Margin="{theme:Spacing Y=XS}"
-                        Background="{DynamicResource BorderSubtleBrush}"
+                        Background="{DynamicResource SystemControlForegroundBaseLowBrush}"
                         IsVisible="{Binding Viewers.Count}"/>
 
                 <!-- Stop Presenting button -->
@@ -161,8 +161,7 @@
                             Command="{Binding CopyCredentialsCommand}"
                             ToolTip.Tip="Copy ID and password">
                         <controls:Icon Kind="ContentCopy"
-                                      Size="SM"
-                                      Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                      Size="SM"/>
                     </Button>
 
                     <!-- Row 2: Password Label + Value with Refresh -->
@@ -182,8 +181,7 @@
                                     VerticalAlignment="Center"
                                     Width="32" Height="32">
                                 <controls:Icon Kind="Refresh"
-                                              Size="XS"
-                                              Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                              Size="XS"/>
                             </Button>
                         </StackPanel>
                     </StackPanel>
