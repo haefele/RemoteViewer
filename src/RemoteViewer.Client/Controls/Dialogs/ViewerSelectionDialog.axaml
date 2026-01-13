@@ -35,7 +35,7 @@
                                   Size="SM"
                                   Margin="{theme:Spacing X=MD}"
                                   VerticalAlignment="Center"
-                                  Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                  Foreground="{DynamicResource SystemControlDisabledBaseMediumLowBrush}"/>
                     <StackPanel Grid.Column="1" Spacing="{theme:Spacing XXS}">
                         <TextBlock Text="{Binding FileName}"
                                    Classes="h3"
@@ -64,7 +64,7 @@
                                         <controls:Icon Kind="Account"
                                                       Size="XXS"
                                                       VerticalAlignment="Center"
-                                                      Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                      Foreground="{DynamicResource SystemControlDisabledBaseMediumLowBrush}"/>
                                         <TextBlock Text="{Binding DisplayName}"
                                                    VerticalAlignment="Center"/>
                                     </StackPanel>
@@ -84,7 +84,6 @@
                 </Grid.ColumnDefinitions>
 
                 <Button Grid.Column="0"
-                        Classes="action-secondary"
                         HorizontalAlignment="Stretch"
                         Click="OnCancelClicked">
                     <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}">
@@ -94,7 +93,7 @@
                 </Button>
 
                 <Button Grid.Column="2"
-                        Classes="action-primary"
+                        Classes="accent"
                         HorizontalAlignment="Stretch"
                         Click="OnSendClicked">
                     <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}">

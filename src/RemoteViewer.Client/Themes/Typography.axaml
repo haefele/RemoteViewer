@@ -14,7 +14,6 @@
         <Setter Property="FontSize" Value="22"/>
         <Setter Property="FontWeight" Value="Bold"/>
         <Setter Property="LineHeight" Value="28"/>
-        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
     </Style>
 
     <!-- h2 - Section headers (15px SemiBold) -->
@@ -22,7 +21,6 @@
         <Setter Property="FontSize" Value="15"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="LineHeight" Value="20"/>
-        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
     </Style>
 
     <!-- h3 - Subsection headers (13px SemiBold) -->
@@ -30,7 +28,6 @@
         <Setter Property="FontSize" Value="13"/>
         <Setter Property="FontWeight" Value="SemiBold"/>
         <Setter Property="LineHeight" Value="18"/>
-        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
     </Style>
 
     <!-- m1 - Captions, labels (12px) -->
@@ -38,7 +35,7 @@
         <Setter Property="FontSize" Value="12"/>
         <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="LineHeight" Value="17"/>
-        <Setter Property="Foreground" Value="{DynamicResource TextSecondaryBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlDisabledBaseMediumLowBrush}"/>
     </Style>
 
     <!-- m2 - Timestamps, URLs (10px) -->
@@ -46,7 +43,7 @@
         <Setter Property="FontSize" Value="10"/>
         <Setter Property="FontWeight" Value="Normal"/>
         <Setter Property="LineHeight" Value="14"/>
-        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlDisabledBaseMediumLowBrush}"/>
     </Style>
 
     <!-- credential - IDs/passwords (18px Bold monospace) -->
@@ -54,12 +51,11 @@
         <Setter Property="FontFamily" Value="Consolas, Courier New, monospace"/>
         <Setter Property="FontSize" Value="18"/>
         <Setter Property="FontWeight" Value="Bold"/>
-        <Setter Property="Foreground" Value="{DynamicResource TextPrimaryBrush}"/>
     </Style>
 
     <!-- muted - Color modifier for dimmed text -->
     <Style Selector="TextBlock.muted">
-        <Setter Property="Foreground" Value="{DynamicResource TextMutedBrush}"/>
+        <Setter Property="Foreground" Value="{DynamicResource SystemControlDisabledBaseMediumLowBrush}"/>
     </Style>
 
 </Styles>

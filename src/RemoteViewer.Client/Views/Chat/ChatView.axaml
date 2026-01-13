@@ -44,7 +44,7 @@
                                 <!-- Sender name (hidden for self) -->
                                 <TextBlock Text="{Binding SenderDisplayName}"
                                            Classes="m1"
-                                           Foreground="{DynamicResource TextSecondaryBrush}"
+                                           Foreground="{DynamicResource SystemControlDisabledBaseMediumLowBrush}"
                                            FontWeight="SemiBold"
                                            IsVisible="{Binding !IsFromSelf}"/>
                                 <!-- Message text (selectable) -->
@@ -129,7 +129,7 @@
                             Height="32">
                         <controls:Icon Kind="Send"
                                       Size="XXS"
-                                      Foreground="{DynamicResource AccentBrush}"/>
+                                      Foreground="{DynamicResource AccentButtonBackground}"/>
                     </Button>
                 </TextBox.InnerRightContent>
             </TextBox>

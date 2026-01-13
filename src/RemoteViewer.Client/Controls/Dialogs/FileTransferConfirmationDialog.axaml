@@ -32,7 +32,7 @@
                                   Size="SM"
                                   Margin="{theme:Spacing Right=MD}"
                                   VerticalAlignment="Center"
-                                  Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                  Foreground="{DynamicResource SystemControlDisabledBaseMediumLowBrush}"/>
                     <StackPanel Grid.Column="1" Spacing="{theme:Spacing XXS}">
                         <TextBlock Text="{Binding FileName}"
                                    Classes="h3"
@@ -53,7 +53,6 @@
                 </Grid.ColumnDefinitions>
 
                 <Button Grid.Column="0"
-                        Classes="action-secondary"
                         HorizontalAlignment="Stretch"
                         Click="OnRejectClicked">
                     <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}">
@@ -63,7 +62,7 @@
                 </Button>
 
                 <Button Grid.Column="2"
-                        Classes="action-primary"
+                        Classes="accent"
                         HorizontalAlignment="Stretch"
                         Click="OnAcceptClicked">
                     <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}">

@@ -134,7 +134,7 @@
                 <!-- Separator -->
                 <Border Width="1"
                         Margin="{theme:Spacing Y=XS}"
-                        Background="{DynamicResource BorderSubtleBrush}"/>
+                        Background="{DynamicResource SystemControlForegroundBaseLowBrush}"/>
 
                 <!-- Participants flyout -->
                 <Button ToolTip.Tip="Participants"
@@ -189,7 +189,7 @@
                 <!-- Separator -->
                 <Border Width="1"
                         Margin="{theme:Spacing Y=XS}"
-                        Background="{DynamicResource BorderSubtleBrush}"/>
+                        Background="{DynamicResource SystemControlForegroundBaseLowBrush}"/>
 
                 <!-- Disconnect button -->
                 <Button Command="{Binding DisconnectCommand}"

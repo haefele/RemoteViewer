@@ -213,12 +213,12 @@
                                         <controls:Icon Kind="{Binding ActionIcon}"
                                                       Size="XXS"
                                                       VerticalAlignment="Center"
-                                                      Foreground="{DynamicResource OnAccentTextBrush}"/>
+                                                      Foreground="{DynamicResource AccentButtonForeground}"/>
                                         <TextBlock Text="{Binding ActionText}"
                                                    VerticalAlignment="Center"
                                                    Classes="m1"
                                                    FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource OnAccentTextBrush}"/>
+                                                   Foreground="{DynamicResource AccentButtonForeground}"/>
                                     </StackPanel>
                                 </Button>
                             </StackPanel>
