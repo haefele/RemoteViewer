@@ -27,12 +27,12 @@
             <!-- File info card -->
             <controls:Card>
                 <Grid ColumnDefinitions="Auto,*">
-                    <mi:MaterialIcon Grid.Column="0"
-                                     Kind="File"
-                                     Classes="icon-sm"
-                                     Margin="{theme:Spacing Right=MD}"
-                                     VerticalAlignment="Center"
-                                     Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <controls:Icon Grid.Column="0"
+                                  Kind="File"
+                                  Size="SM"
+                                  Margin="{theme:Spacing Right=MD}"
+                                  VerticalAlignment="Center"
+                                  Foreground="{DynamicResource TextSecondaryBrush}"/>
                     <StackPanel Grid.Column="1" Spacing="{theme:Spacing XXS}">
                         <TextBlock Text="{Binding FileName}"
                                    Classes="h3"
@@ -57,7 +57,7 @@
                         HorizontalAlignment="Stretch"
                         Click="OnRejectClicked">
                     <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}">
-                        <mi:MaterialIcon Kind="Close" Classes="icon-xs"/>
+                        <controls:Icon Kind="Close" Size="XXS"/>
                         <TextBlock Text="Reject" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
@@ -67,7 +67,7 @@
                         HorizontalAlignment="Stretch"
                         Click="OnAcceptClicked">
                     <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}">
-                        <mi:MaterialIcon Kind="Check" Classes="icon-xs"/>
+                        <controls:Icon Kind="Check" Size="XXS"/>
                         <TextBlock Text="Accept" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>

@@ -69,8 +69,8 @@
                 <Button Command="{Binding ToggleFullscreenCommand}"
                         ToolTip.Tip="{Binding IsFullscreen, Converter={conv:BoolToObject TrueValue='Exit fullscreen (F11 / ESC)', FalseValue='Enter fullscreen (F11)'}}"
                         Classes="icon-button">
-                    <mi:MaterialIcon Kind="{Binding IsFullscreen, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.FullscreenExit}, FalseValue={x:Static mik:MaterialIconKind.Fullscreen}}}"
-                                     Classes="icon-sm"/>
+                    <controls:Icon Kind="{Binding IsFullscreen, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.FullscreenExit}, FalseValue={x:Static mik:MaterialIconKind.Fullscreen}}}"
+                                  Size="SM"/>
                 </Button>
 
                 <!-- Display selection flyout -->
@@ -90,8 +90,8 @@
                             </StackPanel>
                         </Flyout>
                     </Button.Flyout>
-                    <mi:MaterialIcon Kind="MonitorMultiple"
-                                     Classes="icon-sm"/>
+                    <controls:Icon Kind="MonitorMultiple"
+                                   Size="SM"/>
                 </Button>
 
                 <!-- Toggle input button -->
@@ -104,8 +104,8 @@
                             <Binding Path="IsInputEnabled"/>
                         </MultiBinding>
                     </ToolTip.Tip>
-                    <mi:MaterialIcon Kind="{Binding IsInputEnabled, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.Mouse}, FalseValue={x:Static mik:MaterialIconKind.MouseOff}}}"
-                                     Classes="icon-sm"/>
+                    <controls:Icon Kind="{Binding IsInputEnabled, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.Mouse}, FalseValue={x:Static mik:MaterialIconKind.MouseOff}}}"
+                                  Size="SM"/>
                 </Button>
 
                 <!-- Send Ctrl+Alt+Del button -->
@@ -119,16 +119,16 @@
                             <Binding Path="CanSendSecureAttentionSequence"/>
                         </MultiBinding>
                     </ToolTip.Tip>
-                    <mi:MaterialIcon Kind="AccountKey"
-                                     Classes="icon-sm"/>
+                    <controls:Icon Kind="AccountKey"
+                                  Size="SM"/>
                 </Button>
 
                 <!-- Send File button -->
                 <Button Command="{Binding SendFileCommand}"
                         ToolTip.Tip="Send file to presenter"
                         Classes="icon-button">
-                    <mi:MaterialIcon Kind="FileUpload"
-                                     Classes="icon-sm"/>
+                    <controls:Icon Kind="FileUpload"
+                                  Size="SM"/>
                 </Button>
 
                 <!-- Separator -->
@@ -152,9 +152,9 @@
                                                     CornerRadius="4"
                                                     Background="{Binding IsPresenter, Converter={x:Static conv:BoolToAccentBrushConverter.Instance}}">
                                                 <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}">
-                                                    <mi:MaterialIcon Kind="{Binding IsPresenter, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.Monitor}, FalseValue={x:Static mik:MaterialIconKind.Account}}}"
-                                                                     Classes="icon-xs"
-                                                                     ToolTip.Tip="{Binding IsPresenter, Converter={conv:BoolToObject TrueValue='Presenter', FalseValue='Viewer'}}"/>
+                                                    <controls:Icon Kind="{Binding IsPresenter, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.Monitor}, FalseValue={x:Static mik:MaterialIconKind.Account}}"
+                                                                  Size="XXS"
+                                                                  ToolTip.Tip="{Binding IsPresenter, Converter={conv:BoolToObject TrueValue='Presenter', FalseValue='Viewer'}}"/>
                                                     <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
                                                 </StackPanel>
                                             </Border>
@@ -164,8 +164,8 @@
                             </StackPanel>
                         </Flyout>
                     </Button.Flyout>
-                    <mi:MaterialIcon Kind="AccountGroup"
-                                     Classes="icon-sm"/>
+                    <controls:Icon Kind="AccountGroup"
+                                  Size="SM"/>
                 </Button>
 
                 <!-- Chat button -->
@@ -174,8 +174,8 @@
                         Classes="icon-button"
                         Command="{Binding ShowChatCommand}">
                     <Panel>
-                        <mi:MaterialIcon Kind="Chat"
-                                         Classes="icon-sm"/>
+                        <controls:Icon Kind="Chat"
+                                      Size="SM"/>
                         <!-- Unread indicator -->
                         <Ellipse Width="8" Height="8"
                                  Fill="{DynamicResource ErrorBrush}"
@@ -195,9 +195,9 @@
                 <Button Command="{Binding DisconnectCommand}"
                         ToolTip.Tip="Disconnect"
                         Classes="icon-button">
-                    <mi:MaterialIcon Kind="LanDisconnect"
-                                     Classes="icon-sm"
-                                     Foreground="{DynamicResource ErrorBrush}"/>
+                    <controls:Icon Kind="LanDisconnect"
+                                  Size="SM"
+                                  Foreground="{DynamicResource ErrorBrush}"/>
                 </Button>
             </StackPanel>
         </Border>
@@ -248,13 +248,13 @@
                                     Opacity="0.6"
                                     ToolTip.Tip="{Binding FriendlyName, StringFormat='Navigate to {0} (Ctrl+Left)'}">
                                 <Button.Styles>
-                                    <Style Selector="Button:pointerover">
-                                        <Setter Property="Opacity" Value="1"/>
-                                    </Style>
-                                </Button.Styles>
-                                <mi:MaterialIcon Kind="ChevronLeft"
-                                                 Classes="icon-lg"
-                                                 Foreground="White"/>
+                                <Style Selector="Button:pointerover">
+                                    <Setter Property="Opacity" Value="1"/>
+                                </Style>
+                            </Button.Styles>
+                                <controls:Icon Kind="ChevronLeft"
+                                              Size="LG"
+                                              Foreground="White"/>
                             </Button>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
@@ -281,13 +281,13 @@
                                     Opacity="0.6"
                                     ToolTip.Tip="{Binding FriendlyName, StringFormat='Navigate to {0} (Ctrl+Right)'}">
                                 <Button.Styles>
-                                    <Style Selector="Button:pointerover">
-                                        <Setter Property="Opacity" Value="1"/>
-                                    </Style>
-                                </Button.Styles>
-                                <mi:MaterialIcon Kind="ChevronRight"
-                                                 Classes="icon-lg"
-                                                 Foreground="White"/>
+                                <Style Selector="Button:pointerover">
+                                    <Setter Property="Opacity" Value="1"/>
+                                </Style>
+                            </Button.Styles>
+                                <controls:Icon Kind="ChevronRight"
+                                              Size="LG"
+                                              Foreground="White"/>
                             </Button>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
@@ -314,13 +314,13 @@
                                     Opacity="0.6"
                                     ToolTip.Tip="{Binding FriendlyName, StringFormat='Navigate to {0} (Ctrl+Up)'}">
                                 <Button.Styles>
-                                    <Style Selector="Button:pointerover">
-                                        <Setter Property="Opacity" Value="1"/>
-                                    </Style>
-                                </Button.Styles>
-                                <mi:MaterialIcon Kind="ChevronUp"
-                                                 Classes="icon-lg"
-                                                 Foreground="White"/>
+                                <Style Selector="Button:pointerover">
+                                    <Setter Property="Opacity" Value="1"/>
+                                </Style>
+                            </Button.Styles>
+                                <controls:Icon Kind="ChevronUp"
+                                              Size="LG"
+                                              Foreground="White"/>
                             </Button>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
@@ -347,13 +347,13 @@
                                     Opacity="0.6"
                                     ToolTip.Tip="{Binding FriendlyName, StringFormat='Navigate to {0} (Ctrl+Down)'}">
                                 <Button.Styles>
-                                    <Style Selector="Button:pointerover">
-                                        <Setter Property="Opacity" Value="1"/>
-                                    </Style>
-                                </Button.Styles>
-                                <mi:MaterialIcon Kind="ChevronDown"
-                                                 Classes="icon-lg"
-                                                 Foreground="White"/>
+                                <Style Selector="Button:pointerover">
+                                    <Setter Property="Opacity" Value="1"/>
+                                </Style>
+                            </Button.Styles>
+                                <controls:Icon Kind="ChevronDown"
+                                              Size="LG"
+                                              Foreground="White"/>
                             </Button>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>

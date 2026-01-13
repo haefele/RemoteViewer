@@ -10,8 +10,8 @@ public partial class DialogHeader : UserControl
     public static readonly StyledProperty<MaterialIconKind> IconProperty =
         AvaloniaProperty.Register<DialogHeader, MaterialIconKind>(nameof(Icon), MaterialIconKind.Information);
 
-    public static readonly StyledProperty<IconBadgeSize> IconSizeProperty =
-        AvaloniaProperty.Register<DialogHeader, IconBadgeSize>(nameof(IconSize), IconBadgeSize.Medium);
+    public static readonly StyledProperty<IconSize> IconSizeProperty =
+        AvaloniaProperty.Register<DialogHeader, IconSize>(nameof(IconSize), IconSize.MD);
 
     public static readonly StyledProperty<IBrush?> IconForegroundProperty =
         AvaloniaProperty.Register<DialogHeader, IBrush?>(nameof(IconForeground));
@@ -31,7 +31,7 @@ public partial class DialogHeader : UserControl
         set => this.SetValue(IconProperty, value);
     }
 
-    public IconBadgeSize IconSize
+    public IconSize IconSize
     {
         get => this.GetValue(IconSizeProperty);
         set => this.SetValue(IconSizeProperty, value);
