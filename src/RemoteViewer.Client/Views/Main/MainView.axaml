@@ -74,11 +74,11 @@
                                     ToolTip.Tip="Generate new password"
                                     Classes="icon-button"
                                     VerticalAlignment="Center"
-                                    Width="32" 
+                                    Width="32"
                                     Height="32">
-                                <mi:MaterialIcon Kind="Refresh"
-                                                 Classes="icon-xs"
-                                                 Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <controls:Icon Kind="Refresh"
+                                               Size="XXS"
+                                               Foreground="{DynamicResource TextSecondaryBrush}"/>
                             </Button>
                         </StackPanel>
                     </Grid>
@@ -89,9 +89,9 @@
                             Margin="{theme:Spacing Left=SM}"
                             Command="{Binding CopyCredentialsCommand}"
                             ToolTip.Tip="Copy ID and password">
-                        <mi:MaterialIcon Kind="ContentCopy"
-                                         Classes="icon-sm"
-                                         Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <controls:Icon Kind="ContentCopy"
+                                       Size="SM"
+                                       Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </Button>
                 </Grid>
             </controls:Card>
@@ -142,9 +142,9 @@
                                     ToolTip.Tip="Connect"
                                     Classes="icon-button"
                                     IsEnabled="{Binding !ConnectToDeviceCommand.IsRunning}">
-                                <mi:MaterialIcon Kind="ArrowRightCircle"
-                                                 Classes="icon-sm"
-                                                 Foreground="{DynamicResource AccentBrush}"/>
+                                <controls:Icon Kind="ArrowRightCircle"
+                                               Size="SM"
+                                               Foreground="{DynamicResource AccentBrush}"/>
                             </Button>
                         </TextBox.InnerRightContent>
                     </TextBox>
@@ -160,8 +160,8 @@
                 <StackPanel Orientation="Horizontal"
                             Spacing="{theme:Spacing SM}"
                             ToolTip.Tip="{Binding VersionTooltipText}">
-                    <mi:MaterialIcon Classes="icon-xs">
-                        <mi:MaterialIcon.Kind>
+                    <controls:Icon Size="XXS">
+                        <controls:Icon.Kind>
                             <Binding Path="Status">
                                 <Binding.Converter>
                                     <conv:ObjectToObject DefaultValue="{x:Static mik:MaterialIconKind.CloudOffOutline}">
@@ -170,8 +170,8 @@
                                     </conv:ObjectToObject>
                                 </Binding.Converter>
                             </Binding>
-                        </mi:MaterialIcon.Kind>
-                        <mi:MaterialIcon.Foreground>
+                        </controls:Icon.Kind>
+                        <controls:Icon.Foreground>
                             <Binding Path="Status">
                                 <Binding.Converter>
                                     <conv:ObjectToObject DefaultValue="{StaticResource ErrorBrush}">
@@ -180,8 +180,8 @@
                                     </conv:ObjectToObject>
                                 </Binding.Converter>
                             </Binding>
-                        </mi:MaterialIcon.Foreground>
-                    </mi:MaterialIcon>
+                        </controls:Icon.Foreground>
+                    </controls:Icon>
                     <TextBlock Classes="m1"
                                VerticalAlignment="Center">
                         <TextBlock.Text>
@@ -201,11 +201,11 @@
                         Command="{Binding ShowAboutCommand}"
                         ToolTip.Tip="About"
                         Classes="icon-button"
-                        Width="24" 
+                        Width="24"
                         Height="24">
-                    <mi:MaterialIcon Kind="InformationOutline"
-                                     Classes="icon-xs"
-                                     Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <controls:Icon Kind="InformationOutline"
+                                   Size="XXS"
+                                   Foreground="{DynamicResource TextSecondaryBrush}"/>
                 </Button>
             </Grid>
         </Border>

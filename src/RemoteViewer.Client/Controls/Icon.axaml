@@ -1,0 +1,131 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mi="using:Material.Icons.Avalonia"
+             xmlns:controls="using:RemoteViewer.Client.Controls"
+             x:Class="RemoteViewer.Client.Controls.Icon"
+             x:DataType="controls:Icon"
+             x:Name="Root">
+
+    <UserControl.Styles>
+        <!-- Direct icon mode - sizing based on Size enum -->
+        <Style Selector="controls|Icon[ShowAsBadge=false][Size=XXS] mi|MaterialIcon#DirectIcon">
+            <Setter Property="Width" Value="12"/>
+            <Setter Property="Height" Value="12"/>
+        </Style>
+        <Style Selector="controls|Icon[ShowAsBadge=false][Size=XS] mi|MaterialIcon#DirectIcon">
+            <Setter Property="Width" Value="16"/>
+            <Setter Property="Height" Value="16"/>
+        </Style>
+        <Style Selector="controls|Icon[ShowAsBadge=false][Size=SM] mi|MaterialIcon#DirectIcon">
+            <Setter Property="Width" Value="20"/>
+            <Setter Property="Height" Value="20"/>
+        </Style>
+        <Style Selector="controls|Icon[ShowAsBadge=false][Size=MD] mi|MaterialIcon#DirectIcon">
+            <Setter Property="Width" Value="24"/>
+            <Setter Property="Height" Value="24"/>
+        </Style>
+        <Style Selector="controls|Icon[ShowAsBadge=false][Size=LG] mi|MaterialIcon#DirectIcon">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+        </Style>
+        <Style Selector="controls|Icon[ShowAsBadge=false][Size=XL] mi|MaterialIcon#DirectIcon">
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="40"/>
+        </Style>
+        <Style Selector="controls|Icon[ShowAsBadge=false][Size=XXL] mi|MaterialIcon#DirectIcon">
+            <Setter Property="Width" Value="48"/>
+            <Setter Property="Height" Value="48"/>
+        </Style>
+
+        <!-- Badge Mode - Small (XXS, XS) -->
+        <Style Selector="controls|Icon[ShowAsBadge=true][Size=XXS] Border#BadgeBorder,
+                 controls|Icon[ShowAsBadge=true][Size=XS] Border#BadgeBorder">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+            <Setter Property="CornerRadius" Value="8"/>
+        </Style>
+        <Style Selector="controls|Icon[ShowAsBadge=true][Size=XXS] mi|MaterialIcon,
+                 controls|Icon[ShowAsBadge=true][Size=XS] mi|MaterialIcon">
+            <Setter Property="Width" Value="16"/>
+            <Setter Property="Height" Value="16"/>
+        </Style>
+
+        <!-- Badge Mode - Medium (SM, MD) -->
+        <Style Selector="controls|Icon[ShowAsBadge=true][Size=SM] Border#BadgeBorder,
+                 controls|Icon[ShowAsBadge=true][Size=MD] Border#BadgeBorder">
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="CornerRadius" Value="10"/>
+        </Style>
+        <Style Selector="controls|Icon[ShowAsBadge=true][Size=SM] mi|MaterialIcon,
+                 controls|Icon[ShowAsBadge=true][Size=MD] mi|MaterialIcon">
+            <Setter Property="Width" Value="22"/>
+            <Setter Property="Height" Value="22"/>
+        </Style>
+
+        <!-- Badge Mode - Large (LG, XL, XXL) -->
+        <Style Selector="controls|Icon[ShowAsBadge=true][Size=LG] Border#BadgeBorder,
+                 controls|Icon[ShowAsBadge=true][Size=XL] Border#BadgeBorder,
+                 controls|Icon[ShowAsBadge=true][Size=XXL] Border#BadgeBorder">
+            <Setter Property="Width" Value="64"/>
+            <Setter Property="Height" Value="64"/>
+            <Setter Property="CornerRadius" Value="32"/>
+        </Style>
+        <Style Selector="controls|Icon[ShowAsBadge=true][Size=LG] mi|MaterialIcon,
+                 controls|Icon[ShowAsBadge=true][Size=XL] mi|MaterialIcon,
+                 controls|Icon[ShowAsBadge=true][Size=XXL] mi|MaterialIcon">
+            <Setter Property="Width" Value="32"/>
+            <Setter Property="Height" Value="32"/>
+        </Style>
+
+        <!-- Badge background and alignment -->
+        <Style Selector="controls|Icon[ShowAsBadge=true] Border#BadgeBorder">
+            <Setter Property="Background" Value="{Binding BadgeBackground, ElementName=Root, FallbackValue={DynamicResource BadgeBackgroundBrush}}"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+
+        <!-- Icon foreground - always white for badge mode (can be overridden with Foreground property) -->
+        <Style Selector="controls|Icon[ShowAsBadge=true] mi|MaterialIcon">
+            <Setter Property="Foreground" Value="{DynamicResource OnAccentTextBrush}"/>
+        </Style>
+
+        <!-- Visibility toggle based on ShowAsBadge -->
+        <Style Selector="controls|Icon[ShowAsBadge=true] mi|MaterialIcon#DirectIcon">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+        <Style Selector="controls|Icon[ShowAsBadge=false] Border#BadgeBorder">
+            <Setter Property="IsVisible" Value="False"/>
+        </Style>
+    </UserControl.Styles>
+
+    <UserControl.Template>
+        <ControlTemplate>
+            <Panel>
+                <!-- Badge Mode -->
+                <Border x:Name="BadgeBorder">
+                    <mi:MaterialIcon HorizontalAlignment="Center"
+                                    VerticalAlignment="Center">
+                        <mi:MaterialIcon.Kind>
+                            <Binding Mode="OneWay" Path="Kind" ElementName="Root"/>
+                        </mi:MaterialIcon.Kind>
+                        <mi:MaterialIcon.Foreground>
+                            <Binding Mode="OneWay" Path="Foreground" ElementName="Root"/>
+                        </mi:MaterialIcon.Foreground>
+                    </mi:MaterialIcon>
+                </Border>
+
+                <!-- Direct Icon Mode -->
+                <mi:MaterialIcon x:Name="DirectIcon">
+                    <mi:MaterialIcon.Kind>
+                        <Binding Mode="OneWay" Path="Kind" ElementName="Root"/>
+                    </mi:MaterialIcon.Kind>
+                    <mi:MaterialIcon.Foreground>
+                        <Binding Mode="OneWay" Path="Foreground" ElementName="Root"/>
+                    </mi:MaterialIcon.Foreground>
+                </mi:MaterialIcon>
+            </Panel>
+        </ControlTemplate>
+    </UserControl.Template>
+
+</UserControl>
