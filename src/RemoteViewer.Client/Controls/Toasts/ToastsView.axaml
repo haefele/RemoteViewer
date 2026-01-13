@@ -1,12 +1,11 @@
 <UserControl xmlns="https://github.com/avaloniaui"
               xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-              xmlns:mi="using:Material.Icons.Avalonia"
               xmlns:mik="using:Material.Icons"
+              xmlns:controls="using:RemoteViewer.Client.Controls"
               xmlns:toasts="using:RemoteViewer.Client.Controls.Toasts"
               xmlns:ft="using:RemoteViewer.Client.Services.FileTransfer"
               xmlns:conv="using:RemoteViewer.Client.Converters"
               xmlns:theme="using:RemoteViewer.Client.Themes"
-              xmlns:controls="using:RemoteViewer.Client.Controls"
               x:Class="RemoteViewer.Client.Controls.Toasts.ToastsView"
               x:DataType="toasts:ToastsViewModel">
 
@@ -47,14 +46,14 @@
                             <!-- Icon badge -->
                             <Border Grid.Column="1"
                                     Width="32"
-                                     Height="32"
-                                     CornerRadius="8"
-                                     Margin="{theme:Spacing Left=MD, Right=MD, Y=MD}"
-                                     VerticalAlignment="Center"
-                                     Background="{DynamicResource ToastIconBadgeBrush}">
+                                    Height="32"
+                                    CornerRadius="8"
+                                    Margin="{theme:Spacing Left=MD, Right=MD, Y=MD}"
+                                    VerticalAlignment="Center"
+                                    Background="{DynamicResource ToastIconBadgeBrush}">
                                 <controls:Icon Size="SM"
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center">
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center">
                                     <controls:Icon.Foreground>
                                         <Binding Path="Type">
                                             <Binding.Converter>
@@ -105,14 +104,14 @@
                                     <Style Selector="Button">
                                         <Setter Property="Opacity" Value="0.6"/>
                                     </Style>
-                                    <Style Selector="Button:pointerover">
-                                        <Setter Property="Opacity" Value="1"/>
-                                        <Setter Property="Background" Value="{DynamicResource ToastCloseButtonHoverBrush}"/>
-                                    </Style>
-                                </Button.Styles>
+                                        <Style Selector="Button:pointerover">
+                                            <Setter Property="Opacity" Value="1"/>
+                                            <Setter Property="Background" Value="{DynamicResource ToastCloseButtonHoverBrush}"/>
+                                        </Style>
+                                    </Button.Styles>
                                 <controls:Icon Kind="Close"
-                                             Size="XS"
-                                             Foreground="{DynamicResource ToastForegroundBrush}"/>
+                                              Size="XS"
+                                              Foreground="{DynamicResource ToastForegroundBrush}"/>
                             </Button>
                         </Grid>
                     </Border>
@@ -145,17 +144,17 @@
                                 </Border.Background>
                             </Border>
 
-                             <!-- Icon badge -->
-                             <Border Grid.Column="1"
-                                     Width="32"
-                                     Height="32"
-                                     CornerRadius="8"
-                                     Margin="{theme:Spacing Left=MD, Right=MD, Y=MD}"
-                                     VerticalAlignment="Top"
-                                     Background="{DynamicResource ToastIconBadgeBrush}">
+                            <!-- Icon badge -->
+                            <Border Grid.Column="1"
+                                    Width="32"
+                                    Height="32"
+                                    CornerRadius="8"
+                                    Margin="{theme:Spacing Left=MD, Right=MD, Y=MD}"
+                                    VerticalAlignment="Top"
+                                    Background="{DynamicResource ToastIconBadgeBrush}">
                                 <controls:Icon Size="SM"
-                                             HorizontalAlignment="Center"
-                                             VerticalAlignment="Center">
+                                              HorizontalAlignment="Center"
+                                              VerticalAlignment="Center">
                                     <controls:Icon.Foreground>
                                         <Binding Path="Type">
                                             <Binding.Converter>
@@ -240,14 +239,14 @@
                                     <Style Selector="Button">
                                         <Setter Property="Opacity" Value="0.6"/>
                                     </Style>
-                                    <Style Selector="Button:pointerover">
-                                        <Setter Property="Opacity" Value="1"/>
-                                        <Setter Property="Background" Value="{DynamicResource ToastCloseButtonHoverBrush}"/>
-                                    </Style>
-                                </Button.Styles>
+                                        <Style Selector="Button:pointerover">
+                                            <Setter Property="Opacity" Value="1"/>
+                                            <Setter Property="Background" Value="{DynamicResource ToastCloseButtonHoverBrush}"/>
+                                        </Style>
+                                    </Button.Styles>
                                 <controls:Icon Kind="Close"
-                                             Size="XS"
-                                             Foreground="{DynamicResource ToastForegroundBrush}"/>
+                                              Size="XS"
+                                              Foreground="{DynamicResource ToastForegroundBrush}"/>
                             </Button>
                         </Grid>
                     </Border>
@@ -282,10 +281,10 @@
                                             Margin="{theme:Spacing Right=SM}"
                                             VerticalAlignment="Center">
                                         <controls:Icon Kind="{Binding IsUpload, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.CloudUpload}, FalseValue={x:Static mik:MaterialIconKind.CloudDownload}}}"
-                                                     Size="XS"
-                                                     HorizontalAlignment="Center"
-                                                     VerticalAlignment="Center"
-                                                     Foreground="{StaticResource ToastTransferAccentBrush}"/>
+                                                      Size="XS"
+                                                      HorizontalAlignment="Center"
+                                                      VerticalAlignment="Center"
+                                                      Foreground="{StaticResource ToastTransferAccentBrush}"/>
                                     </Border>
 
                                     <TextBlock Grid.Column="1"
@@ -307,18 +306,18 @@
                                             ToolTip.Tip="Cancel transfer">
                                         <Button.Styles>
                                             <Style Selector="Button">
-                                        <Setter Property="Opacity" Value="0.6"/>
-                                    </Style>
-                                    <Style Selector="Button:pointerover">
-                                        <Setter Property="Opacity" Value="1"/>
-                                        <Setter Property="Background" Value="{DynamicResource ToastCloseButtonHoverBrush}"/>
-                                    </Style>
-                                </Button.Styles>
+                                                <Setter Property="Opacity" Value="0.6"/>
+                                            </Style>
+                                            <Style Selector="Button:pointerover">
+                                                <Setter Property="Opacity" Value="1"/>
+                                                <Setter Property="Background" Value="{DynamicResource ToastCloseButtonHoverBrush}"/>
+                                            </Style>
+                                        </Button.Styles>
                                 <controls:Icon Kind="Close"
-                                             Size="XS"
-                                             Foreground="{DynamicResource ToastForegroundBrush}"/>
-                            </Button>
-                        </Grid>
+                                              Size="XS"
+                                              Foreground="{DynamicResource ToastForegroundBrush}"/>
+                                    </Button>
+                                </Grid>
 
                                 <!-- Row 1: Filename -->
                                 <TextBlock Grid.Row="1"

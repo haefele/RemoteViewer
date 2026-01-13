@@ -9,7 +9,7 @@
     <Grid ColumnDefinitions="Auto,*">
         <!-- Icon Badge -->
         <controls:Icon Grid.Column="0"
-                      Icon="{Binding Icon, ElementName=Root}"
+                      Kind="{Binding Icon, ElementName=Root}"
                       Size="{Binding IconSize, ElementName=Root}"
                       Foreground="{Binding IconForeground, ElementName=Root}"
                       ShowAsBadge="True"
