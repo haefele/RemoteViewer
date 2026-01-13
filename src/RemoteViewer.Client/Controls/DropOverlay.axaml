@@ -20,11 +20,11 @@
                         CornerRadius="32"
                         Width="64" Height="64"
                         HorizontalAlignment="Center">
-                    <mi:MaterialIcon Kind="FileUpload"
-                                     Classes="icon-lg"
-                                     Foreground="{DynamicResource OnAccentTextBrush}"
-                                     HorizontalAlignment="Center"
-                                     VerticalAlignment="Center"/>
+                    <controls:Icon Kind="FileUpload"
+                                  Size="LG"
+                                  Foreground="{DynamicResource OnAccentTextBrush}"
+                                  HorizontalAlignment="Center"
+                                  VerticalAlignment="Center"/>
                 </Border>
 
                 <!-- Text content -->

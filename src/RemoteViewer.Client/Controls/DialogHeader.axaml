@@ -8,13 +8,14 @@
 
     <Grid ColumnDefinitions="Auto,*">
         <!-- Icon Badge -->
-        <controls:IconBadge Grid.Column="0"
-                            Icon="{Binding Icon, ElementName=Root}"
-                            Size="{Binding IconSize, ElementName=Root}"
-                            IconForeground="{Binding IconForeground, ElementName=Root}"
-                            BadgeBackground="{Binding IconBackground, ElementName=Root}"
-                            Margin="{theme:Spacing Right=MD}"
-                            VerticalAlignment="Center"/>
+        <controls:Icon Grid.Column="0"
+                      Icon="{Binding Icon, ElementName=Root}"
+                      Size="{Binding IconSize, ElementName=Root}"
+                      Foreground="{Binding IconForeground, ElementName=Root}"
+                      ShowAsBadge="True"
+                      BadgeBackground="{Binding IconBackground, ElementName=Root}"
+                      Margin="{theme:Spacing Right=MD}"
+                      VerticalAlignment="Center"/>
 
         <!-- Title and Subtitle -->
         <StackPanel Grid.Column="1"

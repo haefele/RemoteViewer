@@ -1,13 +1,14 @@
 <UserControl xmlns="https://github.com/avaloniaui"
-             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:mi="using:Material.Icons.Avalonia"
-             xmlns:mik="using:Material.Icons"
-             xmlns:toasts="using:RemoteViewer.Client.Controls.Toasts"
-             xmlns:ft="using:RemoteViewer.Client.Services.FileTransfer"
-             xmlns:conv="using:RemoteViewer.Client.Converters"
-             xmlns:theme="using:RemoteViewer.Client.Themes"
-             x:Class="RemoteViewer.Client.Controls.Toasts.ToastsView"
-             x:DataType="toasts:ToastsViewModel">
+              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+              xmlns:mi="using:Material.Icons.Avalonia"
+              xmlns:mik="using:Material.Icons"
+              xmlns:toasts="using:RemoteViewer.Client.Controls.Toasts"
+              xmlns:ft="using:RemoteViewer.Client.Services.FileTransfer"
+              xmlns:conv="using:RemoteViewer.Client.Converters"
+              xmlns:theme="using:RemoteViewer.Client.Themes"
+              xmlns:controls="using:RemoteViewer.Client.Controls"
+              x:Class="RemoteViewer.Client.Controls.Toasts.ToastsView"
+              x:DataType="toasts:ToastsViewModel">
 
     <ItemsControl ItemsSource="{Binding Items}">
         <ItemsControl.ItemsPanel>
@@ -46,15 +47,15 @@
                             <!-- Icon badge -->
                             <Border Grid.Column="1"
                                     Width="32"
-                                    Height="32"
-                                    CornerRadius="8"
-                                    Margin="{theme:Spacing Left=MD, Right=MD, Y=MD}"
-                                    VerticalAlignment="Center"
-                                    Background="{DynamicResource ToastIconBadgeBrush}">
-                                <mi:MaterialIcon Classes="icon-sm"
-                                                 HorizontalAlignment="Center"
-                                                 VerticalAlignment="Center">
-                                    <mi:MaterialIcon.Foreground>
+                                     Height="32"
+                                     CornerRadius="8"
+                                     Margin="{theme:Spacing Left=MD, Right=MD, Y=MD}"
+                                     VerticalAlignment="Center"
+                                     Background="{DynamicResource ToastIconBadgeBrush}">
+                                <controls:Icon Size="SM"
+                                             HorizontalAlignment="Center"
+                                             VerticalAlignment="Center">
+                                    <controls:Icon.Foreground>
                                         <Binding Path="Type">
                                             <Binding.Converter>
                                                 <conv:ObjectToObject DefaultValue="{StaticResource ToastInfoAccentBrush}">
@@ -64,8 +65,8 @@
                                                 </conv:ObjectToObject>
                                             </Binding.Converter>
                                         </Binding>
-                                    </mi:MaterialIcon.Foreground>
-                                    <mi:MaterialIcon.Kind>
+                                    </controls:Icon.Foreground>
+                                    <controls:Icon.Kind>
                                         <Binding Path="Type">
                                             <Binding.Converter>
                                                 <conv:ObjectToObject DefaultValue="{x:Static mik:MaterialIconKind.InformationOutline}">
@@ -75,8 +76,8 @@
                                                 </conv:ObjectToObject>
                                             </Binding.Converter>
                                         </Binding>
-                                    </mi:MaterialIcon.Kind>
-                                </mi:MaterialIcon>
+                                    </controls:Icon.Kind>
+                                </controls:Icon>
                             </Border>
 
                             <!-- Message -->
@@ -109,9 +110,9 @@
                                         <Setter Property="Background" Value="{DynamicResource ToastCloseButtonHoverBrush}"/>
                                     </Style>
                                 </Button.Styles>
-                                <mi:MaterialIcon Kind="Close"
-                                                 Classes="icon-xs"
-                                                 Foreground="{DynamicResource ToastForegroundBrush}"/>
+                                <controls:Icon Kind="Close"
+                                             Size="XS"
+                                             Foreground="{DynamicResource ToastForegroundBrush}"/>
                             </Button>
                         </Grid>
                     </Border>
@@ -144,18 +145,18 @@
                                 </Border.Background>
                             </Border>
 
-                            <!-- Icon badge -->
-                            <Border Grid.Column="1"
-                                    Width="32"
-                                    Height="32"
-                                    CornerRadius="8"
-                                    Margin="{theme:Spacing Left=MD, Right=MD, Y=MD}"
-                                    VerticalAlignment="Top"
-                                    Background="{DynamicResource ToastIconBadgeBrush}">
-                                <mi:MaterialIcon Classes="icon-sm"
-                                                 HorizontalAlignment="Center"
-                                                 VerticalAlignment="Center">
-                                    <mi:MaterialIcon.Foreground>
+                             <!-- Icon badge -->
+                             <Border Grid.Column="1"
+                                     Width="32"
+                                     Height="32"
+                                     CornerRadius="8"
+                                     Margin="{theme:Spacing Left=MD, Right=MD, Y=MD}"
+                                     VerticalAlignment="Top"
+                                     Background="{DynamicResource ToastIconBadgeBrush}">
+                                <controls:Icon Size="SM"
+                                             HorizontalAlignment="Center"
+                                             VerticalAlignment="Center">
+                                    <controls:Icon.Foreground>
                                         <Binding Path="Type">
                                             <Binding.Converter>
                                                 <conv:ObjectToObject DefaultValue="{StaticResource ToastInfoAccentBrush}">
@@ -165,8 +166,8 @@
                                                 </conv:ObjectToObject>
                                             </Binding.Converter>
                                         </Binding>
-                                    </mi:MaterialIcon.Foreground>
-                                    <mi:MaterialIcon.Kind>
+                                    </controls:Icon.Foreground>
+                                    <controls:Icon.Kind>
                                         <Binding Path="Type">
                                             <Binding.Converter>
                                                 <conv:ObjectToObject DefaultValue="{x:Static mik:MaterialIconKind.InformationOutline}">
@@ -176,8 +177,8 @@
                                                 </conv:ObjectToObject>
                                             </Binding.Converter>
                                         </Binding>
-                                    </mi:MaterialIcon.Kind>
-                                </mi:MaterialIcon>
+                                    </controls:Icon.Kind>
+                                </controls:Icon>
                             </Border>
 
                             <!-- Content: message + action button -->
@@ -210,10 +211,10 @@
                                         </Style>
                                     </Button.Styles>
                                     <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}">
-                                        <mi:MaterialIcon Kind="{Binding ActionIcon}"
-                                                         Classes="icon-xxs"
-                                                         VerticalAlignment="Center"
-                                                         Foreground="{DynamicResource OnAccentTextBrush}"/>
+                                        <controls:Icon Kind="{Binding ActionIcon}"
+                                                      Size="XXS"
+                                                      VerticalAlignment="Center"
+                                                      Foreground="{DynamicResource OnAccentTextBrush}"/>
                                         <TextBlock Text="{Binding ActionText}"
                                                    VerticalAlignment="Center"
                                                    Classes="m1"
@@ -244,9 +245,9 @@
                                         <Setter Property="Background" Value="{DynamicResource ToastCloseButtonHoverBrush}"/>
                                     </Style>
                                 </Button.Styles>
-                                <mi:MaterialIcon Kind="Close"
-                                                 Classes="icon-xs"
-                                                 Foreground="{DynamicResource ToastForegroundBrush}"/>
+                                <controls:Icon Kind="Close"
+                                             Size="XS"
+                                             Foreground="{DynamicResource ToastForegroundBrush}"/>
                             </Button>
                         </Grid>
                     </Border>
@@ -280,11 +281,11 @@
                                             Background="{DynamicResource ToastIconBadgeBrush}"
                                             Margin="{theme:Spacing Right=SM}"
                                             VerticalAlignment="Center">
-                                        <mi:MaterialIcon Kind="{Binding IsUpload, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.CloudUpload}, FalseValue={x:Static mik:MaterialIconKind.CloudDownload}}}"
-                                                         Classes="icon-xs"
-                                                         HorizontalAlignment="Center"
-                                                         VerticalAlignment="Center"
-                                                         Foreground="{StaticResource ToastTransferAccentBrush}"/>
+                                        <controls:Icon Kind="{Binding IsUpload, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.CloudUpload}, FalseValue={x:Static mik:MaterialIconKind.CloudDownload}}}"
+                                                     Size="XS"
+                                                     HorizontalAlignment="Center"
+                                                     VerticalAlignment="Center"
+                                                     Foreground="{StaticResource ToastTransferAccentBrush}"/>
                                     </Border>
 
                                     <TextBlock Grid.Column="1"
@@ -306,18 +307,18 @@
                                             ToolTip.Tip="Cancel transfer">
                                         <Button.Styles>
                                             <Style Selector="Button">
-                                                <Setter Property="Opacity" Value="0.6"/>
-                                            </Style>
-                                            <Style Selector="Button:pointerover">
-                                                <Setter Property="Opacity" Value="1"/>
-                                                <Setter Property="Background" Value="{DynamicResource ToastCloseButtonHoverBrush}"/>
-                                            </Style>
-                                        </Button.Styles>
-                                        <mi:MaterialIcon Kind="Close"
-                                                         Classes="icon-xs"
-                                                         Foreground="{DynamicResource ToastForegroundBrush}"/>
-                                    </Button>
-                                </Grid>
+                                        <Setter Property="Opacity" Value="0.6"/>
+                                    </Style>
+                                    <Style Selector="Button:pointerover">
+                                        <Setter Property="Opacity" Value="1"/>
+                                        <Setter Property="Background" Value="{DynamicResource ToastCloseButtonHoverBrush}"/>
+                                    </Style>
+                                </Button.Styles>
+                                <controls:Icon Kind="Close"
+                                             Size="XS"
+                                             Foreground="{DynamicResource ToastForegroundBrush}"/>
+                            </Button>
+                        </Grid>
 
                                 <!-- Row 1: Filename -->
                                 <TextBlock Grid.Row="1"

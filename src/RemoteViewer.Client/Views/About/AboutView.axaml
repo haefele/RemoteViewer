@@ -25,10 +25,10 @@
                         HorizontalAlignment="Center"
                         Margin="{theme:Spacing Top=SM, Bottom=XL}">
                 <!-- Circular icon badge using design system -->
-                <controls:IconBadge Icon="{x:Static mik:MaterialIconKind.RemoteDesktop}"
-                                    Size="Large"
-                                    BadgeBackground="{DynamicResource AccentBrush}"
-                                    IconForeground="White"/>
+                <controls:Icon Kind="{x:Static mik:MaterialIconKind.RemoteDesktop}"
+                              Size="LG"
+                              ShowAsBadge="True"
+                              BadgeBackground="{DynamicResource AccentBrush}"/>
 
                 <StackPanel Spacing="{theme:Spacing XS}" HorizontalAlignment="Center">
                     <TextBlock Text="{Binding ApplicationName}"
@@ -73,11 +73,16 @@
                                                        Text="{Binding Name}"
                                                        Classes="h3"/>
 
-                                            <Border Grid.Row="0" Grid.Column="1"
-                                                    Classes="text-badge"
-                                                    VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding LicenseName}"/>
-                                            </Border>
+                                             <Border Grid.Row="0" Grid.Column="1"
+                                                     Background="{DynamicResource BadgeBackgroundBrush}"
+                                                     CornerRadius="4"
+                                                     Padding="6,2"
+                                                     VerticalAlignment="Center">
+                                                 <TextBlock Text="{Binding LicenseName}"
+                                                        FontSize="10"
+                                                        FontWeight="SemiBold"
+                                                        Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                             </Border>
 
                                             <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
                                                         Orientation="Horizontal"

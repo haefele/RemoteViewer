@@ -30,12 +30,12 @@
             <!-- File info card using Card component -->
             <controls:Card>
                 <Grid ColumnDefinitions="Auto,*">
-                    <mi:MaterialIcon Grid.Column="0"
-                                     Kind="File"
-                                     Classes="icon-sm"
-                                     Margin="{theme:Spacing X=MD}"
-                                     VerticalAlignment="Center"
-                                     Foreground="{DynamicResource TextSecondaryBrush}"/>
+                    <controls:Icon Grid.Column="0"
+                                  Kind="File"
+                                  Size="SM"
+                                  Margin="{theme:Spacing X=MD}"
+                                  VerticalAlignment="Center"
+                                  Foreground="{DynamicResource TextSecondaryBrush}"/>
                     <StackPanel Grid.Column="1" Spacing="{theme:Spacing XXS}">
                         <TextBlock Text="{Binding FileName}"
                                    Classes="h3"
@@ -61,10 +61,10 @@
                                 <CheckBox IsChecked="{Binding IsSelected}"
                                           Cursor="Hand">
                                     <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}">
-                                        <mi:MaterialIcon Kind="Account"
-                                                         Classes="icon-xs"
-                                                         VerticalAlignment="Center"
-                                                         Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                        <controls:Icon Kind="Account"
+                                                      Size="XXS"
+                                                      VerticalAlignment="Center"
+                                                      Foreground="{DynamicResource TextSecondaryBrush}"/>
                                         <TextBlock Text="{Binding DisplayName}"
                                                    VerticalAlignment="Center"/>
                                     </StackPanel>
@@ -88,7 +88,7 @@
                         HorizontalAlignment="Stretch"
                         Click="OnCancelClicked">
                     <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}">
-                        <mi:MaterialIcon Kind="Close" Classes="icon-xs"/>
+                        <controls:Icon Kind="Close" Size="XXS"/>
                         <TextBlock Text="Cancel" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
@@ -98,7 +98,7 @@
                         HorizontalAlignment="Stretch"
                         Click="OnSendClicked">
                     <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}">
-                        <mi:MaterialIcon Kind="Send" Classes="icon-xs"/>
+                        <controls:Icon Kind="Send" Size="XXS"/>
                         <TextBlock Text="Send" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>

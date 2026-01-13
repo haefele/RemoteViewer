@@ -62,7 +62,7 @@
                                                     Margin="{theme:Spacing Top=XXS}"
                                                     HorizontalAlignment="Left">
                                                 <StackPanel Orientation="Horizontal" Spacing="{theme:Spacing SM}">
-                                                    <mi:MaterialIcon Kind="Link" Classes="icon-xs" VerticalAlignment="Center"/>
+                                                    <controls:Icon Kind="Link" Size="XXS" VerticalAlignment="Center"/>
                                                     <StackPanel>
                                                         <TextBlock Text="{Binding Domain}" Classes="m1" FontWeight="SemiBold"/>
                                                         <TextBlock Text="{Binding Url}" Classes="m2"
@@ -121,15 +121,15 @@
                      MaxHeight="80"
                      x:Name="MessageInputBox"
                      KeyDown="MessageInputBox_KeyDown">
-                <TextBox.InnerRightContent>
+                 <TextBox.InnerRightContent>
                     <Button Command="{Binding SendMessageCommand}"
                             ToolTip.Tip="Send message"
                             Classes="icon-button"
                             Width="32"
                             Height="32">
-                        <mi:MaterialIcon Kind="Send"
-                                         Classes="icon-xs"
-                                         Foreground="{DynamicResource AccentBrush}"/>
+                        <controls:Icon Kind="Send"
+                                      Size="XXS"
+                                      Foreground="{DynamicResource AccentBrush}"/>
                     </Button>
                 </TextBox.InnerRightContent>
             </TextBox>

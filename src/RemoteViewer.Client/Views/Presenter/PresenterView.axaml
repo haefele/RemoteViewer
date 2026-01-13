@@ -37,8 +37,8 @@
                         Classes="icon-button"
                         IsEnabled="{Binding Viewers.Count}"
                         Command="{Binding SendFileCommand}">
-                    <mi:MaterialIcon Kind="FileUpload"
-                                     Classes="icon-sm"/>
+                    <controls:Icon Kind="FileUpload"
+                                  Size="SM"/>
                 </Button>
 
                 <!-- Chat button -->
@@ -47,8 +47,8 @@
                         Classes="icon-button"
                         Command="{Binding ShowChatCommand}">
                     <Panel>
-                        <mi:MaterialIcon Kind="Chat"
-                                         Classes="icon-sm"/>
+                        <controls:Icon Kind="Chat"
+                                      Size="SM"/>
                         <!-- Unread indicator -->
                         <Ellipse Width="8" Height="8"
                                  Fill="{DynamicResource ErrorBrush}"
@@ -110,8 +110,8 @@
                             </StackPanel>
                         </Flyout>
                     </Button.Flyout>
-                    <mi:MaterialIcon Kind="Cog"
-                                     Classes="icon-sm"/>
+                    <controls:Icon Kind="Cog"
+                                  Size="SM"/>
                 </Button>
 
                 <!-- Separator -->
@@ -124,9 +124,9 @@
                 <Button Command="{Binding StopPresentingCommand}"
                         ToolTip.Tip="Stop presenting"
                         Classes="icon-button">
-                    <mi:MaterialIcon Kind="LanDisconnect"
-                                     Classes="icon-sm"
-                                     Foreground="{DynamicResource ErrorBrush}"/>
+                    <controls:Icon Kind="LanDisconnect"
+                                  Size="SM"
+                                  Foreground="{DynamicResource ErrorBrush}"/>
                 </Button>
             </StackPanel>
         </Border>
@@ -161,9 +161,9 @@
                             Margin="{theme:Spacing Left=SM}"
                             Command="{Binding CopyCredentialsCommand}"
                             ToolTip.Tip="Copy ID and password">
-                        <mi:MaterialIcon Kind="ContentCopy"
-                                         Classes="icon-sm"
-                                         Foreground="{DynamicResource TextSecondaryBrush}"/>
+                        <controls:Icon Kind="ContentCopy"
+                                      Size="SM"
+                                      Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </Button>
 
                     <!-- Row 2: Password Label + Value with Refresh -->
@@ -182,9 +182,9 @@
                                     Classes="icon-button"
                                     VerticalAlignment="Center"
                                     Width="32" Height="32">
-                                <mi:MaterialIcon Kind="Refresh"
-                                                 Classes="icon-xs"
-                                                 Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                <controls:Icon Kind="Refresh"
+                                              Size="XXS"
+                                              Foreground="{DynamicResource TextSecondaryBrush}"/>
                             </Button>
                         </StackPanel>
                     </StackPanel>
@@ -212,9 +212,9 @@
                                         <StackPanel Grid.Column="0"
                                                     Orientation="Horizontal"
                                                     Spacing="{theme:Spacing SM}">
-                                            <mi:MaterialIcon Kind="Account"
-                                                             Classes="icon-xs"
-                                                             VerticalAlignment="Center"/>
+                                            <controls:Icon Kind="Account"
+                                                          Size="XXS"
+                                                          VerticalAlignment="Center"/>
                                             <TextBlock Text="{Binding DisplayName}"
                                                        FontWeight="SemiBold"
                                                        VerticalAlignment="Center"/>
@@ -225,8 +225,8 @@
                                                 Command="{Binding ToggleInputBlockCommand}"
                                                 ToolTip.Tip="{Binding IsInputBlocked, Converter={conv:BoolToObject TrueValue='Unblock input', FalseValue='Block input'}}"
                                                 Classes="icon-button">
-                                            <mi:MaterialIcon Kind="{Binding IsInputBlocked, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.MouseOff}, FalseValue={x:Static mik:MaterialIconKind.Mouse}}}"
-                                                             Classes="icon-xs"/>
+                                            <controls:Icon Kind="{Binding IsInputBlocked, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.MouseOff}, FalseValue={x:Static mik:MaterialIconKind.Mouse}}"
+                                                          Size="XXS"/>
                                         </Button>
                                     </Grid>
                                 </DataTemplate>
