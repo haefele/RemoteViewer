@@ -1,4 +1,4 @@
-﻿<Window xmlns="https://github.com/avaloniaui"
+<Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:controls="using:RemoteViewer.Client.Controls"
         xmlns:vm="using:RemoteViewer.Client.Views.Main"
@@ -77,8 +77,7 @@
                                     Width="32" 
                                     Height="32">
                                 <mi:MaterialIcon Kind="Refresh"
-                                                 Width="{StaticResource IconSizeSM}"
-                                                 Height="{StaticResource IconSizeSM}"
+                                                 Classes="icon-xs"
                                                  Foreground="{DynamicResource TextSecondaryBrush}"/>
                             </Button>
                         </StackPanel>
@@ -91,8 +90,7 @@
                             Command="{Binding CopyCredentialsCommand}"
                             ToolTip.Tip="Copy ID and password">
                         <mi:MaterialIcon Kind="ContentCopy"
-                                         Width="{StaticResource IconSizeMD}"
-                                         Height="{StaticResource IconSizeMD}"
+                                         Classes="icon-sm"
                                          Foreground="{DynamicResource TextSecondaryBrush}"/>
                     </Button>
                 </Grid>
@@ -145,8 +143,7 @@
                                     Classes="icon-button"
                                     IsEnabled="{Binding !ConnectToDeviceCommand.IsRunning}">
                                 <mi:MaterialIcon Kind="ArrowRightCircle"
-                                                 Width="{StaticResource IconSizeMD}"
-                                                 Height="{StaticResource IconSizeMD}"
+                                                 Classes="icon-sm"
                                                  Foreground="{DynamicResource AccentBrush}"/>
                             </Button>
                         </TextBox.InnerRightContent>
@@ -163,8 +160,7 @@
                 <StackPanel Orientation="Horizontal"
                             Spacing="{theme:Gap SM}"
                             ToolTip.Tip="{Binding VersionTooltipText}">
-                    <mi:MaterialIcon Width="{StaticResource IconSizeSM}"
-                                     Height="{StaticResource IconSizeSM}">
+                    <mi:MaterialIcon Classes="icon-xs">
                         <mi:MaterialIcon.Kind>
                             <Binding Path="Status">
                                 <Binding.Converter>
@@ -208,8 +204,7 @@
                         Width="24" 
                         Height="24">
                     <mi:MaterialIcon Kind="InformationOutline"
-                                     Width="{StaticResource IconSizeSM}"
-                                     Height="{StaticResource IconSizeSM}"
+                                     Classes="icon-xs"
                                      Foreground="{DynamicResource TextSecondaryBrush}"/>
                 </Button>
             </Grid>

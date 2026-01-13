@@ -29,8 +29,7 @@
                 <Grid ColumnDefinitions="Auto,*">
                     <mi:MaterialIcon Grid.Column="0"
                                      Kind="File"
-                                     Width="{StaticResource IconSizeMD}"
-                                     Height="{StaticResource IconSizeMD}"
+                                     Classes="icon-sm"
                                      Margin="{theme:Spacing Right=MD}"
                                      VerticalAlignment="Center"
                                      Foreground="{DynamicResource TextSecondaryBrush}"/>
@@ -58,7 +57,7 @@
                         HorizontalAlignment="Stretch"
                         Click="OnRejectClicked">
                     <StackPanel Orientation="Horizontal" Spacing="{theme:Gap Icon}">
-                        <mi:MaterialIcon Kind="Close" Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}"/>
+                        <mi:MaterialIcon Kind="Close" Classes="icon-xs"/>
                         <TextBlock Text="Reject" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
@@ -68,7 +67,7 @@
                         HorizontalAlignment="Stretch"
                         Click="OnAcceptClicked">
                     <StackPanel Orientation="Horizontal" Spacing="{theme:Gap Icon}">
-                        <mi:MaterialIcon Kind="Check" Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}"/>
+                        <mi:MaterialIcon Kind="Check" Classes="icon-xs"/>
                         <TextBlock Text="Accept" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>

@@ -21,7 +21,7 @@
                         Width="64" Height="64"
                         HorizontalAlignment="Center">
                     <mi:MaterialIcon Kind="FileUpload"
-                                     Width="{StaticResource IconSizeXL}" Height="{StaticResource IconSizeXL}"
+                                     Classes="icon-lg"
                                      Foreground="{DynamicResource OnAccentTextBrush}"
                                      HorizontalAlignment="Center"
                                      VerticalAlignment="Center"/>

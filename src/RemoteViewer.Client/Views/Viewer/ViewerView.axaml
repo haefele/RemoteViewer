@@ -70,8 +70,7 @@
                         ToolTip.Tip="{Binding IsFullscreen, Converter={conv:BoolToObject TrueValue='Exit fullscreen (F11 / ESC)', FalseValue='Enter fullscreen (F11)'}}"
                         Classes="icon-button">
                     <mi:MaterialIcon Kind="{Binding IsFullscreen, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.FullscreenExit}, FalseValue={x:Static mik:MaterialIconKind.Fullscreen}}}"
-                                     Width="{StaticResource IconSizeMD}"
-                                     Height="{StaticResource IconSizeMD}"/>
+                                     Classes="icon-sm"/>
                 </Button>
 
                 <!-- Display selection flyout -->
@@ -92,8 +91,7 @@
                         </Flyout>
                     </Button.Flyout>
                     <mi:MaterialIcon Kind="MonitorMultiple"
-                                     Width="{StaticResource IconSizeMD}"
-                                     Height="{StaticResource IconSizeMD}"/>
+                                     Classes="icon-sm"/>
                 </Button>
 
                 <!-- Toggle input button -->
@@ -107,8 +105,7 @@
                         </MultiBinding>
                     </ToolTip.Tip>
                     <mi:MaterialIcon Kind="{Binding IsInputEnabled, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.Mouse}, FalseValue={x:Static mik:MaterialIconKind.MouseOff}}}"
-                                     Width="{StaticResource IconSizeMD}"
-                                     Height="{StaticResource IconSizeMD}"/>
+                                     Classes="icon-sm"/>
                 </Button>
 
                 <!-- Send Ctrl+Alt+Del button -->
@@ -123,8 +120,7 @@
                         </MultiBinding>
                     </ToolTip.Tip>
                     <mi:MaterialIcon Kind="AccountKey"
-                                     Width="{StaticResource IconSizeMD}"
-                                     Height="{StaticResource IconSizeMD}"/>
+                                     Classes="icon-sm"/>
                 </Button>
 
                 <!-- Send File button -->
@@ -132,8 +128,7 @@
                         ToolTip.Tip="Send file to presenter"
                         Classes="icon-button">
                     <mi:MaterialIcon Kind="FileUpload"
-                                     Width="{StaticResource IconSizeMD}"
-                                     Height="{StaticResource IconSizeMD}"/>
+                                     Classes="icon-sm"/>
                 </Button>
 
                 <!-- Separator -->
@@ -154,12 +149,11 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="vm:ParticipantDisplay">
                                             <Border Padding="{theme:Spacing X=SM, Y=SM}"
-                                                    CornerRadius="{StaticResource CornerRadiusSM}"
+                                                    CornerRadius="4"
                                                     Background="{Binding IsPresenter, Converter={x:Static conv:BoolToAccentBrushConverter.Instance}}">
                                                 <StackPanel Orientation="Horizontal" Spacing="{theme:Gap SM}">
                                                     <mi:MaterialIcon Kind="{Binding IsPresenter, Converter={conv:BoolToObject TrueValue={x:Static mik:MaterialIconKind.Monitor}, FalseValue={x:Static mik:MaterialIconKind.Account}}}"
-                                                                     Width="{StaticResource IconSizeSM}"
-                                                                     Height="{StaticResource IconSizeSM}"
+                                                                     Classes="icon-xs"
                                                                      ToolTip.Tip="{Binding IsPresenter, Converter={conv:BoolToObject TrueValue='Presenter', FalseValue='Viewer'}}"/>
                                                     <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center"/>
                                                 </StackPanel>
@@ -171,8 +165,7 @@
                         </Flyout>
                     </Button.Flyout>
                     <mi:MaterialIcon Kind="AccountGroup"
-                                     Width="{StaticResource IconSizeMD}"
-                                     Height="{StaticResource IconSizeMD}"/>
+                                     Classes="icon-sm"/>
                 </Button>
 
                 <!-- Chat button -->
@@ -182,8 +175,7 @@
                         Command="{Binding ShowChatCommand}">
                     <Panel>
                         <mi:MaterialIcon Kind="Chat"
-                                         Width="{StaticResource IconSizeMD}"
-                                         Height="{StaticResource IconSizeMD}"/>
+                                         Classes="icon-sm"/>
                         <!-- Unread indicator -->
                         <Ellipse Width="8" Height="8"
                                  Fill="{DynamicResource ErrorBrush}"
@@ -204,8 +196,7 @@
                         ToolTip.Tip="Disconnect"
                         Classes="icon-button">
                     <mi:MaterialIcon Kind="LanDisconnect"
-                                     Width="{StaticResource IconSizeMD}"
-                                     Height="{StaticResource IconSizeMD}"
+                                     Classes="icon-sm"
                                      Foreground="{DynamicResource ErrorBrush}"/>
                 </Button>
             </StackPanel>
@@ -253,7 +244,7 @@
                                     Width="48" Height="80"
                                     Background="{DynamicResource OverlayButtonBrush}"
                                     BorderThickness="0"
-                                    CornerRadius="{StaticResource CornerRadiusMD}"
+                                    CornerRadius="8"
                                     Opacity="0.6"
                                     ToolTip.Tip="{Binding FriendlyName, StringFormat='Navigate to {0} (Ctrl+Left)'}">
                                 <Button.Styles>
@@ -262,8 +253,7 @@
                                     </Style>
                                 </Button.Styles>
                                 <mi:MaterialIcon Kind="ChevronLeft"
-                                                 Width="{StaticResource IconSizeXL}"
-                                                 Height="{StaticResource IconSizeXL}"
+                                                 Classes="icon-lg"
                                                  Foreground="White"/>
                             </Button>
                         </DataTemplate>
@@ -287,7 +277,7 @@
                                     Width="48" Height="80"
                                     Background="{DynamicResource OverlayButtonBrush}"
                                     BorderThickness="0"
-                                    CornerRadius="{StaticResource CornerRadiusMD}"
+                                    CornerRadius="8"
                                     Opacity="0.6"
                                     ToolTip.Tip="{Binding FriendlyName, StringFormat='Navigate to {0} (Ctrl+Right)'}">
                                 <Button.Styles>
@@ -296,8 +286,7 @@
                                     </Style>
                                 </Button.Styles>
                                 <mi:MaterialIcon Kind="ChevronRight"
-                                                 Width="{StaticResource IconSizeXL}"
-                                                 Height="{StaticResource IconSizeXL}"
+                                                 Classes="icon-lg"
                                                  Foreground="White"/>
                             </Button>
                         </DataTemplate>
@@ -321,7 +310,7 @@
                                     Width="80" Height="48"
                                     Background="{DynamicResource OverlayButtonBrush}"
                                     BorderThickness="0"
-                                    CornerRadius="{StaticResource CornerRadiusMD}"
+                                    CornerRadius="8"
                                     Opacity="0.6"
                                     ToolTip.Tip="{Binding FriendlyName, StringFormat='Navigate to {0} (Ctrl+Up)'}">
                                 <Button.Styles>
@@ -330,8 +319,7 @@
                                     </Style>
                                 </Button.Styles>
                                 <mi:MaterialIcon Kind="ChevronUp"
-                                                 Width="{StaticResource IconSizeXL}"
-                                                 Height="{StaticResource IconSizeXL}"
+                                                 Classes="icon-lg"
                                                  Foreground="White"/>
                             </Button>
                         </DataTemplate>
@@ -355,7 +343,7 @@
                                     Width="80" Height="48"
                                     Background="{DynamicResource OverlayButtonBrush}"
                                     BorderThickness="0"
-                                    CornerRadius="{StaticResource CornerRadiusMD}"
+                                    CornerRadius="8"
                                     Opacity="0.6"
                                     ToolTip.Tip="{Binding FriendlyName, StringFormat='Navigate to {0} (Ctrl+Down)'}">
                                 <Button.Styles>
@@ -364,8 +352,7 @@
                                     </Style>
                                 </Button.Styles>
                                 <mi:MaterialIcon Kind="ChevronDown"
-                                                 Width="{StaticResource IconSizeXL}"
-                                                 Height="{StaticResource IconSizeXL}"
+                                                 Classes="icon-lg"
                                                  Foreground="White"/>
                             </Button>
                         </DataTemplate>

@@ -32,8 +32,7 @@
                 <Grid ColumnDefinitions="Auto,*">
                     <mi:MaterialIcon Grid.Column="0"
                                      Kind="File"
-                                     Width="{StaticResource IconSizeMD}"
-                                     Height="{StaticResource IconSizeMD}"
+                                     Classes="icon-sm"
                                      Margin="{theme:Spacing X=MD}"
                                      VerticalAlignment="Center"
                                      Foreground="{DynamicResource TextSecondaryBrush}"/>
@@ -63,8 +62,7 @@
                                           Cursor="Hand">
                                     <StackPanel Orientation="Horizontal" Spacing="{theme:Gap SM}">
                                         <mi:MaterialIcon Kind="Account"
-                                                         Width="{StaticResource IconSizeSM}"
-                                                         Height="{StaticResource IconSizeSM}"
+                                                         Classes="icon-xs"
                                                          VerticalAlignment="Center"
                                                          Foreground="{DynamicResource TextSecondaryBrush}"/>
                                         <TextBlock Text="{Binding DisplayName}"
@@ -90,7 +88,7 @@
                         HorizontalAlignment="Stretch"
                         Click="OnCancelClicked">
                     <StackPanel Orientation="Horizontal" Spacing="{theme:Gap Icon}">
-                        <mi:MaterialIcon Kind="Close" Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}"/>
+                        <mi:MaterialIcon Kind="Close" Classes="icon-xs"/>
                         <TextBlock Text="Cancel" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
@@ -100,7 +98,7 @@
                         HorizontalAlignment="Stretch"
                         Click="OnSendClicked">
                     <StackPanel Orientation="Horizontal" Spacing="{theme:Gap Icon}">
-                        <mi:MaterialIcon Kind="Send" Width="{StaticResource IconSizeSM}" Height="{StaticResource IconSizeSM}"/>
+                        <mi:MaterialIcon Kind="Send" Classes="icon-xs"/>
                         <TextBlock Text="Send" VerticalAlignment="Center"/>
                     </StackPanel>
                 </Button>
