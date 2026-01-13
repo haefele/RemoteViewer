@@ -87,7 +87,7 @@
 
         <!-- Icon foreground - always white for badge mode (can be overridden with Foreground property) -->
         <Style Selector="controls|Icon[ShowAsBadge=true] mi|MaterialIcon">
-            <Setter Property="Foreground" Value="{DynamicResource OnAccentTextBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource AccentButtonForeground}"/>
         </Style>
 
         <!-- Visibility toggle based on ShowAsBadge -->

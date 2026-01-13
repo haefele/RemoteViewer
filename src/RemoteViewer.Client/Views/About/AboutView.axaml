@@ -28,7 +28,7 @@
                 <controls:Icon Kind="{x:Static mik:MaterialIconKind.RemoteDesktop}"
                               Size="LG"
                               ShowAsBadge="True"
-                              BadgeBackground="{DynamicResource AccentBrush}"/>
+                              BadgeBackground="{DynamicResource AccentButtonBackground}"/>
 
                 <StackPanel Spacing="{theme:Spacing XS}" HorizontalAlignment="Center">
                     <TextBlock Text="{Binding ApplicationName}"
@@ -57,7 +57,7 @@
                         <mi:MaterialIcon Kind="License"
                                          Classes="icon-xs"
                                          VerticalAlignment="Center"
-                                         Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                         Foreground="{DynamicResource SystemControlDisabledBaseMediumLowBrush}"/>
                         <TextBlock Text="Third-Party Licenses"
                                    Classes="h3"
                                    VerticalAlignment="Center"/>
@@ -81,7 +81,7 @@
                                                  <TextBlock Text="{Binding LicenseName}"
                                                         FontSize="10"
                                                         FontWeight="SemiBold"
-                                                        Foreground="{DynamicResource TextSecondaryBrush}"/>
+                                                        Foreground="{DynamicResource SystemControlDisabledBaseMediumLowBrush}"/>
                                              </Border>
 
                                             <StackPanel Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2"
@@ -124,7 +124,6 @@
 
             <!-- Footer Button -->
             <Button Grid.Row="2"
-                    Classes="action-secondary"
                     HorizontalAlignment="Stretch"
                     Margin="{theme:Spacing Top=XL}"
                     Command="{Binding CloseCommand}">
