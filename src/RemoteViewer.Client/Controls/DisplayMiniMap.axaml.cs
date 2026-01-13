@@ -1,8 +1,7 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using Avalonia;
 using Avalonia.Controls;
 using Material.Icons;
-using Material.Icons.Avalonia;
 using RemoteViewer.Shared;
 
 namespace RemoteViewer.Client.Controls;
@@ -113,11 +112,10 @@ public partial class DisplayMiniMap : UserControl
 
     private static StackPanel CreateButtonContent(DisplayInfo display)
     {
-        var icon = new MaterialIcon
+        var icon = new Icon
         {
             Kind = display.IsPrimary ? MaterialIconKind.MonitorStar : MaterialIconKind.Monitor,
-            Width = 20,
-            Height = 20
+            Size = IconSize.SM
         };
 
         if (display.IsPrimary)
@@ -133,7 +131,7 @@ public partial class DisplayMiniMap : UserControl
             {
                 icon,
                 new TextBlock { Text = display.FriendlyName },
-                new TextBlock { Text = $"{display.Width} � {display.Height}", Classes = { "dimensions" } }
+                new TextBlock { Text = $"{display.Width} × {display.Height}", Classes = { "dimensions" } }
             }
         };
     }
