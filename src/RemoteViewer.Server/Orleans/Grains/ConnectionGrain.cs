@@ -1,7 +1,12 @@
-using System.Diagnostics.CodeAnalysis;
+﻿using System.Diagnostics.CodeAnalysis;
 using Microsoft.AspNetCore.SignalR;
 using RemoteViewer.Server.Hubs;
 using RemoteViewer.Shared;
+using RemoteViewer.Shared.Protocol;
+using Orleans;
+using System.Threading;
+using System.Threading.Tasks;
+using System.Linq;
 
 using ConnectionInfo = RemoteViewer.Shared.ConnectionInfo;
 
@@ -66,42 +71,36 @@ public sealed partial class ConnectionGrain(ILogger<ConnectionGrain> logger, IHu
         switch (destination)
         {
             case MessageDestination.PresenterOnly:
-                if (!isSenderPresenter && this._presenter is not null)
+                if (!isSenderPresenter)
                 {
-                    await hubContext.Clients.Client(this._presenter.GetPrimaryKeyString()).MessageReceived(this.GetPrimaryKeyString(), senderClientId, messageType, data);
+                    await this.SendMessageToPresenterAsync(senderClientId, messageType, data);
                 }
                 break;
 
             case MessageDestination.AllViewers:
-                foreach (var viewer in this._viewers)
-                {
-                    await hubContext.Clients.Client(viewer.GetPrimaryKeyString()).MessageReceived(this.GetPrimaryKeyString(), senderClientId, messageType, data);
-                }
+                await Task.WhenAll(this._viewers.Select(viewer => this.SendMessageToViewerAsync(viewer, senderClientId, messageType, data)));
                 break;
 
             case MessageDestination.All:
-                if (this._presenter is not null)
-                {
-                    await hubContext.Clients.Client(this._presenter.GetPrimaryKeyString()).MessageReceived(this.GetPrimaryKeyString(), senderClientId, messageType, data);
-                }
-                foreach (var viewer in this._viewers)
-                {
-                    await hubContext.Clients.Client(viewer.GetPrimaryKeyString()).MessageReceived(this.GetPrimaryKeyString(), senderClientId, messageType, data);
-                }
+                await Task.WhenAll(
+                    this.SendMessageToPresenterAsync(senderClientId, messageType, data),
+                    Task.WhenAll(this._viewers.Select(viewer => this.SendMessageToViewerAsync(viewer, senderClientId, messageType, data))));
                 break;
 
             case MessageDestination.AllExceptSender:
+                var broadcastTasks = new List<Task>();
                 if (this._presenter is not null && this._presenter.GetPrimaryKeyString() != senderSignalrConnectionId)
                 {
-                    await hubContext.Clients.Client(this._presenter.GetPrimaryKeyString()).MessageReceived(this.GetPrimaryKeyString(), senderClientId, messageType, data);
+                    broadcastTasks.Add(this.SendMessageToPresenterAsync(senderClientId, messageType, data));
                 }
                 foreach (var viewer in this._viewers)
                 {
                     if (viewer.GetPrimaryKeyString() != senderSignalrConnectionId)
                     {
-                        await hubContext.Clients.Client(viewer.GetPrimaryKeyString()).MessageReceived(this.GetPrimaryKeyString(), senderClientId, messageType, data);
+                        broadcastTasks.Add(this.SendMessageToViewerAsync(viewer, senderClientId, messageType, data));
                     }
                 }
+                await Task.WhenAll(broadcastTasks);
                 break;
 
             case MessageDestination.SpecificClients:
@@ -109,10 +108,11 @@ public sealed partial class ConnectionGrain(ILogger<ConnectionGrain> logger, IHu
                     break;
 
                 var targetClientIdSet = targetClientIds.ToHashSet(StringComparer.Ordinal);
+                var specificTasks = new List<Task>();
 
                 if (this._presenter is not null && targetClientIdSet.Contains(await this._presenter.Internal_GetClientId()))
                 {
-                    await hubContext.Clients.Client(this._presenter.GetPrimaryKeyString()).MessageReceived(this.GetPrimaryKeyString(), senderClientId, messageType, data);
+                    specificTasks.Add(this.SendMessageToPresenterAsync(senderClientId, messageType, data));
                 }
 
                 foreach (var viewer in this._viewers)
@@ -120,9 +120,11 @@ public sealed partial class ConnectionGrain(ILogger<ConnectionGrain> logger, IHu
                     var viewerClientId = await viewer.Internal_GetClientId();
                     if (targetClientIdSet.Contains(viewerClientId))
                     {
-                        await hubContext.Clients.Client(viewer.GetPrimaryKeyString()).MessageReceived(this.GetPrimaryKeyString(), senderClientId, messageType, data);
+                        specificTasks.Add(this.SendMessageToViewerAsync(viewer, senderClientId, messageType, data));
                     }
                 }
+
+                await Task.WhenAll(specificTasks);
                 break;
         }
 
@@ -231,6 +233,24 @@ public sealed partial class ConnectionGrain(ILogger<ConnectionGrain> logger, IHu
         }
     }
 
+    private Task SendMessageToPresenterAsync(string senderClientId, string messageType, byte[] data)
+    {
+        if (this._presenter is null)
+        {
+            return Task.CompletedTask;
+        }
+
+        var presenterSenderGrain = this.GrainFactory.GetGrain<IClientSendGrain>(this._presenter.GetPrimaryKeyString());
+        return presenterSenderGrain.Enqueue(this.GetPrimaryKeyString(), senderClientId, messageType, data);
+    }
+
+    private Task SendMessageToViewerAsync(IClientGrain viewer, string senderClientId, string messageType, byte[] data)
+    {
+        var viewerSignalrId = viewer.GetPrimaryKeyString();
+        var senderGrain = this.GrainFactory.GetGrain<IClientSendGrain>(viewerSignalrId);
+        return senderGrain.Enqueue(this.GetPrimaryKeyString(), senderClientId, messageType, data);
+    }
+
     [MemberNotNull(nameof(_presenter))]
     private void EnsureInitialized()
     {
@@ -264,4 +284,10 @@ public sealed partial class ConnectionGrain(ILogger<ConnectionGrain> logger, IHu
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Viewer disconnected: ConnectionId={ConnectionId}, ViewerCount={ViewerCount}")]
     private partial void LogViewerDisconnected(string connectionId, int viewerCount);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Queued frame for viewer {ViewerSignalrId} (bytes={PayloadBytes})")]
+    private partial void LogFrameQueued(string viewerSignalrId, int payloadBytes);
+
+    [LoggerMessage(Level = LogLevel.Debug, Message = "Coalesced frame for viewer {ViewerSignalrId}: {PreviousBytes} bytes -> {NewBytes} bytes")]
+    private partial void LogFrameCoalesced(string viewerSignalrId, int previousBytes, int newBytes);
 }

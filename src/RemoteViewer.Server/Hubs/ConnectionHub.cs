@@ -79,6 +79,11 @@ public class ConnectionHub(IConnectionsService clientsService, IIpcTokenService 
         await clientsService.SendMessage(this.Context.ConnectionId, connectionId, messageType, data, destination, targetClientIds);
     }
 
+    public Task AckFrame()
+    {
+        return clientsService.AckFrame(this.Context.ConnectionId);
+    }
+
     public async Task SetConnectionProperties(string connectionId, ConnectionProperties properties)
     {
         await clientsService.SetConnectionProperties(this.Context.ConnectionId, connectionId, properties);
