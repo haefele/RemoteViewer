@@ -23,13 +23,15 @@ public class ConnectionHubClient : IAsyncDisposable
     {
         this._logger = logger;
         this._serviceProvider = serviceProvider;
+        this.Options = options.Value;
 
         this._connection = new HubConnectionBuilder()
-            .WithUrl($"{options.Value.BaseUrl}/connection", httpOptions =>
+            .WithUrl($"{this.Options.BaseUrl}/connection", httpOptions =>
             {
                 httpOptions.Headers.Add("X-Client-Version", ThisAssembly.AssemblyInformationalVersion);
                 httpOptions.Headers.Add("X-Display-Name", this.DisplayName);
             })
+
             .WithAutomaticReconnect()
             .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
             .Build();
@@ -174,6 +176,8 @@ public class ConnectionHubClient : IAsyncDisposable
         this._connections.Clear();
     }
 
+    public ConnectionHubClientOptions Options { get; }
+
     public string? ClientId { get; private set; }
     public string? Username { get; private set; }
     public string? Password { get; private set; }
@@ -260,9 +264,9 @@ public class ConnectionHubClient : IAsyncDisposable
 
             return error;
         }
-        catch (Exception ex) when (!this.IsConnected)
+        catch (Exception ex)
         {
-            this._logger.LogWarning(ex, "Failed to connect to device - hub disconnected");
+            this._logger.LogWarning(ex, "Failed to connect to device");
             return null;
         }
     }
@@ -278,9 +282,9 @@ public class ConnectionHubClient : IAsyncDisposable
             await this._connection.InvokeAsync("GenerateNewPassword");
             this._logger.LogInformation("New password generated");
         }
-        catch (Exception ex) when (!this.IsConnected)
+        catch (Exception ex)
         {
-            this._logger.LogWarning(ex, "Failed to generate new password - hub disconnected");
+            this._logger.LogWarning(ex, "Failed to generate new password");
         }
     }
 
@@ -297,9 +301,9 @@ public class ConnectionHubClient : IAsyncDisposable
             await this._connection.InvokeAsync("SetDisplayName", displayName);
             this._logger.LogInformation("Display name set successfully");
         }
-        catch (Exception ex) when (!this.IsConnected)
+        catch (Exception ex)
         {
-            this._logger.LogWarning(ex, "Failed to set display name - hub disconnected");
+            this._logger.LogWarning(ex, "Failed to set display name");
         }
     }
 
@@ -321,9 +325,9 @@ public class ConnectionHubClient : IAsyncDisposable
             await this._connection.SendAsync("SendMessage", connectionId, messageType, data, destination, targetClientIds);
             this._logger.LogDebug("Message sent successfully");
         }
-        catch (Exception ex) when (!this.IsConnected)
+        catch (Exception ex)
         {
-            this._logger.LogWarning(ex, "Failed to send message - hub disconnected");
+            this._logger.LogWarning(ex, "Failed to send message");
         }
     }
 
@@ -338,9 +342,9 @@ public class ConnectionHubClient : IAsyncDisposable
             await this._connection.InvokeAsync("Disconnect", connectionId);
             this._logger.LogInformation("Disconnected from connection: {ConnectionId}", connectionId);
         }
-        catch (Exception ex) when (!this.IsConnected)
+        catch (Exception ex)
         {
-            this._logger.LogWarning(ex, "Failed to disconnect - hub disconnected");
+            this._logger.LogWarning(ex, "Failed to disconnect");
         }
     }
 
@@ -354,9 +358,9 @@ public class ConnectionHubClient : IAsyncDisposable
             this._logger.LogDebug("Setting connection properties - ConnectionId: {ConnectionId}", connectionId);
             await this._connection.InvokeAsync("SetConnectionProperties", connectionId, properties);
         }
-        catch (Exception ex) when (!this.IsConnected)
+        catch (Exception ex)
         {
-            this._logger.LogWarning(ex, "Failed to set connection properties - hub disconnected");
+            this._logger.LogWarning(ex, "Failed to set connection properties");
         }
     }
 
@@ -370,10 +374,25 @@ public class ConnectionHubClient : IAsyncDisposable
             this._logger.LogDebug("Generating IPC auth token for connection: {ConnectionId}", connectionId);
             return await this._connection.InvokeAsync<string?>("GenerateIpcAuthToken", connectionId);
         }
-        catch (Exception ex) when (!this.IsConnected)
+        catch (Exception ex)
         {
-            this._logger.LogWarning(ex, "Failed to generate IPC auth token - hub disconnected");
+            this._logger.LogWarning(ex, "Failed to generate IPC auth token");
             return null;
+        }
+    }
+
+    internal async Task SendAckFrameAsync()
+    {
+        if (!this.IsConnected || this.IsReconnecting)
+            return;
+
+        try
+        {
+            await this._connection.SendAsync("AckFrame");
+        }
+        catch (Exception ex)
+        {
+            this._logger.LogWarning(ex, "Failed to send frame ack");
         }
     }
 }

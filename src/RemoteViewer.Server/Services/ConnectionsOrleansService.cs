@@ -78,6 +78,12 @@ public sealed class ConnectionsOrleansService(IGrainFactory grainFactory) : ICon
         await connectionGrain.SendMessage(signalrConnectionId, messageType, data, destination, targetClientIds);
     }
 
+    public Task AckFrame(string signalrConnectionId)
+    {
+        var grain = grainFactory.GetGrain<IClientSendGrain>(signalrConnectionId);
+        return grain.AckFrame();
+    }
+
     public async Task<bool> IsPresenterOfConnection(string signalrConnectionId, string connectionId)
     {
         var connectionGrain = grainFactory.GetGrain<IConnectionGrain>(connectionId);
