@@ -1,10 +1,10 @@
-﻿using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Logging;
 using TUnit.Core.Interfaces;
 
-namespace RemoteViewer.IntegrationTests.Fixtures;
+namespace RemoteViewer.TestFixtures.Fixtures;
 
 public class ServerFixture : WebApplicationFactory<Program>, IAsyncInitializer
 {

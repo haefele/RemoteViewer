@@ -1,4 +1,4 @@
-﻿using System.Collections.Immutable;
+using System.Collections.Immutable;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -18,12 +18,11 @@ using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.SessionRecorderIpc;
 using RemoteViewer.Client.Services.WinServiceIpc;
 using RemoteViewer.Client.Views.Presenter;
-using RemoteViewer.IntegrationTests.Mocks;
+using RemoteViewer.TestFixtures.Mocks;
 using RemoteViewer.Shared;
 using RemoteViewer.Shared.Protocol;
-using TUnit.Core;
 
-namespace RemoteViewer.IntegrationTests.Fixtures;
+namespace RemoteViewer.TestFixtures.Fixtures;
 
 public class ClientFixture : IAsyncDisposable
 {
