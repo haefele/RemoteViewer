@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using RemoteViewer.Client.Common;
 using RemoteViewer.Client.Services.FileTransfer;
@@ -465,7 +465,7 @@ public sealed class Connection : IConnectionImpl
                         ((IViewerServiceImpl)this.ViewerService!).HandleFrame(message.DisplayId, message.FrameNumber, message.Codec, message.Regions);
 
                         if (this.Owner.Options.SuppressAutoFrameAck is false)
-                            await this.Owner.SendAckFrameAsync();
+                            await this.Owner.SendAckFrameAsync(this.ConnectionId);
 
                         break;
                     }

@@ -1,4 +1,4 @@
-﻿using System.Collections.Concurrent;
+using System.Collections.Concurrent;
 using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -381,20 +381,21 @@ public class ConnectionHubClient : IAsyncDisposable
         }
     }
 
-    internal async Task SendAckFrameAsync()
+    internal async Task SendAckFrameAsync(string connectionId)
     {
         if (!this.IsConnected || this.IsReconnecting)
             return;
 
         try
         {
-            await this._connection.SendAsync("AckFrame");
+            await this._connection.SendAsync("AckFrame", connectionId);
         }
         catch (Exception ex)
         {
             this._logger.LogWarning(ex, "Failed to send frame ack");
         }
     }
+
 }
 
 #region EventArgs Classes
