@@ -1,16 +1,20 @@
+using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
+using System.Threading;
 using Microsoft.AspNetCore.SignalR;
 using Orleans.Concurrency;
 using RemoteViewer.Server.Hubs;
 using RemoteViewer.Shared.Protocol;
 using System.Threading.Channels;
 
+
 namespace RemoteViewer.Server.Orleans.Grains;
 
 public interface IClientSendGrain : IGrainWithStringKey
 {
     Task Enqueue(string connectionId, string senderClientId, string messageType, byte[] data);
-    Task AckFrame();
+    Task AckFrame(string connectionId);
     Task Disconnect();
 }
 
@@ -19,13 +23,13 @@ public interface IClientSendGrain : IGrainWithStringKey
 public sealed partial class ClientSendGrain(ILogger<ClientSendGrain> logger, IHubContext<ConnectionHub, IConnectionHubClient> hubContext)
     : Grain, IClientSendGrain
 {
-    private readonly Lock _sync = new();
     private readonly Channel<QueuedMessage> _nonFrameChannel = Channel.CreateUnbounded<QueuedMessage>(new() { SingleReader = true, SingleWriter = false });
     private readonly CancellationTokenSource _shutdownCts = new();
 
-    private QueuedMessage? _pendingFrame;
-    private bool _frameInFlight;
+    private readonly ConcurrentDictionary<string, FrameSendState> _frameStates = new(StringComparer.Ordinal);
     private Task? _processingTask;
+
+
 
     public override Task OnActivateAsync(CancellationToken cancellationToken)
     {
@@ -70,52 +74,52 @@ public sealed partial class ClientSendGrain(ILogger<ClientSendGrain> logger, IHu
 
     private Task EnqueueFrame(QueuedMessage message)
     {
-        using (this._sync.EnterScope())
+        var state = this._frameStates.GetOrAdd(message.ConnectionId, _ => new FrameSendState());
+
+        var (wasIdle, dropped) = state.TryEnqueueOrSend(message);
+
+        if (wasIdle)
         {
-            if (this._frameInFlight is false)
-            {
-                this._frameInFlight = true;
-                return this.SendFrameAsync(message);
-            }
-            else
-            {
-                var dropped = this._pendingFrame;
-                this._pendingFrame = message;
-
-                if (dropped is not null)
-                {
-                    this.LogFrameDropped(dropped.Value.MessageType);
-                }
-
-                return Task.CompletedTask;
-            }
+            return this.SendFrameAsync(message);
         }
+
+        if (dropped is { } droppedMessage)
+        {
+            this.LogFrameDropped(droppedMessage.MessageType);
+        }
+
+        return Task.CompletedTask;
     }
 
-    public Task AckFrame()
+    public Task AckFrame(string connectionId)
     {
-        QueuedMessage? toSend = null;
-
-        using (this._sync.EnterScope())
+        if (!this._frameStates.TryGetValue(connectionId, out var state))
         {
-            if (this._pendingFrame is not null)
-            {
-                toSend = this._pendingFrame;
-                this._pendingFrame = null;
-            }
-            else
-            {
-                this._frameInFlight = false;
-            }
+            return Task.CompletedTask;
         }
 
-        return toSend is not null
-            ? this.SendFrameAsync(toSend.Value)
-            : Task.CompletedTask;
+        var toSend = state.TryGetPendingAndClearInFlight();
+
+        if (toSend is { } message)
+        {
+            return this.SendFrameAsync(message);
+        }
+
+        this.TryRemoveState(connectionId, state);
+        return Task.CompletedTask;
+    }
+
+    private void TryRemoveState(string connectionId, FrameSendState state)
+    {
+        if (state.CanRemove())
+        {
+            this._frameStates.TryRemove(new KeyValuePair<string, FrameSendState>(connectionId, state));
+        }
     }
 
     public async Task Disconnect()
     {
+
         this._shutdownCts.Cancel();
         this._nonFrameChannel.Writer.TryComplete();
 
@@ -142,13 +146,15 @@ public sealed partial class ClientSendGrain(ILogger<ClientSendGrain> logger, IHu
         catch
         {
             // If delivery fails, clear in-flight state so the next frame can be sent
-            using (this._sync.EnterScope())
+            if (this._frameStates.TryGetValue(frame.ConnectionId, out var state))
             {
-                this._frameInFlight = false;
-                this._pendingFrame = null;
+                state.ClearOnError();
+                this.TryRemoveState(frame.ConnectionId, state);
             }
         }
     }
+
+
 
     private async Task ProcessNonFrameMessagesAsync(CancellationToken ct)
     {
@@ -176,4 +182,65 @@ public sealed partial class ClientSendGrain(ILogger<ClientSendGrain> logger, IHu
         string SenderClientId,
         string MessageType,
         byte[] Data);
+
+    private sealed class FrameSendState
+    {
+        private readonly Lock _lock = new();
+        private bool _inFlight;
+        private QueuedMessage? _pendingFrame;
+
+        public (bool wasIdle, QueuedMessage? dropped) TryEnqueueOrSend(QueuedMessage message)
+        {
+            using (this._lock.EnterScope())
+            {
+                if (this._inFlight is false)
+                {
+                    this._inFlight = true;
+                    return (wasIdle: true, dropped: null);
+                }
+                else
+                {
+                    var dropped = this._pendingFrame;
+                    this._pendingFrame = message;
+                    return (wasIdle: false, dropped: dropped);
+                }
+            }
+        }
+
+        public QueuedMessage? TryGetPendingAndClearInFlight()
+        {
+            using (this._lock.EnterScope())
+            {
+                if (this._pendingFrame is { } pending)
+                {
+                    this._pendingFrame = null;
+                    // Keep _inFlight = true since we're about to send pending
+                    return pending;
+                }
+                else
+                {
+                    this._inFlight = false;
+                    return null;
+                }
+            }
+        }
+
+        public void ClearOnError()
+        {
+            using (this._lock.EnterScope())
+            {
+                this._inFlight = false;
+                this._pendingFrame = null;
+            }
+        }
+
+        public bool CanRemove()
+        {
+            using (this._lock.EnterScope())
+            {
+                return this._inFlight is false && this._pendingFrame is null;
+            }
+        }
+    }
 }
+

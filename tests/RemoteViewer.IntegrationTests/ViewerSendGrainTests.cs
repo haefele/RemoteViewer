@@ -1,4 +1,4 @@
-﻿using RemoteViewer.Client.Services.HubClient;
+using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.TestFixtures.Fixtures;
 using RemoteViewer.Shared.Protocol;
 using System.Reflection;
@@ -56,8 +56,8 @@ public class ViewerSendGrainTests()
             if (args.FrameNumber != 1)
                 secondFrameReceived.TrySetResult();
         };
+        await SendAckFrameAsync(viewer.HubClient, viewerConn.ConnectionId);
 
-        await SendAckFrameAsync(viewer.HubClient);
         await secondFrameReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         await Assert.That(receivedFrames[^1]).IsEqualTo(20UL);
@@ -103,18 +103,19 @@ public class ViewerSendGrainTests()
         await Task.Delay(100); // Let frames 2 and 3 coalesce on server
 
         // Now ack - server should send the latest buffered frame (3, not 2)
-        await SendAckFrameAsync(viewer.HubClient);
+        await SendAckFrameAsync(viewer.HubClient, viewerConn.ConnectionId);
 
         await secondFrameReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         await Assert.That(receivedFrames).IsEquivalentTo(s_expectedFrames_1_3);
     }
 
-    private static Task SendAckFrameAsync(ConnectionHubClient client)
+    private static Task SendAckFrameAsync(ConnectionHubClient client, string connectionId)
     {
         var method = client.GetType().GetMethod("SendAckFrameAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        return (Task)method.Invoke(client, Array.Empty<object>())!;
+        return (Task)method.Invoke(client, [connectionId])!;
     }
+
 
     private static Task InvokeSendFrameAsync(Connection connection, ulong frameNumber)
     {

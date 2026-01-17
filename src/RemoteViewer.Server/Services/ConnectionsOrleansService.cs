@@ -1,4 +1,4 @@
-﻿using RemoteViewer.Server.Orleans.Grains;
+using RemoteViewer.Server.Orleans.Grains;
 using RemoteViewer.Shared;
 
 namespace RemoteViewer.Server.Services;
@@ -78,11 +78,12 @@ public sealed class ConnectionsOrleansService(IGrainFactory grainFactory) : ICon
         await connectionGrain.SendMessage(signalrConnectionId, messageType, data, destination, targetClientIds);
     }
 
-    public Task AckFrame(string signalrConnectionId)
+    public Task AckFrame(string signalrConnectionId, string connectionId)
     {
         var grain = grainFactory.GetGrain<IClientSendGrain>(signalrConnectionId);
-        return grain.AckFrame();
+        return grain.AckFrame(connectionId);
     }
+
 
     public async Task<bool> IsPresenterOfConnection(string signalrConnectionId, string connectionId)
     {

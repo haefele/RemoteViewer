@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR;
 using RemoteViewer.Server.Common;
 using RemoteViewer.Server.Hubs;
 using RemoteViewer.Shared;
@@ -21,7 +21,8 @@ public interface IConnectionsService
     Task DisconnectFromConnection(string signalrConnectionId, string connectionId);
     Task SetConnectionProperties(string signalrConnectionId, string connectionId, ConnectionProperties properties);
     Task SendMessage(string signalrConnectionId, string connectionId, string messageType, byte[] data, MessageDestination destination, IReadOnlyList<string>? targetClientIds = null);
-    Task AckFrame(string signalrConnectionId);
+    Task AckFrame(string signalrConnectionId, string connectionId);
+
 
     Task<bool> IsPresenterOfConnection(string signalrConnectionId, string connectionId);
 }
@@ -325,11 +326,12 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
         this._logger.MessageSendCompleted(senderId, connectionId, messageType);
     }
 
-    public Task AckFrame(string signalrConnectionId)
+    public Task AckFrame(string signalrConnectionId, string connectionId)
     {
         // No-op - we don't have frame-backbuffer mechanisms in this implementation
         return Task.CompletedTask;
     }
+
 
     public Task<bool> IsPresenterOfConnection(string signalrConnectionId, string connectionId)
     {
