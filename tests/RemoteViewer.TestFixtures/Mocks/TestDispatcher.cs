@@ -1,6 +1,6 @@
 using RemoteViewer.Client.Services.Dispatching;
 
-namespace RemoteViewer.IntegrationTests.Mocks;
+namespace RemoteViewer.TestFixtures.Mocks;
 
 public class TestDispatcher : IDispatcher
 {

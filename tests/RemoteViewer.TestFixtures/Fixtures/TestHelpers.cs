@@ -1,4 +1,4 @@
-namespace RemoteViewer.IntegrationTests.Fixtures;
+namespace RemoteViewer.TestFixtures.Fixtures;
 
 public static class TestHelpers
 {

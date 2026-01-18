@@ -35,6 +35,8 @@ public sealed partial class ClientGrain(ILogger<ClientGrain> logger, IHubContext
 
     private string _displayName = string.Empty;
 
+    private IClientSendGrain? _sendGrain;
+
     private IConnectionGrain? _presenterConnectionGrain;
     private readonly List<IConnectionGrain> _viewerConnectionGrains = [];
 
@@ -67,6 +69,8 @@ public sealed partial class ClientGrain(ILogger<ClientGrain> logger, IHubContext
             this.LogUsernameCollision(attempts);
         }
 
+        this._sendGrain = this.GrainFactory.GetGrain<IClientSendGrain>(this.GetPrimaryKeyString());
+
         this.LogClientInitialized(this._clientId, this._usernameGrain.GetPrimaryKeyString());
 
         await hubContext.Clients
@@ -93,6 +97,7 @@ public sealed partial class ClientGrain(ILogger<ClientGrain> logger, IHubContext
             await connection.Internal_RemoveClient(this.AsReference<IClientGrain>());
         }
 
+        await this._sendGrain.Disconnect();
         await this._usernameGrain.ReleaseAsync(this.GetPrimaryKeyString());
 
         this.DeactivateOnIdle();
@@ -208,14 +213,15 @@ public sealed partial class ClientGrain(ILogger<ClientGrain> logger, IHubContext
         }
         return sb.ToString();
     }
-    [MemberNotNull(nameof(_clientId), nameof(_usernameGrain), nameof(_password))]
+    [MemberNotNull(nameof(_clientId), nameof(_usernameGrain), nameof(_sendGrain), nameof(_password))]
     private void EnsureInitialized()
     {
-        if (this._clientId is null || this._usernameGrain is null || this._password is null)
+        if (this._clientId is null || this._usernameGrain is null || this._sendGrain is null || this._password is null)
         {
             throw new InvalidOperationException(
                 $"ClientGrain not initialized: clientId={(this._clientId is null ? "null" : "set")}, " +
                 $"usernameGrain={(this._usernameGrain is null ? "null" : "set")}, " +
+                $"sendGrain={(this._sendGrain is null ? "null" : "set")}, " +
                 $"password={(this._password is null ? "null" : "set")}");
         }
     }

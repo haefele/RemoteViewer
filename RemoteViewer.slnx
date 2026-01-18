@@ -27,5 +27,6 @@
     <Project Path="tests/RemoteViewer.Server.Tests/RemoteViewer.Server.Tests.csproj" />
     <Project Path="tests/RemoteViewer.Shared.Tests/RemoteViewer.Shared.Tests.csproj" />
     <Project Path="tests/RemoteViewer.IntegrationTests/RemoteViewer.IntegrationTests.csproj" />
+    <Project Path="tests/RemoteViewer.TestFixtures/RemoteViewer.TestFixtures.csproj" />
   </Folder>
 </Solution>

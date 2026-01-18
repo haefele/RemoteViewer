@@ -2,7 +2,7 @@
 using RemoteViewer.Client.Controls.Dialogs;
 using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.HubClient;
-using RemoteViewer.IntegrationTests.Fixtures;
+using RemoteViewer.TestFixtures.Fixtures;
 using RemoteViewer.Shared;
 using RemoteViewer.Shared.Protocol;
 

@@ -1,10 +1,10 @@
-﻿using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Logging;
 using TUnit.Core.Interfaces;
 
-namespace RemoteViewer.IntegrationTests.Fixtures;
+namespace RemoteViewer.TestFixtures.Fixtures;
 
 public class ServerFixture : WebApplicationFactory<Program>, IAsyncInitializer
 {
@@ -46,7 +46,13 @@ public class ServerFixture : WebApplicationFactory<Program>, IAsyncInitializer
                 throw new InvalidOperationException($"Connection failed: {error}");
         }
 
-        await presenterConnTask;
+        var presenterConn = await presenterConnTask;
         await Task.WhenAll(viewerConnTasks);
+
+        // Wait for presenter to see all viewers (ConnectionChanged propagation)
+        // This ensures GetViewerIdsWatchingDisplayAsync can find all viewers
+        await RemoteViewer.TestFixtures.TestHelpers.WaitUntilAsync(
+            () => presenterConn.Viewers.Count >= viewers.Length,
+            message: $"Presenter did not see all {viewers.Length} viewers within timeout. Only saw {presenterConn.Viewers.Count}.");
     }
 }

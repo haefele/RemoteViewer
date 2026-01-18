@@ -16,7 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\RemoteViewer.Server\RemoteViewer.Server.csproj" />
     <ProjectReference Include="..\..\src\RemoteViewer.Shared\RemoteViewer.Shared.csproj" />
-    <ProjectReference Include="..\RemoteViewer.IntegrationTests\RemoteViewer.IntegrationTests.csproj" />
+    <ProjectReference Include="..\RemoteViewer.TestFixtures\RemoteViewer.TestFixtures.csproj" />
   </ItemGroup>
 
 </Project>

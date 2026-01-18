@@ -15,7 +15,6 @@
     <ProjectReference Include="..\RemoteViewer.Shared\RemoteViewer.Shared.csproj" />
   </ItemGroup>
 
-
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.3.10" />
     <PackageReference Include="Material.Icons.Avalonia" Version="2.4.1" />
@@ -54,4 +53,5 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
   </ItemGroup>
+  
 </Project>
