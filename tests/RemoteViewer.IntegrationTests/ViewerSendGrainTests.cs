@@ -1,7 +1,8 @@
-using RemoteViewer.Client.Services.HubClient;
+﻿using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.TestFixtures.Fixtures;
 using RemoteViewer.Shared.Protocol;
 using System.Reflection;
+using static RemoteViewer.TestFixtures.TestHelpers;
 
 namespace RemoteViewer.IntegrationTests;
 
@@ -28,12 +29,10 @@ public class ViewerSendGrainTests()
         viewer.HubClient.Options.SuppressAutoFrameAck = true;
 
         var receivedFrames = new List<ulong>();
-        var firstFrameReceived = new TaskCompletionSource();
 
         viewerConn.RequiredViewerService.FrameReady += (_, args) =>
         {
             receivedFrames.Add(args.FrameNumber);
-            firstFrameReceived.TrySetResult();
         };
 
         // Send 20 frames rapidly - frame 1 goes immediately, rest coalesce
@@ -43,23 +42,23 @@ public class ViewerSendGrainTests()
         }
 
         // Wait for frame 1 to arrive
-        await firstFrameReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
-        await Assert.That(receivedFrames).Contains(1UL);
+        await WaitUntil(
+            () => receivedFrames.Contains(1UL),
+            message: "Frame 1 was not received");
 
-        // Give time for frames 2-20 to coalesce on server
-        await Task.Delay(100);
+        // Ack and wait for frame 20 (frames should coalesce to latest)
+        // Retry acking if frame 20 hasn't arrived yet (frames might still be in transit)
+        await WaitUntil(
+            async () =>
+            {
+                await SendAckFrameAsync(viewer.HubClient, viewerConn.ConnectionId);
+                await Task.Delay(100); // Give time for frame to arrive
+                return receivedFrames.Contains(20UL);
+            },
+            message: "Frame 20 was not received after acking");
 
-        // Ack frame 1 - should get frame 20 (latest)
-        var secondFrameReceived = new TaskCompletionSource();
-        viewerConn.RequiredViewerService.FrameReady += (_, args) =>
-        {
-            if (args.FrameNumber != 1)
-                secondFrameReceived.TrySetResult();
-        };
-        await SendAckFrameAsync(viewer.HubClient, viewerConn.ConnectionId);
-
-        await secondFrameReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
-
+        // Verify the last received frame is 20
+        await Assert.That(receivedFrames.Count).IsEqualTo(2);
         await Assert.That(receivedFrames[^1]).IsEqualTo(20UL);
     }
 
@@ -79,34 +78,36 @@ public class ViewerSendGrainTests()
         viewer.HubClient.Options.SuppressAutoFrameAck = true;
 
         var receivedFrames = new List<ulong>();
-        var firstFrameReceived = new TaskCompletionSource();
-        var secondFrameReceived = new TaskCompletionSource();
 
         viewerService.FrameReady += (_, args) =>
         {
             receivedFrames.Add(args.FrameNumber);
-            if (receivedFrames.Count == 1)
-                firstFrameReceived.TrySetResult();
-            else if (receivedFrames.Count >= 2)
-                secondFrameReceived.TrySetResult();
         };
 
         // Send frame 1 - should be delivered immediately
         await InvokeSendFrameAsync(presenterConn, 1);
 
-        // Wait for frame 1 to actually arrive before sending more
-        await firstFrameReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        // Wait for frame 1 to arrive
+        await WaitUntil(
+            () => receivedFrames.Contains(1UL),
+            message: "Frame 1 was not received");
 
         // DON'T ack frame 1 yet - send frames 2 and 3
         await InvokeSendFrameAsync(presenterConn, 2);
         await InvokeSendFrameAsync(presenterConn, 3);
-        await Task.Delay(100); // Let frames 2 and 3 coalesce on server
 
-        // Now ack - server should send the latest buffered frame (3, not 2)
-        await SendAckFrameAsync(viewer.HubClient, viewerConn.ConnectionId);
+        // Ack and wait for frame 3 (frames should coalesce, dropping frame 2)
+        // Retry acking if frame 3 hasn't arrived yet (frames might still be in transit)
+        await WaitUntil(
+            async () =>
+            {
+                await SendAckFrameAsync(viewer.HubClient, viewerConn.ConnectionId);
+                await Task.Delay(100); // Give time for frame to arrive
+                return receivedFrames.Contains(3UL);
+            },
+            message: "Frame 3 was not received after acking");
 
-        await secondFrameReceived.Task.WaitAsync(TimeSpan.FromSeconds(5));
-
+        // Verify we got exactly frames 1 and 3 (frame 2 was dropped)
         await Assert.That(receivedFrames).IsEquivalentTo(s_expectedFrames_1_3);
     }
 
