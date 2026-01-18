@@ -1,9 +1,9 @@
-using RemoteViewer.Client.Views;
+using CommunityToolkit.Mvvm.ComponentModel;
 using RemoteViewer.Client.Views.Presenter;
 
 namespace RemoteViewer.Client.Controls.Dialogs;
 
-public class ViewerSelectionDialogViewModel : ViewModelBase
+public class ViewerSelectionDialogViewModel : ObservableObject
 {
     public IReadOnlyList<PresenterViewerDisplay> Viewers { get; }
     public string FileName { get; }

@@ -1,4 +1,5 @@
 ---
+name: avalonia-mvvm
 description: Guide for using MVVM Community Toolkit with Avalonia in RemoteViewer.Client. Use when working with ViewModels, data binding, commands, or Avalonia UI patterns.
 ---
 
@@ -9,7 +10,7 @@ The RemoteViewer.Client uses **CommunityToolkit.Mvvm v8.4.0** with Avalonia's co
 ## Core Patterns
 
 ### ViewModels
-- **Base class**: `ViewModelBase` extends `ObservableObject` from MVVM Toolkit
+- **Base class**: `ObservableObject` from CommunityToolkit.Mvvm
 - **Location**: Co-located with views in `Views/{Feature}/` directories
 - **Creation**: Use `IViewModelFactory` with dependency injection for instantiation
 - **Constructor injection**: All dependencies injected via constructor (services, logger, etc.)

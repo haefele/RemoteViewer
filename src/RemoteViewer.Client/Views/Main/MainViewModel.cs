@@ -10,7 +10,7 @@ using RemoteViewer.Shared;
 
 namespace RemoteViewer.Client.Views.Main;
 
-public partial class MainViewModel : ViewModelBase
+public partial class MainViewModel : ObservableObject
 {
     private readonly ConnectionHubClient _hubClient;
     private readonly IDispatcher _dispatcher;
