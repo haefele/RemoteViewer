@@ -79,39 +79,13 @@ Margin="{theme:Spacing Top=XL, Right=MD}" <!-- Individual sides -->
 
 Values: `None=0, XXS=2, XS=4, SM=8, MD=12, LG=16, XL=24, XXL=32`
 
-### Gap (StackPanel/ItemsControl Spacing)
+The same extension works for `Spacing` (double) and `GridLength` properties:
 ```xml
-<StackPanel Spacing="{theme:Gap SM}">     <!-- 8px between items -->
-<StackPanel Spacing="{theme:Gap Icon}">   <!-- 6px for icon+text pairs -->
-```
-
-Values: `None=0, XXS=2, XS=4, Icon=6, SM=8, MD=12, LG=16, XL=24, XXL=32`
-
-### GridSpacing (Grid Column/Row Definitions)
-```xml
-<ColumnDefinition Width="{theme:GridSpacing SM}"/>  <!-- 8px spacer column -->
+<StackPanel Spacing="{theme:Spacing SM}">           <!-- 8px between items -->
+<ColumnDefinition Width="{theme:Spacing SM}"/>      <!-- 8px spacer column -->
 ```
 
 ## Design Tokens
-
-### Icon Sizes
-```xml
-Width="{StaticResource IconSizeXS}"   <!-- 12px -->
-Width="{StaticResource IconSizeSM}"   <!-- 16px -->
-Width="{StaticResource IconSizeMD}"   <!-- 20px -->
-Width="{StaticResource IconSizeLG}"   <!-- 24px -->
-Width="{StaticResource IconSizeXL}"   <!-- 32px -->
-```
-
-### Corner Radii
-```xml
-CornerRadius="{StaticResource CornerRadiusSM}"      <!-- 4px -->
-CornerRadius="{StaticResource CornerRadiusMD}"      <!-- 8px -->
-CornerRadius="{StaticResource CornerRadiusLG}"      <!-- 12px -->
-CornerRadius="{StaticResource CornerRadiusXL}"      <!-- 20px -->
-CornerRadius="{StaticResource CornerRadiusButton}"  <!-- 6px -->
-CornerRadius="{StaticResource CornerRadiusCard}"    <!-- 8px -->
-```
 
 ### Colors (use DynamicResource for theme support)
 - **Muted text**: `SystemControlDisabledBaseMediumLowBrush` (Avalonia built-in)
@@ -149,8 +123,23 @@ A flexible card container with size options.
 <controls:Card Size="ListItem"><!-- Uses SurfaceOverlayBrush background -->
 ```
 
+## Icon Component (Controls/Icon.axaml)
+
+A unified icon control with optional badge mode.
+
+```xml
+<controls:Icon Kind="Check" Size="MD"/>                    <!-- 24px icon -->
+<controls:Icon Kind="Check" Size="LG" ShowAsBadge="True"/> <!-- Icon in circular badge -->
+```
+
+**Properties:**
+- `Kind`: MaterialIconKind enum value
+- `Size`: XXS (12px), XS (16px), SM (20px), MD (24px), LG (32px), XL (40px), XXL (48px)
+- `ShowAsBadge`: When true, displays icon in a circular background
+- `BadgeBackground`: Custom badge background brush (defaults to `BadgeBackgroundBrush`)
+
 ## Components
 
 - **Card**: Flexible container with size options (`Controls/Card.axaml`)
-- **IconBadge**: Circular icon container with sizes Small/Medium/Large (`Controls/IconBadge.axaml`)
+- **Icon**: Unified icon with size presets and optional badge mode (`Controls/Icon.axaml`)
 - **DialogHeader**: Standardized dialog header with icon, title, subtitle (`Controls/DialogHeader.axaml`)
