@@ -176,12 +176,23 @@ public class ClientFixture : IAsyncDisposable
 
     public async Task<Connection> WaitForConnectionAsync(TimeSpan? timeout = null)
     {
+        var effectiveTimeout = timeout ?? TimeSpan.FromSeconds(30);
         var tcs = new TaskCompletionSource<Connection>();
         this.HubClient.ConnectionStarted += (s, e) => tcs.TrySetResult(e.Connection);
 
-        using var cts = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(30));
+        using var cts = new CancellationTokenSource(effectiveTimeout);
         cts.Token.Register(() => tcs.TrySetCanceled());
-        return await tcs.Task;
+        var connection = await tcs.Task;
+
+        // ConnectionStarted fires before ConnectionChanged, so the connection isn't fully
+        // usable yet (Presenter/Viewers lists are empty). Wait for ConnectionChanged to
+        // be processed by polling until Presenter is populated.
+        await RemoteViewer.TestFixtures.TestHelpers.WaitUntilAsync(
+            () => connection.Presenter is not null,
+            timeout: effectiveTimeout,
+            message: "Connection was started but ConnectionChanged was not received in time.");
+
+        return connection;
     }
 
     public async ValueTask DisposeAsync()
