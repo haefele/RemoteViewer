@@ -2,6 +2,7 @@
 using RemoteViewer.Client.Controls.Dialogs;
 using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.HubClient;
+using RemoteViewer.TestFixtures;
 using RemoteViewer.TestFixtures.Fixtures;
 using RemoteViewer.Shared;
 using RemoteViewer.Shared.Protocol;
@@ -45,7 +46,7 @@ public class ConnectionHubClientTests()
         var presenterConn = presenter.CurrentConnection!;
         var viewerConn = viewer.CurrentConnection!;
 
-        var receiveTask = TestHelpers.WaitForEventAsync<ChatMessageDisplay>(
+        var receiveTask = TestHelpers.WaitForEvent<ChatMessageDisplay>(
             onResult => presenterConn.Chat.MessageReceived += (s, msg) => onResult(msg));
 
         await viewerConn.Chat.SendMessageAsync("Hello from viewer!");
@@ -65,7 +66,7 @@ public class ConnectionHubClientTests()
         var presenterConn = presenter.CurrentConnection!;
         var viewerConn = viewer.CurrentConnection!;
 
-        var receiveTask = TestHelpers.WaitForEventAsync<ChatMessageDisplay>(
+        var receiveTask = TestHelpers.WaitForEvent<ChatMessageDisplay>(
             onResult => viewerConn.Chat.MessageReceived += (s, msg) => onResult(msg));
 
         await presenterConn.Chat.SendMessageAsync("Hello from presenter!");
@@ -89,7 +90,7 @@ public class ConnectionHubClientTests()
 
         // Wait for presenter to receive server confirmation
         // (presenter is now server-authoritative - no local optimistic update)
-        var presenterPropertyTask = TestHelpers.WaitForEventAsync(
+        var presenterPropertyTask = TestHelpers.WaitForEvent(
             onComplete => presenterConn.ConnectionPropertiesChanged += (s, e) =>
             {
                 if (presenterConn.ConnectionProperties.InputBlockedViewerIds.Contains(viewerClientId))
@@ -118,7 +119,7 @@ public class ConnectionHubClientTests()
         await viewerConn.RequiredViewerService.SendMouseMoveAsync(0.5f, 0.5f);
 
         // Wait for message to be received and processed
-        await TestHelpers.WaitForReceivedCallAsync(() =>
+        await TestHelpers.WaitForReceivedCall(() =>
             presenter.InputInjectionService.ReceivedCalls()
                 .Any(c => c.GetMethodInfo().Name == "InjectMouseMove"));
 
@@ -143,7 +144,7 @@ public class ConnectionHubClientTests()
         await viewerConn.RequiredViewerService.SendKeyUpAsync(0x41, KeyModifiers.None);
 
         // Wait for both key events to be received
-        await TestHelpers.WaitForReceivedCallAsync(() =>
+        await TestHelpers.WaitForReceivedCall(() =>
             presenter.InputInjectionService.ReceivedCalls()
                 .Count(c => c.GetMethodInfo().Name == "InjectKey") >= 2);
 
@@ -164,7 +165,7 @@ public class ConnectionHubClientTests()
         var presenterConn = presenter.CurrentConnection!;
         var viewerConn = viewer.CurrentConnection!;
 
-        var closedTask = TestHelpers.WaitForEventAsync(
+        var closedTask = TestHelpers.WaitForEvent(
             onComplete => viewerConn.Closed += (s, e) => onComplete());
 
         await presenterConn.DisconnectAsync();
@@ -206,9 +207,9 @@ public class ConnectionHubClientTests()
         var presenterConn = presenter.CurrentConnection!;
 
         // Wait for all viewers to be registered (eventual consistency)
-        await TestHelpers.WaitForConditionAsync(
+        await TestHelpers.WaitUntil(
             () => presenterConn.Viewers.Count == 3,
-            timeoutMessage: $"Expected 3 viewers but got {presenterConn.Viewers.Count}");
+            message: $"Expected 3 viewers but got {presenterConn.Viewers.Count}");
 
         await Assert.That(presenterConn.Viewers.Count).IsEqualTo(3);
     }
@@ -226,7 +227,7 @@ public class ConnectionHubClientTests()
         var viewer2Conn = viewer2.CurrentConnection!;
 
         // Subscribe BEFORE disconnect to wait for it to be fully processed
-        var viewer1DisconnectedTask = TestHelpers.WaitForEventAsync(
+        var viewer1DisconnectedTask = TestHelpers.WaitForEvent(
             onComplete => presenterConn.ViewersChanged += (s, e) =>
             {
                 if (presenterConn.Viewers.Count == 1)
@@ -240,7 +241,7 @@ public class ConnectionHubClientTests()
         await viewer1DisconnectedTask;
 
         // Viewer2 should still be connected and able to communicate
-        var receiveTask = TestHelpers.WaitForEventAsync<ChatMessageDisplay>(
+        var receiveTask = TestHelpers.WaitForEvent<ChatMessageDisplay>(
             onResult => presenterConn.Chat.MessageReceived += (s, msg) => onResult(msg));
 
         await viewer2Conn.Chat.SendMessageAsync("I'm still connected!");
@@ -265,7 +266,7 @@ public class ConnectionHubClientTests()
         var presenterConn = await presenterConnTask;
 
         // Subscribe BEFORE waiting for viewer connect to avoid race condition
-        var viewersChangedTask = TestHelpers.WaitForEventAsync(
+        var viewersChangedTask = TestHelpers.WaitForEvent(
             onComplete => presenterConn.ViewersChanged += (s, e) =>
             {
                 if (presenterConn.Viewers.Count > 0)
@@ -293,7 +294,7 @@ public class ConnectionHubClientTests()
         var viewerClientId = viewer.HubClient.ClientId!;
 
         // Subscribe BEFORE triggering the property change to avoid race condition
-        var propertyChangedTask = TestHelpers.WaitForEventAsync(
+        var propertyChangedTask = TestHelpers.WaitForEvent(
             onComplete => viewerConn.ConnectionPropertiesChanged += (s, e) =>
             {
                 if (viewerConn.ConnectionProperties.InputBlockedViewerIds.Contains(viewerClientId))
@@ -322,7 +323,7 @@ public class ConnectionHubClientTests()
         await Assert.That(viewerConn.IsClosed).IsFalse();
 
         // Subscribe first, then disconnect
-        var closedTask = TestHelpers.WaitForEventAsync(
+        var closedTask = TestHelpers.WaitForEvent(
             onComplete => viewerConn.Closed += (s, e) => onComplete());
 
         await viewerConn.DisconnectAsync();
@@ -349,7 +350,7 @@ public class ConnectionHubClientTests()
         await viewerConn.RequiredViewerService.SendMouseUpAsync(MouseButton.Left, 0.5f, 0.5f);
 
         // Wait for both mouse events to be received
-        await TestHelpers.WaitForReceivedCallAsync(() =>
+        await TestHelpers.WaitForReceivedCall(() =>
             presenter.InputInjectionService.ReceivedCalls()
                 .Count(c => c.GetMethodInfo().Name == "InjectMouseButton") >= 2);
 
@@ -375,7 +376,7 @@ public class ConnectionHubClientTests()
         await viewerConn.RequiredViewerService.SendMouseWheelAsync(0f, 120f, 0.5f, 0.5f);
 
         // Wait for wheel event to be received
-        await TestHelpers.WaitForReceivedCallAsync(() =>
+        await TestHelpers.WaitForReceivedCall(() =>
             presenter.InputInjectionService.ReceivedCalls()
                 .Any(c => c.GetMethodInfo().Name == "InjectMouseWheel"));
 
@@ -403,7 +404,7 @@ public class ConnectionHubClientTests()
 
         // Wait for PRESENTER to receive server confirmation
         // (input blocking check happens on presenter, so we must wait for presenter's state)
-        var presenterPropertyTask = TestHelpers.WaitForEventAsync(
+        var presenterPropertyTask = TestHelpers.WaitForEvent(
             onComplete => presenterConn.ConnectionPropertiesChanged += (s, e) =>
             {
                 if (presenterConn.ConnectionProperties.InputBlockedViewerIds.Contains(viewerClientId))
@@ -448,7 +449,7 @@ public class ConnectionHubClientTests()
         await viewerConn.RequiredViewerService.SendKeyDownAsync(0x41, KeyModifiers.Control | KeyModifiers.Shift);
 
         // Wait for key event to be received
-        await TestHelpers.WaitForReceivedCallAsync(() =>
+        await TestHelpers.WaitForReceivedCall(() =>
             presenter.InputInjectionService.ReceivedCalls()
                 .Any(c => c.GetMethodInfo().Name == "InjectKey"));
 
@@ -473,7 +474,7 @@ public class ConnectionHubClientTests()
         var viewerConn = viewer.CurrentConnection!;
 
         // Wait for the last message to arrive
-        var lastMessageTask = TestHelpers.WaitForEventAsync<ChatMessageDisplay>(
+        var lastMessageTask = TestHelpers.WaitForEvent<ChatMessageDisplay>(
             onResult => presenterConn.Chat.MessageReceived += (s, msg) =>
             {
                 if (msg.Text == "Message 3")
@@ -505,9 +506,9 @@ public class ConnectionHubClientTests()
         var viewer1Conn = viewer1.CurrentConnection!;
         var viewer2Conn = viewer2.CurrentConnection!;
 
-        var msg1Task = TestHelpers.WaitForEventAsync<ChatMessageDisplay>(
+        var msg1Task = TestHelpers.WaitForEvent<ChatMessageDisplay>(
             onResult => viewer1Conn.Chat.MessageReceived += (s, msg) => onResult(msg));
-        var msg2Task = TestHelpers.WaitForEventAsync<ChatMessageDisplay>(
+        var msg2Task = TestHelpers.WaitForEvent<ChatMessageDisplay>(
             onResult => viewer2Conn.Chat.MessageReceived += (s, msg) => onResult(msg));
 
         await presenterConn.Chat.SendMessageAsync("Broadcast to all!");
@@ -529,7 +530,7 @@ public class ConnectionHubClientTests()
         var viewerConn = viewer.CurrentConnection!;
 
         // Test 1: Viewer sends to presenter - verify IsFromPresenter is false
-        var fromViewerTask = TestHelpers.WaitForEventAsync<ChatMessageDisplay>(
+        var fromViewerTask = TestHelpers.WaitForEvent<ChatMessageDisplay>(
             onResult => presenterConn.Chat.MessageReceived += (s, msg) =>
             {
                 if (msg.Text == "From viewer")
@@ -542,7 +543,7 @@ public class ConnectionHubClientTests()
         await Assert.That(fromViewer.IsFromPresenter).IsFalse();
 
         // Test 2: Presenter sends to viewer - verify IsFromPresenter is true
-        var fromPresenterTask = TestHelpers.WaitForEventAsync<ChatMessageDisplay>(
+        var fromPresenterTask = TestHelpers.WaitForEvent<ChatMessageDisplay>(
             onResult => viewerConn.Chat.MessageReceived += (s, msg) =>
             {
                 if (msg.Text == "From presenter")
@@ -574,7 +575,7 @@ public class ConnectionHubClientTests()
         var viewer1ClientId = viewer1.HubClient.ClientId!;
 
         // Wait for property to propagate to viewer2
-        var propertyChangedTask = TestHelpers.WaitForEventAsync(
+        var propertyChangedTask = TestHelpers.WaitForEvent(
             onComplete => viewer2Conn.ConnectionPropertiesChanged += (s, e) =>
             {
                 if (viewer2Conn.ConnectionProperties.InputBlockedViewerIds.Contains(viewer1ClientId))
@@ -593,7 +594,7 @@ public class ConnectionHubClientTests()
         await viewer2Conn.RequiredViewerService.SendMouseMoveAsync(0.5f, 0.5f);
 
         // Wait for mouse event to be received
-        await TestHelpers.WaitForReceivedCallAsync(() =>
+        await TestHelpers.WaitForReceivedCall(() =>
             presenter.InputInjectionService.ReceivedCalls()
                 .Any(c => c.GetMethodInfo().Name == "InjectMouseMove"));
 
@@ -617,9 +618,9 @@ public class ConnectionHubClientTests()
         var viewer1Conn = viewer1.CurrentConnection!;
         var viewer2Conn = viewer2.CurrentConnection!;
 
-        var msg1Task = TestHelpers.WaitForEventAsync<ChatMessageDisplay>(
+        var msg1Task = TestHelpers.WaitForEvent<ChatMessageDisplay>(
             onResult => viewer1Conn.Chat.MessageReceived += (s, msg) => onResult(msg));
-        var msg2Task = TestHelpers.WaitForEventAsync<ChatMessageDisplay>(
+        var msg2Task = TestHelpers.WaitForEvent<ChatMessageDisplay>(
             onResult => viewer2Conn.Chat.MessageReceived += (s, msg) => onResult(msg));
 
         await presenterConn.Chat.SendMessageAsync("Broadcast message");
@@ -642,7 +643,7 @@ public class ConnectionHubClientTests()
         var viewerConn = viewer.CurrentConnection!;
 
         // Subscribe first
-        var displaysChangedTask = TestHelpers.WaitForEventAsync(
+        var displaysChangedTask = TestHelpers.WaitForEvent(
             onComplete => viewerConn.RequiredViewerService.AvailableDisplaysChanged += (s, e) =>
             {
                 if (viewerConn.RequiredViewerService.AvailableDisplays.Count >= 2)
@@ -691,7 +692,7 @@ public class ConnectionHubClientTests()
             _ = viewerConn.FileTransfers.SendFileAsync(tempFile);
 
             // Wait for the dialog to be called
-            await TestHelpers.WaitForReceivedCallAsync(() =>
+            await TestHelpers.WaitForReceivedCall(() =>
                 presenter.DialogService.ReceivedCalls()
                     .Any(c => c.GetMethodInfo().Name == "ShowFileTransferConfirmationAsync"));
 
@@ -726,7 +727,7 @@ public class ConnectionHubClientTests()
             await File.WriteAllTextAsync(tempFile, "Test file content");
 
             // Subscribe first, then start transfer
-            var failedTask = TestHelpers.WaitForEventAsync<bool>(
+            var failedTask = TestHelpers.WaitForEvent<bool>(
                 onResult => viewerConn.FileTransfers.TransferFailed += (s, e) => onResult(true));
 
             // Start the transfer
@@ -867,7 +868,7 @@ public class ConnectionHubClientTests()
         var oldId = presenter.HubClient.ClientId;
 
         // Wait for new credentials event
-        var newCredentialsTask = TestHelpers.WaitForEventAsync<CredentialsAssignedEventArgs>(
+        var newCredentialsTask = TestHelpers.WaitForEvent<CredentialsAssignedEventArgs>(
             onResult => presenter.HubClient.CredentialsAssigned += (s, e) =>
             {
                 // Only trigger on a different password
@@ -908,7 +909,7 @@ public class ConnectionHubClientTests()
         var viewerConn = viewer.CurrentConnection!;
 
         // Wait for the ViewersChanged event which carries the display name
-        await TestHelpers.WaitForEventAsync(
+        await TestHelpers.WaitForEvent(
             onComplete => viewerConn.ViewersChanged += (s, e) =>
             {
                 if (viewerConn.Presenter?.DisplayName == "CustomPresenterName")
@@ -930,7 +931,7 @@ public class ConnectionHubClientTests()
         var viewerConn = viewer.CurrentConnection!;
 
         // Wait for ViewersChanged event with the updated name
-        var viewersChangedTask = TestHelpers.WaitForEventAsync(
+        var viewersChangedTask = TestHelpers.WaitForEvent(
             onComplete => viewerConn.ViewersChanged += (s, e) =>
             {
                 if (viewerConn.Presenter?.DisplayName == "UpdatedName")
@@ -996,9 +997,8 @@ public class ConnectionHubClientTests()
             await File.WriteAllTextAsync(tempFile, "Test file content for successful transfer");
 
             // Subscribe to transfer completed event on viewer (sender) side
-            var completedTask = TestHelpers.WaitForEventAsync<TransferEventArgs>(
-                onResult => viewerConn.FileTransfers.TransferCompleted += (s, e) => onResult(e),
-                timeout: TimeSpan.FromSeconds(10));
+            var completedTask = TestHelpers.WaitForEvent<TransferEventArgs>(
+                onResult => viewerConn.FileTransfers.TransferCompleted += (s, e) => onResult(e));
 
             // Start the transfer
             _ = viewerConn.FileTransfers.SendFileAsync(tempFile);
@@ -1037,9 +1037,8 @@ public class ConnectionHubClientTests()
             await File.WriteAllTextAsync(tempFile, "Test file from presenter to viewer");
 
             // Subscribe to transfer completed event on presenter (sender) side
-            var completedTask = TestHelpers.WaitForEventAsync<TransferEventArgs>(
-                onResult => presenterConn.FileTransfers.TransferCompleted += (s, e) => onResult(e),
-                timeout: TimeSpan.FromSeconds(10));
+            var completedTask = TestHelpers.WaitForEvent<TransferEventArgs>(
+                onResult => presenterConn.FileTransfers.TransferCompleted += (s, e) => onResult(e));
 
             // Start the transfer to specific viewer
             _ = presenterConn.FileTransfers.SendFileToViewerAsync(tempFile, viewerClientId);
@@ -1077,9 +1076,8 @@ public class ConnectionHubClientTests()
             await File.WriteAllTextAsync(tempFile, "Test file content for cancellation test");
 
             // Subscribe to transfer failed event
-            var failedTask = TestHelpers.WaitForEventAsync<TransferEventArgs>(
-                onResult => viewerConn.FileTransfers.TransferFailed += (s, e) => onResult(e),
-                timeout: TimeSpan.FromSeconds(10));
+            var failedTask = TestHelpers.WaitForEvent<TransferEventArgs>(
+                onResult => viewerConn.FileTransfers.TransferFailed += (s, e) => onResult(e));
 
             // Start the transfer
             var operation = await viewerConn.FileTransfers.SendFileAsync(tempFile);

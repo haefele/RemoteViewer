@@ -1,4 +1,4 @@
-using System.Collections.Immutable;
+﻿using System.Collections.Immutable;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -176,12 +176,19 @@ public class ClientFixture : IAsyncDisposable
 
     public async Task<Connection> WaitForConnectionAsync(TimeSpan? timeout = null)
     {
+        var effectiveTimeout = timeout ?? TimeSpan.FromSeconds(30);
         var tcs = new TaskCompletionSource<Connection>();
         this.HubClient.ConnectionStarted += (s, e) => tcs.TrySetResult(e.Connection);
 
-        using var cts = new CancellationTokenSource(timeout ?? TimeSpan.FromSeconds(30));
+        using var cts = new CancellationTokenSource(effectiveTimeout);
         cts.Token.Register(() => tcs.TrySetCanceled());
-        return await tcs.Task;
+        var connection = await tcs.Task;
+
+        await TestHelpers.WaitUntil(
+            () => connection.Presenter is not null && connection.Viewers.Count > 0,
+            message: "Connection was started but Presenter and Viewer info didn't arrive.");
+
+        return connection;
     }
 
     public async ValueTask DisposeAsync()
