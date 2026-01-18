@@ -1,8 +1,8 @@
-using RemoteViewer.Client.Views;
+using CommunityToolkit.Mvvm.ComponentModel;
 
 namespace RemoteViewer.Client.Controls.Dialogs;
 
-public class FileTransferConfirmationDialogViewModel : ViewModelBase
+public class FileTransferConfirmationDialogViewModel : ObservableObject
 {
     public string SenderDisplayName { get; }
     public string FileName { get; }

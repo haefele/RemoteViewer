@@ -1,8 +1,9 @@
-﻿using CommunityToolkit.Mvvm.Input;
+﻿using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace RemoteViewer.Client.Views.About;
 
-public partial class AboutViewModel : ViewModelBase
+public partial class AboutViewModel : ObservableObject
 {
     public string ApplicationName => "Remote Viewer";
 

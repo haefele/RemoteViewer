@@ -1,145 +1,24 @@
-# Project Overview
+# RemoteViewer
 
-RemoteViewer is a .NET 10.0 remote desktop viewer application for Windows. It consists of three main components:
+A .NET 10 remote desktop viewer for Windows with three components:
 
-- **RemoteViewer.Client**: Avalonia 11.3-based desktop UI application with MVVM architecture
-- **RemoteViewer.Server**: ASP.NET Core SignalR hub server for connection routing
+- **RemoteViewer.Client**: Avalonia 11.3 desktop UI with MVVM architecture
+- **RemoteViewer.Server**: ASP.NET Core SignalR hub for connection routing
 - **RemoteViewer.Shared**: Shared models, protocol messages, and utilities
 
-# Build Commands
+## Build & Run
 
 ```bash
 dotnet build                                       # Build entire solution
-dotnet build -c Release                            # Release build
 dotnet run --project src/RemoteViewer.Server       # Run server
 dotnet run --project src/RemoteViewer.Client       # Run client
+dotnet test                                        # Run all tests (TUnit)
 ```
 
-# Testing
+## Code Conventions
 
-Uses TUnit testing framework. Four test projects exist:
+- **Logging**: Source-generated using `[LoggerMessage]` attributes, preferable in the same file where they are used
+- **Error handling**: Nullable enum returns for expected failures (e.g., `Task<TryConnectError?>`); exceptions only for unexpected errors
+- **P/Invoke**: CsWin32 source-generated bindings with SafeHandle wrappers
+- **No XML docs**: Code should be self-explanatory; add comments only where necessary
 
-```bash
-dotnet test                            # Run all tests
-```
-
-- **RemoteViewer.Client.Tests**: Unit tests for client-side logic (e.g., CredentialParser)
-- **RemoteViewer.Server.Tests**: Unit tests for server services and protocol messages
-- **RemoteViewer.Shared.Tests**: Unit tests for shared utilities and models
-- **RemoteViewer.IntegrationTests**: End-to-end SignalR hub integration tests
-
-# Code Conventions
-
-## Logging
-- Source-generated logging with `[LoggerMessage]` attributes in separate `*Logs.cs` files
-- Structured logging with named parameters for context
-
-## Error Handling
-- Nullable enum return types for expected failures (e.g., `Task<TryConnectError?>`)
-- Exceptions only for unexpected/startup errors; graceful `false`/`null` returns otherwise
-
-## P/Invoke
-- CsWin32 source-generated bindings with SafeHandle wrappers
-- `Marshal.GetLastWin32Error()` for error logging
-
-## Documentation
-- No XML docs (`///`) - code should be self-explanatory
-- You can add comments if necessary for clarity
-
-# MVVM Architecture (Client)
-
-The RemoteViewer.Client uses **CommunityToolkit.Mvvm v8.4.0** with Avalonia 11.3's compiled bindings.
-
-For detailed MVVM patterns, examples, and best practices, see the `avalonia-mvvm` skill (.claude/skills/avalonia-mvvm.md).
-
-## Quick Reference
-
-- **ViewModels**: Inherit from `ViewModelBase`, use `IViewModelFactory` for creation
-- **Properties**: `[ObservableProperty]` on private fields generates public properties
-- **Commands**: `[RelayCommand]` on private methods generates `IRelayCommand` properties
-- **Dependencies**: `[NotifyPropertyChangedFor]` and `[NotifyCanExecuteChangedFor]`
-- **Bindings**: Use `x:DataType` in XAML for compiled bindings
-- **DI**: Services registered in `ServiceRegistration.cs`
-- **Threading**: Use `IDispatcher` for UI updates from background threads
-
-# Design System (Client)
-
-The client uses a comprehensive design system with markup extensions, design tokens, and reusable components. All UI should use these tokens instead of hardcoded values.
-
-## Markup Extensions
-
-Located in `Themes/` folder. Add `xmlns:theme="using:RemoteViewer.Client.Themes"` to use.
-
-### Spacing (Margin/Padding)
-```xml
-Padding="{theme:Spacing MD}"              <!-- All sides: 12 -->
-Margin="{theme:Spacing X=LG, Y=SM}"       <!-- Horizontal: 16, Vertical: 8 -->
-Margin="{theme:Spacing Top=XL, Right=MD}" <!-- Individual sides -->
-```
-
-Values: `None=0, XXS=2, XS=4, SM=8, MD=12, LG=16, XL=24, XXL=32`
-
-The same extension works for `Spacing` (double) and `GridLength` properties:
-```xml
-<StackPanel Spacing="{theme:Spacing SM}">           <!-- 8px between items -->
-<ColumnDefinition Width="{theme:Spacing SM}"/>      <!-- 8px spacer column -->
-```
-
-## Design Tokens
-
-### Colors (use DynamicResource for theme support)
-- **Muted text**: `SystemControlDisabledBaseMediumLowBrush` (Avalonia built-in)
-- **Accent**: `AccentButtonBackground`, `AccentButtonForeground` (Avalonia built-in)
-- **Surfaces**: `SurfaceElevatedBrush`, `SurfaceOverlayBrush`, `CardBackgroundBrush`
-- **Semantic**: `SuccessBrush`, `ErrorBrush`, `WarningBrush`
-
-## Typography Classes
-
-Apply via `Classes="class-name"` on TextBlock:
-
-- **Headings**: `h1` (22px Bold), `h2` (15px SemiBold), `h3` (13px SemiBold)
-- **Small text**: `m1` (12px), `m2` (10px)
-- **Special**: `credential` (18px Bold monospace)
-- **Color modifier**: `muted`
-
-## Button Styles
-
-All buttons automatically get `CornerRadius="6"` from the base style.
-
-```xml
-<Button>                             <!-- Default button (uses Avalonia defaults) -->
-<Button Classes="accent">            <!-- Accent/primary button (Avalonia built-in) -->
-<Button Classes="icon-button">       <!-- 32x32 transparent icon button for toolbars -->
-```
-
-## Card Component (Controls/Card.axaml)
-
-A flexible card container with size options.
-
-```xml
-<controls:Card>                <!-- Default: 8px radius, 14px padding -->
-<controls:Card Size="Large">   <!-- 12px radius, 16px padding -->
-<controls:Card Size="XLarge">  <!-- 20px radius, 32x28 padding (for overlays) -->
-<controls:Card Size="ListItem"><!-- Uses SurfaceOverlayBrush background -->
-```
-
-## Icon Component (Controls/Icon.axaml)
-
-A unified icon control with optional badge mode.
-
-```xml
-<controls:Icon Kind="Check" Size="MD"/>                    <!-- 24px icon -->
-<controls:Icon Kind="Check" Size="LG" ShowAsBadge="True"/> <!-- Icon in circular badge -->
-```
-
-**Properties:**
-- `Kind`: MaterialIconKind enum value
-- `Size`: XXS (12px), XS (16px), SM (20px), MD (24px), LG (32px), XL (40px), XXL (48px)
-- `ShowAsBadge`: When true, displays icon in a circular background
-- `BadgeBackground`: Custom badge background brush (defaults to `BadgeBackgroundBrush`)
-
-## Components
-
-- **Card**: Flexible container with size options (`Controls/Card.axaml`)
-- **Icon**: Unified icon with size presets and optional badge mode (`Controls/Icon.axaml`)
-- **DialogHeader**: Standardized dialog header with icon, title, subtitle (`Controls/DialogHeader.axaml`)

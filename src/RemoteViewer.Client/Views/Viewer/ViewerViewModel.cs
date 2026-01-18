@@ -14,7 +14,7 @@ using RemoteViewer.Shared;
 
 namespace RemoteViewer.Client.Views.Viewer;
 
-public partial class ViewerViewModel : ViewModelBase, IAsyncDisposable
+public partial class ViewerViewModel : ObservableObject, IAsyncDisposable
 {
     #region Core State & Constructor
     public Connection Connection { get; }

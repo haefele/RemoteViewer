@@ -20,7 +20,7 @@ using RemoteViewer.Shared;
 
 namespace RemoteViewer.Client.Views.Presenter;
 
-public partial class PresenterViewModel : ViewModelBase, IAsyncDisposable
+public partial class PresenterViewModel : ObservableObject, IAsyncDisposable
 {
     private readonly Connection _connection;
     private readonly ConnectionHubClient _hubClient;
