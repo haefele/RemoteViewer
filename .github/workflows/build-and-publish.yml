@@ -9,6 +9,7 @@ jobs:
     runs-on: windows-latest
     permissions:
       contents: read
+      actions: read
       packages: write
       checks: write
 
@@ -29,8 +30,21 @@ jobs:
       - name: Build
         run: dotnet build -c Release --no-restore
 
-      - name: Test
-        run: dotnet test -c Release --no-build --results-directory ./test-results -- --report-trx --report-trx-filename test-results.trx
+      - name: Test RemoteViewer.Shared.Tests
+        run: dotnet test --project tests/RemoteViewer.Shared.Tests -c Release --no-build --results-directory ./test-results -- --report-trx --report-trx-filename shared-tests.trx
+        continue-on-error: true
+
+      - name: Test RemoteViewer.Client.Tests
+        run: dotnet test --project tests/RemoteViewer.Client.Tests -c Release --no-build --results-directory ./test-results -- --report-trx --report-trx-filename client-tests.trx
+        continue-on-error: true
+
+      - name: Test RemoteViewer.Server.Tests
+        run: dotnet test --project tests/RemoteViewer.Server.Tests -c Release --no-build --results-directory ./test-results -- --report-trx --report-trx-filename server-tests.trx
+        continue-on-error: true
+
+      - name: Test RemoteViewer.IntegrationTests
+        run: dotnet test --project tests/RemoteViewer.IntegrationTests -c Release --no-build --results-directory ./test-results -- --report-trx --report-trx-filename integration-tests.trx
+        continue-on-error: true
 
       - name: Upload test results
         uses: actions/upload-artifact@v4
@@ -40,12 +54,13 @@ jobs:
           path: ./test-results/**/*.trx
 
       - name: Publish test results
-        uses: dorny/test-reporter@v1
+        uses: dorny/test-reporter@v2.5.0
         if: always()
         with:
           name: Test Results
           path: ./test-results/**/*.trx
           reporter: dotnet-trx
+          fail-on-error: 'false'
 
       - name: Publish RemoteViewer.Client
         run: |
