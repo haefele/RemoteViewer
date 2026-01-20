@@ -1,4 +1,4 @@
-using Avalonia.Controls;
+﻿using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Platform.Storage;
@@ -251,8 +251,8 @@ public partial class ViewerView : Window
         if (!this._viewModel.IsInputEnabled)
             return;
 
-        // Character-producing keys without shortcut modifiers will be handled by TextInput event
-        if (IsCharacterProducingKey(e.Key) && !HasShortcutModifier(e.KeyModifiers))
+        // Printable characters are handled by TextInput event
+        if (ShouldDeferToTextInput(e.KeySymbol))
         {
             e.Handled = true;
             return;
@@ -267,10 +267,15 @@ public partial class ViewerView : Window
 
     private async void DisplayPanel_TextInput(object? sender, TextInputEventArgs e)
     {
-        if (this._viewModel is not { IsInputEnabled: true } || string.IsNullOrEmpty(e.Text))
+        e.Handled = true;
+
+        // Validate input: must be enabled, non-empty, and reasonable length
+        // Max 100 chars handles typical IME input and paste scenarios
+        if (this._viewModel is not { IsInputEnabled: true } ||
+            string.IsNullOrEmpty(e.Text) ||
+            e.Text.Length > 100)
             return;
 
-        e.Handled = true;
         await this._viewModel.Connection.RequiredViewerService.SendTextInputAsync(e.Text);
     }
 
@@ -279,8 +284,8 @@ public partial class ViewerView : Window
         if (this._viewModel is not { IsInputEnabled: true })
             return;
 
-        // Character-producing keys without shortcut modifiers were handled by TextInput event
-        if (IsCharacterProducingKey(e.Key) && !HasShortcutModifier(e.KeyModifiers))
+        // Printable characters were handled by TextInput event
+        if (ShouldDeferToTextInput(e.KeySymbol))
         {
             e.Handled = true;
             return;
@@ -416,20 +421,14 @@ public partial class ViewerView : Window
     #endregion
 
     #region Helper Methods
-    private static bool IsCharacterProducingKey(Key key) => key switch
+    private static bool ShouldDeferToTextInput(string? keySymbol)
     {
-        >= Key.A and <= Key.Z => true,
-        >= Key.D0 and <= Key.D9 => true,
-        >= Key.NumPad0 and <= Key.NumPad9 => true,
-        Key.OemSemicolon or Key.OemPlus or Key.OemComma or Key.OemMinus or
-        Key.OemPeriod or Key.OemQuestion or Key.OemTilde or Key.OemOpenBrackets or
-        Key.OemPipe or Key.OemCloseBrackets or Key.OemQuotes or Key.OemBackslash => true,
-        Key.Space or Key.Multiply or Key.Add or Key.Subtract or Key.Decimal or Key.Divide => true,
-        _ => false
-    };
-
-    private static bool HasShortcutModifier(KeyModifiers modifiers) =>
-        modifiers.HasFlag(KeyModifiers.Control) || modifiers.HasFlag(KeyModifiers.Alt);
+        // If KeySymbol is a printable character, let TextInput handle it.
+        // Control characters (Ctrl+key) and null (special keys) go through KeyDown.
+        return !string.IsNullOrEmpty(keySymbol) &&
+               keySymbol.Length == 1 &&
+               !char.IsControl(keySymbol[0]);
+    }
 
     private bool TryGetNormalizedPosition(PointerEventArgs e, out float x, out float y)
     {
