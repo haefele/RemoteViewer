@@ -24,6 +24,7 @@ public partial interface ISessionRecorderRpc
     Task InjectMouseButton(string connectionId, string displayId, int button, bool isDown, float normalizedX, float normalizedY, CancellationToken ct);
     Task InjectMouseWheel(string connectionId, string displayId, float deltaX, float deltaY, float normalizedX, float normalizedY, CancellationToken ct);
     Task InjectKey(string connectionId, ushort keyCode, bool isDown, CancellationToken ct);
+    Task InjectText(string connectionId, string text, CancellationToken ct);
     Task ReleaseAllModifiers(string connectionId, CancellationToken ct);
 }
 

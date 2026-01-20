@@ -5,6 +5,8 @@ public sealed record KeyMessage(
     KeyModifiers Modifiers
 );
 
+public sealed record TextInputMessage(string Text);
+
 [Flags]
 public enum KeyModifiers : byte
 {

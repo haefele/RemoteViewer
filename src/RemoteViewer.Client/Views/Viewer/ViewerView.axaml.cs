@@ -251,6 +251,13 @@ public partial class ViewerView : Window
         if (!this._viewModel.IsInputEnabled)
             return;
 
+        // Character-producing keys without shortcut modifiers will be handled by TextInput event
+        if (IsCharacterProducingKey(e.Key) && !HasShortcutModifier(e.KeyModifiers))
+        {
+            e.Handled = true;
+            return;
+        }
+
         e.Handled = true;
 
         var keyCode = (ushort)KeyInterop.VirtualKeyFromKey(e.Key);
@@ -258,10 +265,26 @@ public partial class ViewerView : Window
         await this._viewModel.Connection.RequiredViewerService.SendKeyDownAsync(keyCode, modifiers);
     }
 
+    private async void DisplayPanel_TextInput(object? sender, TextInputEventArgs e)
+    {
+        if (this._viewModel is not { IsInputEnabled: true } || string.IsNullOrEmpty(e.Text))
+            return;
+
+        e.Handled = true;
+        await this._viewModel.Connection.RequiredViewerService.SendTextInputAsync(e.Text);
+    }
+
     private async void DisplayPanel_KeyUp(object? sender, KeyEventArgs e)
     {
         if (this._viewModel is not { IsInputEnabled: true })
             return;
+
+        // Character-producing keys without shortcut modifiers were handled by TextInput event
+        if (IsCharacterProducingKey(e.Key) && !HasShortcutModifier(e.KeyModifiers))
+        {
+            e.Handled = true;
+            return;
+        }
 
         e.Handled = true;
 
@@ -393,6 +416,21 @@ public partial class ViewerView : Window
     #endregion
 
     #region Helper Methods
+    private static bool IsCharacterProducingKey(Key key) => key switch
+    {
+        >= Key.A and <= Key.Z => true,
+        >= Key.D0 and <= Key.D9 => true,
+        >= Key.NumPad0 and <= Key.NumPad9 => true,
+        Key.OemSemicolon or Key.OemPlus or Key.OemComma or Key.OemMinus or
+        Key.OemPeriod or Key.OemQuestion or Key.OemTilde or Key.OemOpenBrackets or
+        Key.OemPipe or Key.OemCloseBrackets or Key.OemQuotes or Key.OemBackslash => true,
+        Key.Space or Key.Multiply or Key.Add or Key.Subtract or Key.Decimal or Key.Divide => true,
+        _ => false
+    };
+
+    private static bool HasShortcutModifier(KeyModifiers modifiers) =>
+        modifiers.HasFlag(KeyModifiers.Control) || modifiers.HasFlag(KeyModifiers.Alt);
+
     private bool TryGetNormalizedPosition(PointerEventArgs e, out float x, out float y)
     {
         x = -1;

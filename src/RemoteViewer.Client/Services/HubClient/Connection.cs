@@ -454,6 +454,13 @@ public sealed class Connection : IConnectionImpl
                         break;
                     }
 
+                case MessageTypes.Input.TextInput:
+                    {
+                        var message = ProtocolSerializer.Deserialize<TextInputMessage>(data);
+                        ((IPresenterServiceImpl)this.PresenterService!).HandleTextInput(senderClientId, message.Text);
+                        break;
+                    }
+
                 case MessageTypes.Input.SecureAttentionSequence:
                     this._logger.LogInformation("Received Ctrl+Alt+Del request from {SenderClientId}", senderClientId);
                     ((IPresenterServiceImpl)this.PresenterService!).HandleSecureAttentionSequence(senderClientId);

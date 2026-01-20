@@ -9,6 +9,7 @@ internal interface IPresenterServiceImpl
     void HandleMouseButton(string senderClientId, float x, float y, MouseButton button, bool isDown);
     void HandleMouseWheel(string senderClientId, float x, float y, float deltaX, float deltaY);
     void HandleKey(string senderClientId, ushort keyCode, KeyModifiers modifiers, bool isDown);
+    void HandleTextInput(string senderClientId, string text);
     void HandleSecureAttentionSequence(string senderClientId);
 
     // Display selection

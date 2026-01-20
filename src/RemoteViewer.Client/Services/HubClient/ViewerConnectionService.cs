@@ -256,6 +256,21 @@ public sealed class ViewerConnectionService : IViewerServiceImpl, IDisposable
         }
     }
 
+    public async Task SendTextInputAsync(string text)
+    {
+        try
+        {
+            var message = new TextInputMessage(text);
+            using var buffer = PooledBufferWriter.Rent();
+            ProtocolSerializer.Serialize(buffer, message);
+            await ((IConnectionImpl)this._connection).SendInputAsync(MessageTypes.Input.TextInput, buffer.WrittenMemory);
+        }
+        catch (Exception ex)
+        {
+            this._logger.LogError(ex, "Failed to send text input");
+        }
+    }
+
     public async Task ReleaseAllKeysAsync()
     {
         if (this._pressedKeys.IsEmpty)
