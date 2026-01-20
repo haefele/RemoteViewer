@@ -287,6 +287,10 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
     {
         try
         {
+            // Validate text length to prevent DoS
+            if (string.IsNullOrEmpty(text) || text.Length > 1000)
+                return;
+
             if (this._localInputMonitor.ShouldSuppressViewerInput())
                 return;
 
