@@ -283,6 +283,24 @@ public sealed class PresenterConnectionService : IPresenterServiceImpl, IDisposa
         }
     }
 
+    async void IPresenterServiceImpl.HandleTextInput(string senderClientId, string text)
+    {
+        try
+        {
+            if (this._localInputMonitor.ShouldSuppressViewerInput())
+                return;
+
+            if (this._connection.ConnectionProperties.InputBlockedViewerIds.Contains(senderClientId))
+                return;
+
+            await this._inputInjectionService.InjectText(text, this._connection.ConnectionId, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            this._logger.LogError(ex, "Error handling text input from {SenderClientId}", senderClientId);
+        }
+    }
+
     async void IPresenterServiceImpl.HandleSecureAttentionSequence(string senderClientId)
     {
         try

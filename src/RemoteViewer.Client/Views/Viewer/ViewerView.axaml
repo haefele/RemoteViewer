@@ -214,6 +214,7 @@
                 PointerWheelChanged="DisplayPanel_PointerWheelChanged"
                 KeyDown="DisplayPanel_KeyDown"
                 KeyUp="DisplayPanel_KeyUp"
+                TextInput="DisplayPanel_TextInput"
                 >
             <Panel>
                 <Image x:Name="FrameImage"

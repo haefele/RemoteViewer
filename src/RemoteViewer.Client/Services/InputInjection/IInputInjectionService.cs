@@ -13,5 +13,7 @@ public interface IInputInjectionService
 
     Task InjectKey(ushort keyCode, bool isDown, string? connectionId, CancellationToken ct);
 
+    Task InjectText(string text, string? connectionId, CancellationToken ct);
+
     Task ReleaseAllModifiers(string? connectionId, CancellationToken ct);
 }

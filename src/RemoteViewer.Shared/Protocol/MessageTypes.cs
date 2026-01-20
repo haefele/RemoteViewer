@@ -42,6 +42,9 @@ public static class MessageTypes
 
         /// <summary>Secure Attention Sequence / Ctrl+Alt+Del (Viewer → Presenter)</summary>
         public const string SecureAttentionSequence = "input.sas";
+
+        /// <summary>Unicode text input (Viewer → Presenter)</summary>
+        public const string TextInput = "input.text";
     }
 
     public static class FileTransfer

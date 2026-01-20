@@ -230,6 +230,12 @@ public class SessionRecorderRpcServer(
         return inputInjectionService.InjectKey(keyCode, isDown, null, ct);
     }
 
+    public Task InjectText(string connectionId, string text, CancellationToken ct)
+    {
+        this.ValidateConnectionId(connectionId);
+        return inputInjectionService.InjectText(text, null, ct);
+    }
+
     public Task ReleaseAllModifiers(string connectionId, CancellationToken ct)
     {
         this.ValidateConnectionId(connectionId);

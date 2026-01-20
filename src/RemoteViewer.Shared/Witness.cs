@@ -33,4 +33,5 @@ namespace RemoteViewer.Shared;
 [GenerateShapeFor<ClipboardTextMessage>]
 [GenerateShapeFor<ClipboardImageMessage>]
 [GenerateShapeFor<ChatMessage>]
+[GenerateShapeFor<TextInputMessage>]
 public partial class Witness;

@@ -102,6 +102,13 @@ public class WindowsInputInjectionService : IInputInjectionService, IDisposable
             () => this.ActualInjectKey(keyCode, isDown, ct),
             "inject key");
 
+    public Task InjectText(string text, string? connectionId, CancellationToken ct)
+        => this.ExecuteWithFallbackAsync(
+            connectionId,
+            cid => this._rpcClient!.Proxy!.InjectText(cid, text, ct),
+            () => this.ActualInjectText(text, ct),
+            "inject text");
+
     public Task ReleaseAllModifiers(string? connectionId, CancellationToken ct)
         => this.ExecuteWithFallbackAsync(
             connectionId,
@@ -228,6 +235,17 @@ public class WindowsInputInjectionService : IInputInjectionService, IDisposable
             {
                 this._simulator.Keyboard.KeyUp(vk);
             }
+        }, ct);
+        return Task.CompletedTask;
+    }
+
+    private Task ActualInjectText(string text, CancellationToken ct)
+    {
+        this._actionQueue.Add(() =>
+        {
+            this.CheckAndReleaseStuckModifiers();
+            this._lastInputTime = DateTime.UtcNow;
+            this._simulator.Keyboard.TextEntry(text);
         }, ct);
         return Task.CompletedTask;
     }
