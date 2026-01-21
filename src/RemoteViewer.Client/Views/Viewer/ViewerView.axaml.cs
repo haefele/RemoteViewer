@@ -248,35 +248,26 @@ public partial class ViewerView : Window
             }
         }
 
-        if (!this._viewModel.IsInputEnabled)
+        if (this._viewModel.IsInputEnabled is false)
             return;
 
-        // Printable characters are handled by TextInput event
-        if (ShouldDeferToTextInput(e.KeySymbol))
+        e.Handled = true;
+
+        // If KeySymbol is a printable character, send as text input
+        if (string.IsNullOrEmpty(e.KeySymbol) is false &&
+            e.KeySymbol.Length == 1 &&
+            char.IsControl(e.KeySymbol[0]) is false)
         {
-            e.Handled = true;
-            return;
+            await this._viewModel.Connection.RequiredViewerService.SendTextInputAsync(e.KeySymbol);
+        }
+        // Non-printable keys (arrows, function keys, etc.) go through KeyDown
+        else
+        {
+            var keyCode = (ushort)KeyInterop.VirtualKeyFromKey(e.Key);
+            var modifiers = this.GetKeyModifiers(e.KeyModifiers);
+            await this._viewModel.Connection.RequiredViewerService.SendKeyDownAsync(keyCode, modifiers);
         }
 
-        e.Handled = true;
-
-        var keyCode = (ushort)KeyInterop.VirtualKeyFromKey(e.Key);
-        var modifiers = this.GetKeyModifiers(e.KeyModifiers);
-        await this._viewModel.Connection.RequiredViewerService.SendKeyDownAsync(keyCode, modifiers);
-    }
-
-    private async void DisplayPanel_TextInput(object? sender, TextInputEventArgs e)
-    {
-        e.Handled = true;
-
-        // Validate input: must be enabled, non-empty, and reasonable length
-        // Max 100 chars handles typical IME input and paste scenarios
-        if (this._viewModel is not { IsInputEnabled: true } ||
-            string.IsNullOrEmpty(e.Text) ||
-            e.Text.Length > 100)
-            return;
-
-        await this._viewModel.Connection.RequiredViewerService.SendTextInputAsync(e.Text);
     }
 
     private async void DisplayPanel_KeyUp(object? sender, KeyEventArgs e)
@@ -284,14 +275,15 @@ public partial class ViewerView : Window
         if (this._viewModel is not { IsInputEnabled: true })
             return;
 
-        // Printable characters were handled by TextInput event
-        if (ShouldDeferToTextInput(e.KeySymbol))
+        e.Handled = true;
+
+        // Printable characters were sent as text on KeyDown, no KeyUp needed
+        if (string.IsNullOrEmpty(e.KeySymbol) is false &&
+            e.KeySymbol.Length == 1 &&
+            char.IsControl(e.KeySymbol[0]) is false)
         {
-            e.Handled = true;
             return;
         }
-
-        e.Handled = true;
 
         var keyCode = (ushort)KeyInterop.VirtualKeyFromKey(e.Key);
         var modifiers = this.GetKeyModifiers(e.KeyModifiers);
@@ -421,15 +413,6 @@ public partial class ViewerView : Window
     #endregion
 
     #region Helper Methods
-    private static bool ShouldDeferToTextInput(string? keySymbol)
-    {
-        // If KeySymbol is a printable character, let TextInput handle it.
-        // Control characters (Ctrl+key) and null (special keys) go through KeyDown.
-        return !string.IsNullOrEmpty(keySymbol) &&
-               keySymbol.Length == 1 &&
-               !char.IsControl(keySymbol[0]);
-    }
-
     private bool TryGetNormalizedPosition(PointerEventArgs e, out float x, out float y)
     {
         x = -1;
