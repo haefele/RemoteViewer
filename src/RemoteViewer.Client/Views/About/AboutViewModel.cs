@@ -25,7 +25,6 @@ public partial class AboutViewModel : ObservableObject
         new("Serilog", "https://serilog.net/", "Apache-2.0", "https://github.com/serilog/serilog/blob/dev/LICENSE"),
         new("Quamotion.TurboJpegWrapper", "https://github.com/quamotion/AS.TurboJpegWrapper", "MIT", "https://github.com/quamotion/AS.TurboJpegWrapper/blob/master/LICENSE"),
         new("ZiggyCreatures.FusionCache", "https://github.com/ZiggyCreatures/FusionCache", "MIT", "https://github.com/ZiggyCreatures/FusionCache/blob/main/LICENSE"),
-        new("H.InputSimulator", "https://github.com/HavenDV/H.InputSimulator", "MIT", "https://github.com/HavenDV/H.InputSimulator/blob/master/LICENSE.md"),
         new("PolyType", "https://github.com/eiriktsarpalis/PolyType", "MIT", "https://github.com/eiriktsarpalis/PolyType/blob/main/LICENSE"),
     ];
 

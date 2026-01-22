@@ -6,7 +6,7 @@ using RemoteViewer.Client.Services.WindowsSession;
 using RemoteViewer.Shared;
 using RemoteViewer.Shared.Protocol;
 using Windows.Win32;
-using WindowsInput;
+using Windows.Win32.UI.Input.KeyboardAndMouse;
 
 using ProtocolMouseButton = RemoteViewer.Shared.Protocol.MouseButton;
 
@@ -19,9 +19,8 @@ public class WindowsInputInjectionService : IInputInjectionService, IDisposable
     private readonly IWin32SessionService? _sessionService;
     private readonly SessionRecorderRpcClient? _rpcClient;
     private readonly ILogger<WindowsInputInjectionService> _logger;
-    private readonly InputSimulator _simulator = new();
 
-    private readonly ConcurrentDictionary<VirtualKeyCode, DateTime> _pressedModifiers = new();
+    private readonly ConcurrentDictionary<ushort, DateTime> _pressedModifiers = new();
     private DateTime _lastInputTime = DateTime.UtcNow;
 
     private float _verticalScrollAccumulator;
@@ -122,7 +121,7 @@ public class WindowsInputInjectionService : IInputInjectionService, IDisposable
         {
             this.CheckAndReleaseStuckModifiers();
             var (absX, absY) = NormalizedToAbsolute(display, normalizedX, normalizedY);
-            this._simulator.Mouse.MoveMouseToPositionOnVirtualDesktop(absX, absY);
+            InputHelpers.SendMouseMove(absX, absY);
         }, ct);
         return Task.CompletedTask;
     }
@@ -135,44 +134,25 @@ public class WindowsInputInjectionService : IInputInjectionService, IDisposable
             this._lastInputTime = DateTime.UtcNow;
 
             var (absX, absY) = NormalizedToAbsolute(display, normalizedX, normalizedY);
-            this._simulator.Mouse.MoveMouseToPositionOnVirtualDesktop(absX, absY);
+            InputHelpers.SendMouseMove(absX, absY);
 
-            switch (button)
+            var (flags, mouseData) = button switch
             {
-                case ProtocolMouseButton.Left:
-                    if (isDown)
-                        this._simulator.Mouse.LeftButtonDown();
-                    else
-                        this._simulator.Mouse.LeftButtonUp();
-                    break;
-                case ProtocolMouseButton.Right:
-                    if (isDown)
-                        this._simulator.Mouse.RightButtonDown();
-                    else
-                        this._simulator.Mouse.RightButtonUp();
-                    break;
-                case ProtocolMouseButton.Middle:
-                    if (isDown)
-                        this._simulator.Mouse.MiddleButtonDown();
-                    else
-                        this._simulator.Mouse.MiddleButtonUp();
-                    break;
-                case ProtocolMouseButton.XButton1:
-                    if (isDown)
-                        this._simulator.Mouse.XButtonDown(1);
-                    else
-                        this._simulator.Mouse.XButtonUp(1);
-                    break;
-                case ProtocolMouseButton.XButton2:
-                    if (isDown)
-                        this._simulator.Mouse.XButtonDown(2);
-                    else
-                        this._simulator.Mouse.XButtonUp(2);
-                    break;
-                default:
-                    this._logger.LogWarning("Unknown mouse button: {Button}", button);
-                    break;
+                ProtocolMouseButton.Left => (isDown ? MOUSE_EVENT_FLAGS.MOUSEEVENTF_LEFTDOWN : MOUSE_EVENT_FLAGS.MOUSEEVENTF_LEFTUP, 0u),
+                ProtocolMouseButton.Right => (isDown ? MOUSE_EVENT_FLAGS.MOUSEEVENTF_RIGHTDOWN : MOUSE_EVENT_FLAGS.MOUSEEVENTF_RIGHTUP, 0u),
+                ProtocolMouseButton.Middle => (isDown ? MOUSE_EVENT_FLAGS.MOUSEEVENTF_MIDDLEDOWN : MOUSE_EVENT_FLAGS.MOUSEEVENTF_MIDDLEUP, 0u),
+                ProtocolMouseButton.XButton1 => (isDown ? MOUSE_EVENT_FLAGS.MOUSEEVENTF_XDOWN : MOUSE_EVENT_FLAGS.MOUSEEVENTF_XUP, 1u),
+                ProtocolMouseButton.XButton2 => (isDown ? MOUSE_EVENT_FLAGS.MOUSEEVENTF_XDOWN : MOUSE_EVENT_FLAGS.MOUSEEVENTF_XUP, 2u),
+                _ => (default(MOUSE_EVENT_FLAGS), 0u)
+            };
+
+            if (flags == default)
+            {
+                this._logger.LogWarning("Unknown mouse button: {Button}", button);
+                return;
             }
+
+            InputHelpers.SendMouseButton(flags, mouseData);
         }, ct);
         return Task.CompletedTask;
     }
@@ -185,13 +165,13 @@ public class WindowsInputInjectionService : IInputInjectionService, IDisposable
             this._lastInputTime = DateTime.UtcNow;
 
             var (absX, absY) = NormalizedToAbsolute(display, normalizedX, normalizedY);
-            this._simulator.Mouse.MoveMouseToPositionOnVirtualDesktop(absX, absY);
+            InputHelpers.SendMouseMove(absX, absY);
 
             this._verticalScrollAccumulator += deltaY;
             var verticalClicks = (int)this._verticalScrollAccumulator;
             if (verticalClicks != 0)
             {
-                this._simulator.Mouse.VerticalScroll(verticalClicks);
+                InputHelpers.SendMouseWheel(verticalClicks * 120, horizontal: false);
                 this._verticalScrollAccumulator -= verticalClicks;
             }
 
@@ -199,7 +179,7 @@ public class WindowsInputInjectionService : IInputInjectionService, IDisposable
             var horizontalClicks = (int)this._horizontalScrollAccumulator;
             if (horizontalClicks != 0)
             {
-                this._simulator.Mouse.HorizontalScroll(horizontalClicks);
+                InputHelpers.SendMouseWheel(horizontalClicks * 120, horizontal: true);
                 this._horizontalScrollAccumulator -= horizontalClicks;
             }
         }, ct);
@@ -213,27 +193,25 @@ public class WindowsInputInjectionService : IInputInjectionService, IDisposable
             this.CheckAndReleaseStuckModifiers();
             this._lastInputTime = DateTime.UtcNow;
 
-            var vk = (VirtualKeyCode)keyCode;
-
-            if (IsModifierKey(vk))
+            if (IsModifierKey(keyCode))
             {
                 if (isDown)
                 {
-                    this._pressedModifiers[vk] = DateTime.UtcNow;
+                    this._pressedModifiers[keyCode] = DateTime.UtcNow;
                 }
                 else
                 {
-                    this._pressedModifiers.TryRemove(vk, out _);
+                    this._pressedModifiers.TryRemove(keyCode, out _);
                 }
             }
 
             if (isDown)
             {
-                this._simulator.Keyboard.KeyDown(vk);
+                InputHelpers.SendKeyDown(keyCode);
             }
             else
             {
-                this._simulator.Keyboard.KeyUp(vk);
+                InputHelpers.SendKeyUp(keyCode);
             }
         }, ct);
         return Task.CompletedTask;
@@ -245,7 +223,7 @@ public class WindowsInputInjectionService : IInputInjectionService, IDisposable
         {
             this.CheckAndReleaseStuckModifiers();
             this._lastInputTime = DateTime.UtcNow;
-            this._simulator.Keyboard.TextEntry(text);
+            InputHelpers.SendUnicodeText(text);
         }, ct);
         return Task.CompletedTask;
     }
@@ -257,7 +235,7 @@ public class WindowsInputInjectionService : IInputInjectionService, IDisposable
             foreach (var vk in this._pressedModifiers.Keys)
             {
                 this._logger.LogInformation("Releasing modifier key on cleanup: {Key}", vk);
-                this._simulator.Keyboard.KeyUp(vk);
+                InputHelpers.SendKeyUp(vk);
             }
             this._pressedModifiers.Clear();
         }, ct);
@@ -282,11 +260,11 @@ public class WindowsInputInjectionService : IInputInjectionService, IDisposable
         await localAction();
     }
 
-    private static bool IsModifierKey(VirtualKeyCode vk) => vk is
-        VirtualKeyCode.LSHIFT or VirtualKeyCode.RSHIFT or
-        VirtualKeyCode.LCONTROL or VirtualKeyCode.RCONTROL or
-        VirtualKeyCode.LMENU or VirtualKeyCode.RMENU or
-        VirtualKeyCode.LWIN or VirtualKeyCode.RWIN;
+    private static bool IsModifierKey(ushort vk) => vk is
+        0xA0 or 0xA1 or // VK_LSHIFT, VK_RSHIFT
+        0xA2 or 0xA3 or // VK_LCONTROL, VK_RCONTROL
+        0xA4 or 0xA5 or // VK_LMENU, VK_RMENU
+        0x5B or 0x5C;   // VK_LWIN, VK_RWIN
 
     private void CheckAndReleaseStuckModifiers()
     {
@@ -304,7 +282,7 @@ public class WindowsInputInjectionService : IInputInjectionService, IDisposable
             if (now - pressedTime >= s_modifierTimeout)
             {
                 this._logger.LogWarning("Auto-releasing stuck modifier key: {Key} (held for {Duration:F1}s)", vk, (now - pressedTime).TotalSeconds);
-                this._simulator.Keyboard.KeyUp(vk);
+                InputHelpers.SendKeyUp(vk);
                 this._pressedModifiers.TryRemove(vk, out _);
             }
         }
