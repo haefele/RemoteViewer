@@ -1,4 +1,7 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.SignalR;
+using RemoteViewer.Server.Orleans.Grains;
 using RemoteViewer.Server.Services;
 using RemoteViewer.Shared;
 using ConnectionInfo = RemoteViewer.Shared.ConnectionInfo;
@@ -15,43 +18,25 @@ public interface IConnectionHubClient
 
     Task MessageReceived(string connectionId, string senderClientId, string messageType, byte[] data);
 
-    Task VersionMismatch(string serverVersion, string clientVersion);
-
-    Task IpcTokenValidated(string? connectionId);
 }
 
-public class ConnectionHub(IConnectionsService clientsService, IIpcTokenService ipcTokenService, ILogger<ConnectionHub> logger) : Hub<IConnectionHubClient>
+[
+    Authorize
+]
+public class ConnectionHub(
+    IConnectionsService clientsService) : Hub<IConnectionHubClient>
 {
     public override async Task OnConnectedAsync()
     {
-        var httpContext = this.Context.GetHttpContext();
-
-        // IPC token validation request - no version check needed
-        var ipcToken = httpContext?.Request.Headers["X-Ipc-Token"].ToString();
-        if (string.IsNullOrEmpty(ipcToken) is false)
+        var clientGuid = this.Context.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+        if (string.IsNullOrWhiteSpace(clientGuid))
         {
-            var connectionId = ipcTokenService.ValidateAndConsumeToken(ipcToken);
-            await this.Clients.Caller.IpcTokenValidated(connectionId);
             this.Context.Abort();
             return;
         }
 
-        // Normal client connection - check version
-        var clientVersion = httpContext?.Request.Headers["X-Client-Version"].ToString();
-        var serverVersion = ThisAssembly.AssemblyInformationalVersion;
-
-        if (string.IsNullOrEmpty(clientVersion) || string.Equals(clientVersion, serverVersion, StringComparison.OrdinalIgnoreCase) is false)
-        {
-            logger.VersionMismatch(clientVersion, serverVersion, this.Context.ConnectionId);
-            await this.Clients.Caller.VersionMismatch(serverVersion, clientVersion ?? "unknown");
-
-            this.Context.Abort();
-        }
-        else
-        {
-            var displayName = httpContext?.Request.Headers["X-Display-Name"].ToString();
-            await clientsService.Register(this.Context.ConnectionId, displayName);
-        }
+        var displayName = this.Context.User?.FindFirstValue("display_name");
+        await clientsService.Register(this.Context.ConnectionId, clientGuid, displayName);
     }
 
     public override async Task OnDisconnectedAsync(Exception? exception)
@@ -59,15 +44,9 @@ public class ConnectionHub(IConnectionsService clientsService, IIpcTokenService 
         await clientsService.Unregister(this.Context.ConnectionId);
     }
 
-    public async Task GenerateNewPassword()
-    {
-        await clientsService.GenerateNewPassword(this.Context.ConnectionId);
-    }
+    public async Task GenerateNewPassword() => await clientsService.GenerateNewPassword(this.Context.ConnectionId);
 
-    public async Task SetDisplayName(string displayName)
-    {
-        await clientsService.SetDisplayName(this.Context.ConnectionId, displayName);
-    }
+    public async Task SetDisplayName(string displayName) => await clientsService.SetDisplayName(this.Context.ConnectionId, displayName);
 
     public async Task<TryConnectError?> ConnectTo(string username, string password)
     {
@@ -79,9 +58,9 @@ public class ConnectionHub(IConnectionsService clientsService, IIpcTokenService 
         await clientsService.SendMessage(this.Context.ConnectionId, connectionId, messageType, data, destination, targetClientIds);
     }
 
-    public Task AckFrame(string connectionId)
+    public async Task AckFrame(string connectionId)
     {
-        return clientsService.AckFrame(this.Context.ConnectionId, connectionId);
+        await clientsService.AckFrame(this.Context.ConnectionId, connectionId);
     }
 
 
@@ -93,14 +72,5 @@ public class ConnectionHub(IConnectionsService clientsService, IIpcTokenService 
     public async Task Disconnect(string connectionId)
     {
         await clientsService.DisconnectFromConnection(this.Context.ConnectionId, connectionId);
-    }
-
-    public async Task<string?> GenerateIpcAuthToken(string connectionId)
-    {
-        // Only the presenter of a connection can generate IPC tokens
-        if (await clientsService.IsPresenterOfConnection(this.Context.ConnectionId, connectionId) is false)
-            return null;
-
-        return ipcTokenService.GenerateToken(connectionId);
     }
 }

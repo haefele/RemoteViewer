@@ -12,8 +12,9 @@ namespace RemoteViewer.Server.Services;
 
 public interface IConnectionsService
 {
-    Task Register(string signalrConnectionId, string? displayName);
+    Task Register(string signalrConnectionId, string clientGuid, string? displayName);
     Task Unregister(string signalrConnectionId);
+    Task<string?> GetSignalrConnectionIdAsync(string clientGuid);
     Task GenerateNewPassword(string signalrConnectionId);
     Task SetDisplayName(string signalrConnectionId, string displayName);
 
@@ -35,7 +36,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
     private readonly List<Connection> _connections = new();
     private readonly ReaderWriterLockSlim _lock = new();
 
-    public async Task Register(string signalrConnectionId, string? displayName)
+    public async Task Register(string signalrConnectionId, string clientGuid, string? displayName)
     {
         this._logger.ClientRegistrationStarted(signalrConnectionId);
 
@@ -61,7 +62,7 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
 
                 var credentials = new Credentials(username, password);
 
-                var client = Client.Create(Guid.NewGuid().ToString(), credentials, signalrConnectionId, actions);
+                var client = Client.Create(Guid.NewGuid().ToString(), clientGuid, credentials, signalrConnectionId, actions);
                 this._clients.Add(client);
 
                 if (!string.IsNullOrEmpty(displayName))
@@ -113,6 +114,15 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
         }
 
         await actions.ExecuteAll();
+    }
+
+    public Task<string?> GetSignalrConnectionIdAsync(string clientGuid)
+    {
+        using (this._lock.ReadLock())
+        {
+            var client = this._clients.FirstOrDefault(c => string.Equals(c.ClientGuid, clientGuid, StringComparison.Ordinal));
+            return Task.FromResult(client?.SignalrConnectionId);
+        }
     }
 
     public async Task GenerateNewPassword(string signalrConnectionId)
@@ -354,22 +364,24 @@ public class ConnectionsService(IHubContext<ConnectionHub, IConnectionHubClient>
     #region Internal
     private sealed class Client
     {
-        public static Client Create(string id, Credentials credentials, string signalrConnectionId, ConnectionHubBatchedActions actions)
+        public static Client Create(string id, string clientGuid, Credentials credentials, string signalrConnectionId, ConnectionHubBatchedActions actions)
         {
-            var client = new Client(id, credentials, signalrConnectionId);
+            var client = new Client(id, clientGuid, credentials, signalrConnectionId);
             actions.Add(f => f.Client(signalrConnectionId).CredentialsAssigned(client.Id, FormatUsername(client.Credentials.Username), client.Credentials.Password));
 
             return client;
         }
 
-        private Client(string id, Credentials credentials, string signalrConnectionId)
+        private Client(string id, string clientGuid, Credentials credentials, string signalrConnectionId)
         {
             this.Id = id;
+            this.ClientGuid = clientGuid;
             this.Credentials = credentials;
             this.SignalrConnectionId = signalrConnectionId;
         }
 
         public string Id { get; }
+        public string ClientGuid { get; }
         public Credentials Credentials { get; private set; }
         public string SignalrConnectionId { get; }
         public string DisplayName { get; private set; } = string.Empty;

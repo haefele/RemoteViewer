@@ -29,6 +29,7 @@
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.0" />
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="10.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.0" />
     <PackageReference Include="Nerdbank.MessagePack" Version="1.0.43" />
     <PackageReference Include="Nerdbank.MessagePack.SignalR" Version="1.0.43" />
     <PackageReference Include="PolyType" Version="1.0.0" />

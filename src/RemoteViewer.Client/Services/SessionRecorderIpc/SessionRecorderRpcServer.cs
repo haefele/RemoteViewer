@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.SignalR.Client;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using RemoteViewer.Client.Services.Displays;
@@ -8,6 +7,7 @@ using RemoteViewer.Client.Services.Screenshot;
 using RemoteViewer.Client.Services.WindowsSession;
 using RemoteViewer.Shared;
 using RemoteViewer.Shared.Protocol;
+using System.Net.Http.Json;
 
 namespace RemoteViewer.Client.Services.SessionRecorderIpc;
 
@@ -17,6 +17,7 @@ public class SessionRecorderRpcServer(
     IScreenshotService screenshotService,
     IInputInjectionService inputInjectionService,
     IOptions<ConnectionHubClientOptions> hubClientOptions,
+    HttpClient httpClient,
     ILogger<SessionRecorderRpcServer> logger) : ISessionRecorderRpc, IDisposable
 {
     // Per-display shared memory buffers
@@ -31,37 +32,19 @@ public class SessionRecorderRpcServer(
     {
         try
         {
-            // Connect to SignalR with token header - server validates and returns connectionId
-            var connection = new HubConnectionBuilder()
-                .WithUrl($"{hubClientOptions.Value.BaseUrl}/connection", options =>
-                {
-                    options.Headers.Add("X-Ipc-Token", token);
-                })
-                .Build();
-
-            var validationResult = new TaskCompletionSource<string?>();
-
-            connection.On<string?>("IpcTokenValidated", connectionId => validationResult.TrySetResult(connectionId));
-            connection.Closed += _ =>
-            {
-                validationResult.TrySetResult(null);
-                return Task.CompletedTask;
-            };
-
-            await connection.StartAsync(ct);
-
-            // Wait for validation result (server will abort connection after sending)
-            var validatedConnectionId = await validationResult.Task.WaitAsync(ct);
-
-            await connection.DisposeAsync();
-
-            if (validatedConnectionId is not null)
+            var response = await httpClient.PostAsJsonAsync(
+                $"{hubClientOptions.Value.BaseUrl}/api/ipc/validate",
+                new IpcTokenValidateRequest(token),
+                ct);
+            response.EnsureSuccessStatusCode();
+            var validation = await response.Content.ReadFromJsonAsync<IpcTokenValidateResponse>(cancellationToken: ct);
+            if (validation is not null && validation.Success && !string.IsNullOrWhiteSpace(validation.ConnectionId))
             {
                 lock (this._connectionsLock)
                 {
-                    this._authenticatedConnections.Add(validatedConnectionId);
+                    this._authenticatedConnections.Add(validation.ConnectionId);
                 }
-                logger.ConnectionAuthenticated(validatedConnectionId);
+                logger.ConnectionAuthenticated(validation.ConnectionId);
                 return new AuthenticateResult(true, null);
             }
 

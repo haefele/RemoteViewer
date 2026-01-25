@@ -1,5 +1,7 @@
-﻿using Microsoft.AspNetCore.Http.Connections;
+using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.SignalR.Client;
+using System.Net.Http.Json;
+using System.Net.Http.Headers;
 using Nerdbank.MessagePack.SignalR;
 using RemoteViewer.TestFixtures.Fixtures;
 using RemoteViewer.Shared;
@@ -11,12 +13,23 @@ public class SignalRHubTests
     [ClassDataSource<ServerFixture>(Shared = SharedType.PerTestSession)]
     public required ServerFixture Server { get; init; }
 
-    private async Task<HubConnection> CreateHubConnectionAsync(Action<HubConnection>? configure = null)
+    private async Task<HubConnection> CreateHubConnectionAsync(Action<HubConnection>? configure = null, bool authenticate = true)
     {
+        string? token = null;
+        if (authenticate)
+        {
+            token = await this.AuthenticateAsync();
+            if (string.IsNullOrWhiteSpace(token))
+                throw new InvalidOperationException("Expected auth token.");
+        }
+
         var connection = new HubConnectionBuilder()
             .WithUrl($"{this.Server.ClientOptions.BaseAddress.ToString()}connection", options =>
             {
-                options.Headers.Add("X-Client-Version", ThisAssembly.AssemblyInformationalVersion);
+                if (!string.IsNullOrWhiteSpace(token))
+                {
+                    options.AccessTokenProvider = () => Task.FromResult<string?>(token);
+                }
             })
             .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
             .Build();
@@ -26,6 +39,42 @@ public class SignalRHubTests
         await connection.StartAsync();
 
         return connection;
+    }
+
+    private async Task<string?> AuthenticateAsync()
+    {
+        using var ecdsa = System.Security.Cryptography.ECDsa.Create(System.Security.Cryptography.ECCurve.NamedCurves.nistP256);
+        var clientGuid = Guid.NewGuid().ToString();
+        var publicKey = Convert.ToBase64String(ecdsa.ExportSubjectPublicKeyInfo());
+
+        var client = this.Server.CreateClient();
+        var registrationResponse = await client.PostAsJsonAsync(
+            "/api/auth/register",
+            new ClientRegistrationRequest(clientGuid, publicKey, ClientAuthKeyFormats.EcdsaP256));
+        registrationResponse.EnsureSuccessStatusCode();
+        var registration = await registrationResponse.Content.ReadFromJsonAsync<ClientRegistrationResponse>();
+        await Assert.That(registration).IsNotNull();
+        await Assert.That(registration!.IsRegistered).IsTrue();
+
+        var nonceResponse = await client.PostAsJsonAsync(
+            "/api/auth/nonce",
+            new ClientAuthNonceRequest(clientGuid));
+        nonceResponse.EnsureSuccessStatusCode();
+        var challenge = await nonceResponse.Content.ReadFromJsonAsync<ClientAuthChallenge>();
+        await Assert.That(challenge).IsNotNull();
+        await Assert.That(challenge!.Nonce).IsNotNull();
+
+        var signature = ecdsa.SignData(Convert.FromBase64String(challenge.Nonce!), System.Security.Cryptography.HashAlgorithmName.SHA256);
+        var authResponse = await client.PostAsJsonAsync(
+            "/api/auth/authenticate",
+            new ClientAuthRequest(clientGuid, Convert.ToBase64String(signature), "Test Client", ThisAssembly.AssemblyInformationalVersion));
+        authResponse.EnsureSuccessStatusCode();
+        var authResult = await authResponse.Content.ReadFromJsonAsync<ClientAuthTokenResponse>();
+        await Assert.That(authResult).IsNotNull();
+        await Assert.That(authResult!.IsAuthenticated).IsTrue();
+        await Assert.That(authResult.AccessToken).IsNotNull().And.IsNotEmpty();
+
+        return authResult.AccessToken;
     }
 
     [Test]
@@ -307,7 +356,7 @@ public class SignalRHubTests
         {
             hub.On<string, string, string>("CredentialsAssigned", (_, _, _) => { });
             hub.On<string, bool>("ConnectionStarted", (_, _) => { });
-        });
+        }, authenticate: true);
 
         await viewer.InvokeAsync<TryConnectError?>("ConnectTo", creds.username, creds.password);
         await presenterConnectionId.Task.WaitAsync(TimeSpan.FromSeconds(5));
@@ -406,10 +455,19 @@ public class SignalRHubTests
         var connId = await presenterConnectionId.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         // Act
-        var token = await presenter.InvokeAsync<string?>("GenerateIpcAuthToken", connId);
+        var client = this.Server.CreateClient();
+        var token = await this.AuthenticateAsync();
+        if (string.IsNullOrWhiteSpace(token))
+            throw new InvalidOperationException("Expected auth token.");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var response = await client.PostAsJsonAsync("/api/ipc/token", new IpcTokenRequest(connId));
+        response.EnsureSuccessStatusCode();
+        var tokenResponse = await response.Content.ReadFromJsonAsync<IpcTokenResponse>();
 
         // Assert
-        await Assert.That(token).IsNotNull().And.IsNotEmpty();
+        await Assert.That(tokenResponse).IsNotNull();
+        await Assert.That(tokenResponse!.Success).IsTrue();
+        await Assert.That(tokenResponse.Token).IsNotNull().And.IsNotEmpty();
     }
 
     [Test]
@@ -440,46 +498,57 @@ public class SignalRHubTests
             {
                 viewerConnectionStarted.TrySetResult();
             });
-        });
+        }, authenticate: true);
 
         await viewer.InvokeAsync<TryConnectError?>("ConnectTo", creds.username, creds.password);
         var connId = await presenterConnectionId.Task.WaitAsync(TimeSpan.FromSeconds(5));
         await viewerConnectionStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         // Act - Viewer tries to generate token - should fail
-        var token = await viewer.InvokeAsync<string?>("GenerateIpcAuthToken", connId);
+        var client = this.Server.CreateClient();
+        var token = await this.AuthenticateAsync();
+        if (string.IsNullOrWhiteSpace(token))
+            throw new InvalidOperationException("Expected auth token.");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var response = await client.PostAsJsonAsync("/api/ipc/token", new IpcTokenRequest(connId));
+        response.EnsureSuccessStatusCode();
+        var tokenResponse = await response.Content.ReadFromJsonAsync<IpcTokenResponse>();
 
         // Assert
-        await Assert.That(token).IsNull();
+        await Assert.That(tokenResponse).IsNotNull();
+        await Assert.That(tokenResponse!.Success).IsFalse();
     }
 
     [Test]
     public async Task ConnectWithVersionMismatchReceivesVersionMismatch()
     {
-        var versionMismatch = new TaskCompletionSource<(string serverVersion, string clientVersion)>();
+        using var ecdsa = System.Security.Cryptography.ECDsa.Create(System.Security.Cryptography.ECCurve.NamedCurves.nistP256);
+        var clientGuid = Guid.NewGuid().ToString();
+        var publicKey = Convert.ToBase64String(ecdsa.ExportSubjectPublicKeyInfo());
 
-        var connection = new HubConnectionBuilder()
-            .WithUrl($"{this.Server.ClientOptions.BaseAddress.ToString()}connection", options =>
-            {
-                options.Headers.Add("X-Client-Version", "0.0.0-invalid");
-            })
-            .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
-            .Build();
+        var client = this.Server.CreateClient();
+        var registrationResponse = await client.PostAsJsonAsync(
+            "/api/auth/register",
+            new ClientRegistrationRequest(clientGuid, publicKey, ClientAuthKeyFormats.EcdsaP256));
+        registrationResponse.EnsureSuccessStatusCode();
 
-        connection.On<string, string>("VersionMismatch", (serverVersion, clientVersion) =>
-        {
-            versionMismatch.TrySetResult((serverVersion, clientVersion));
-        });
+        var nonceResponse = await client.PostAsJsonAsync(
+            "/api/auth/nonce",
+            new ClientAuthNonceRequest(clientGuid));
+        nonceResponse.EnsureSuccessStatusCode();
+        var challenge = await nonceResponse.Content.ReadFromJsonAsync<ClientAuthChallenge>();
+        await Assert.That(challenge).IsNotNull();
 
-        // Act
-        await connection.StartAsync();
-        var result = await versionMismatch.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        var signature = ecdsa.SignData(Convert.FromBase64String(challenge!.Nonce!), System.Security.Cryptography.HashAlgorithmName.SHA256);
+        var authResponse = await client.PostAsJsonAsync(
+            "/api/auth/authenticate",
+            new ClientAuthRequest(clientGuid, Convert.ToBase64String(signature), "Test Client", "0.0.0-invalid"));
+        authResponse.EnsureSuccessStatusCode();
+        var authResult = await authResponse.Content.ReadFromJsonAsync<ClientAuthTokenResponse>();
 
-        // Assert
-        await Assert.That(result.clientVersion).IsEqualTo("0.0.0-invalid");
-        await Assert.That(result.serverVersion).IsEqualTo(ThisAssembly.AssemblyInformationalVersion);
-
-        await connection.DisposeAsync();
+        await Assert.That(authResult).IsNotNull();
+        await Assert.That(authResult!.IsAuthenticated).IsFalse();
+        await Assert.That(authResult.ServerVersion).IsEqualTo(ThisAssembly.AssemblyInformationalVersion);
     }
 
     [Test]
@@ -513,61 +582,40 @@ public class SignalRHubTests
         var connId = await presenterConnectionId.Task.WaitAsync(TimeSpan.FromSeconds(5));
 
         // Generate IPC token
-        var ipcToken = await presenter.InvokeAsync<string?>("GenerateIpcAuthToken", connId);
-        await Assert.That(ipcToken).IsNotNull();
+        var client = this.Server.CreateClient();
+        var token = await this.AuthenticateAsync();
+        if (string.IsNullOrWhiteSpace(token))
+            throw new InvalidOperationException("Expected auth token.");
+        client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+        var tokenResponse = await client.PostAsJsonAsync("/api/ipc/token", new IpcTokenRequest(connId));
+        tokenResponse.EnsureSuccessStatusCode();
+        var tokenResult = await tokenResponse.Content.ReadFromJsonAsync<IpcTokenResponse>();
+        await Assert.That(tokenResult).IsNotNull();
+        await Assert.That(tokenResult!.Success).IsTrue();
+        await Assert.That(tokenResult.Token).IsNotNull();
 
-        // Now connect with the IPC token
-        var ipcValidated = new TaskCompletionSource<string?>();
-
-        var ipcConnection = new HubConnectionBuilder()
-            .WithUrl($"{this.Server.ClientOptions.BaseAddress.ToString()}connection", options =>
-            {
-                options.Headers.Add("X-Ipc-Token", ipcToken!);
-            })
-            .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
-            .Build();
-
-        ipcConnection.On<string?>("IpcTokenValidated", connectionId =>
-        {
-            ipcValidated.TrySetResult(connectionId);
-        });
-
-        // Act
-        await ipcConnection.StartAsync();
-        var validatedConnectionId = await ipcValidated.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        // Validate token via controller
+        var validateResponse = await client.PostAsJsonAsync("/api/ipc/validate", new IpcTokenValidateRequest(tokenResult.Token!));
+        validateResponse.EnsureSuccessStatusCode();
+        var validateResult = await validateResponse.Content.ReadFromJsonAsync<IpcTokenValidateResponse>();
 
         // Assert
-        await Assert.That(validatedConnectionId).IsEqualTo(connId);
-
-        await ipcConnection.DisposeAsync();
+        await Assert.That(validateResult).IsNotNull();
+        await Assert.That(validateResult!.Success).IsTrue();
+        await Assert.That(validateResult.ConnectionId).IsEqualTo(connId);
     }
 
     [Test]
     public async Task ConnectWithInvalidIpcTokenReceivesNull()
     {
-        var ipcValidated = new TaskCompletionSource<string?>();
+        var client = this.Server.CreateClient();
+        var response = await client.PostAsJsonAsync("/api/ipc/validate", new IpcTokenValidateRequest("invalid-token"));
+        response.EnsureSuccessStatusCode();
+        var result = await response.Content.ReadFromJsonAsync<IpcTokenValidateResponse>();
 
-        var ipcConnection = new HubConnectionBuilder()
-            .WithUrl($"{this.Server.ClientOptions.BaseAddress.ToString()}connection", options =>
-            {
-                options.Headers.Add("X-Ipc-Token", "invalid-token");
-            })
-            .AddMessagePackProtocol(Witness.GeneratedTypeShapeProvider)
-            .Build();
-
-        ipcConnection.On<string?>("IpcTokenValidated", connectionId =>
-        {
-            ipcValidated.TrySetResult(connectionId);
-        });
-
-        // Act
-        await ipcConnection.StartAsync();
-        var validatedConnectionId = await ipcValidated.Task.WaitAsync(TimeSpan.FromSeconds(5));
-
-        // Assert
-        await Assert.That(validatedConnectionId).IsNull();
-
-        await ipcConnection.DisposeAsync();
+        await Assert.That(result).IsNotNull();
+        await Assert.That(result!.Success).IsFalse();
+        await Assert.That(result.ConnectionId).IsNull();
     }
 
     [Test]

@@ -15,6 +15,7 @@ using RemoteViewer.Client.Services.HubClient;
 using RemoteViewer.Client.Services.InputInjection;
 using RemoteViewer.Client.Services.LocalInputMonitor;
 using RemoteViewer.Client.Services.Screenshot;
+using RemoteViewer.Client.Services.Auth;
 using RemoteViewer.Client.Services.SessionRecorderIpc;
 using RemoteViewer.Client.Services.WinServiceIpc;
 using RemoteViewer.Client.Views.Presenter;
@@ -88,6 +89,8 @@ public class ClientFixture : IAsyncDisposable
         services.Replace(ServiceDescriptor.Singleton(new WinServiceRpcClient(nullWinServiceLogger)));
 
         this._serviceProvider = services.BuildServiceProvider();
+        var identityService = this._serviceProvider.GetRequiredService<ClientIdentityService>();
+        identityService.GetIdentityAsync().GetAwaiter().GetResult();
         this.HubClient = this._serviceProvider.GetRequiredService<ConnectionHubClient>();
 
         if (displayName != null)

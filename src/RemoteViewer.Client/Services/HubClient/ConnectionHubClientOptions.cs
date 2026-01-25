@@ -10,4 +10,6 @@ public class ConnectionHubClientOptions
 #endif
 
     public bool SuppressAutoFrameAck { get; set; }
+
+    public string? AccessToken { get; set; }
 }

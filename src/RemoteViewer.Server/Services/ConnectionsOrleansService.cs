@@ -5,16 +5,32 @@ namespace RemoteViewer.Server.Services;
 
 public sealed class ConnectionsOrleansService(IGrainFactory grainFactory) : IConnectionsService
 {
-    public async Task Register(string signalrConnectionId, string? displayName)
+    public async Task Register(string signalrConnectionId, string clientGuid, string? displayName)
     {
         var clientGrain = grainFactory.GetGrain<IClientGrain>(signalrConnectionId);
-        await clientGrain.Initialize(displayName);
+        await clientGrain.Initialize(clientGuid, displayName);
+
+        var mapGrain = grainFactory.GetGrain<IClientGuidMapGrain>(clientGuid);
+        await mapGrain.SetSignalrConnectionIdAsync(signalrConnectionId);
     }
 
     public async Task Unregister(string signalrConnectionId)
     {
         var clientGrain = grainFactory.GetGrain<IClientGrain>(signalrConnectionId);
+        var clientGuid = await clientGrain.Internal_GetClientGuid();
         await clientGrain.Deactivate();
+
+        if (!string.IsNullOrWhiteSpace(clientGuid))
+        {
+            var mapGrain = grainFactory.GetGrain<IClientGuidMapGrain>(clientGuid);
+            await mapGrain.ClearSignalrConnectionIdAsync(signalrConnectionId);
+        }
+    }
+
+    public async Task<string?> GetSignalrConnectionIdAsync(string clientGuid)
+    {
+        var mapGrain = grainFactory.GetGrain<IClientGuidMapGrain>(clientGuid);
+        return await mapGrain.GetSignalrConnectionIdAsync();
     }
 
     public async Task GenerateNewPassword(string signalrConnectionId)

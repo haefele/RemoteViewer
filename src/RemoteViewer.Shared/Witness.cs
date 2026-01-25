@@ -17,6 +17,20 @@ namespace RemoteViewer.Shared;
 [GenerateShapeFor<TryConnectError?>]
 [GenerateShapeFor<MessageDestination>]
 [GenerateShapeFor<List<string>>]
+// Auth models
+[GenerateShapeFor<ClientRegistrationResponse>]
+[GenerateShapeFor<ClientAuthChallenge>]
+[GenerateShapeFor<ClientAuthResponse>]
+[GenerateShapeFor<ClientAuthResult>]
+// Auth API models
+[GenerateShapeFor<ClientRegistrationRequest>]
+[GenerateShapeFor<ClientAuthNonceRequest>]
+[GenerateShapeFor<ClientAuthRequest>]
+[GenerateShapeFor<ClientAuthTokenResponse>]
+[GenerateShapeFor<IpcTokenRequest>]
+[GenerateShapeFor<IpcTokenResponse>]
+[GenerateShapeFor<IpcTokenValidateRequest>]
+[GenerateShapeFor<IpcTokenValidateResponse>]
 // Protocol messages
 [GenerateShapeFor<FrameMessage>]
 [GenerateShapeFor<FrameRegion>]

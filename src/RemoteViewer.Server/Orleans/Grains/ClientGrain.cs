@@ -8,7 +8,7 @@ namespace RemoteViewer.Server.Orleans.Grains;
 
 public interface IClientGrain : IGrainWithStringKey
 {
-    Task Initialize(string? displayName);
+    Task Initialize(string clientGuid, string? displayName);
     [ReadOnly]
     Task<bool> IsInitialized();
     Task Deactivate();
@@ -23,6 +23,8 @@ public interface IClientGrain : IGrainWithStringKey
     [AlwaysInterleave]
     Task<string> Internal_GetClientId();
     [AlwaysInterleave]
+    Task<string?> Internal_GetClientGuid();
+    [AlwaysInterleave]
     Task<(string ClientId, string DisplayName)> Internal_GetClientInfo();
 }
 
@@ -30,6 +32,7 @@ public sealed partial class ClientGrain(ILogger<ClientGrain> logger, IHubContext
     : Grain, IClientGrain
 {
     private string? _clientId;
+    private string? _clientGuid;
     private IUsernameGrain? _usernameGrain;
     private string? _password;
 
@@ -40,12 +43,13 @@ public sealed partial class ClientGrain(ILogger<ClientGrain> logger, IHubContext
     private IConnectionGrain? _presenterConnectionGrain;
     private readonly List<IConnectionGrain> _viewerConnectionGrains = [];
 
-    public async Task Initialize(string? displayName)
+    public async Task Initialize(string clientGuid, string? displayName)
     {
         if (this._clientId is not null)
             throw new InvalidOperationException("Client already initialized");
 
         this._clientId = Guid.NewGuid().ToString();
+        this._clientGuid = clientGuid;
         this._displayName = displayName ?? string.Empty;
 
         this.LogClientInitializing(this._clientId);
@@ -190,6 +194,12 @@ public sealed partial class ClientGrain(ILogger<ClientGrain> logger, IHubContext
 
         return Task.FromResult(this._clientId);
     }
+    public Task<string?> Internal_GetClientGuid()
+    {
+        this.EnsureInitialized();
+
+        return Task.FromResult<string?>(this._clientGuid);
+    }
     public Task<(string ClientId, string DisplayName)> Internal_GetClientInfo()
     {
         this.EnsureInitialized();
@@ -213,13 +223,14 @@ public sealed partial class ClientGrain(ILogger<ClientGrain> logger, IHubContext
         }
         return sb.ToString();
     }
-    [MemberNotNull(nameof(_clientId), nameof(_usernameGrain), nameof(_sendGrain), nameof(_password))]
+    [MemberNotNull(nameof(_clientId), nameof(_clientGuid), nameof(_usernameGrain), nameof(_sendGrain), nameof(_password))]
     private void EnsureInitialized()
     {
-        if (this._clientId is null || this._usernameGrain is null || this._sendGrain is null || this._password is null)
+        if (this._clientId is null || this._clientGuid is null || this._usernameGrain is null || this._sendGrain is null || this._password is null)
         {
             throw new InvalidOperationException(
                 $"ClientGrain not initialized: clientId={(this._clientId is null ? "null" : "set")}, " +
+                $"clientGuid={(this._clientGuid is null ? "null" : "set")}, " +
                 $"usernameGrain={(this._usernameGrain is null ? "null" : "set")}, " +
                 $"sendGrain={(this._sendGrain is null ? "null" : "set")}, " +
                 $"password={(this._password is null ? "null" : "set")}");

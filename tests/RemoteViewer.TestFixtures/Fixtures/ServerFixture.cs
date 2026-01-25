@@ -32,6 +32,17 @@ public class ServerFixture : WebApplicationFactory<Program>, IAsyncInitializer
         return client;
     }
 
+    public HttpClient CreateClient(string? bearerToken = null)
+    {
+        var client = this.CreateDefaultClient();
+        if (!string.IsNullOrWhiteSpace(bearerToken))
+        {
+            client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", bearerToken);
+        }
+
+        return client;
+    }
+
     public async Task CreateConnectionAsync(ClientFixture presenter, params ClientFixture[] viewers)
     {
         var (username, password) = await presenter.WaitForCredentialsAsync();

@@ -1,7 +1,8 @@
-﻿using Avalonia.Threading;
+using Avalonia.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using RemoteViewer.Client.Services.Auth;
 using RemoteViewer.Client.Services.Clipboard;
 using RemoteViewer.Client.Services.Dialogs;
 using RemoteViewer.Client.Services.Dispatching;
@@ -56,6 +57,8 @@ public static class ServiceRegistration
 
         // Hub Connection
         services.AddOptions<ConnectionHubClientOptions>();
+        services.AddHttpClient();
+        services.AddSingleton<ClientIdentityService>();
         services.AddSingleton<ConnectionHubClient>();
 
         // Screen Encoding
@@ -100,6 +103,7 @@ public static class ServiceRegistration
 
         // Hub Client Options (for IPC token validation)
         services.AddOptions<ConnectionHubClientOptions>();
+        services.AddHttpClient();
 
         // Session Management
         services.AddSingleton<IWin32SessionService, Win32SessionService>();
@@ -125,6 +129,7 @@ public static class ServiceRegistration
 
         // Hub Client Options (for IPC token validation)
         services.AddOptions<ConnectionHubClientOptions>();
+        services.AddHttpClient();
 
         // Session Management
         services.AddSingleton<IWin32SessionService, Win32SessionService>();
@@ -168,3 +173,4 @@ public static class ServiceRegistration
 
     public static Action<IServiceCollection>? CustomizeServices { get; set; }
 }
+

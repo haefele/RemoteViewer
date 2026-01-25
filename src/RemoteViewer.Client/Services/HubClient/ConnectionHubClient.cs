@@ -4,7 +4,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Nerdbank.MessagePack.SignalR;
+using RemoteViewer.Client.Services.Auth;
 using RemoteViewer.Shared;
+using System.Net.Http.Json;
+using System.Net.Http.Headers;
 
 namespace RemoteViewer.Client.Services.HubClient;
 
@@ -13,23 +16,29 @@ public class ConnectionHubClient : IAsyncDisposable
     private readonly ILogger<ConnectionHubClient> _logger;
     private readonly IServiceProvider _serviceProvider;
     private readonly HubConnection _connection;
+    private readonly ClientIdentityService _identityService;
+    private readonly HttpClient _httpClient;
+    private string? _accessToken;
     private readonly ConcurrentDictionary<string, Connection> _connections = new();
     private bool _disposed;
 
     public ConnectionHubClient(
         ILogger<ConnectionHubClient> logger,
         IServiceProvider serviceProvider,
-        IOptions<ConnectionHubClientOptions> options)
+        IOptions<ConnectionHubClientOptions> options,
+        ClientIdentityService identityService,
+        HttpClient httpClient)
     {
         this._logger = logger;
         this._serviceProvider = serviceProvider;
         this.Options = options.Value;
+        this._identityService = identityService;
+        this._httpClient = httpClient;
 
         this._connection = new HubConnectionBuilder()
             .WithUrl($"{this.Options.BaseUrl}/connection", httpOptions =>
             {
-                httpOptions.Headers.Add("X-Client-Version", ThisAssembly.AssemblyInformationalVersion);
-                httpOptions.Headers.Add("X-Display-Name", this.DisplayName);
+                httpOptions.AccessTokenProvider = () => Task.FromResult(this._accessToken ?? this.Options.AccessToken);
             })
 
             .WithAutomaticReconnect()
@@ -84,14 +93,6 @@ public class ConnectionHubClient : IAsyncDisposable
             ((IConnectionImpl)connection).OnMessageReceived(senderClientId, messageType, data);
         });
 
-        this._connection.On<string, string>("VersionMismatch", (serverVersion, clientVersion) =>
-        {
-            this.HasVersionMismatch = true;
-            this.ServerVersion = serverVersion;
-
-            this._hubConnectionStatusChanged?.Invoke(this, EventArgs.Empty);
-        });
-
         this._connection.Closed += (error) =>
         {
             this.IsReconnecting = false;
@@ -119,6 +120,9 @@ public class ConnectionHubClient : IAsyncDisposable
                 return Task.CompletedTask;
             }
 
+            this._accessToken = null;
+            this.Options.AccessToken = null;
+
             if (this.HasVersionMismatch)
             {
                 this._logger.LogWarning("Not reconnecting due to version mismatch");
@@ -142,6 +146,9 @@ public class ConnectionHubClient : IAsyncDisposable
 
             this.CloseAllConnections();
             this._hubConnectionStatusChanged?.Invoke(this, EventArgs.Empty);
+
+            this._accessToken = null;
+            this.Options.AccessToken = null;
 
             return Task.CompletedTask;
         };
@@ -228,6 +235,13 @@ public class ConnectionHubClient : IAsyncDisposable
             try
             {
                 this._logger.LogInformation("Connecting to server...");
+                await this.AuthenticateAsync();
+
+                if (this.HasVersionMismatch || string.IsNullOrWhiteSpace(this._accessToken))
+                {
+                    return;
+                }
+
                 await this._connection.StartAsync();
 
                 this._logger.LogInformation("Connected to server successfully");
@@ -240,6 +254,81 @@ public class ConnectionHubClient : IAsyncDisposable
                 this._logger.LogWarning(ex, "Connection attempt failed, retrying in 200 milliseconds");
                 await Task.Delay(200);
             }
+        }
+    }
+
+    private async Task AuthenticateAsync()
+    {
+        try
+        {
+            var identity = await this._identityService.GetIdentityAsync();
+            var registrationResponse = await this._httpClient.PostAsJsonAsync(
+                $"{this.Options.BaseUrl}/api/auth/register",
+                new ClientRegistrationRequest(identity.ClientGuid, identity.PublicKeyBase64, identity.KeyFormat));
+            registrationResponse.EnsureSuccessStatusCode();
+            var registration = await registrationResponse.Content.ReadFromJsonAsync<ClientRegistrationResponse>();
+            if (registration is null)
+            {
+                this._logger.LogWarning("Client registration failed: empty response");
+                return;
+            }
+
+            if (!registration.IsRegistered)
+            {
+                this._logger.LogWarning("Client registration failed: {Error}", registration.Error);
+                return;
+            }
+
+            var nonceResponse = await this._httpClient.PostAsJsonAsync(
+                $"{this.Options.BaseUrl}/api/auth/nonce",
+                new ClientAuthNonceRequest(identity.ClientGuid));
+            nonceResponse.EnsureSuccessStatusCode();
+            var challenge = await nonceResponse.Content.ReadFromJsonAsync<ClientAuthChallenge>();
+            if (challenge is null)
+            {
+                this._logger.LogWarning("Client auth challenge failed: empty response");
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(challenge.Nonce))
+            {
+                this._logger.LogWarning("Client auth challenge failed: {Error}", challenge.Error);
+                return;
+            }
+
+            var signature = identity.SignNonce(challenge.Nonce);
+            var authResponse = await this._httpClient.PostAsJsonAsync(
+                $"{this.Options.BaseUrl}/api/auth/authenticate",
+                new ClientAuthRequest(
+                    identity.ClientGuid,
+                    signature,
+                    this.DisplayName,
+                    ThisAssembly.AssemblyInformationalVersion));
+            authResponse.EnsureSuccessStatusCode();
+            var authResult = await authResponse.Content.ReadFromJsonAsync<ClientAuthTokenResponse>();
+            if (authResult is null)
+            {
+                this._logger.LogWarning("Client authentication failed: empty response");
+                return;
+            }
+
+            if (!authResult.IsAuthenticated)
+            {
+                this._logger.LogWarning("Client authentication failed: {Error}", authResult.Error);
+                if (!string.IsNullOrWhiteSpace(authResult.ServerVersion))
+                {
+                    this.HasVersionMismatch = true;
+                    this.ServerVersion = authResult.ServerVersion;
+                    this._hubConnectionStatusChanged?.Invoke(this, EventArgs.Empty);
+                }
+                return;
+            }
+
+            this._accessToken = authResult.AccessToken;
+            this.Options.AccessToken = authResult.AccessToken;
+        }
+        catch (Exception ex)
+        {
+            this._logger.LogWarning(ex, "Client authentication failed");
         }
     }
 
@@ -366,13 +455,31 @@ public class ConnectionHubClient : IAsyncDisposable
 
     internal async Task<string?> GenerateIpcAuthTokenAsync(string connectionId)
     {
-        if (!this.IsConnected || this.IsReconnecting)
+        if (string.IsNullOrWhiteSpace(this._accessToken))
             return null;
 
         try
         {
             this._logger.LogDebug("Generating IPC auth token for connection: {ConnectionId}", connectionId);
-            return await this._connection.InvokeAsync<string?>("GenerateIpcAuthToken", connectionId);
+            var request = new HttpRequestMessage(HttpMethod.Post, $"{this.Options.BaseUrl}/api/ipc/token")
+            {
+                Content = JsonContent.Create(new IpcTokenRequest(connectionId))
+            };
+            if (!string.IsNullOrWhiteSpace(this._accessToken))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", this._accessToken);
+            }
+
+            var response = await this._httpClient.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+            var result = await response.Content.ReadFromJsonAsync<IpcTokenResponse>();
+            if (result is null || !result.Success)
+            {
+                this._logger.LogWarning("Failed to generate IPC auth token: {Error}", result?.Error ?? "empty response");
+                return null;
+            }
+
+            return result.Token;
         }
         catch (Exception ex)
         {
@@ -425,3 +532,4 @@ public sealed class ConnectionStartedEventArgs : EventArgs
 }
 
 #endregion
+

@@ -435,6 +435,7 @@ public class TryConnectErrorTests
         await Assert.That(values).Contains(TryConnectError.ViewerNotFound);
         await Assert.That(values).Contains(TryConnectError.IncorrectUsernameOrPassword);
         await Assert.That(values).Contains(TryConnectError.CannotConnectToYourself);
+        await Assert.That(values).Contains(TryConnectError.NotAuthenticated);
     }
 }
 

@@ -1,4 +1,4 @@
-﻿using NSubstitute;
+using NSubstitute;
 using RemoteViewer.Client.Controls.Dialogs;
 using RemoteViewer.Client.Services.FileTransfer;
 using RemoteViewer.Client.Services.HubClient;
@@ -1135,3 +1135,4 @@ public class ConnectionHubClientTests()
 
     #endregion
 }
+
